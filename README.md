@@ -23,6 +23,18 @@ npx ship-safe init
 
 That's it. Three commands to secure your MVP.
 
+### Let AI Do It For You
+
+Copy this prompt to your AI coding assistant:
+
+```
+Run "npx ship-safe scan ." on my project and fix any secrets you find.
+Then run "npx ship-safe init" to add security configs.
+Explain what you're doing as you go.
+```
+
+[More AI prompts for specific frameworks](./AI_SECURITY_PROMPT.md)
+
 ---
 
 ## Why This Exists
