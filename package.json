@@ -1,0 +1,54 @@
+{
+  "name": "ship-safe",
+  "version": "1.0.0",
+  "description": "Security toolkit for vibe coders and indie hackers. Secure your MVP in 5 minutes.",
+  "main": "cli/index.js",
+  "bin": {
+    "ship-safe": "./cli/bin/ship-safe.js"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "lint": "eslint cli/",
+    "ship-safe": "node cli/bin/ship-safe.js"
+  },
+  "keywords": [
+    "security",
+    "secrets",
+    "scanner",
+    "devops",
+    "devsecops",
+    "api-keys",
+    "gitignore",
+    "indie-hacker",
+    "vibe-coding",
+    "mvp",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/asamassekou10/ship-safe.git"
+  },
+  "bugs": {
+    "url": "https://github.com/asamassekou10/ship-safe/issues"
+  },
+  "homepage": "https://github.com/asamassekou10/ship-safe#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "cli/",
+    "checklists/",
+    "configs/",
+    "snippets/",
+    "ai-defense/"
+  ],
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "glob": "^10.3.10",
+    "ora": "^8.0.1"
+  }
+}
