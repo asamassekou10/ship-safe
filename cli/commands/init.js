@@ -70,7 +70,8 @@ export async function initCommand(options = {}) {
 // =============================================================================
 
 async function handleGitignore(targetDir, force, results) {
-  const sourcePath = path.join(PACKAGE_ROOT, '.gitignore');
+  // Note: We use 'gitignore-template' because npm excludes dotfiles from packages
+  const sourcePath = path.join(PACKAGE_ROOT, 'configs', 'gitignore-template');
   const targetPath = path.join(targetDir, '.gitignore');
 
   // Check if source exists
