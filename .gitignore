@@ -1,0 +1,258 @@
+# =============================================================================
+# SHIP SAFE .GITIGNORE
+# =============================================================================
+# This file prevents you from accidentally committing sensitive data.
+# Copy this to your project root. Customize as needed.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# ENVIRONMENT FILES - THE #1 SOURCE OF LEAKED SECRETS
+# -----------------------------------------------------------------------------
+# These files often contain API keys, database URLs, and passwords.
+# NEVER commit these. Use .env.example with placeholder values instead.
+
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.staging
+.env*.local
+
+# Some frameworks use different names
+.envrc
+.env.backup
+.env.bak
+*.env
+
+# -----------------------------------------------------------------------------
+# PRIVATE KEYS & CERTIFICATES
+# -----------------------------------------------------------------------------
+# These are cryptographic secrets. If leaked, attackers can impersonate you.
+
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*.csr
+
+# SSH keys - NEVER commit these
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+id_dsa
+id_dsa.pub
+*.ppk
+
+# GPG keys
+*.gpg
+*.asc
+secring.*
+
+# -----------------------------------------------------------------------------
+# API KEYS & CREDENTIALS FILES
+# -----------------------------------------------------------------------------
+# Various tools store credentials in these files
+
+# Google Cloud / Firebase
+**/service-account*.json
+*-firebase-adminsdk-*.json
+credentials.json
+client_secret*.json
+
+# AWS
+.aws/credentials
+aws-credentials.json
+*.aws
+
+# Stripe
+stripe-cli-config.toml
+
+# Generic credential files
+*credentials*
+*secrets*
+*.secrets.json
+config/secrets.yml
+secrets.yml
+secrets.yaml
+
+# Exception: Allow our security scanning scripts
+!scripts/
+!scripts/*
+
+# -----------------------------------------------------------------------------
+# DATABASE FILES
+# -----------------------------------------------------------------------------
+# Local databases may contain user data or test credentials
+
+*.sqlite
+*.sqlite3
+*.db
+*.sql
+dump.rdb
+
+# -----------------------------------------------------------------------------
+# LOGS - MAY CONTAIN SENSITIVE DATA
+# -----------------------------------------------------------------------------
+# Logs can accidentally contain API responses, user data, or errors with secrets
+
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# -----------------------------------------------------------------------------
+# OS FILES - NOT SENSITIVE BUT ANNOYING
+# -----------------------------------------------------------------------------
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# -----------------------------------------------------------------------------
+# IDE & EDITOR FILES
+# -----------------------------------------------------------------------------
+# May contain local paths or workspace settings with secrets
+
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+*.sublime-workspace
+*.sublime-project
+.project
+.classpath
+.settings/
+*.code-workspace
+
+# -----------------------------------------------------------------------------
+# DEPENDENCY DIRECTORIES
+# -----------------------------------------------------------------------------
+# These are large and should be installed fresh via package manager
+
+node_modules/
+vendor/
+.bundle/
+bower_components/
+jspm_packages/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+ENV/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# -----------------------------------------------------------------------------
+# BUILD OUTPUT - MAY CONTAIN INLINED SECRETS
+# -----------------------------------------------------------------------------
+# Build processes sometimes inline environment variables
+
+.next/
+.nuxt/
+dist/
+build/
+out/
+.output/
+.cache/
+.parcel-cache/
+.turbo/
+
+# -----------------------------------------------------------------------------
+# TEST & COVERAGE - MAY CONTAIN SNAPSHOTS OF SENSITIVE DATA
+# -----------------------------------------------------------------------------
+
+coverage/
+.nyc_output/
+*.lcov
+
+# -----------------------------------------------------------------------------
+# VERCEL & DEPLOYMENT
+# -----------------------------------------------------------------------------
+# Vercel CLI may cache tokens
+
+.vercel/
+
+# -----------------------------------------------------------------------------
+# MISC SECURITY-SENSITIVE PATTERNS
+# -----------------------------------------------------------------------------
+
+# Backup files might contain old secrets
+*.bak
+*.backup
+*.old
+*.orig
+*.temp
+*.tmp
+
+# Archives that might contain sensitive exports
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+
+# Docker secrets
+docker-compose.override.yml
+.docker/
+
+# Terraform state (contains infrastructure secrets)
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
+
+# Ansible vault
+*.vault
+
+# Kubernetes secrets
+*kubeconfig*
+
+# -----------------------------------------------------------------------------
+# ADD YOUR PROJECT-SPECIFIC IGNORES BELOW
+# -----------------------------------------------------------------------------
+
+.claude/
