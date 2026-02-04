@@ -232,7 +232,7 @@ async function logout(userId: string) {
 {
   sub: 'user123',
   email: 'user@example.com',
-  password: 'hashed_password',  // NEVER!
+  passwordHash: '...',          // NEVER store passwords/hashes!
   ssn: '123-45-6789',           // NEVER!
   creditCard: '4111...',        // NEVER!
 }

@@ -95,7 +95,7 @@ npx ship-safe scan .
 
 # Or manually search
 find . -name "*.json" -exec grep -l "private_key" {} \;
-grep -r "-----BEGIN PRIVATE KEY-----" .
+grep -r "BEGIN PRIVATE KEY" .
 ```
 
 ---
