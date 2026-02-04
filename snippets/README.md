@@ -6,40 +6,73 @@ This folder contains drop-in code snippets for securing your application. Each s
 
 ---
 
-## Coming Soon
+## Available Snippets
 
-- **Rate Limiting**
-  - Express.js middleware
-  - Next.js API route wrapper
-  - Upstash Redis implementation
+### Rate Limiting
 
-- **Authentication**
-  - Secure session configuration
-  - JWT validation middleware
-  - OAuth state parameter handling
+| File | Description |
+|------|-------------|
+| [upstash-ratelimit.ts](./rate-limiting/upstash-ratelimit.ts) | Production-ready rate limiting with Upstash Redis. Includes different limiters for API, auth, and AI endpoints. |
+| [nextjs-middleware.ts](./rate-limiting/nextjs-middleware.ts) | In-memory rate limiting at the Next.js middleware level. Good for development or simple deployments. |
 
-- **Input Validation**
-  - Zod schemas for common patterns
-  - SQL injection prevention
-  - XSS sanitization
+**Quick Start:**
+```typescript
+import { apiRatelimit } from './rate-limiting/upstash-ratelimit';
 
-- **API Security**
-  - CORS configuration
-  - API key validation
-  - Webhook signature verification (Stripe, GitHub)
+const { success } = await apiRatelimit.limit(userId);
+if (!success) {
+  return new Response('Too Many Requests', { status: 429 });
+}
+```
 
 ---
 
-## Contributing
+### Authentication
 
-Have a security snippet that saved your app? Add it here!
+| File | Description |
+|------|-------------|
+| [jwt-checklist.md](./auth/jwt-checklist.md) | Complete JWT security checklist. Covers algorithms, token lifetime, storage, validation, and revocation. |
 
-1. Create a new file: `snippets/your-snippet-name.{js,ts,py}`
-2. Add extensive comments explaining:
-   - What attack this prevents
-   - How to integrate it
-   - Common gotchas
-3. Open a PR
+**Key Points:**
+- Use RS256/ES256, not HS256 with weak secrets
+- Access tokens: 15-60 minutes max
+- Store in httpOnly cookies, not localStorage
+- Always validate issuer and audience claims
+
+---
+
+### API Security
+
+| File | Description |
+|------|-------------|
+| [cors-config.ts](./api-security/cors-config.ts) | CORS configurations for Next.js, Express, Fastify, Hono, and Vercel Edge. |
+| [input-validation.ts](./api-security/input-validation.ts) | Zod schemas and validation patterns for API endpoints. Includes file upload validation. |
+| [api-security-checklist.md](./api-security/api-security-checklist.md) | Comprehensive API security checklist based on OWASP API Security Top 10. |
+
+**Quick Start (CORS):**
+```typescript
+const ALLOWED_ORIGINS = ['https://yourapp.com'];
+
+// Only allow specific origins
+if (origin && ALLOWED_ORIGINS.includes(origin)) {
+  headers['Access-Control-Allow-Origin'] = origin;
+}
+```
+
+**Quick Start (Validation):**
+```typescript
+import { z } from 'zod';
+
+const schema = z.object({
+  email: z.string().email().max(255),
+  password: z.string().min(8).max(128),
+});
+
+const result = schema.safeParse(body);
+if (!result.success) {
+  return Response.json({ error: result.error.issues }, { status: 400 });
+}
+```
 
 ---
 
@@ -56,3 +89,34 @@ Each snippet follows this format:
 
 [actual code with inline comments]
 ```
+
+---
+
+## Related Resources
+
+- **[/configs](../configs/)** - Framework configs (Next.js headers, Supabase RLS, Firebase rules)
+- **[/ai-defense](../ai-defense/)** - AI/LLM security (prompt injection, cost protection)
+- **[/checklists](../checklists/)** - Security checklists (launch day)
+
+---
+
+## Contributing
+
+Have a security snippet that saved your app? Add it here!
+
+1. Create a new file in the appropriate subfolder
+2. Add extensive comments explaining:
+   - What attack this prevents
+   - How to integrate it
+   - Common gotchas
+3. Open a PR
+
+---
+
+## What's Next
+
+Future additions planned:
+- Webhook signature verification (Stripe, GitHub)
+- OAuth state parameter handling
+- CSRF protection patterns
+- Content Security Policy builder
