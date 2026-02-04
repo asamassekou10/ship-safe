@@ -1,0 +1,215 @@
+// =============================================================================
+// FIREBASE FIRESTORE SECURITY RULES TEMPLATES
+// =============================================================================
+//
+// Copy these rules to your Firebase Console > Firestore > Rules
+//
+// WHY THIS MATTERS:
+// - Default test mode rules allow ANYONE to read/write ALL data
+// - Test mode is the #1 cause of Firebase data breaches
+// - 40% of Firebase apps have misconfigured security rules
+//
+// HOW TO USE:
+// 1. Go to Firebase Console > Firestore Database > Rules
+// 2. Replace the default rules with these templates
+// 3. Customize for your data structure
+// 4. Publish and test thoroughly
+//
+// =============================================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // HELPER FUNCTIONS
+    // =========================================================================
+
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Get the authenticated user's ID
+    function userId() {
+      return request.auth.uid;
+    }
+
+    // Check if user owns a document (document has a userId field)
+    function isOwner() {
+      return isAuthenticated() && resource.data.userId == userId();
+    }
+
+    // Check if user is creating a document with their own userId
+    function isCreatingOwn() {
+      return isAuthenticated() && request.resource.data.userId == userId();
+    }
+
+    // Check if user has a specific role (requires a users collection with role field)
+    function hasRole(role) {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(userId())).data.role == role;
+    }
+
+    // Check if user is admin
+    function isAdmin() {
+      return hasRole('admin');
+    }
+
+    // Validate that required fields exist
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // Check if only allowed fields are being modified
+    function onlyUpdating(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    // =========================================================================
+    // PATTERN 1: USER PROFILES (User owns their profile)
+    // =========================================================================
+
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+
+      // Users can create their own profile
+      allow create: if isAuthenticated()
+        && request.auth.uid == userId
+        && hasRequiredFields(['email', 'createdAt'])
+        && request.resource.data.createdAt == request.time;
+
+      // Users can update their own profile (except role)
+      allow update: if isAuthenticated()
+        && request.auth.uid == userId
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']);
+
+      // Only admins can delete users
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // PATTERN 2: PRIVATE DATA (User's own data)
+    // =========================================================================
+
+    match /private/{userId}/{document=**} {
+      // Users can only access their own private data
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // =========================================================================
+    // PATTERN 3: POSTS/CONTENT (Public read, authenticated write)
+    // =========================================================================
+
+    match /posts/{postId} {
+      // Anyone can read published posts
+      allow read: if resource.data.published == true
+        || (isAuthenticated() && resource.data.authorId == userId());
+
+      // Authenticated users can create posts
+      allow create: if isAuthenticated()
+        && request.resource.data.authorId == userId()
+        && hasRequiredFields(['title', 'content', 'authorId', 'createdAt'])
+        && request.resource.data.createdAt == request.time;
+
+      // Authors can update their own posts
+      allow update: if isAuthenticated()
+        && resource.data.authorId == userId()
+        && request.resource.data.authorId == userId();  // Can't change author
+
+      // Authors and admins can delete
+      allow delete: if isAuthenticated()
+        && (resource.data.authorId == userId() || isAdmin());
+    }
+
+    // =========================================================================
+    // PATTERN 4: ORGANIZATION/TEAM DATA
+    // =========================================================================
+
+    match /organizations/{orgId} {
+      // Function to check org membership
+      function isOrgMember() {
+        return isAuthenticated() &&
+          exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(userId()));
+      }
+
+      function isOrgAdmin() {
+        return isAuthenticated() &&
+          get(/databases/$(database)/documents/organizations/$(orgId)/members/$(userId())).data.role == 'admin';
+      }
+
+      // Org members can read org data
+      allow read: if isOrgMember();
+
+      // Only org admins can update org settings
+      allow update: if isOrgAdmin();
+
+      // Nested collection: org members
+      match /members/{memberId} {
+        allow read: if isOrgMember();
+        allow write: if isOrgAdmin();
+      }
+
+      // Nested collection: org projects
+      match /projects/{projectId} {
+        allow read: if isOrgMember();
+        allow create: if isOrgMember()
+          && request.resource.data.createdBy == userId();
+        allow update: if isOrgMember();
+        allow delete: if isOrgAdmin();
+      }
+    }
+
+    // =========================================================================
+    // PATTERN 5: RATE LIMITING (Using timestamps)
+    // =========================================================================
+
+    match /rateLimited/{docId} {
+      // Allow creation only if user hasn't created one in the last minute
+      allow create: if isAuthenticated()
+        && (!exists(/databases/$(database)/documents/rateLimited/$(userId()))
+          || get(/databases/$(database)/documents/rateLimited/$(userId())).data.lastAction < request.time - duration.value(1, 'm'));
+    }
+
+    // =========================================================================
+    // PATTERN 6: READ-ONLY PUBLIC DATA
+    // =========================================================================
+
+    match /public/{document=**} {
+      // Anyone can read public data
+      allow read: if true;
+
+      // Only admins can write
+      allow write: if isAdmin();
+    }
+
+    // =========================================================================
+    // ANTI-PATTERNS: NEVER DO THIS
+    // =========================================================================
+
+    // BAD: Allows anyone to read/write everything
+    // match /{document=**} {
+    //   allow read, write: if true;
+    // }
+
+    // BAD: Test mode rules (auto-generated, REMOVE before production)
+    // match /{document=**} {
+    //   allow read, write: if request.time < timestamp.date(2024, 12, 31);
+    // }
+
+    // BAD: Checking auth but not ownership
+    // match /users/{userId} {
+    //   allow read, write: if request.auth != null;  // Any user can access any user!
+    // }
+
+    // =========================================================================
+    // DEFAULT: DENY ALL (Safety net)
+    // =========================================================================
+
+    // Deny access to any collection not explicitly defined above
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

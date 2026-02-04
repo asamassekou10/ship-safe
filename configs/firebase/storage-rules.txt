@@ -1,0 +1,206 @@
+// =============================================================================
+// FIREBASE STORAGE SECURITY RULES TEMPLATES
+// =============================================================================
+//
+// Copy these rules to your Firebase Console > Storage > Rules
+//
+// WHY THIS MATTERS:
+// - Default rules may allow anyone to upload/download files
+// - Uploaded files can contain malware or illegal content
+// - Storage costs can explode if not properly secured
+//
+// HOW TO USE:
+// 1. Go to Firebase Console > Storage > Rules
+// 2. Replace the default rules with these templates
+// 3. Customize paths and limits for your app
+// 4. Publish and test thoroughly
+//
+// =============================================================================
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // =========================================================================
+    // HELPER FUNCTIONS
+    // =========================================================================
+
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Get the authenticated user's ID
+    function userId() {
+      return request.auth.uid;
+    }
+
+    // Check file size (in bytes)
+    function isUnderMaxSize(maxSizeMB) {
+      return request.resource.size < maxSizeMB * 1024 * 1024;
+    }
+
+    // Check if file is an image
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    // Check if file is a specific image type
+    function isImageType(types) {
+      return request.resource.contentType in types;
+    }
+
+    // Check if file is a document
+    function isDocument() {
+      return request.resource.contentType in [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ];
+    }
+
+    // =========================================================================
+    // PATTERN 1: USER AVATARS (User's own files)
+    // =========================================================================
+
+    match /avatars/{userId}/{fileName} {
+      // Anyone can view avatars (they're public profile pictures)
+      allow read: if true;
+
+      // Users can only upload to their own folder
+      allow write: if isAuthenticated()
+        && request.auth.uid == userId
+        && isImage()
+        && isUnderMaxSize(2)  // 2MB max
+        && isImageType(['image/jpeg', 'image/png', 'image/webp']);
+    }
+
+    // =========================================================================
+    // PATTERN 2: PRIVATE USER FILES
+    // =========================================================================
+
+    match /users/{userId}/private/{allPaths=**} {
+      // Users can only access their own private files
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+
+      // Users can upload to their own folder with size limits
+      allow write: if isAuthenticated()
+        && request.auth.uid == userId
+        && isUnderMaxSize(10);  // 10MB max
+
+      // Users can delete their own files
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // =========================================================================
+    // PATTERN 3: SHARED/PUBLIC FILES (Authenticated upload, public read)
+    // =========================================================================
+
+    match /public/{allPaths=**} {
+      // Anyone can read public files
+      allow read: if true;
+
+      // Only authenticated users can upload
+      allow write: if isAuthenticated()
+        && isUnderMaxSize(5)
+        && (isImage() || isDocument());
+
+      // Only admins can delete (implement admin check via custom claims)
+      allow delete: if request.auth.token.admin == true;
+    }
+
+    // =========================================================================
+    // PATTERN 4: ORGANIZATION FILES
+    // =========================================================================
+
+    match /organizations/{orgId}/{allPaths=**} {
+      // Check org membership via custom claims
+      function isOrgMember() {
+        return request.auth.token.orgId == orgId;
+      }
+
+      function isOrgAdmin() {
+        return request.auth.token.orgId == orgId
+          && request.auth.token.orgRole == 'admin';
+      }
+
+      // Org members can read
+      allow read: if isAuthenticated() && isOrgMember();
+
+      // Org members can upload
+      allow create: if isAuthenticated()
+        && isOrgMember()
+        && isUnderMaxSize(50);  // 50MB for org files
+
+      // Org admins can delete
+      allow delete: if isAuthenticated() && isOrgAdmin();
+    }
+
+    // =========================================================================
+    // PATTERN 5: TEMPORARY UPLOADS (with expiration)
+    // =========================================================================
+
+    match /temp/{uploadId} {
+      // Anyone authenticated can upload to temp
+      allow create: if isAuthenticated()
+        && isUnderMaxSize(10)
+        // Set metadata for cleanup jobs
+        && request.resource.metadata.uploadedBy == userId()
+        && request.resource.metadata.expiresAt != null;
+
+      // Only the uploader can read/delete their temp files
+      allow read, delete: if isAuthenticated()
+        && resource.metadata.uploadedBy == userId();
+    }
+
+    // =========================================================================
+    // PATTERN 6: STRICT IMAGE UPLOADS (Profile pictures, etc.)
+    // =========================================================================
+
+    match /images/{imageId} {
+      // Public read
+      allow read: if true;
+
+      // Strict upload requirements
+      allow create: if isAuthenticated()
+        // Must be an allowed image type
+        && isImageType(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+        // Max 5MB
+        && isUnderMaxSize(5)
+        // Must have dimensions metadata (set by client)
+        && request.resource.metadata.width != null
+        && request.resource.metadata.height != null
+        // Reasonable dimensions (prevent huge images)
+        && int(request.resource.metadata.width) <= 4096
+        && int(request.resource.metadata.height) <= 4096;
+    }
+
+    // =========================================================================
+    // ANTI-PATTERNS: NEVER DO THIS
+    // =========================================================================
+
+    // BAD: Allows anyone to read/write everything
+    // match /{allPaths=**} {
+    //   allow read, write: if true;
+    // }
+
+    // BAD: No file type validation (allows malware uploads)
+    // match /uploads/{file} {
+    //   allow write: if request.auth != null;
+    // }
+
+    // BAD: No size limits (allows storage cost attacks)
+    // match /files/{file} {
+    //   allow write: if request.auth != null;
+    // }
+
+    // =========================================================================
+    // DEFAULT: DENY ALL (Safety net)
+    // =========================================================================
+
+    // Deny access to any path not explicitly defined above
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

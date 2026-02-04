@@ -6,6 +6,9 @@ You're shipping fast. You're using AI to write code. You're one `git push` away 
 
 **Ship Safe** is a security toolkit for indie hackers and vibe coders who want to secure their MVP in 5 minutes, not 5 days.
 
+[![npm version](https://badge.fury.io/js/ship-safe.svg)](https://www.npmjs.com/package/ship-safe)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ---
 
 ## Quick Start
@@ -71,7 +74,14 @@ npx ship-safe scan . -v
 
 **Exit codes:** Returns `1` if secrets found (useful for CI), `0` if clean.
 
-**Detects:** OpenAI keys, AWS credentials, GitHub tokens, Stripe keys, Supabase service keys, database URLs, private keys, and 20+ more patterns.
+**Detects 50+ secret patterns:**
+- **AI/ML:** OpenAI, Anthropic, Google AI, Cohere, Replicate, Hugging Face
+- **Auth:** Clerk, Auth0, Supabase Auth
+- **Cloud:** AWS, Google Cloud, Azure
+- **Database:** Supabase, PlanetScale, Neon, MongoDB, PostgreSQL, MySQL
+- **Payment:** Stripe, PayPal
+- **Messaging:** Twilio, SendGrid, Resend
+- **And more:** GitHub tokens, private keys, JWTs, generic secrets
 
 ---
 
@@ -123,19 +133,149 @@ npx ship-safe init -f
 
 ### [`/configs`](./configs)
 **Secure defaults for popular stacks. Drop-in ready.**
-- [Next.js Security Headers](./configs/nextjs-security-headers.js) - CSP, X-Frame-Options, and more
+
+| Stack | Files |
+|-------|-------|
+| **Next.js** | [Security Headers](./configs/nextjs-security-headers.js) - CSP, X-Frame-Options, HSTS |
+| **Supabase** | [RLS Templates](./configs/supabase/rls-templates.sql) \| [Security Checklist](./configs/supabase/security-checklist.md) \| [Secure Client](./configs/supabase/secure-client.ts) |
+| **Firebase** | [Firestore Rules](./configs/firebase/firestore-rules.txt) \| [Storage Rules](./configs/firebase/storage-rules.txt) \| [Security Checklist](./configs/firebase/security-checklist.md) |
+
+### [`/snippets`](./snippets)
+**Copy-paste code blocks for common security patterns.**
+
+| Category | Files |
+|----------|-------|
+| **Rate Limiting** | [Upstash Redis](./snippets/rate-limiting/upstash-ratelimit.ts) \| [Next.js Middleware](./snippets/rate-limiting/nextjs-middleware.ts) |
+| **Authentication** | [JWT Security Checklist](./snippets/auth/jwt-checklist.md) |
+| **API Security** | [CORS Config](./snippets/api-security/cors-config.ts) \| [Input Validation](./snippets/api-security/input-validation.ts) \| [API Checklist](./snippets/api-security/api-security-checklist.md) |
+
+### [`/ai-defense`](./ai-defense)
+**Protect your AI features from abuse and cost explosions.**
+
+| File | Description |
+|------|-------------|
+| [LLM Security Checklist](./ai-defense/llm-security-checklist.md) | Based on OWASP LLM Top 10 - prompt injection, data protection, scope control |
+| [Prompt Injection Patterns](./ai-defense/prompt-injection-patterns.js) | Regex patterns to detect 25+ injection attempts |
+| [Cost Protection Guide](./ai-defense/cost-protection.md) | Prevent $50k surprise bills - rate limits, budget caps, circuit breakers |
+| [System Prompt Armor](./ai-defense/system-prompt-armor.md) | Template for hardened system prompts |
 
 ### [`/scripts`](./scripts)
 **Automated scanning tools. Run them in CI or locally.**
 - [Secret Scanner](./scripts/scan_secrets.py) - Python version of the secret scanner
 
-### [`/snippets`](./snippets)
-**Copy-paste code blocks for common security patterns.**
-- Rate limiting, auth middleware, input validation (coming soon)
+---
 
-### [`/ai-defense`](./ai-defense)
-**Protect your AI features from abuse.**
-- [System Prompt Armor](./ai-defense/system-prompt-armor.md) - Prevent prompt injection attacks
+## AI/LLM Security
+
+Building with AI? Don't let it bankrupt you or get hijacked.
+
+### Quick Setup
+
+```typescript
+import { containsInjectionAttempt } from './ai-defense/prompt-injection-patterns';
+
+async function handleChat(userInput: string) {
+  // 1. Check for injection attempts
+  const { detected } = containsInjectionAttempt(userInput);
+  if (detected) {
+    return "I can't process that request.";
+  }
+
+  // 2. Rate limit per user
+  const { success } = await ratelimit.limit(userId);
+  if (!success) {
+    return "Too many requests. Please slow down.";
+  }
+
+  // 3. Check budget before calling
+  await checkUserBudget(userId, estimatedCost);
+
+  // 4. Make the API call with token limits
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4',
+    messages,
+    max_tokens: 500, // Hard cap
+  });
+
+  return response;
+}
+```
+
+### Cost Protection Layers
+
+1. **Token limits** - Cap input/output per request
+2. **Rate limits** - Cap requests per user (10/min)
+3. **Budget caps** - Daily ($1) and monthly ($10) per user
+4. **Circuit breaker** - Disable AI when global budget hit
+5. **Provider limits** - Set hard limits in OpenAI/Anthropic dashboard
+
+[Full cost protection guide →](./ai-defense/cost-protection.md)
+
+---
+
+## Database Security
+
+### Supabase RLS Templates
+
+```sql
+-- Users can only see their own data
+CREATE POLICY "Users own their data" ON items
+  FOR ALL USING (auth.uid() = user_id);
+
+-- Read-only public data
+CREATE POLICY "Public read access" ON public_items
+  FOR SELECT USING (true);
+```
+
+[6 more RLS patterns →](./configs/supabase/rls-templates.sql)
+
+### Firebase Security Rules
+
+```javascript
+// Users can only access their own documents
+match /users/{userId} {
+  allow read, write: if request.auth != null
+    && request.auth.uid == userId;
+}
+```
+
+[Full Firestore rules template →](./configs/firebase/firestore-rules.txt)
+
+---
+
+## API Security
+
+### CORS (Don't use `*` in production)
+
+```typescript
+const ALLOWED_ORIGINS = [
+  'https://yourapp.com',
+  'https://www.yourapp.com',
+];
+
+// Only allow specific origins
+if (origin && ALLOWED_ORIGINS.includes(origin)) {
+  headers['Access-Control-Allow-Origin'] = origin;
+}
+```
+
+[CORS configs for Next.js, Express, Fastify, Hono →](./snippets/api-security/cors-config.ts)
+
+### Input Validation (Zod)
+
+```typescript
+const createUserSchema = z.object({
+  email: z.string().email().max(255),
+  password: z.string().min(8).max(128),
+});
+
+const result = createUserSchema.safeParse(body);
+if (!result.success) {
+  return Response.json({ error: result.error.issues }, { status: 400 });
+}
+```
+
+[Full validation patterns →](./snippets/api-security/input-validation.ts)
 
 ---
 
@@ -164,11 +304,13 @@ The scan exits with code `1` if secrets are found, failing your build.
 
 ## The 5-Minute Security Checklist
 
-1. Run `npx ship-safe scan .` on your project
-2. Run `npx ship-safe init` to add security configs
-3. Add security headers to your Next.js config
-4. Run `npx ship-safe checklist` before launching
-5. If using AI features, add the [System Prompt Armor](./ai-defense/system-prompt-armor.md)
+1. ✅ Run `npx ship-safe scan .` on your project
+2. ✅ Run `npx ship-safe init` to add security configs
+3. ✅ Add security headers to your Next.js config
+4. ✅ Run `npx ship-safe checklist` before launching
+5. ✅ If using AI features, implement [cost protection](./ai-defense/cost-protection.md)
+6. ✅ If using Supabase, check the [RLS checklist](./configs/supabase/security-checklist.md)
+7. ✅ If using Firebase, check the [Firebase checklist](./configs/firebase/security-checklist.md)
 
 ---
 
@@ -190,15 +332,17 @@ Found a security pattern that saved your app? Share it!
 3. Include educational comments explaining *why* it matters
 4. Open a PR
 
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+
 ---
 
-## Stack-Specific Guides (Coming Soon)
+## Security Standards Reference
 
-- [ ] Supabase Security Defaults
-- [ ] Firebase Rules Templates
-- [ ] Vercel Environment Variables
-- [ ] Stripe Webhook Validation
-- [ ] Clerk/Auth.js Hardening
+This toolkit is based on:
+- [OWASP Top 10 Web 2025](https://owasp.org/Top10/)
+- [OWASP Top 10 Mobile 2024](https://owasp.org/www-project-mobile-top-10/)
+- [OWASP LLM Top 10 2025](https://genai.owasp.org/llm-top-10/)
+- [OWASP API Security Top 10 2023](https://owasp.org/API-Security/)
 
 ---
 
