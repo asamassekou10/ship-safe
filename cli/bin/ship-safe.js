@@ -15,6 +15,9 @@
 
 import { program } from 'commander';
 import chalk from 'chalk';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { scanCommand } from '../commands/scan.js';
 import { checklistCommand } from '../commands/checklist.js';
 import { initCommand } from '../commands/init.js';
@@ -23,7 +26,11 @@ import { initCommand } from '../commands/init.js';
 // CLI CONFIGURATION
 // =============================================================================
 
-const VERSION = '1.0.0';
+// Read version from package.json
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJson = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf8'));
+const VERSION = packageJson.version;
 
 // Banner shown on help
 const banner = `
