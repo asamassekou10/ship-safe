@@ -26,6 +26,8 @@ npx ship-safe init
 
 That's it. Three commands to secure your MVP.
 
+![ship-safe terminal demo](ship%20safe%20terminal.jpg)
+
 ### Let AI Do It For You
 
 Copy this prompt to your AI coding assistant:

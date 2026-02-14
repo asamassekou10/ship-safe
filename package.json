@@ -52,7 +52,8 @@
     "checklists/",
     "configs/",
     "snippets/",
-    "ai-defense/"
+    "ai-defense/",
+    "ship safe terminal.jpg"
   ],
   "dependencies": {
     "chalk": "^5.3.0",
