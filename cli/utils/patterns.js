@@ -484,48 +484,56 @@ export const SECRET_PATTERNS = [
   },
 
   // =========================================================================
-  // MEDIUM: Generic patterns (may have false positives)
+  // MEDIUM: Generic patterns (entropy-checked to reduce false positives)
+  // requiresEntropyCheck: true → value is scored before reporting
   // =========================================================================
   {
     name: 'Generic API Key Assignment',
     pattern: /["']?(?:api[_-]?key|apikey)["']?\s*[:=]\s*["']([a-zA-Z0-9_\-]{20,})["']/gi,
     severity: 'medium',
+    requiresEntropyCheck: true,
     description: 'Hardcoded API keys should be moved to environment variables.'
   },
   {
     name: 'Generic Secret Assignment',
     pattern: /["']?(?:secret|secret[_-]?key)["']?\s*[:=]\s*["']([a-zA-Z0-9_\-]{20,})["']/gi,
     severity: 'medium',
+    requiresEntropyCheck: true,
     description: 'Hardcoded secrets should be moved to environment variables.'
   },
   {
     name: 'Password Assignment',
     pattern: /["']?password["']?\s*[:=]\s*["']([^"']{8,})["']/gi,
     severity: 'medium',
+    requiresEntropyCheck: true,
     description: 'Hardcoded passwords are a critical vulnerability.'
   },
   {
     name: 'Database URL with Credentials',
     pattern: /(mongodb|postgres|postgresql|mysql|redis):\/\/[^:]+:[^@]+@[^\s"']+/gi,
     severity: 'medium',
+    requiresEntropyCheck: true,
     description: 'Database URLs with embedded passwords expose your database.'
   },
   {
     name: 'Bearer Token in Code',
     pattern: /["']Bearer\s+[a-zA-Z0-9_\-\.=]{20,}["']/gi,
     severity: 'medium',
+    requiresEntropyCheck: true,
     description: 'Hardcoded bearer tokens should not be in source code.'
   },
   {
     name: 'Basic Auth Header',
     pattern: /["']Basic\s+[A-Za-z0-9+/=]{20,}["']/gi,
     severity: 'medium',
+    requiresEntropyCheck: true,
     description: 'Basic auth headers contain base64-encoded credentials.'
   },
   {
     name: 'Private Key in Environment Variable',
     pattern: /PRIVATE[_-]?KEY["']?\s*[:=]\s*["']([^"']+)["']/gi,
     severity: 'high',
+    requiresEntropyCheck: true,
     description: 'Private keys should be loaded from files, not hardcoded.'
   }
 ];
@@ -584,3 +592,26 @@ export const SKIP_EXTENSIONS = new Set([
 
 // Maximum file size to scan (1MB)
 export const MAX_FILE_SIZE = 1_000_000;
+
+// =============================================================================
+// TEST FILE PATTERNS (skipped by default, override with --include-tests)
+// =============================================================================
+// Test fixtures are the #1 source of false positives. They contain fake
+// credentials, mock data, and example values that look like real secrets.
+
+export const TEST_FILE_PATTERNS = [
+  /\.test\.[jt]sx?$/,
+  /\.spec\.[jt]sx?$/,
+  /\.test\.py$/,
+  /test_[^/]+\.py$/,
+  /__tests__[/\\]/,
+  /[/\\]tests?[/\\]/,
+  /[/\\]test[/\\]/,
+  /[/\\]fixtures?[/\\]/,
+  /[/\\]mocks?[/\\]/,
+  /[/\\]__mocks__[/\\]/,
+  /[/\\]stubs?[/\\]/,
+  /[/\\]fakes?[/\\]/,
+  /\.stories\.[jt]sx?$/,   // Storybook story files
+  /\.mock\.[jt]sx?$/,
+];

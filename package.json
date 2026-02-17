@@ -1,6 +1,6 @@
 {
   "name": "ship-safe",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Security toolkit for vibe coders and indie hackers. Secure your MVP in 5 minutes.",
   "main": "cli/index.js",
   "bin": {
@@ -52,8 +52,7 @@
     "checklists/",
     "configs/",
     "snippets/",
-    "ai-defense/",
-    "ship safe terminal.jpg"
+    "ai-defense/"
   ],
   "dependencies": {
     "chalk": "^5.3.0",

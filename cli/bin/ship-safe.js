@@ -63,6 +63,7 @@ program
   .option('-v, --verbose', 'Show all files being scanned')
   .option('--no-color', 'Disable colored output')
   .option('--json', 'Output results as JSON (useful for CI)')
+  .option('--include-tests', 'Also scan test files (excluded by default to reduce false positives)')
   .action(scanCommand);
 
 // -----------------------------------------------------------------------------

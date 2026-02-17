@@ -1,0 +1,50 @@
+# .ship-safeignore
+# =================
+# Exclude paths from ship-safe secret scanning.
+# Same syntax as .gitignore — one pattern per line, # for comments.
+#
+# Ship-safe already skips test files by default.
+# Use this file to exclude additional paths that generate false positives.
+#
+# USAGE:
+#   Copy this file to your project root as .ship-safeignore
+#   Then run: npx ship-safe scan .
+
+# ── Examples ──────────────────────────────────────────────────────────────────
+
+# Exclude a specific file
+# config/seed-data.js
+
+# Exclude a directory
+# scripts/fixtures/
+
+# Exclude all files matching a pattern
+# **/*.example.js
+# **/*.sample.*
+
+# Exclude documentation that contains example credentials
+# docs/
+# *.md
+
+# Exclude generated files
+# generated/
+# prisma/migrations/
+
+# Exclude vendor/third-party code not in node_modules
+# vendor/
+# third-party/
+
+# ── Common false positive sources ─────────────────────────────────────────────
+
+# E2E test fixtures (ship-safe skips unit tests but not e2e by default)
+# e2e/
+# cypress/fixtures/
+# playwright/
+
+# Seed data with example values
+# prisma/seed.ts
+# database/seeds/
+
+# Infrastructure-as-code with example configs
+# terraform/examples/
+# .terraform/

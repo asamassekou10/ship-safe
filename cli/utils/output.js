@@ -78,17 +78,26 @@ export function info(text) {
   console.log(chalk.blue('\u2139 ') + text);
 }
 
+const confidenceColors = {
+  high:   chalk.red,
+  medium: chalk.yellow,
+  low:    chalk.gray,
+};
+
 /**
  * Print a finding (secret detected)
  */
-export function finding(file, line, patternName, severity, matched, description) {
+export function finding(file, line, patternName, severity, matched, description, confidence) {
   const color = severityColors[severity] || chalk.white;
   const icon = severityIcons[severity] || '';
+  const confColor = confidenceColors[confidence] || chalk.gray;
+  const confLabel = confidence ? `  ${chalk.gray('Confidence:')} ${confColor(confidence)}` : '';
 
   console.log();
   console.log(chalk.white.bold(`${file}:${line}`));
   console.log(`  ${icon}${color(`[${severity.toUpperCase()}]`)} ${chalk.white(patternName)}`);
   console.log(`  ${chalk.gray('Found:')} ${chalk.yellow(maskSecret(matched))}`);
+  if (confLabel) console.log(confLabel);
   console.log(`  ${chalk.gray('Why:')} ${description}`);
 }
 
