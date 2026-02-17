@@ -1,6 +1,6 @@
 {
   "name": "ship-safe",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "Security toolkit for vibe coders and indie hackers. Secure your MVP in 5 minutes.",
   "main": "cli/index.js",
   "bin": {

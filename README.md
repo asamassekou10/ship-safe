@@ -1,21 +1,35 @@
-# Ship Safe
+<p align="center">
+  <img src=".github/assets/logo%20ship%20safe.png" alt="Ship Safe Logo" width="180" />
+</p>
 
-**Don't let vibe coding leak your API keys.**
+<h1 align="center">Ship Safe</h1>
+
+<p align="center"><strong>Don't let vibe coding leak your API keys.</strong></p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/ship-safe"><img src="https://badge.fury.io/js/ship-safe.svg" alt="npm version" /></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
+</p>
+
+---
 
 You're shipping fast. You're using AI to write code. You're one `git push` away from exposing your database credentials to the world.
 
 **Ship Safe** is a security toolkit for indie hackers and vibe coders who want to secure their MVP in 5 minutes, not 5 days.
-
-[![npm version](https://badge.fury.io/js/ship-safe.svg)](https://www.npmjs.com/package/ship-safe)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
 ## Quick Start
 
 ```bash
-# Scan your project for leaked secrets (no install required!)
+# Scan for leaked secrets (no install required!)
 npx ship-safe scan .
+
+# Auto-generate .env.example from found secrets
+npx ship-safe fix
+
+# Block git push if secrets are found
+npx ship-safe guard
 
 # Run the launch-day security checklist
 npx ship-safe checklist
@@ -24,9 +38,9 @@ npx ship-safe checklist
 npx ship-safe init
 ```
 
-That's it. Three commands to secure your MVP.
+That's it. Five commands to secure your MVP.
 
-![ship-safe terminal demo](ship%20safe%20terminal.jpg)
+![ship-safe terminal demo](.github/assets/ship%20safe%20terminal.jpg)
 
 ### Let AI Do It For You
 
@@ -76,6 +90,32 @@ npx ship-safe scan . -v
 
 **Exit codes:** Returns `1` if secrets found (useful for CI), `0` if clean.
 
+**Flags:**
+- `--json` — structured JSON output for CI pipelines
+- `--sarif` — SARIF format for GitHub Code Scanning
+- `--include-tests` — also scan test/spec/fixture files (excluded by default)
+- `-v` — verbose mode
+
+**Suppress false positives:**
+```bash
+const apiKey = 'example-key'; // ship-safe-ignore
+```
+Or exclude paths with `.ship-safeignore` (gitignore syntax).
+
+**Custom patterns** — create `.ship-safe.json` in your project root:
+```json
+{
+  "patterns": [
+    {
+      "name": "My Internal API Key",
+      "pattern": "MYAPP_[A-Z0-9]{32}",
+      "severity": "high",
+      "description": "Internal key for myapp services."
+    }
+  ]
+}
+```
+
 **Detects 50+ secret patterns:**
 - **AI/ML:** OpenAI, Anthropic, Google AI, Cohere, Replicate, Hugging Face
 - **Auth:** Clerk, Auth0, Supabase Auth
@@ -124,6 +164,66 @@ npx ship-safe init -f
 **What it copies:**
 - `.gitignore` - Patterns to prevent committing secrets
 - `security-headers.config.js` - Drop-in Next.js security headers
+
+---
+
+### `npx ship-safe fix`
+
+Scan for secrets and auto-generate a `.env.example` file.
+
+```bash
+# Scan and generate .env.example
+npx ship-safe fix
+
+# Preview what would be generated without writing it
+npx ship-safe fix --dry-run
+```
+
+---
+
+### `npx ship-safe guard`
+
+Install a git hook that blocks pushes if secrets are found. Works with or without Husky.
+
+```bash
+# Install pre-push hook (runs scan before every git push)
+npx ship-safe guard
+
+# Install pre-commit hook instead
+npx ship-safe guard --pre-commit
+
+# Remove installed hooks
+npx ship-safe guard remove
+```
+
+**Suppress false positives:**
+- Add `# ship-safe-ignore` as a comment on a line to skip it
+- Create `.ship-safeignore` (gitignore syntax) to exclude paths
+
+---
+
+### `npx ship-safe mcp`
+
+Start ship-safe as an MCP server so AI editors can call it directly.
+
+**Setup (Claude Desktop)** — add to `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "ship-safe": {
+      "command": "npx",
+      "args": ["ship-safe", "mcp"]
+    }
+  }
+}
+```
+
+Works with Claude Desktop, Cursor, Windsurf, Zed, and any MCP-compatible editor.
+
+**Available tools:**
+- `scan_secrets` — scan a directory for leaked secrets
+- `get_checklist` — return the security checklist as structured data
+- `analyze_file` — analyze a single file for issues
 
 ---
 

@@ -35,6 +35,48 @@ import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import * as output from '../utils/output.js';
 
 // =============================================================================
+// CUSTOM PATTERNS (.ship-safe.json)
+// =============================================================================
+
+/**
+ * Load custom patterns from .ship-safe.json in the project root.
+ *
+ * Format:
+ *   {
+ *     "patterns": [
+ *       {
+ *         "name": "My Internal Key",
+ *         "pattern": "MYAPP_[A-Z0-9]{32}",
+ *         "severity": "high",
+ *         "description": "Internal API key for myapp services."
+ *       }
+ *     ]
+ *   }
+ */
+function loadCustomPatterns(rootPath) {
+  const configPath = path.join(rootPath, '.ship-safe.json');
+  if (!fs.existsSync(configPath)) return [];
+
+  try {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    if (!Array.isArray(config.patterns)) return [];
+
+    return config.patterns
+      .filter(p => p.name && p.pattern)
+      .map(p => ({
+        name: `[custom] ${p.name}`,
+        pattern: new RegExp(p.pattern, 'g'),
+        severity: p.severity || 'high',
+        description: p.description || `Custom pattern: ${p.name}`,
+        custom: true,
+      }));
+  } catch (err) {
+    output.warning(`.ship-safe.json parse error: ${err.message}`);
+    return [];
+  }
+}
+
+// =============================================================================
 // MAIN SCAN FUNCTION
 // =============================================================================
 
@@ -49,6 +91,14 @@ export async function scanCommand(targetPath = '.', options = {}) {
 
   // Load .ship-safeignore patterns
   const ignorePatterns = loadIgnoreFile(absolutePath);
+
+  // Load custom patterns from .ship-safe.json
+  const customPatterns = loadCustomPatterns(absolutePath);
+  const allPatterns = [...SECRET_PATTERNS, ...customPatterns];
+
+  if (customPatterns.length > 0 && options.verbose) {
+    output.info(`Loaded ${customPatterns.length} custom pattern(s) from .ship-safe.json`);
+  }
 
   // Start spinner
   const spinner = ora({
@@ -66,7 +116,7 @@ export async function scanCommand(targetPath = '.', options = {}) {
     let scannedCount = 0;
 
     for (const file of files) {
-      const findings = await scanFile(file);
+      const findings = await scanFile(file, allPatterns);
       if (findings.length > 0) {
         results.push({ file, findings });
       }
@@ -80,7 +130,9 @@ export async function scanCommand(targetPath = '.', options = {}) {
     spinner.stop();
 
     // Output results
-    if (options.json) {
+    if (options.sarif) {
+      outputSARIF(results, absolutePath);
+    } else if (options.json) {
       outputJSON(results, files.length);
     } else {
       outputPretty(results, files.length, absolutePath);
@@ -199,7 +251,7 @@ function isTestFile(filePath) {
 // FILE SCANNING
 // =============================================================================
 
-async function scanFile(filePath) {
+async function scanFile(filePath, patterns = SECRET_PATTERNS) {
   const findings = [];
 
   try {
@@ -212,7 +264,7 @@ async function scanFile(filePath) {
       // Inline suppression: # ship-safe-ignore on the same line
       if (/ship-safe-ignore/i.test(line)) continue;
 
-      for (const pattern of SECRET_PATTERNS) {
+      for (const pattern of patterns) {
         // Reset regex state (important for global regexes)
         pattern.pattern.lastIndex = 0;
 
@@ -325,4 +377,77 @@ function outputJSON(results, filesScanned) {
   }
 
   console.log(JSON.stringify(jsonOutput, null, 2));
+}
+
+// =============================================================================
+// SARIF OUTPUT (GitHub Code Scanning compatible)
+// =============================================================================
+
+/**
+ * Output findings in SARIF 2.1.0 format.
+ * Feed this into GitHub's Security tab:
+ *   npx ship-safe scan . --sarif > results.sarif
+ *
+ * Then upload via:
+ *   github/codeql-action/upload-sarif@v3
+ */
+function outputSARIF(results, rootPath) {
+  const rules = {};
+
+  // Build rules from findings
+  for (const { findings } of results) {
+    for (const f of findings) {
+      if (!rules[f.patternName]) {
+        rules[f.patternName] = {
+          id: f.patternName.replace(/\s+/g, '-').toLowerCase(),
+          name: f.patternName,
+          shortDescription: { text: f.patternName },
+          fullDescription: { text: f.description },
+          defaultConfiguration: {
+            level: f.severity === 'critical' ? 'error'
+              : f.severity === 'high' ? 'error'
+              : f.severity === 'medium' ? 'warning'
+              : 'note'
+          },
+          helpUri: 'https://github.com/asamassekou10/ship-safe',
+        };
+      }
+    }
+  }
+
+  const sarif = {
+    version: '2.1.0',
+    $schema: 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json',
+    runs: [{
+      tool: {
+        driver: {
+          name: 'ship-safe',
+          version: '2.1.0',
+          informationUri: 'https://github.com/asamassekou10/ship-safe',
+          rules: Object.values(rules),
+        }
+      },
+      results: results.flatMap(({ file, findings }) =>
+        findings.map(f => ({
+          ruleId: f.patternName.replace(/\s+/g, '-').toLowerCase(),
+          level: f.severity === 'critical' || f.severity === 'high' ? 'error' : 'warning',
+          message: { text: f.description },
+          locations: [{
+            physicalLocation: {
+              artifactLocation: {
+                uri: path.relative(rootPath, file).replace(/\\/g, '/'),
+                uriBaseId: '%SRCROOT%'
+              },
+              region: {
+                startLine: f.line,
+                startColumn: f.column,
+              }
+            }
+          }]
+        }))
+      )
+    }]
+  };
+
+  console.log(JSON.stringify(sarif, null, 2));
 }

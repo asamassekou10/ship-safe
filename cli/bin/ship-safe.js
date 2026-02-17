@@ -10,6 +10,8 @@
  *   npx ship-safe scan [path]      Scan for secrets in your codebase
  *   npx ship-safe checklist        Run the launch-day security checklist
  *   npx ship-safe init             Initialize security configs in your project
+ *   npx ship-safe fix              Generate .env.example from found secrets
+ *   npx ship-safe guard            Install pre-push git hook
  *   npx ship-safe --help           Show all commands
  */
 
@@ -21,6 +23,9 @@ import { dirname, join } from 'path';
 import { scanCommand } from '../commands/scan.js';
 import { checklistCommand } from '../commands/checklist.js';
 import { initCommand } from '../commands/init.js';
+import { fixCommand } from '../commands/fix.js';
+import { guardCommand } from '../commands/guard.js';
+import { mcpCommand } from '../commands/mcp.js';
 
 // =============================================================================
 // CLI CONFIGURATION
@@ -63,6 +68,7 @@ program
   .option('-v, --verbose', 'Show all files being scanned')
   .option('--no-color', 'Disable colored output')
   .option('--json', 'Output results as JSON (useful for CI)')
+  .option('--sarif', 'Output results in SARIF format (for GitHub Code Scanning)')
   .option('--include-tests', 'Also scan test files (excluded by default to reduce false positives)')
   .action(scanCommand);
 
@@ -87,6 +93,32 @@ program
   .action(initCommand);
 
 // -----------------------------------------------------------------------------
+// FIX COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('fix')
+  .description('Scan for secrets and generate a .env.example with placeholder values')
+  .option('--dry-run', 'Preview generated .env.example without writing it')
+  .action(fixCommand);
+
+// -----------------------------------------------------------------------------
+// GUARD COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('guard [action]')
+  .description('Install a git hook to block pushes if secrets are found')
+  .option('--pre-commit', 'Install as pre-commit hook instead of pre-push')
+  .action(guardCommand);
+
+// -----------------------------------------------------------------------------
+// MCP SERVER COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('mcp')
+  .description('Start ship-safe as an MCP server (for Claude Desktop, Cursor, Windsurf, etc.)')
+  .action(mcpCommand);
+
+// -----------------------------------------------------------------------------
 // PARSE AND RUN
 // -----------------------------------------------------------------------------
 
@@ -94,7 +126,9 @@ program
 if (process.argv.length === 2) {
   console.log(banner);
   console.log(chalk.yellow('\nQuick start:\n'));
-  console.log(chalk.white('  npx ship-safe scan .        ') + chalk.gray('# Scan current directory for secrets'));
+  console.log(chalk.white('  npx ship-safe scan .        ') + chalk.gray('# Scan for secrets'));
+  console.log(chalk.white('  npx ship-safe fix           ') + chalk.gray('# Generate .env.example from secrets'));
+  console.log(chalk.white('  npx ship-safe guard         ') + chalk.gray('# Block git push if secrets found'));
   console.log(chalk.white('  npx ship-safe checklist     ') + chalk.gray('# Run security checklist'));
   console.log(chalk.white('  npx ship-safe init          ') + chalk.gray('# Add security configs to your project'));
   console.log(chalk.white('\n  npx ship-safe --help        ') + chalk.gray('# Show all options'));
