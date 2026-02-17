@@ -1,9 +1,6 @@
 <p align="center">
   <img src=".github/assets/logo%20ship%20safe.png" alt="Ship Safe Logo" width="180" />
 </p>
-
-<h1 align="center">Ship Safe</h1>
-
 <p align="center"><strong>Don't let vibe coding leak your API keys.</strong></p>
 
 <p align="center">
