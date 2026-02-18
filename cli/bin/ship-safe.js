@@ -26,6 +26,8 @@ import { initCommand } from '../commands/init.js';
 import { fixCommand } from '../commands/fix.js';
 import { guardCommand } from '../commands/guard.js';
 import { mcpCommand } from '../commands/mcp.js';
+import { remediateCommand } from '../commands/remediate.js';
+import { rotateCommand } from '../commands/rotate.js';
 
 // =============================================================================
 // CLI CONFIGURATION
@@ -119,6 +121,26 @@ program
   .action(mcpCommand);
 
 // -----------------------------------------------------------------------------
+// REMEDIATE COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('remediate [path]')
+  .description('Auto-fix hardcoded secrets: rewrite source code + write .env + update .gitignore')
+  .option('--dry-run', 'Preview changes without writing any files')
+  .option('--yes', 'Apply all fixes without prompting (for CI)')
+  .option('--stage', 'Also run git add on modified files after fixing')
+  .action(remediateCommand);
+
+// -----------------------------------------------------------------------------
+// ROTATE COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('rotate [path]')
+  .description('Revoke and rotate exposed secrets — opens provider dashboards with step-by-step guide')
+  .option('--provider <name>', 'Only rotate secrets for a specific provider (e.g. github, stripe, openai)')
+  .action(rotateCommand);
+
+// -----------------------------------------------------------------------------
 // PARSE AND RUN
 // -----------------------------------------------------------------------------
 
@@ -127,6 +149,8 @@ if (process.argv.length === 2) {
   console.log(banner);
   console.log(chalk.yellow('\nQuick start:\n'));
   console.log(chalk.white('  npx ship-safe scan .        ') + chalk.gray('# Scan for secrets'));
+  console.log(chalk.white('  npx ship-safe remediate .   ') + chalk.gray('# Auto-fix: rewrite code + write .env'));
+  console.log(chalk.white('  npx ship-safe rotate .      ') + chalk.gray('# Revoke exposed keys (provider guides)'));
   console.log(chalk.white('  npx ship-safe fix           ') + chalk.gray('# Generate .env.example from secrets'));
   console.log(chalk.white('  npx ship-safe guard         ') + chalk.gray('# Block git push if secrets found'));
   console.log(chalk.white('  npx ship-safe checklist     ') + chalk.gray('# Run security checklist'));
