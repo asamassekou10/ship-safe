@@ -22,23 +22,33 @@ You're shipping fast. You're using AI to write code. You're one `git push` away 
 ## Quick Start
 
 ```bash
-# Scan for leaked secrets (no install required!)
+# AI-powered audit: scan, classify with Claude, auto-fix confirmed secrets
+npx ship-safe agent .
+
+# Scan for secrets AND code vulnerabilities (SQL injection, XSS, etc.)
 npx ship-safe scan .
 
-# Auto-generate .env.example from found secrets
-npx ship-safe fix
+# Security health score (0-100, A–F grade)
+npx ship-safe score .
 
-# Block git push if secrets are found
-npx ship-safe guard
+# Audit dependencies for known CVEs
+npx ship-safe deps .
 
-# Run the launch-day security checklist
-npx ship-safe checklist
+# Auto-fix hardcoded secrets: rewrite code + write .env
+npx ship-safe remediate .
 
-# Add security configs to your project
-npx ship-safe init
+# Revoke exposed keys — opens provider dashboards with step-by-step guide
+npx ship-safe rotate .
 ```
 
-That's it. Five commands to secure your MVP.
+Or if you prefer the manual toolkit:
+
+```bash
+npx ship-safe fix           # Generate .env.example from secrets
+npx ship-safe guard         # Block git push if secrets found
+npx ship-safe checklist     # Run launch-day security checklist
+npx ship-safe init          # Add security configs to your project
+```
 
 ![ship-safe terminal demo](.github/assets/ship%20safe%20terminal.jpg)
 
@@ -70,9 +80,35 @@ This repo is your co-pilot for security. Copy, paste, ship safely.
 
 ## CLI Commands
 
+### `npx ship-safe agent [path]`
+
+AI-powered security audit. Scans for both secrets and code vulnerabilities, sends findings to Claude for classification, auto-fixes confirmed secrets, and provides specific fix suggestions for code issues.
+
+```bash
+# Full AI audit (requires ANTHROPIC_API_KEY)
+npx ship-safe agent .
+
+# Preview classification without writing any files
+npx ship-safe agent . --dry-run
+
+# Use a specific Claude model
+npx ship-safe agent . --model claude-opus-4-6
+```
+
+**Flow:**
+1. Scan for secrets + code vulnerabilities (XSS, SQLi, command injection, etc.)
+2. Send findings to Claude — classify each as `REAL` or `FALSE_POSITIVE`
+3. For secrets: auto-remediate confirmed findings (rewrite code + write `.env`)
+4. For code vulns: print Claude's verdict + specific 1-line fix suggestion
+5. Re-scan to verify secrets are gone
+
+No `ANTHROPIC_API_KEY`? Falls back to `remediate` for secrets automatically.
+
+---
+
 ### `npx ship-safe scan [path]`
 
-Scans your codebase for leaked secrets: API keys, passwords, private keys, database URLs.
+Scans your codebase for leaked secrets **and** code vulnerabilities.
 
 ```bash
 # Scan current directory
@@ -84,11 +120,14 @@ npx ship-safe scan ./src
 # Get JSON output (for CI pipelines)
 npx ship-safe scan . --json
 
+# SARIF output for GitHub Code Scanning
+npx ship-safe scan . --sarif
+
 # Verbose mode (show files being scanned)
 npx ship-safe scan . -v
 ```
 
-**Exit codes:** Returns `1` if secrets found (useful for CI), `0` if clean.
+**Exit codes:** Returns `1` if issues found (useful for CI), `0` if clean.
 
 **Flags:**
 - `--json` — structured JSON output for CI pipelines
@@ -124,6 +163,109 @@ Or exclude paths with `.ship-safeignore` (gitignore syntax).
 - **Payment:** Stripe, PayPal
 - **Messaging:** Twilio, SendGrid, Resend
 - **And more:** GitHub tokens, private keys, JWTs, generic secrets
+
+**Detects 18 code vulnerability patterns (OWASP Top 10):**
+- **Injection:** SQL injection (template literals), command injection, code injection (`eval`)
+- **XSS:** `dangerouslySetInnerHTML`, `innerHTML` assignment, `document.write`
+- **Crypto:** MD5 / SHA-1 for passwords, weak random number generation
+- **TLS:** `NODE_TLS_REJECT_UNAUTHORIZED=0`, `rejectUnauthorized: false`, Python `verify=False`
+- **Deserialization:** `pickle.loads`, `yaml.load` without `Loader`
+- **Misconfiguration:** CORS wildcard (`*`), deprecated `new Buffer()`
+
+---
+
+### `npx ship-safe remediate [path]`
+
+Auto-fix hardcoded secrets: rewrites source files to use `process.env` variables, writes a `.env` file with the actual values, and updates `.gitignore`.
+
+```bash
+# Auto-fix secrets
+npx ship-safe remediate .
+
+# Preview changes without writing any files
+npx ship-safe remediate . --dry-run
+
+# Apply all fixes without prompting (for CI)
+npx ship-safe remediate . --yes
+
+# Also run git add on modified files
+npx ship-safe remediate . --stage
+```
+
+---
+
+### `npx ship-safe rotate [path]`
+
+Revoke and rotate exposed secrets. Detects which providers your secrets belong to and opens the right dashboard with step-by-step revocation instructions.
+
+```bash
+# Open dashboards for all detected secrets
+npx ship-safe rotate .
+
+# Rotate only a specific provider
+npx ship-safe rotate . --provider github
+npx ship-safe rotate . --provider stripe
+npx ship-safe rotate . --provider openai
+```
+
+**Supports:** OpenAI, Anthropic, GitHub, Stripe, AWS, Google Cloud, Supabase, and more.
+
+---
+
+### `npx ship-safe deps [path]`
+
+Audit your dependencies for known CVEs using the project's native package manager.
+
+```bash
+# Audit dependencies
+npx ship-safe deps .
+
+# Also run the package manager's auto-fix command
+npx ship-safe deps . --fix
+```
+
+**Supported package managers:**
+- `npm` → `npm audit`
+- `yarn` → `yarn audit`
+- `pnpm` → `pnpm audit`
+- `pip` → `pip-audit` (install with `pip install pip-audit`)
+- `bundler` → `bundle-audit` (install with `gem install bundler-audit`)
+
+Auto-detected from your lock file. Gracefully skips if the tool isn't installed.
+
+---
+
+### `npx ship-safe score [path]`
+
+Compute a 0–100 security health score for your project. Combines secret detection, code vulnerability detection, and dependency CVEs into a single grade. No API key needed — instant and free.
+
+```bash
+# Score the project
+npx ship-safe score .
+
+# Skip dependency audit (faster)
+npx ship-safe score . --no-deps
+```
+
+**Scoring (starts at 100):**
+
+| Category | Critical | High | Medium | Cap |
+|----------|----------|------|--------|-----|
+| Secrets | −25 | −15 | −5 | −40 |
+| Code Vulns | −20 | −10 | −3 | −30 |
+| Dependencies | −20 | −10 | −5 | −30 |
+
+**Grades:**
+
+| Score | Grade | Verdict |
+|-------|-------|---------|
+| 90–100 | A | Ship it! |
+| 75–89 | B | Minor issues to review |
+| 60–74 | C | Fix before shipping |
+| 40–59 | D | Significant security risks |
+| 0–39 | F | Not safe to ship |
+
+**Exit codes:** Returns `0` for A/B (≥ 75), `1` for C/D/F.
 
 ---
 
@@ -392,27 +534,46 @@ name: Security Scan
 on: [push, pull_request]
 
 jobs:
-  scan-secrets:
+  security:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Scan for secrets
+
+      - name: Scan for secrets and code vulnerabilities
         run: npx ship-safe scan . --json
+
+      - name: Audit dependencies for CVEs
+        run: npx ship-safe deps .
+
+      - name: Security health score (fail if C or below)
+        run: npx ship-safe score . --no-deps
 ```
 
-The scan exits with code `1` if secrets are found, failing your build.
+Each command exits with code `1` on findings, failing your build. Use `--sarif` with `scan` to send results to GitHub's Security tab:
+
+```yaml
+      - name: Scan (SARIF for GitHub Security tab)
+        run: npx ship-safe scan . --sarif > results.sarif
+
+      - name: Upload to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+```
 
 ---
 
 ## The 5-Minute Security Checklist
 
-1. ✅ Run `npx ship-safe scan .` on your project
-2. ✅ Run `npx ship-safe init` to add security configs
-3. ✅ Add security headers to your Next.js config
-4. ✅ Run `npx ship-safe checklist` before launching
-5. ✅ If using AI features, implement [cost protection](./ai-defense/cost-protection.md)
-6. ✅ If using Supabase, check the [RLS checklist](./configs/supabase/security-checklist.md)
-7. ✅ If using Firebase, check the [Firebase checklist](./configs/firebase/security-checklist.md)
+1. ✅ Run `npx ship-safe agent .` — AI audit: finds + classifies + fixes secrets and code vulns
+2. ✅ Run `npx ship-safe deps .` — audit your dependencies for known CVEs
+3. ✅ Run `npx ship-safe score .` — check your overall security health score
+4. ✅ Run `npx ship-safe init` — add security configs (.gitignore, security headers)
+5. ✅ Run `npx ship-safe guard` — install git hook to block pushes if secrets found
+6. ✅ Run `npx ship-safe checklist` — run the interactive launch-day security checklist
+7. ✅ If using AI features, implement [cost protection](./ai-defense/cost-protection.md)
+8. ✅ If using Supabase, check the [RLS checklist](./configs/supabase/security-checklist.md)
+9. ✅ If using Firebase, check the [Firebase checklist](./configs/firebase/security-checklist.md)
 
 ---
 
