@@ -28,10 +28,13 @@ import { guardCommand } from '../commands/guard.js';
 import { mcpCommand } from '../commands/mcp.js';
 import { remediateCommand } from '../commands/remediate.js';
 import { rotateCommand } from '../commands/rotate.js';
+import { agentCommand } from '../commands/agent.js';
 
 // =============================================================================
 // CLI CONFIGURATION
 // =============================================================================
+
+const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
 
 // Read version from package.json
 const __filename = fileURLToPath(import.meta.url);
@@ -142,6 +145,16 @@ program
   .action(rotateCommand);
 
 // -----------------------------------------------------------------------------
+// AGENT COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('agent [path]')
+  .description('AI-powered security audit: scan, classify with Claude, auto-remediate confirmed secrets')
+  .option('--dry-run', 'Show classification and plan without writing any files')
+  .option('--model <model>', `Claude model to use (default: ${DEFAULT_MODEL})`)
+  .action(agentCommand);
+
+// -----------------------------------------------------------------------------
 // PARSE AND RUN
 // -----------------------------------------------------------------------------
 
@@ -149,6 +162,7 @@ program
 if (process.argv.length === 2) {
   console.log(banner);
   console.log(chalk.yellow('\nQuick start:\n'));
+  console.log(chalk.white('  npx ship-safe agent .       ') + chalk.gray('# AI audit: scan + classify + auto-fix'));
   console.log(chalk.white('  npx ship-safe scan .        ') + chalk.gray('# Scan for secrets'));
   console.log(chalk.white('  npx ship-safe remediate .   ') + chalk.gray('# Auto-fix: rewrite code + write .env'));
   console.log(chalk.white('  npx ship-safe rotate .      ') + chalk.gray('# Revoke exposed keys (provider guides)'));
