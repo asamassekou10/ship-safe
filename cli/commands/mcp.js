@@ -31,7 +31,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { glob } from 'glob';
+import fg from 'fast-glob';
 import { SECRET_PATTERNS, SKIP_DIRS, SKIP_EXTENSIONS, TEST_FILE_PATTERNS, MAX_FILE_SIZE } from '../utils/patterns.js';
 import { isHighEntropyMatch } from '../utils/entropy.js';
 
@@ -169,7 +169,7 @@ async function analyzeFile({ path: filePath }) {
 
 async function findFiles(rootPath, includeTests) {
   const globIgnore = Array.from(SKIP_DIRS).map(dir => `**/${dir}/**`);
-  const files = await glob('**/*', { cwd: rootPath, absolute: true, nodir: true, ignore: globIgnore, dot: true });
+  const files = await fg('**/*', { cwd: rootPath, absolute: true, onlyFiles: true, ignore: globIgnore, dot: true });
 
   return files.filter(file => {
     const ext = path.extname(file).toLowerCase();

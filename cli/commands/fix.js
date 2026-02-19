@@ -22,7 +22,7 @@ import {
   MAX_FILE_SIZE
 } from '../utils/patterns.js';
 import { isHighEntropyMatch } from '../utils/entropy.js';
-import { glob } from 'glob';
+import fg from 'fast-glob';
 import * as output from '../utils/output.js';
 
 // =============================================================================
@@ -74,8 +74,8 @@ export async function fixCommand(options = {}) {
 
 async function findFiles(rootPath) {
   const globIgnore = Array.from(SKIP_DIRS).map(dir => `**/${dir}/**`);
-  const files = await glob('**/*', {
-    cwd: rootPath, absolute: true, nodir: true, ignore: globIgnore, dot: true
+  const files = await fg('**/*', {
+    cwd: rootPath, absolute: true, onlyFiles: true, ignore: globIgnore, dot: true
   });
 
   const filtered = [];

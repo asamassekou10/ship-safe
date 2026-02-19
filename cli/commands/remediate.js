@@ -39,7 +39,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import pkg from 'write-file-atomic';
 const { writeFile: writeFileAtomic } = pkg;
-import { glob } from 'glob';
+import fg from 'fast-glob';
 import {
   SECRET_PATTERNS,
   SKIP_DIRS,
@@ -428,8 +428,8 @@ function stageFiles(files, rootPath) {
 
 async function findFiles(rootPath) {
   const globIgnore = Array.from(SKIP_DIRS).map(dir => `**/${dir}/**`);
-  const files = await glob('**/*', {
-    cwd: rootPath, absolute: true, nodir: true, ignore: globIgnore, dot: true
+  const files = await fg('**/*', {
+    cwd: rootPath, absolute: true, onlyFiles: true, ignore: globIgnore, dot: true
   });
 
   const filtered = [];

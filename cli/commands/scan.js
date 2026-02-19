@@ -21,7 +21,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { glob } from 'glob';
+import fg from 'fast-glob';
 import ora from 'ora';
 import chalk from 'chalk';
 import {
@@ -204,10 +204,10 @@ async function findFiles(rootPath, ignorePatterns, options = {}) {
   const globIgnore = Array.from(SKIP_DIRS).map(dir => `**/${dir}/**`);
 
   // Find all files
-  const files = await glob('**/*', {
+  const files = await fg('**/*', {
     cwd: rootPath,
     absolute: true,
-    nodir: true,
+    onlyFiles: true,
     ignore: globIgnore,
     dot: true
   });
