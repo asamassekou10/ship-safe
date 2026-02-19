@@ -26,6 +26,7 @@ import ora from 'ora';
 import chalk from 'chalk';
 import {
   SECRET_PATTERNS,
+  SECURITY_PATTERNS,
   SKIP_DIRS,
   SKIP_EXTENSIONS,
   TEST_FILE_PATTERNS,
@@ -94,7 +95,7 @@ export async function scanCommand(targetPath = '.', options = {}) {
 
   // Load custom patterns from .ship-safe.json
   const customPatterns = loadCustomPatterns(absolutePath);
-  const allPatterns = [...SECRET_PATTERNS, ...customPatterns];
+  const allPatterns = [...SECRET_PATTERNS, ...SECURITY_PATTERNS, ...customPatterns];
 
   if (customPatterns.length > 0 && options.verbose) {
     output.info(`Loaded ${customPatterns.length} custom pattern(s) from .ship-safe.json`);
@@ -102,7 +103,7 @@ export async function scanCommand(targetPath = '.', options = {}) {
 
   // Start spinner
   const spinner = ora({
-    text: 'Scanning for secrets...',
+    text: 'Scanning for secrets and vulnerabilities...',
     color: 'cyan'
   }).start();
 
@@ -284,7 +285,8 @@ async function scanFile(filePath, patterns = SECRET_PATTERNS) {
             patternName: pattern.name,
             severity: pattern.severity,
             confidence,
-            description: pattern.description
+            description: pattern.description,
+            category: pattern.category || 'secret'
           });
         }
       }
@@ -311,11 +313,24 @@ async function scanFile(filePath, patterns = SECRET_PATTERNS) {
 // =============================================================================
 
 function outputPretty(results, filesScanned, rootPath) {
+  // Separate findings into secrets and code vulnerabilities
+  const secretResults = [];
+  const vulnResults = [];
+
+  for (const { file, findings } of results) {
+    const secrets = findings.filter(f => f.category !== 'vulnerability');
+    const vulns = findings.filter(f => f.category === 'vulnerability');
+    if (secrets.length > 0) secretResults.push({ file, findings: secrets });
+    if (vulns.length > 0) vulnResults.push({ file, findings: vulns });
+  }
+
   const stats = {
     total: 0,
     critical: 0,
     high: 0,
     medium: 0,
+    secretsTotal: 0,
+    vulnsTotal: 0,
     filesScanned
   };
 
@@ -323,31 +338,45 @@ function outputPretty(results, filesScanned, rootPath) {
     for (const f of findings) {
       stats.total++;
       stats[f.severity] = (stats[f.severity] || 0) + 1;
+      if (f.category === 'vulnerability') stats.vulnsTotal++;
+      else stats.secretsTotal++;
     }
   }
 
   output.header('Scan Results');
 
   if (results.length === 0) {
-    output.success('No secrets detected in your codebase!');
+    output.success('No secrets or vulnerabilities detected in your codebase!');
     console.log();
     console.log(chalk.gray('Note: Uses pattern matching + entropy scoring. Test files excluded by default.'));
     console.log(chalk.gray('Tip:  Run with --include-tests to also scan test files.'));
     console.log(chalk.gray('Tip:  Add a .ship-safeignore file to exclude paths.'));
   } else {
-    for (const { file, findings } of results) {
-      const relPath = path.relative(rootPath, file);
+    // ── Secrets section ────────────────────────────────────────────────────
+    if (secretResults.length > 0) {
+      console.log();
+      console.log(chalk.red.bold(`  Secrets (${stats.secretsTotal})`));
+      console.log(chalk.red('  ' + '─'.repeat(58)));
 
-      for (const f of findings) {
-        output.finding(
-          relPath,
-          f.line,
-          f.patternName,
-          f.severity,
-          f.matched,
-          f.description,
-          f.confidence
-        );
+      for (const { file, findings } of secretResults) {
+        const relPath = path.relative(rootPath, file);
+        for (const f of findings) {
+          output.finding(relPath, f.line, f.patternName, f.severity, f.matched, f.description, f.confidence);
+        }
+      }
+    }
+
+    // ── Code Vulnerabilities section ───────────────────────────────────────
+    if (vulnResults.length > 0) {
+      console.log();
+      console.log(chalk.yellow.bold(`  Code Vulnerabilities (${stats.vulnsTotal})`));
+      console.log(chalk.yellow('  ' + '─'.repeat(58)));
+
+      for (const { file, findings } of vulnResults) {
+        const relPath = path.relative(rootPath, file);
+        for (const f of findings) {
+          output.vulnerabilityFinding(relPath, f.line, f.patternName, f.severity, f.matched, f.description);
+        }
       }
     }
 
@@ -356,7 +385,8 @@ function outputPretty(results, filesScanned, rootPath) {
     console.log(chalk.gray('Suppress a finding: add  # ship-safe-ignore  as a comment on that line'));
     console.log(chalk.gray('Exclude a path:     add it to .ship-safeignore'));
 
-    output.recommendations();
+    if (secretResults.length > 0) output.recommendations();
+    if (vulnResults.length > 0) output.vulnRecommendations();
   }
 
   output.summary(stats);
@@ -377,10 +407,11 @@ function outputJSON(results, filesScanned) {
         file,
         line: f.line,
         column: f.column,
+        category: f.category || 'secret',
         severity: f.severity,
         confidence: f.confidence,
         type: f.patternName,
-        matched: output.maskSecret(f.matched),
+        matched: f.category === 'vulnerability' ? f.matched : output.maskSecret(f.matched),
         description: f.description
       });
     }

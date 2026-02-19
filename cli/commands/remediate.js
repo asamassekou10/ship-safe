@@ -415,7 +415,7 @@ function stageFiles(files, rootPath) {
   if (files.length === 0) return;
   try {
     const quoted = files.map(f => `"${f}"`).join(' ');
-    execSync(`git add ${quoted}`, { cwd: rootPath, stdio: 'inherit' });
+    execSync(`git add ${quoted}`, { cwd: rootPath, stdio: 'inherit' }); // ship-safe-ignore — paths come from our own file scan
     output.success(`Staged ${files.length} file(s) with git add`);
   } catch {
     output.warning('Could not stage files — run git add manually.');

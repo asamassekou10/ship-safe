@@ -810,6 +810,182 @@ export const SKIP_EXTENSIONS = new Set([
 export const MAX_FILE_SIZE = 1_000_000;
 
 // =============================================================================
+// SECURITY VULNERABILITY PATTERNS
+// =============================================================================
+//
+// These patterns detect insecure code patterns (OWASP Top 10, misconfigs, etc.)
+// They are distinct from SECRET_PATTERNS:
+//   - Secrets    → move to env vars, rotate if exposed
+//   - Vulns      → fix the code pattern, can't just rotate
+//
+// Each pattern includes category: 'vulnerability' to separate output sections.
+
+export const SECURITY_PATTERNS = [
+
+  // =========================================================================
+  // XSS — Cross-Site Scripting
+  // =========================================================================
+  {
+    name: 'XSS: dangerouslySetInnerHTML',
+    pattern: /dangerouslySetInnerHTML\s*=\s*\{\s*\{/g,
+    severity: 'high',
+    category: 'vulnerability',
+    description: 'dangerouslySetInnerHTML can introduce XSS if the value contains user input. Sanitize with DOMPurify or restructure to avoid it.'
+  },
+  {
+    name: 'XSS: innerHTML Assignment',
+    pattern: /\.innerHTML\s*=/g,
+    severity: 'medium',
+    category: 'vulnerability',
+    description: 'innerHTML set to user-controlled data leads to XSS. Use textContent for plain text or DOMPurify to sanitize HTML.'
+  },
+  {
+    name: 'XSS: document.write',
+    pattern: /\bdocument\.write\s*\(/g,
+    severity: 'medium',
+    category: 'vulnerability',
+    description: 'document.write() is deprecated and can introduce XSS. Use DOM manipulation (createElement, appendChild) instead.'
+  },
+
+  // =========================================================================
+  // Code Injection
+  // =========================================================================
+  {
+    name: 'Code Injection: eval()',
+    pattern: /\beval\s*\(/g,
+    severity: 'high',
+    category: 'vulnerability',
+    description: 'eval() executes arbitrary JavaScript and is a serious attack vector. Replace with JSON.parse(), Function calls, or safer alternatives.'
+  },
+  {
+    name: 'Code Injection: new Function()',
+    pattern: /\bnew\s+Function\s*\(/g,
+    severity: 'high',
+    category: 'vulnerability',
+    description: 'new Function() is functionally equivalent to eval() and can execute arbitrary code. Avoid dynamic code generation.'
+  },
+
+  // =========================================================================
+  // SQL Injection
+  // =========================================================================
+  {
+    name: 'SQL Injection: Template Literal Query',
+    pattern: /`(?:SELECT|INSERT|UPDATE|DELETE|DROP\s+TABLE|ALTER\s+TABLE)[^`]*\$\{/gi,
+    severity: 'critical',
+    category: 'vulnerability',
+    description: 'SQL queries with interpolated template variables are vulnerable to injection. Use parameterized queries or a query builder.'
+  },
+  {
+    name: 'SQL Injection: String Concatenation Query',
+    pattern: /["'](?:SELECT|INSERT|UPDATE|DELETE)\s+[^"']{4,}["']\s*\+/gi,
+    severity: 'high',
+    category: 'vulnerability',
+    description: 'Building SQL with string concatenation is vulnerable to SQL injection. Use parameterized queries (?, $1) or an ORM.'
+  },
+
+  // =========================================================================
+  // Command Injection
+  // =========================================================================
+  {
+    name: 'Command Injection: exec with Template Literal',
+    pattern: /\bexec(?:Sync)?\s*\(\s*`[^`]*\$\{/g,
+    severity: 'critical',
+    category: 'vulnerability',
+    description: 'Running shell commands with interpolated values can lead to command injection. Validate all inputs or use execFile() with argument arrays.'
+  },
+  {
+    name: 'Command Injection: shell: true',
+    pattern: /\bspawn(?:Sync)?\s*\([^)]*\bshell\s*:\s*true/g,
+    severity: 'high',
+    category: 'vulnerability',
+    description: 'shell: true in spawn/spawnSync enables shell expansion and can lead to command injection. Remove shell: true and pass arguments as an array.'
+  },
+
+  // =========================================================================
+  // Weak Cryptography
+  // =========================================================================
+  {
+    name: 'Weak Crypto: MD5',
+    pattern: /createHash\s*\(\s*['"]md5['"]\s*\)/gi,
+    severity: 'medium',
+    category: 'vulnerability',
+    description: 'MD5 is cryptographically broken and must not be used for security purposes. Use SHA-256 (createHash("sha256")) or SHA-3.'
+  },
+  {
+    name: 'Weak Crypto: SHA-1',
+    pattern: /createHash\s*\(\s*['"]sha1['"]\s*\)/gi,
+    severity: 'medium',
+    category: 'vulnerability',
+    description: 'SHA-1 is cryptographically weak and collision-prone. Use SHA-256 (createHash("sha256")) or SHA-3 instead.'
+  },
+
+  // =========================================================================
+  // TLS / SSL Bypass
+  // =========================================================================
+  {
+    name: 'TLS Bypass: NODE_TLS_REJECT_UNAUTHORIZED=0',
+    pattern: /NODE_TLS_REJECT_UNAUTHORIZED\s*[=:]\s*['"]?0['"]?/g,
+    severity: 'critical',
+    category: 'vulnerability',
+    description: 'Setting NODE_TLS_REJECT_UNAUTHORIZED=0 disables TLS certificate validation and exposes your app to MITM attacks. Never use in production.'
+  },
+  {
+    name: 'TLS Bypass: rejectUnauthorized false',
+    pattern: /\brejectUnauthorized\s*:\s*false\b/g,
+    severity: 'high',
+    category: 'vulnerability',
+    description: 'rejectUnauthorized: false disables TLS certificate checking and enables man-in-the-middle attacks. Remove it or use a proper CA bundle.'
+  },
+  {
+    name: 'TLS Bypass: verify=False (Python)',
+    pattern: /\brequests\.\w+\s*\([^)]*\bverify\s*=\s*False\b/g,
+    severity: 'high',
+    category: 'vulnerability',
+    description: 'verify=False in Python requests disables SSL certificate verification. Remove this or pass verify="/path/to/ca-bundle.crt".'
+  },
+
+  // =========================================================================
+  // Unsafe Deserialization
+  // =========================================================================
+  {
+    name: 'Unsafe Deserialization: pickle.loads',
+    pattern: /\bpickle\.loads?\s*\(/g,
+    severity: 'high',
+    category: 'vulnerability',
+    description: 'pickle.loads() on untrusted data can execute arbitrary Python code (RCE). Use JSON or another safe format for data from untrusted sources.'
+  },
+  {
+    name: 'Unsafe Deserialization: yaml.load',
+    pattern: /\byaml\.load\s*\(/g,
+    severity: 'medium',
+    category: 'vulnerability',
+    description: 'yaml.load() can execute arbitrary code with certain YAML tags. Use yaml.safe_load() for untrusted input.'
+  },
+
+  // =========================================================================
+  // Security Misconfigurations
+  // =========================================================================
+  {
+    name: 'Security Config: CORS Wildcard',
+    pattern: /\borigin\s*:\s*['"]?\*['"]?/g,
+    severity: 'medium',
+    category: 'vulnerability',
+    description: 'CORS wildcard (*) allows any origin to make credentialed requests to your API. Use a specific allowlist of trusted origins.'
+  },
+
+  // =========================================================================
+  // Deprecated / Insecure Node.js APIs
+  // =========================================================================
+  {
+    name: 'Deprecated API: new Buffer()',
+    pattern: /\bnew\s+Buffer\s*\(/g,
+    severity: 'medium',
+    category: 'vulnerability',
+    description: 'new Buffer() is deprecated since Node.js 6 and has security implications. Use Buffer.from(), Buffer.alloc(), or Buffer.allocUnsafe().'
+  },
+];
+
+// =============================================================================
 // TEST FILE PATTERNS (skipped by default, override with --include-tests)
 // =============================================================================
 // Test fixtures are the #1 source of false positives. They contain fake

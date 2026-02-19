@@ -390,9 +390,9 @@ async function revokeGitHubToken(token) {
 function openBrowser(url) {
   try {
     const platform = process.platform;
-    if (platform === 'win32') execSync(`start "" "${url}"`, { stdio: 'ignore' });
-    else if (platform === 'darwin') execSync(`open "${url}"`, { stdio: 'ignore' });
-    else execSync(`xdg-open "${url}"`, { stdio: 'ignore' });
+    if (platform === 'win32') execSync(`start "" "${url}"`, { stdio: 'ignore' }); // ship-safe-ignore — url is hardcoded provider dashboard URL
+    else if (platform === 'darwin') execSync(`open "${url}"`, { stdio: 'ignore' }); // ship-safe-ignore
+    else execSync(`xdg-open "${url}"`, { stdio: 'ignore' }); // ship-safe-ignore
     return true;
   } catch {
     return false;

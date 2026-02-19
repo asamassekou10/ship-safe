@@ -102,6 +102,21 @@ export function finding(file, line, patternName, severity, matched, description,
 }
 
 /**
+ * Print a vulnerability finding (code issue — show matched code, not masked)
+ */
+export function vulnerabilityFinding(file, line, patternName, severity, matched, description) {
+  const color = severityColors[severity] || chalk.white;
+  const icon = severityIcons[severity] || '';
+  const snippet = matched.length > 80 ? matched.slice(0, 80) + '…' : matched;
+
+  console.log();
+  console.log(chalk.white.bold(`${file}:${line}`));
+  console.log(`  ${icon}${color(`[${severity.toUpperCase()}]`)} ${chalk.white(patternName)}`);
+  console.log(`  ${chalk.gray('Code:')}  ${chalk.cyan(snippet)}`);
+  console.log(`  ${chalk.gray('Why:')}  ${description}`);
+}
+
+/**
  * Mask the middle of a secret for safe display
  */
 export function maskSecret(secret) {
@@ -113,15 +128,27 @@ export function maskSecret(secret) {
 
 /**
  * Print a summary box
+ *
+ * stats can include:
+ *   total, critical, high, medium, filesScanned
+ *   secretsTotal (optional), vulnsTotal (optional)
  */
 export function summary(stats) {
   console.log();
   console.log(chalk.cyan('='.repeat(60)));
 
   if (stats.total === 0) {
-    console.log(chalk.green.bold('  \u2714 No secrets detected!'));
+    console.log(chalk.green.bold('  \u2714 No issues detected!'));
   } else {
-    console.log(chalk.red.bold(`  \u26a0 Found ${stats.total} potential secret(s)`));
+    const secretsTotal = stats.secretsTotal ?? stats.total;
+    const vulnsTotal = stats.vulnsTotal ?? 0;
+
+    if (secretsTotal > 0) {
+      console.log(chalk.red.bold(`  \u26a0 Found ${secretsTotal} secret(s)`));
+    }
+    if (vulnsTotal > 0) {
+      console.log(chalk.yellow.bold(`  \u26a0 Found ${vulnsTotal} code vulnerability/vulnerabilities`));
+    }
 
     if (stats.critical > 0) {
       console.log(chalk.red(`    \u2022 Critical: ${stats.critical}`));
@@ -136,6 +163,19 @@ export function summary(stats) {
 
   console.log(chalk.gray(`  Files scanned: ${stats.filesScanned}`));
   console.log(chalk.cyan('='.repeat(60)));
+}
+
+/**
+ * Print recommended actions after finding code vulnerabilities
+ */
+export function vulnRecommendations() {
+  console.log();
+  console.log(chalk.yellow.bold('Code Vulnerability Actions:'));
+  console.log();
+  console.log(chalk.white('1.') + ' Fix the flagged code patterns (see "Why" descriptions above)');
+  console.log(chalk.white('2.') + ' Use  # ship-safe-ignore  on lines that are safe (e.g. internal tools, controlled input)');
+  console.log(chalk.white('3.') + ' Run  npx ship-safe checklist  for a full launch-day security review');
+  console.log();
 }
 
 /**

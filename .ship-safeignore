@@ -1,0 +1,14 @@
+# ship-safe ignore file
+# Same syntax as .gitignore — one glob per line, # for comments.
+#
+# Files listed here are excluded from all ship-safe scans.
+# Use this to suppress known false positives in your project.
+
+# The pattern definition file contains pattern strings in description text.
+# It is scanned and maintained by the ship-safe team — safe to exclude.
+cli/utils/patterns.js
+
+# Documentation and example files intentionally contain dangerous patterns
+snippets/
+docs/
+*.md
