@@ -47,9 +47,13 @@ export async function initCommand(options = {}) {
     errors: []
   };
 
-  // Determine which files to copy
-  const copyGitignore = !options.headers || options.gitignore;
-  const copyHeaders = !options.gitignore || options.headers;
+  // Determine which files to copy.
+  // If a specific flag is set, only run that category.
+  // With no flags, run everything.
+  const hasSpecificFlag = options.gitignore || options.headers || options.agents;
+  const copyGitignore = hasSpecificFlag ? !!options.gitignore : true;
+  const copyHeaders   = hasSpecificFlag ? !!options.headers   : true;
+  const copyAgents    = hasSpecificFlag ? !!options.agents    : true;
 
   // Copy .gitignore
   if (copyGitignore) {
@@ -59,6 +63,11 @@ export async function initCommand(options = {}) {
   // Copy security headers
   if (copyHeaders) {
     await handleSecurityHeaders(targetDir, options.force, results);
+  }
+
+  // Append security rules to AI agent instruction files
+  if (copyAgents) {
+    await handleAgentFiles(targetDir, options.force, results);
   }
 
   // Print summary
@@ -210,6 +219,80 @@ async function handleSecurityHeaders(targetDir, force, results) {
     console.log(chalk.gray('  const { securityHeadersConfig } = require(\'./security-headers.config.js\');'));
     console.log(chalk.gray('  module.exports = { ...securityHeadersConfig, /* your config */ };'));
     console.log();
+  }
+}
+
+// =============================================================================
+// AGENT FILE HANDLING
+// =============================================================================
+
+// Marker used for idempotency — if this string is present we already added our section.
+const AGENT_MARKER = '<!-- ship-safe -->';
+
+// The security rules block appended to existing agent instruction files.
+const AGENT_SECTION = `
+## Security (ship-safe)
+${AGENT_MARKER}
+- Always run \`npx ship-safe scan .\` before committing code
+- Never hardcode API keys, tokens, or credentials in source files — use environment variables
+- If hardcoded secrets are found or generated, run \`npx ship-safe remediate\` to auto-fix them
+`;
+
+// Standalone content for a new Cursor rules file.
+const CURSOR_RULE_CONTENT = `---
+description: Prevent API key leaks and credential exposure in generated code
+alwaysApply: true
+---
+
+- Always run \`npx ship-safe scan .\` before committing code
+- Never hardcode API keys, tokens, or credentials in source files — use environment variables
+- If hardcoded secrets are found or generated, run \`npx ship-safe remediate\` to auto-fix them
+`;
+
+async function handleAgentFiles(targetDir, force, results) {
+  // Files where we append a section if they already exist, or create if they don't.
+  const appendTargets = [
+    { file: 'CLAUDE.md',                          label: 'CLAUDE.md' },
+    { file: '.windsurfrules',                      label: '.windsurfrules' },
+    { file: path.join('.github', 'copilot-instructions.md'), label: '.github/copilot-instructions.md' },
+  ];
+
+  for (const { file, label } of appendTargets) {
+    const targetPath = path.join(targetDir, file);
+
+    if (fs.existsSync(targetPath)) {
+      const existing = fs.readFileSync(targetPath, 'utf-8');
+      if (existing.includes(AGENT_MARKER)) {
+        results.skipped.push(`${label} (already contains ship-safe rules)`);
+        continue;
+      }
+      if (force || true) { // always append unless already present
+        fs.writeFileSync(targetPath, existing.trimEnd() + '\n' + AGENT_SECTION);
+        results.merged.push(label);
+      }
+    } else {
+      // Ensure parent directory exists (e.g. .github/)
+      const parentDir = path.dirname(targetPath);
+      if (!fs.existsSync(parentDir)) {
+        fs.mkdirSync(parentDir, { recursive: true });
+      }
+      fs.writeFileSync(targetPath, AGENT_SECTION.trim() + '\n');
+      results.copied.push(label);
+    }
+  }
+
+  // Cursor rules — dedicated file, no merging needed.
+  const cursorRulesDir  = path.join(targetDir, '.cursor', 'rules');
+  const cursorRulesFile = path.join(cursorRulesDir, 'ship-safe.mdc');
+
+  if (fs.existsSync(cursorRulesFile) && !force) {
+    results.skipped.push('.cursor/rules/ship-safe.mdc (already exists, use -f to overwrite)');
+  } else {
+    if (!fs.existsSync(cursorRulesDir)) {
+      fs.mkdirSync(cursorRulesDir, { recursive: true });
+    }
+    fs.writeFileSync(cursorRulesFile, CURSOR_RULE_CONTENT.trim() + '\n');
+    results.copied.push('.cursor/rules/ship-safe.mdc');
   }
 }
 

@@ -92,6 +92,7 @@ program
   .option('-f, --force', 'Overwrite existing files')
   .option('--gitignore', 'Only copy .gitignore')
   .option('--headers', 'Only copy security headers config')
+  .option('--agents', 'Only add security rules to AI agent instruction files (CLAUDE.md, .cursor/rules/, .windsurfrules, copilot-instructions.md)')
   .action(initCommand);
 
 // -----------------------------------------------------------------------------
