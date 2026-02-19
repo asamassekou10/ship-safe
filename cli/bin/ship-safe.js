@@ -29,6 +29,8 @@ import { mcpCommand } from '../commands/mcp.js';
 import { remediateCommand } from '../commands/remediate.js';
 import { rotateCommand } from '../commands/rotate.js';
 import { agentCommand } from '../commands/agent.js';
+import { depsCommand } from '../commands/deps.js';
+import { scoreCommand } from '../commands/score.js';
 
 // =============================================================================
 // CLI CONFIGURATION
@@ -155,6 +157,24 @@ program
   .action(agentCommand);
 
 // -----------------------------------------------------------------------------
+// DEPS COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('deps [path]')
+  .description('Audit dependencies for known CVEs (npm, yarn, pnpm, pip-audit, bundler-audit)')
+  .option('--fix', 'Run the package manager fix command after auditing')
+  .action(depsCommand);
+
+// -----------------------------------------------------------------------------
+// SCORE COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('score [path]')
+  .description('Compute a 0-100 security health score for your project')
+  .option('--no-deps', 'Skip dependency audit')
+  .action(scoreCommand);
+
+// -----------------------------------------------------------------------------
 // PARSE AND RUN
 // -----------------------------------------------------------------------------
 
@@ -169,6 +189,8 @@ if (process.argv.length === 2) {
   console.log(chalk.white('  npx ship-safe fix           ') + chalk.gray('# Generate .env.example from secrets'));
   console.log(chalk.white('  npx ship-safe guard         ') + chalk.gray('# Block git push if secrets found'));
   console.log(chalk.white('  npx ship-safe checklist     ') + chalk.gray('# Run security checklist'));
+  console.log(chalk.white('  npx ship-safe deps .        ') + chalk.gray('# Audit dependencies for CVEs'));
+  console.log(chalk.white('  npx ship-safe score .       ') + chalk.gray('# Security health score (0-100)'));
   console.log(chalk.white('  npx ship-safe init          ') + chalk.gray('# Add security configs to your project'));
   console.log(chalk.white('\n  npx ship-safe --help        ') + chalk.gray('# Show all options'));
   console.log();

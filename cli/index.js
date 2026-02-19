@@ -10,4 +10,6 @@ export { scanCommand } from './commands/scan.js';
 export { checklistCommand } from './commands/checklist.js';
 export { initCommand } from './commands/init.js';
 export { agentCommand } from './commands/agent.js';
+export { depsCommand, runDepsAudit } from './commands/deps.js';
+export { scoreCommand } from './commands/score.js';
 export { SECRET_PATTERNS, SECURITY_PATTERNS, SKIP_DIRS, SKIP_EXTENSIONS } from './utils/patterns.js';
