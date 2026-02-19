@@ -293,7 +293,17 @@ async function scanFile(filePath, patterns = SECRET_PATTERNS) {
     // Skip files that can't be read (binary, permissions, etc.)
   }
 
-  return findings;
+  // Deduplicate: multiple patterns can match the same secret on the same line
+  // (e.g. Stripe and Clerk both match sk_live_...). Keep one finding per
+  // unique (line, matched-text) pair — first match wins (patterns are ordered
+  // by severity: critical → high → medium).
+  const seen = new Set();
+  return findings.filter(f => {
+    const key = `${f.line}:${f.matched}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 // =============================================================================

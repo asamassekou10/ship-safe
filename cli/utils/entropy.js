@@ -100,6 +100,12 @@ export function isHighEntropyMatch(matched) {
     /^(insert|replace|changeme|placeholder|todo|fixme)/i,
     /([-_]here|[-_]goes|[-_]key|[-_]token|[-_]secret)$/i,
     /^[a-z]+[-_][a-z]+[-_][a-z]+$/, // looks like-a-passphrase not a key
+    /^(add[-_]?your|put[-_]?your|enter[-_]?your|set[-_]?your)/i,
+    /^(secret|password|token|apikey|api_key|key|value)[-_]?[0-9]*$/i,
+    /^(n\/a|null|undefined|none|empty|blank)/i,
+    /^(demo|staging|dev|development|local)[-_]/i,
+    /^(abcdef|qwerty|asdfgh|123456|letmein)/i,
+    /(.)\1{5,}/, // 6+ repeated chars: aaaaaaa, 111111
   ];
 
   if (PLACEHOLDER_PATTERNS.some(p => p.test(value))) return false;

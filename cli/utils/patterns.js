@@ -392,6 +392,52 @@ export const SECRET_PATTERNS = [
     severity: 'medium',
     description: 'Supabase anon keys. Safe for frontend but verify RLS is enabled.'
   },
+  {
+    name: 'Stytch Secret Key',
+    pattern: /secret-(?:live|test)-[a-zA-Z0-9]{30,}/g,
+    severity: 'critical',
+    description: 'Stytch secret keys grant full access to your authentication system.'
+  },
+  {
+    name: 'Okta API Token',
+    pattern: /(?:okta|OKTA)[_-]?(?:api[_-]?)?token["']?\s*[:=]\s*["']?(00[a-zA-Z0-9_-]{38})["']?/gi,
+    severity: 'high',
+    description: 'Okta API tokens can manage your identity provider and user directory.'
+  },
+
+  // =========================================================================
+  // CRITICAL: Additional Cloud/Infra
+  // =========================================================================
+  {
+    name: 'Azure Storage Connection String',
+    pattern: /DefaultEndpointsProtocol=https;AccountName=[^;]{1,50};AccountKey=[a-zA-Z0-9+/=]{44,}/g,
+    severity: 'critical',
+    description: 'Azure Storage connection strings contain account keys with full storage access.'
+  },
+  {
+    name: 'AWS Session Token',
+    pattern: /(?:aws_session_token|aws_security_token)[\s]*[=:][\s]*["']?([A-Za-z0-9/+=]{100,})["']?/gi,
+    severity: 'critical',
+    description: 'AWS session tokens are temporary credentials that still grant account access.'
+  },
+  {
+    name: 'PlanetScale Service Token',
+    pattern: /pscale_tkn_[a-zA-Z0-9_-]{32,}/g,
+    severity: 'critical',
+    description: 'PlanetScale service tokens grant programmatic database branch access.'
+  },
+  {
+    name: 'Shopify Admin API Access Token',
+    pattern: /shpat_[a-fA-F0-9]{32}/g,
+    severity: 'critical',
+    description: 'Shopify admin tokens grant full store management access including orders and customers.'
+  },
+  {
+    name: 'Shopify Custom App Access Token',
+    pattern: /shpca_[a-fA-F0-9]{32}/g,
+    severity: 'critical',
+    description: 'Shopify custom app tokens provide scoped store admin access.'
+  },
 
   // =========================================================================
   // HIGH: Productivity & SaaS
@@ -419,6 +465,66 @@ export const SECRET_PATTERNS = [
     pattern: /figd_[a-zA-Z0-9_-]{40,}/g,
     severity: 'high',
     description: 'Figma PATs can access your design files and projects.'
+  },
+
+  // =========================================================================
+  // HIGH: AI/ML Providers (2025-2026 additions)
+  // =========================================================================
+  {
+    name: 'xAI (Grok) API Key',
+    pattern: /xai-[A-Za-z0-9]{52,}/g,
+    severity: 'high',
+    description: 'xAI API keys grant access to Grok models and incur usage charges on your account.'
+  },
+  {
+    name: 'Tavily API Key',
+    pattern: /tvly-[a-zA-Z0-9]{32,}/g,
+    severity: 'high',
+    description: 'Tavily API keys grant access to their AI-powered search service.'
+  },
+  {
+    name: 'Cerebras API Key',
+    pattern: /csk-[a-zA-Z0-9]{48,}/g,
+    severity: 'high',
+    description: 'Cerebras API keys provide access to fast AI inference.'
+  },
+  {
+    name: 'Pinecone API Key',
+    pattern: /pcsk_[a-zA-Z0-9]{47}_[a-zA-Z0-9]{47}/g,
+    severity: 'high',
+    description: 'Pinecone API keys grant access to your vector database indexes.'
+  },
+  {
+    name: 'ElevenLabs API Key',
+    pattern: /(?:elevenlabs|ELEVENLABS)[_-]?(?:api[_-]?)?key["']?\s*[:=]\s*["']?([a-fA-F0-9]{32})["']?/gi,
+    severity: 'high',
+    description: 'ElevenLabs API keys grant access to their voice AI cloning and synthesis service.'
+  },
+  {
+    name: 'DeepSeek API Key',
+    pattern: /(?:deepseek|DEEPSEEK)[_-]?(?:api[_-]?)?key["']?\s*[:=]\s*["']?(sk-[a-zA-Z0-9]{32,})["']?/gi,
+    severity: 'high',
+    description: 'DeepSeek API keys grant access to their language models.'
+  },
+  {
+    name: 'Voyage AI API Key',
+    pattern: /(?:voyage|VOYAGE)[_-]?(?:ai[_-]?)?(?:api[_-]?)?key["']?\s*[:=]\s*["']?([a-zA-Z0-9]{32,})["']?/gi,
+    severity: 'high',
+    requiresEntropyCheck: true,
+    description: 'Voyage AI API keys provide access to their embedding and reranking models.'
+  },
+  {
+    name: 'Fireworks AI API Key',
+    pattern: /(?:fireworks|FIREWORKS)[_-]?(?:api[_-]?)?key["']?\s*[:=]\s*["']?([a-zA-Z0-9]{32,})["']?/gi,
+    severity: 'high',
+    requiresEntropyCheck: true,
+    description: 'Fireworks AI API keys grant access to fast open-source model inference.'
+  },
+  {
+    name: 'Anyscale API Key',
+    pattern: /esecret_[a-zA-Z0-9]{32,}/g,
+    severity: 'high',
+    description: 'Anyscale API keys grant access to their managed Ray and LLM endpoints.'
   },
 
   // =========================================================================
@@ -453,6 +559,99 @@ export const SECRET_PATTERNS = [
     pattern: /(?:paddle|PADDLE)[_-]?(?:api[_-]?)?key["']?\s*[:=]\s*["']?([a-f0-9]{64})["']?/gi,
     severity: 'high',
     description: 'Paddle API keys can manage your subscriptions and payments.'
+  },
+  {
+    name: 'Stripe Restricted Key',
+    pattern: /rk_(?:live|test)_[a-zA-Z0-9]{24,}/g,
+    severity: 'high',
+    description: 'Stripe restricted keys have scoped permissions but still grant API access.'
+  },
+  {
+    name: 'Square Access Token',
+    pattern: /EAAAl[0-9a-zA-Z_-]{50,}/g,
+    severity: 'high',
+    description: 'Square access tokens can process payments and manage store data.'
+  },
+  {
+    name: 'Square OAuth Token',
+    pattern: /sq0[a-z]tp-[a-zA-Z0-9_-]{22}/g,
+    severity: 'high',
+    description: 'Square OAuth tokens authorize Square API access for a merchant account.'
+  },
+  {
+    name: 'Shopify Shared Secret',
+    pattern: /shpss_[a-fA-F0-9]{32}/g,
+    severity: 'high',
+    description: 'Shopify shared secrets validate webhook payload signatures.'
+  },
+  {
+    name: 'Braintree Access Token',
+    pattern: /access_token\$(?:production|sandbox)\$[a-z0-9]{16}\$[a-f0-9]{32}/g,
+    severity: 'critical',
+    description: 'Braintree access tokens grant full payment processing access.'
+  },
+
+  // =========================================================================
+  // HIGH: Realtime & Messaging
+  // =========================================================================
+  {
+    name: 'Pusher App Secret',
+    pattern: /(?:pusher|PUSHER)[_-]?(?:app[_-]?)?secret["']?\s*[:=]\s*["']?([a-f0-9]{32})["']?/gi,
+    severity: 'high',
+    description: 'Pusher app secrets authenticate private and presence channel subscriptions.'
+  },
+  {
+    name: 'Ably API Key',
+    pattern: /(?:ably|ABLY)[_-]?(?:api[_-]?)?key["']?\s*[:=]\s*["']?([a-zA-Z0-9_-]{8}\.[a-zA-Z0-9_-]{6}:[a-zA-Z0-9+/=_-]{43,})["']?/gi,
+    severity: 'high',
+    description: 'Ably API keys grant full publish and subscribe access to your realtime channels.'
+  },
+  {
+    name: 'Mapbox Access Token',
+    pattern: /pk\.eyJ1[a-zA-Z0-9._-]{40,}/g,
+    severity: 'medium',
+    description: 'Mapbox tokens can incur charges if abused. Restrict token scope and allowed URLs.'
+  },
+
+  // =========================================================================
+  // HIGH: DevOps & CI/CD
+  // =========================================================================
+  {
+    name: 'CircleCI Personal API Token',
+    pattern: /CCIPAT_[a-zA-Z0-9]{40,}/g,
+    severity: 'high',
+    description: 'CircleCI API tokens can trigger builds, read logs, and access pipeline data.'
+  },
+  {
+    name: 'Sentry Auth Token',
+    pattern: /sntrys_[a-zA-Z0-9_]{64,}/g,
+    severity: 'high',
+    description: 'Sentry auth tokens provide full API access to your error data and project settings.'
+  },
+  {
+    name: 'Terraform Cloud Token',
+    pattern: /(?:terraform|TFC)[_-]?(?:api[_-]?)?token["']?\s*[:=]\s*["']?([a-zA-Z0-9]{14}\.atlasv1\.[a-zA-Z0-9_-]{67,})["']?/gi,
+    severity: 'high',
+    description: 'Terraform Cloud tokens can read and apply infrastructure state.'
+  },
+  {
+    name: 'Cloudinary API Secret',
+    pattern: /(?:cloudinary|CLOUDINARY)[_-]?(?:api[_-]?)?secret["']?\s*[:=]\s*["']?([a-zA-Z0-9_-]{27,})["']?/gi,
+    severity: 'high',
+    requiresEntropyCheck: true,
+    description: 'Cloudinary API secrets grant access to your media library and transformations.'
+  },
+  {
+    name: 'Algolia Admin API Key',
+    pattern: /(?:algolia|ALGOLIA)[_-]?(?:admin[_-]?)?(?:api[_-]?)?key["']?\s*[:=]\s*["']?([a-f0-9]{32})["']?/gi,
+    severity: 'high',
+    description: 'Algolia admin keys can modify indices and change search configuration.'
+  },
+  {
+    name: 'LaunchDarkly SDK Key',
+    pattern: /sdk-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/g,
+    severity: 'high',
+    description: 'LaunchDarkly SDK keys can read all feature flags and user data.'
   },
 
   // =========================================================================
@@ -566,7 +765,24 @@ export const SKIP_DIRS = new Set([
   'jspm_packages',
   '.vercel',
   '.netlify',
-  '.serverless'
+  '.serverless',
+  // Additional build/tooling output
+  '.yarn',
+  'storybook-static',
+  'playwright-report',
+  '.playwright',
+  '.gradle',
+  'target',           // Maven/Gradle build output
+  '.pytest_cache',
+  '.mypy_cache',
+  '.ruff_cache',
+  '.tox',
+  'site-packages',
+  '.pnpm',
+  'jspm_packages',
+  '.expo',
+  '.docusaurus',
+  '.storybook',
 ]);
 
 export const SKIP_EXTENSIONS = new Set([
