@@ -1,0 +1,1018 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout>
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       NAV
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <nav>
+    <div class="nav-inner">
+      <span class="nav-logo">⚡ ship-safe</span>
+      <div class="nav-links">
+        <a href="https://github.com/asamassekou10/ship-safe" target="_blank" rel="noopener">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          GitHub
+        </a>
+        <a href="https://www.npmjs.com/package/ship-safe" target="_blank" rel="noopener">npm</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       HERO
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <section class="hero">
+    <div class="container">
+      <div class="badge">Open source · Free · No signup</div>
+      <h1>Don't ship a<br /><span class="gradient-text">security nightmare.</span></h1>
+      <p class="hero-sub">
+        Security toolkit for vibe coders and indie hackers.<br />
+        Scan for secrets, detect code vulnerabilities, audit CVEs — in one command.
+      </p>
+
+      <div class="install-box">
+        <span class="install-prompt">$</span>
+        <span class="install-cmd" id="install-cmd">npx ship-safe agent .</span>
+        <button class="copy-btn" id="copy-btn" onclick="copyInstall()" title="Copy">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </button>
+      </div>
+
+      <div class="hero-ctas">
+        <a href="https://github.com/asamassekou10/ship-safe" class="btn btn-primary" target="_blank" rel="noopener">
+          View on GitHub
+        </a>
+        <a href="#how-it-works" class="btn btn-ghost">See how it works</a>
+      </div>
+
+      <!-- Fake terminal showing score output -->
+      <div class="terminal">
+        <div class="terminal-bar">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-yellow"></span>
+          <span class="dot dot-green"></span>
+          <span class="terminal-title">ship-safe agent .</span>
+        </div>
+        <div class="terminal-body">
+          <div class="t-line"><span class="t-cyan">════════════════════════════════════════════════════════════</span></div>
+          <div class="t-line"><span class="t-cyan">  Security Health Score</span></div>
+          <div class="t-line"><span class="t-cyan">════════════════════════════════════════════════════════════</span></div>
+          <div class="t-line"></div>
+          <div class="t-line">
+            <span class="t-white">  Ship Safe Score: </span><span class="t-red">47/100</span>
+            <span class="t-gray">  </span><span class="t-red">D — Significant security risks</span>
+          </div>
+          <div class="t-line"><span class="t-cyan">  ──────────────────────────────────────────────────────────</span></div>
+          <div class="t-line"></div>
+          <div class="t-line">
+            <span class="t-red">  ✘</span><span class="t-white">  Secrets        </span>
+            <span class="t-red">4 found          </span><span class="t-red">−35 points</span><span class="t-gray"> (2 critical, 2 high)</span>
+          </div>
+          <div class="t-line">
+            <span class="t-yellow">  ✘</span><span class="t-white">  Code Vulns     </span>
+            <span class="t-yellow">3 found          </span><span class="t-yellow">−13 points</span><span class="t-gray"> (1 critical, 2 medium)</span>
+          </div>
+          <div class="t-line">
+            <span class="t-red">  ✘</span><span class="t-white">  Dependencies   </span>
+            <span class="t-red">2 CVEs           </span><span class="t-red">−5 points</span><span class="t-gray"> (2 moderate)</span>
+          </div>
+          <div class="t-line"></div>
+          <div class="t-line"><span class="t-cyan">  ──────────────────────────────────────────────────────────</span></div>
+          <div class="t-line"><span class="t-gray">  Files scanned: 247</span></div>
+          <div class="t-line"></div>
+          <div class="t-line"><span class="t-gray">  Fix issues:</span></div>
+          <div class="t-line"><span class="t-white">  npx ship-safe agent .</span><span class="t-gray">     # AI audit: classify + auto-fix</span></div>
+          <div class="t-line"><span class="t-white">  npx ship-safe deps .</span><span class="t-gray">      # See full dependency CVE details</span></div>
+          <div class="t-line"></div>
+          <div class="t-line t-blink"><span class="t-cyan">▋</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       THREE PILLARS
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <section class="pillars">
+    <div class="container">
+      <div class="pillar-grid">
+        <div class="pillar">
+          <div class="pillar-icon">🔑</div>
+          <h3>Secrets</h3>
+          <p>50+ patterns covering API keys, database URLs, private keys, JWTs, and more. Finds what AI coding tools accidentally commit.</p>
+          <ul>
+            <li>OpenAI, Anthropic, Stripe, AWS, GitHub</li>
+            <li>Supabase, PlanetScale, MongoDB, Neon</li>
+            <li>Sends real values to Claude — never stored</li>
+            <li>Auto-rewrites code to use <code>process.env</code></li>
+          </ul>
+        </div>
+
+        <div class="pillar">
+          <div class="pillar-icon">💉</div>
+          <h3>Code Vulns</h3>
+          <p>18 OWASP Top 10 patterns. Finds exploitable code before attackers do — and Claude explains exactly how to fix each one.</p>
+          <ul>
+            <li>SQL injection in template literals</li>
+            <li>XSS via <code>innerHTML</code>, <code>dangerouslySetInnerHTML</code></li>
+            <li>Command injection, eval(), weak crypto</li>
+            <li>TLS bypass, CORS wildcard, pickle.loads</li>
+          </ul>
+        </div>
+
+        <div class="pillar">
+          <div class="pillar-icon">📦</div>
+          <h3>Dependencies</h3>
+          <p>Audit your npm, pip, or bundler dependencies for known CVEs using the package manager's own audit tool.</p>
+          <ul>
+            <li>npm, yarn, pnpm auto-detected</li>
+            <li>pip-audit for Python projects</li>
+            <li>bundler-audit for Ruby projects</li>
+            <li><code>--fix</code> to auto-patch what's patchable</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       HOW IT WORKS
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <section class="how-it-works" id="how-it-works">
+    <div class="container">
+      <h2>How <code>agent</code> works</h2>
+      <p class="section-sub">One command. No configuration. Claude does the thinking.</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Scan</h4>
+            <p>Scans every file in your project for secrets and code vulnerabilities using 70+ patterns. Skips test files, node_modules, and binary files.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Classify</h4>
+            <p>Sends findings to Claude. For each finding, Claude decides: <span class="tag tag-red">REAL</span> (exploitable) or <span class="tag tag-gray">FALSE POSITIVE</span> (safe in context). Secrets are masked before sending — Claude never sees your actual keys.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Remediate secrets</h4>
+            <p>Confirmed secrets are automatically rewritten to use environment variables. Your source code is updated, a <code>.env</code> file is written with the real values, and <code>.gitignore</code> is updated.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h4>Fix code vulns</h4>
+            <p>For each real vulnerability, Claude provides a specific 1-line fix with a reason explaining why the current code is exploitable.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <h4>Verify</h4>
+            <p>Re-scans after remediation to confirm all secrets are gone. Shows a final clean bill of health (or what's left to fix manually).</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       COMMANDS REFERENCE
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <section class="commands">
+    <div class="container">
+      <h2>All commands</h2>
+      <p class="section-sub">Everything you need. Nothing you don't.</p>
+
+      <div class="cmd-grid">
+        <div class="cmd-card cmd-card-featured">
+          <div class="cmd-name">agent</div>
+          <div class="cmd-line"><span class="t-gray">$</span> npx ship-safe agent .</div>
+          <p>Full AI audit — scan, classify with Claude, auto-fix secrets, suggest code fixes. Requires <code>ANTHROPIC_API_KEY</code>. Falls back to remediate if no key.</p>
+          <div class="cmd-flags">
+            <span class="flag">--dry-run</span>
+            <span class="flag">--model &lt;model&gt;</span>
+          </div>
+        </div>
+
+        <div class="cmd-card">
+          <div class="cmd-name">scan</div>
+          <div class="cmd-line"><span class="t-gray">$</span> npx ship-safe scan .</div>
+          <p>Scan for secrets and code vulnerabilities. No API key needed. Use for CI pipelines.</p>
+          <div class="cmd-flags">
+            <span class="flag">--json</span>
+            <span class="flag">--sarif</span>
+            <span class="flag">--include-tests</span>
+          </div>
+        </div>
+
+        <div class="cmd-card">
+          <div class="cmd-name">score</div>
+          <div class="cmd-line"><span class="t-gray">$</span> npx ship-safe score .</div>
+          <p>0–100 security health score with A–F grade. Instant — no API call, no config.</p>
+          <div class="cmd-flags">
+            <span class="flag">--no-deps</span>
+          </div>
+        </div>
+
+        <div class="cmd-card">
+          <div class="cmd-name">deps</div>
+          <div class="cmd-line"><span class="t-gray">$</span> npx ship-safe deps .</div>
+          <p>Audit npm, yarn, pnpm, pip, or bundler dependencies for known CVEs.</p>
+          <div class="cmd-flags">
+            <span class="flag">--fix</span>
+          </div>
+        </div>
+
+        <div class="cmd-card">
+          <div class="cmd-name">remediate</div>
+          <div class="cmd-line"><span class="t-gray">$</span> npx ship-safe remediate .</div>
+          <p>Auto-fix secrets without Claude — rewrites code, writes <code>.env</code>, updates <code>.gitignore</code>.</p>
+          <div class="cmd-flags">
+            <span class="flag">--dry-run</span>
+            <span class="flag">--yes</span>
+          </div>
+        </div>
+
+        <div class="cmd-card">
+          <div class="cmd-name">rotate</div>
+          <div class="cmd-line"><span class="t-gray">$</span> npx ship-safe rotate .</div>
+          <p>Opens provider dashboards with revocation instructions for each detected secret.</p>
+          <div class="cmd-flags">
+            <span class="flag">--provider &lt;name&gt;</span>
+          </div>
+        </div>
+
+        <div class="cmd-card">
+          <div class="cmd-name">guard</div>
+          <div class="cmd-line"><span class="t-gray">$</span> npx ship-safe guard</div>
+          <p>Install a git hook that blocks <code>git push</code> if secrets are found.</p>
+          <div class="cmd-flags">
+            <span class="flag">--pre-commit</span>
+          </div>
+        </div>
+
+        <div class="cmd-card">
+          <div class="cmd-name">checklist</div>
+          <div class="cmd-line"><span class="t-gray">$</span> npx ship-safe checklist</div>
+          <p>Interactive 10-point launch-day security checklist. RLS, debug mode, headers, and more.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       CI/CD
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <section class="cicd">
+    <div class="container">
+      <h2>Drop into your CI pipeline</h2>
+      <p class="section-sub">Every command exits with code <code>1</code> on findings — failing your build automatically.</p>
+      <div class="code-block">
+        <div class="code-block-header">
+          <span>.github/workflows/security.yml</span>
+          <button class="copy-btn-sm" onclick="copyCI()" id="ci-copy-btn">Copy</button>
+        </div>
+        <pre id="ci-code">name: Security Scan
+on: [push, pull_request]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan for secrets and code vulnerabilities
+        run: npx ship-safe scan . --json
+
+      - name: Audit dependencies for CVEs
+        run: npx ship-safe deps .
+
+      - name: Security health score (fail if grade C or below)
+        run: npx ship-safe score . --no-deps</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       CTA
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <section class="cta">
+    <div class="container">
+      <h2>Secure your app before the next push.</h2>
+      <p>Free. Open source. No signup. Works with any Node.js, Python, or Ruby project.</p>
+      <div class="install-box install-box-centered">
+        <span class="install-prompt">$</span>
+        <span class="install-cmd">npx ship-safe agent .</span>
+        <button class="copy-btn" onclick="copyInstall()" title="Copy">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </button>
+      </div>
+      <a href="https://github.com/asamassekou10/ship-safe" class="btn btn-primary" target="_blank" rel="noopener">
+        View on GitHub →
+      </a>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       FOOTER
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <footer>
+    <div class="container">
+      <div class="footer-inner">
+        <span class="footer-logo">⚡ ship-safe</span>
+        <span class="footer-copy">MIT License · Built for vibe coders</span>
+        <div class="footer-links">
+          <a href="https://github.com/asamassekou10/ship-safe" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://www.npmjs.com/package/ship-safe" target="_blank" rel="noopener">npm</a>
+          <a href="https://github.com/asamassekou10/ship-safe/issues" target="_blank" rel="noopener">Issues</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+</Layout>
+
+<script>
+  function copyInstall() {
+    navigator.clipboard.writeText('npx ship-safe agent .').then(() => {
+      const btn = document.getElementById('copy-btn');
+      if (btn) {
+        btn.style.color = '#4ade80';
+        setTimeout(() => { btn.style.color = ''; }, 1500);
+      }
+    });
+  }
+
+  function copyCI() {
+    const code = document.getElementById('ci-code')?.textContent || '';
+    navigator.clipboard.writeText(code).then(() => {
+      const btn = document.getElementById('ci-copy-btn');
+      if (btn) {
+        btn.textContent = 'Copied!';
+        btn.style.color = '#4ade80';
+        setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = ''; }, 1500);
+      }
+    });
+  }
+
+  // Make functions available globally
+  (window as any).copyInstall = copyInstall;
+  (window as any).copyCI = copyCI;
+</script>
+
+<style>
+  /* ── Layout ──────────────────────────────────────────────────────────── */
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  section {
+    padding: 6rem 0;
+  }
+
+  h2 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    text-align: center;
+  }
+
+  h2 code {
+    font-family: var(--font-mono);
+    color: var(--cyan);
+    font-size: 0.9em;
+  }
+
+  .section-sub {
+    color: var(--text-dim);
+    text-align: center;
+    margin-bottom: 3rem;
+    font-size: 1.1rem;
+  }
+
+  .section-sub code {
+    font-family: var(--font-mono);
+    color: var(--cyan);
+    font-size: 0.9em;
+  }
+
+  /* ── Nav ──────────────────────────────────────────────────────────────── */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10, 10, 10, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--bg-card-border);
+  }
+
+  .nav-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .nav-logo {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--cyan);
+    letter-spacing: -0.02em;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+  }
+
+  .nav-links a {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: color 0.15s;
+  }
+
+  .nav-links a:hover {
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  /* ── Hero ─────────────────────────────────────────────────────────────── */
+  .hero {
+    padding: 7rem 0 5rem;
+    text-align: center;
+  }
+
+  .badge {
+    display: inline-block;
+    background: rgba(34, 211, 238, 0.1);
+    border: 1px solid rgba(34, 211, 238, 0.25);
+    color: var(--cyan);
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.3rem 0.9rem;
+    border-radius: 999px;
+    margin-bottom: 1.5rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-size: clamp(2.5rem, 7vw, 4.5rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    margin-bottom: 1.5rem;
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, var(--cyan) 0%, #818cf8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-sub {
+    color: var(--text-dim);
+    font-size: clamp(1rem, 2.5vw, 1.2rem);
+    max-width: 560px;
+    margin: 0 auto 2.5rem;
+    line-height: 1.7;
+  }
+
+  /* ── Install box ─────────────────────────────────────────────────────── */
+  .install-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--bg-card);
+    border: 1px solid var(--bg-card-border);
+    border-radius: 10px;
+    padding: 0.85rem 1.25rem;
+    margin-bottom: 2rem;
+    font-family: var(--font-mono);
+    font-size: 1rem;
+  }
+
+  .install-box-centered {
+    display: flex;
+    justify-content: center;
+  }
+
+  .install-prompt {
+    color: var(--cyan);
+    font-weight: 700;
+    user-select: none;
+  }
+
+  .install-cmd {
+    color: var(--text);
+  }
+
+  .copy-btn {
+    background: none;
+    border: none;
+    color: var(--gray);
+    cursor: pointer;
+    padding: 0.25rem;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .copy-btn:hover {
+    color: var(--cyan);
+    background: var(--cyan-glow);
+  }
+
+  /* ── CTA buttons ─────────────────────────────────────────────────────── */
+  .hero-ctas {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 4rem;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.75rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: all 0.15s;
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  .btn-primary {
+    background: var(--cyan);
+    color: #0a0a0a;
+  }
+
+  .btn-primary:hover {
+    background: #67e8f9;
+    text-decoration: none;
+    transform: translateY(-1px);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--bg-card-border);
+  }
+
+  .btn-ghost:hover {
+    color: var(--text);
+    border-color: var(--gray);
+    text-decoration: none;
+  }
+
+  /* ── Terminal ────────────────────────────────────────────────────────── */
+  .terminal {
+    max-width: 720px;
+    margin: 0 auto;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--bg-card-border);
+    box-shadow: 0 0 60px rgba(34, 211, 238, 0.08);
+    text-align: left;
+  }
+
+  .terminal-bar {
+    background: #1f2937;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+  .dot-red    { background: #ff5f57; }
+  .dot-yellow { background: #febc2e; }
+  .dot-green  { background: #28c840; }
+
+  .terminal-title {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--gray);
+    margin-left: 0.5rem;
+  }
+
+  .terminal-body {
+    background: #0d1117;
+    padding: 1.25rem 1.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 1.7;
+    overflow-x: auto;
+  }
+
+  .t-line { white-space: pre; }
+  .t-cyan   { color: var(--cyan); }
+  .t-white  { color: var(--text); }
+  .t-red    { color: var(--red); }
+  .t-yellow { color: var(--yellow); }
+  .t-green  { color: var(--green); }
+  .t-gray   { color: var(--gray); }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  .t-blink .t-cyan { animation: blink 1s step-end infinite; }
+
+  /* ── Pillars ─────────────────────────────────────────────────────────── */
+  .pillars {
+    background: var(--bg-card);
+    border-top: 1px solid var(--bg-card-border);
+    border-bottom: 1px solid var(--bg-card-border);
+  }
+
+  .pillar-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+  }
+
+  .pillar {
+    padding: 2rem;
+    background: var(--bg);
+    border-radius: 12px;
+    border: 1px solid var(--bg-card-border);
+  }
+
+  .pillar-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+  }
+
+  .pillar h3 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    color: var(--cyan);
+  }
+
+  .pillar p {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    line-height: 1.7;
+  }
+
+  .pillar ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .pillar li {
+    font-size: 0.85rem;
+    color: var(--gray-light);
+    padding-left: 1rem;
+    position: relative;
+  }
+
+  .pillar li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--cyan-dim);
+  }
+
+  .pillar code {
+    font-family: var(--font-mono);
+    background: rgba(34, 211, 238, 0.08);
+    color: var(--cyan);
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+    font-size: 0.85em;
+  }
+
+  /* ── How it works ────────────────────────────────────────────────────── */
+  .how-it-works {
+    background: var(--bg);
+  }
+
+  .steps {
+    max-width: 700px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .step {
+    display: flex;
+    gap: 1.5rem;
+    padding-bottom: 2.5rem;
+    position: relative;
+  }
+
+  .step:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 1.1rem;
+    top: 2.75rem;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--cyan-dim), transparent);
+  }
+
+  .step-num {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    background: var(--cyan);
+    color: #0a0a0a;
+    font-weight: 800;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+  }
+
+  .step-body h4 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+  }
+
+  .step-body p {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    line-height: 1.7;
+  }
+
+  .step-body code {
+    font-family: var(--font-mono);
+    background: rgba(34, 211, 238, 0.08);
+    color: var(--cyan);
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+    font-size: 0.85em;
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 0.1em 0.5em;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-family: var(--font-mono);
+    font-weight: 600;
+  }
+
+  .tag-red  { background: rgba(248, 113, 113, 0.15); color: var(--red); }
+  .tag-gray { background: var(--bg-card-border); color: var(--gray-light); }
+
+  /* ── Commands ────────────────────────────────────────────────────────── */
+  .commands {
+    background: var(--bg-card);
+    border-top: 1px solid var(--bg-card-border);
+    border-bottom: 1px solid var(--bg-card-border);
+  }
+
+  .cmd-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+
+  .cmd-card {
+    background: var(--bg);
+    border: 1px solid var(--bg-card-border);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    transition: border-color 0.15s;
+  }
+
+  .cmd-card:hover {
+    border-color: var(--cyan-dim);
+  }
+
+  .cmd-card-featured {
+    border-color: var(--cyan-dim);
+    background: rgba(34, 211, 238, 0.03);
+    grid-column: 1 / -1;
+  }
+
+  @media (min-width: 640px) {
+    .cmd-card-featured {
+      grid-column: span 2;
+    }
+  }
+
+  .cmd-name {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--cyan);
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .cmd-line {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-bottom: 0.75rem;
+    background: var(--bg-card);
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid var(--bg-card-border);
+  }
+
+  .t-gray { color: var(--gray); }
+
+  .cmd-card p {
+    font-size: 0.875rem;
+    color: var(--text-dim);
+    line-height: 1.6;
+    margin-bottom: 0.75rem;
+  }
+
+  .cmd-card code {
+    font-family: var(--font-mono);
+    background: rgba(34, 211, 238, 0.08);
+    color: var(--cyan);
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+    font-size: 0.85em;
+  }
+
+  .cmd-flags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .flag {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--gray-light);
+    background: var(--bg-card);
+    border: 1px solid var(--bg-card-border);
+    padding: 0.15em 0.5em;
+    border-radius: 4px;
+  }
+
+  /* ── CI/CD ───────────────────────────────────────────────────────────── */
+  .cicd {
+    background: var(--bg);
+  }
+
+  .code-block {
+    max-width: 720px;
+    margin: 0 auto;
+    border-radius: 10px;
+    border: 1px solid var(--bg-card-border);
+    overflow: hidden;
+  }
+
+  .code-block-header {
+    background: var(--bg-card);
+    padding: 0.6rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--gray);
+    font-family: var(--font-mono);
+    border-bottom: 1px solid var(--bg-card-border);
+  }
+
+  .copy-btn-sm {
+    background: none;
+    border: 1px solid var(--bg-card-border);
+    color: var(--gray);
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-family: var(--font-sans);
+    transition: color 0.15s;
+  }
+
+  .copy-btn-sm:hover {
+    color: var(--cyan);
+    border-color: var(--cyan-dim);
+  }
+
+  .code-block pre {
+    background: #0d1117;
+    padding: 1.25rem 1.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 1.7;
+    color: var(--text-dim);
+    overflow-x: auto;
+    margin: 0;
+  }
+
+  /* ── CTA ─────────────────────────────────────────────────────────────── */
+  .cta {
+    text-align: center;
+    background: radial-gradient(ellipse at center, rgba(34, 211, 238, 0.06) 0%, transparent 70%);
+    border-top: 1px solid var(--bg-card-border);
+  }
+
+  .cta h2 {
+    margin-bottom: 0.75rem;
+  }
+
+  .cta p {
+    color: var(--text-dim);
+    margin-bottom: 2rem;
+    font-size: 1.05rem;
+  }
+
+  .cta .install-box {
+    margin-bottom: 1.5rem;
+  }
+
+  /* ── Footer ──────────────────────────────────────────────────────────── */
+  footer {
+    border-top: 1px solid var(--bg-card-border);
+    padding: 2rem 0;
+    background: var(--bg-card);
+  }
+
+  .footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .footer-logo {
+    font-weight: 700;
+    color: var(--cyan);
+  }
+
+  .footer-copy {
+    color: var(--gray);
+    font-size: 0.85rem;
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 1.5rem;
+  }
+
+  .footer-links a {
+    color: var(--gray);
+    font-size: 0.85rem;
+    transition: color 0.15s;
+  }
+
+  .footer-links a:hover {
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  /* ── Responsive ──────────────────────────────────────────────────────── */
+  @media (max-width: 640px) {
+    section { padding: 4rem 0; }
+    .hero { padding: 5rem 0 3rem; }
+    .footer-inner { flex-direction: column; align-items: flex-start; }
+    .install-box { font-size: 0.85rem; }
+  }
+</style>

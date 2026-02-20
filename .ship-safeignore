@@ -12,3 +12,6 @@ cli/utils/patterns.js
 snippets/
 docs/
 *.md
+
+# Website source — Astro components may contain inline HTML examples (XSS patterns)
+website/
