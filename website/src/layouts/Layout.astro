@@ -30,6 +30,11 @@ const {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <div id="bg-orbs" aria-hidden="true">
+      <div class="bg-orb bg-orb-1"></div>
+      <div class="bg-orb bg-orb-2"></div>
+      <div class="bg-orb bg-orb-3"></div>
+    </div>
     <slot />
   </body>
 </html>
@@ -70,15 +75,70 @@ const {
     position: relative;
   }
 
+  /* Dot grid */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(255,255,255,0.042) 1px, transparent 1px);
+    background-size: 28px 28px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
   /* Grain texture overlay */
   body::before {
     content: '';
     position: fixed;
     inset: 0;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
-    opacity: 0.035;
+    opacity: 0.04;
     pointer-events: none;
     z-index: 9999;
+  }
+
+  /* Ambient background orbs */
+  #bg-orbs {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .bg-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(110px);
+    animation: orb-drift linear infinite;
+  }
+  .bg-orb-1 {
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(34,211,238,0.065), transparent 70%);
+    top: -10%; left: -8%;
+    animation-duration: 30s;
+  }
+  .bg-orb-2 {
+    width: 420px; height: 420px;
+    background: radial-gradient(circle, rgba(59,130,246,0.07), transparent 70%);
+    top: 45%; right: -6%;
+    animation-duration: 38s;
+    animation-direction: reverse;
+  }
+  .bg-orb-3 {
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(34,211,238,0.045), transparent 70%);
+    bottom: 10%; left: 35%;
+    animation-duration: 45s;
+  }
+  @keyframes orb-drift {
+    0%   { transform: translate(0, 0); }
+    25%  { transform: translate(35px, -25px); }
+    50%  { transform: translate(55px, 20px); }
+    75%  { transform: translate(15px, 40px); }
+    100% { transform: translate(0, 0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bg-orb { animation: none; }
   }
 
   a { color: var(--cyan); text-decoration: none; }

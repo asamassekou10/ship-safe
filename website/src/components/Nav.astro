@@ -2,7 +2,10 @@
 ---
 <nav>
   <div class="nav-inner">
-    <a href="#" class="nav-logo">⚡ ship-safe</a>
+    <a href="#" class="nav-logo">
+      <img src="/logo.png" alt="ship-safe" class="nav-logo-img" width="28" height="28" />
+      <span>ship-safe</span>
+    </a>
     <div class="nav-links">
       <a href="#how-it-works">How it works</a>
       <a href="#commands">Commands</a>
@@ -42,13 +45,24 @@
   }
 
   .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-weight: 800;
     font-size: 1.05rem;
-    color: var(--cyan);
+    color: var(--text);
     letter-spacing: -0.02em;
     text-decoration: none;
   }
   .nav-logo:hover { text-decoration: none; opacity: 0.85; }
+
+  .nav-logo-img {
+    display: block;
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    border-radius: 6px;
+  }
 
   .nav-links {
     display: flex;

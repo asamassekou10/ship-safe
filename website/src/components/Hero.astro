@@ -1,41 +1,119 @@
 ---
 ---
 <section class="hero">
-  <div class="hero-glow" aria-hidden="true"></div>
-  <div class="container">
-    <div class="badge">Open source &middot; Free &middot; No signup</div>
+  <div class="hero-orb hero-orb-1" aria-hidden="true"></div>
+  <div class="hero-orb hero-orb-2" aria-hidden="true"></div>
 
-    <h1>
-      <span class="word" style="animation-delay: 0ms">Don't</span>
-      <span class="word" style="animation-delay: 80ms"> ship</span>
-      <span class="word" style="animation-delay: 160ms"> a</span>
-      <br />
-      <span class="word gradient-text" style="animation-delay: 260ms">security nightmare.</span>
-    </h1>
+  <div class="container hero-layout">
 
-    <p class="hero-sub">
-      Security toolkit for vibe coders and indie hackers.<br />
-      Scan for secrets, detect vulnerabilities, audit CVEs — one command.
-    </p>
+    <!-- Left: headline + CTA -->
+    <div class="hero-left">
+      <div class="badge">
+        <span class="badge-dot"></span>
+        Open source &middot; Free &middot; No signup
+      </div>
 
-    <div class="install-box">
-      <span class="install-prompt">$</span>
-      <span class="install-cmd">npx ship-safe agent .</span>
-      <button class="copy-btn" id="hero-copy" title="Copy command" aria-label="Copy install command">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-        </svg>
-      </button>
+      <h1>
+        Ship code,<br />
+        not <span class="gradient-text">vulnerabilities.</span>
+      </h1>
+
+      <p class="hero-sub">
+        One command scans secrets, detects OWASP vulnerabilities,
+        audits CVEs, and auto-fixes what it finds — before you push.
+      </p>
+
+      <div class="install-box">
+        <span class="install-prompt">$</span>
+        <span class="install-cmd">npx ship-safe agent .</span>
+        <button class="copy-btn" id="hero-copy" title="Copy command" aria-label="Copy install command">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </button>
+      </div>
+
+      <div class="hero-ctas">
+        <a href="https://github.com/asamassekou10/ship-safe" class="btn btn-primary" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          View on GitHub
+        </a>
+        <a href="#how-it-works" class="btn btn-ghost">See how it works</a>
+      </div>
     </div>
 
-    <div class="hero-ctas">
-      <a href="https://github.com/asamassekou10/ship-safe" class="btn btn-primary" target="_blank" rel="noopener">
-        View on GitHub
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M17 7H7M17 7v10"/></svg>
-      </a>
-      <a href="#how-it-works" class="btn btn-ghost">See how it works</a>
+    <!-- Right: floating score card -->
+    <div class="hero-right" aria-hidden="true">
+      <div class="score-card">
+        <div class="score-card-header">
+          <span class="score-card-dot dot-red"></span>
+          <span class="score-card-dot dot-yellow"></span>
+          <span class="score-card-dot dot-green"></span>
+          <span class="score-card-title">ship-safe score .</span>
+        </div>
+        <div class="score-card-body">
+          <div class="score-ring-wrap">
+            <svg class="score-ring" viewBox="0 0 80 80" width="80" height="80">
+              <circle cx="40" cy="40" r="34" fill="none" stroke="var(--border)" stroke-width="5"/>
+              <circle
+                cx="40" cy="40" r="34"
+                fill="none"
+                stroke="var(--cyan)"
+                stroke-width="5"
+                stroke-linecap="round"
+                stroke-dasharray="213.6"
+                stroke-dashoffset="27.8"
+                transform="rotate(-90 40 40)"
+                class="score-arc"
+              />
+            </svg>
+            <div class="score-ring-label">
+              <span class="score-val" id="score-val">0</span>
+              <span class="score-denom">/100</span>
+            </div>
+          </div>
+
+          <div class="score-details">
+            <div class="score-row score-a">
+              <span class="score-grade">A</span>
+              <span class="score-grade-label">Ship it!</span>
+            </div>
+            <div class="score-breakdown">
+              <div class="score-line ok">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                Secrets &nbsp;<span>0 found</span>
+              </div>
+              <div class="score-line ok">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                Vulns &nbsp;<span>0 found</span>
+              </div>
+              <div class="score-line ok">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                CVEs &nbsp;<span>0 found</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="score-card-footer">
+          <span class="score-files">847 files scanned</span>
+          <span class="score-time">3.2s</span>
+        </div>
+      </div>
+
+      <!-- Floating badges -->
+      <div class="float-badge float-badge-1">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Secret detected
+      </div>
+      <div class="float-badge float-badge-2">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Auto-fixed
+      </div>
     </div>
+
   </div>
 </section>
 
@@ -46,64 +124,111 @@
       setTimeout(() => { this.style.color = ''; }, 1500);
     });
   });
+
+  // Animate score counter
+  function easeOut(t: number) { return 1 - Math.pow(1 - t, 3); }
+  const scoreEl = document.getElementById('score-val');
+  if (scoreEl) {
+    const target = 100;
+    const duration = 1600;
+    const start = performance.now();
+    function tick(now: number) {
+      const p = Math.min((now - start) / duration, 1);
+      (scoreEl as HTMLElement).textContent = String(Math.round(easeOut(p) * target));
+      if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
 </script>
 
 <style>
   .hero {
-    padding: 8rem 0 5rem;
-    text-align: center;
+    padding: 7rem 0 5rem;
     position: relative;
     overflow: hidden;
   }
 
-  .hero-glow {
+  /* Ambient orbs */
+  .hero-orb {
     position: absolute;
-    top: -20%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 900px;
-    height: 600px;
-    background: radial-gradient(ellipse at center, rgba(34,211,238,0.11) 0%, rgba(129,140,248,0.07) 40%, transparent 70%);
+    border-radius: 50%;
+    filter: blur(80px);
     pointer-events: none;
     z-index: 0;
   }
+  .hero-orb-1 {
+    width: 560px;
+    height: 560px;
+    top: -180px;
+    left: -100px;
+    background: radial-gradient(circle, rgba(34,211,238,0.10) 0%, transparent 70%);
+  }
+  .hero-orb-2 {
+    width: 400px;
+    height: 400px;
+    top: 60px;
+    right: -80px;
+    background: radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%);
+  }
 
-  .hero .container { position: relative; z-index: 1; }
+  /* Two-column layout */
+  .hero-layout {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    align-items: center;
+  }
+
+  /* ── Left column ── */
+  .hero-left { display: flex; flex-direction: column; align-items: flex-start; }
 
   .badge {
-    display: inline-block;
-    background: rgba(34,211,238,0.08);
-    border: 1px solid rgba(34,211,238,0.2);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(34,211,238,0.07);
+    border: 1px solid rgba(34,211,238,0.18);
     color: var(--cyan);
-    font-size: 0.75rem;
+    font-size: 0.73rem;
     font-weight: 600;
-    padding: 0.35rem 1rem;
+    padding: 0.3rem 0.85rem;
     border-radius: 999px;
     margin-bottom: 1.75rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }
 
+  .badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--cyan);
+    animation: pulse-dot 2s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,211,238,0.5); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(34,211,238,0); }
+  }
+
   h1 {
-    font-size: clamp(2.6rem, 7vw, 4.75rem);
+    font-size: clamp(2.4rem, 5vw, 3.75rem);
     font-weight: 800;
     line-height: 1.1;
     letter-spacing: -0.04em;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
+    animation: fade-up 0.6s ease both;
   }
 
-  .word {
-    display: inline-block;
-    animation: word-in 0.6s ease both;
-  }
-
-  @keyframes word-in {
+  @keyframes fade-up {
     from { opacity: 0; transform: translateY(20px); }
     to   { opacity: 1; transform: none; }
   }
 
   .gradient-text {
-    background: linear-gradient(135deg, var(--cyan) 0%, #818cf8 60%, #c084fc 100%);
+    background: linear-gradient(135deg, var(--cyan) 0%, #60a5fa 55%, #2563eb 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -111,30 +236,202 @@
 
   .hero-sub {
     color: var(--text-muted);
-    font-size: clamp(1rem, 2.5vw, 1.15rem);
-    max-width: 520px;
-    margin: 0 auto 2.25rem;
+    font-size: 1rem;
+    max-width: 460px;
+    margin: 0 0 1.75rem;
     line-height: 1.75;
-    animation: word-in 0.6s 0.4s ease both;
+    animation: fade-up 0.6s 0.15s ease both;
   }
 
   .install-box {
-    animation: word-in 0.6s 0.55s ease both;
-    margin-bottom: 1.75rem;
+    animation: fade-up 0.6s 0.3s ease both;
+    margin-bottom: 1.5rem;
   }
-
   .install-cmd { color: var(--text); font-weight: 500; }
 
   .hero-ctas {
     display: flex;
     gap: 0.85rem;
-    justify-content: center;
     flex-wrap: wrap;
-    animation: word-in 0.6s 0.7s ease both;
+    animation: fade-up 0.6s 0.45s ease both;
   }
 
-  @media (max-width: 640px) {
-    .hero { padding: 6rem 0 3.5rem; }
-    h1 { letter-spacing: -0.03em; }
+  /* ── Right column: score card ── */
+  .hero-right {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    animation: fade-up 0.7s 0.2s ease both;
+  }
+
+  .score-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 340px;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(34,211,238,0.06);
+  }
+
+  .score-card-header {
+    background: var(--bg-card2);
+    border-bottom: 1px solid var(--border);
+    padding: 0.65rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .score-card-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+  .dot-red    { background: #f87171; }
+  .dot-yellow { background: #fbbf24; }
+  .dot-green  { background: #4ade80; }
+  .score-card-title {
+    margin-left: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+  }
+
+  .score-card-body {
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .score-ring-wrap {
+    position: relative;
+    flex-shrink: 0;
+  }
+  .score-ring { display: block; }
+  .score-arc {
+    transition: stroke-dashoffset 1.6s cubic-bezier(0.16,1,0.3,1);
+  }
+  .score-ring-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+  }
+  .score-val {
+    font-family: var(--font-mono);
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--cyan);
+    line-height: 1;
+  }
+  .score-denom {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    line-height: 1;
+    align-self: flex-end;
+    padding-bottom: 2px;
+  }
+
+  .score-details { flex: 1; min-width: 0; }
+  .score-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+  }
+  .score-grade {
+    font-family: var(--font-mono);
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--cyan);
+    line-height: 1;
+  }
+  .score-grade-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  .score-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .score-line {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+  }
+  .score-line.ok svg { color: var(--green); }
+  .score-line span { color: var(--text-muted); }
+
+  .score-card-footer {
+    background: var(--bg-card2);
+    border-top: 1px solid var(--border);
+    padding: 0.6rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-dim);
+  }
+
+  /* Floating badges */
+  .float-badge {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    white-space: nowrap;
+    animation: float-in 0.6s ease both;
+  }
+  .float-badge-1 {
+    top: -18px;
+    right: -12px;
+    animation-delay: 0.6s;
+    color: var(--red);
+    border-color: rgba(248,113,113,0.25);
+    background: rgba(248,113,113,0.07);
+  }
+  .float-badge-2 {
+    bottom: -14px;
+    left: -12px;
+    animation-delay: 0.8s;
+    color: var(--green);
+    border-color: rgba(74,222,128,0.25);
+    background: rgba(74,222,128,0.07);
+  }
+  @keyframes float-in {
+    from { opacity: 0; transform: scale(0.85); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* Mobile: stack */
+  @media (max-width: 768px) {
+    .hero { padding: 5.5rem 0 3.5rem; }
+    .hero-layout {
+      grid-template-columns: 1fr;
+      gap: 2.5rem;
+      text-align: center;
+    }
+    .hero-left { align-items: center; }
+    .hero-sub { margin: 0 auto 1.75rem; }
+    .hero-ctas { justify-content: center; }
+    .hero-right { justify-content: center; }
+    .float-badge-1 { top: -14px; right: 8px; }
+    .float-badge-2 { bottom: -14px; left: 8px; }
   }
 </style>
