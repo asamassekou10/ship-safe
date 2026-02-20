@@ -15,7 +15,7 @@
 
       <h1>
         Ship code,<br />
-        not <span class="gradient-text">vulnerabilities.</span>
+        <span class="h1-line2">not <span class="gradient-text">vulnerabilities.</span></span>
       </h1>
 
       <p class="hero-sub">
@@ -45,71 +45,119 @@
       </div>
     </div>
 
-    <!-- Right: floating score card -->
+    <!-- Right: security dashboard card -->
     <div class="hero-right" aria-hidden="true">
-      <div class="score-card">
-        <div class="score-card-header">
-          <span class="score-card-dot dot-red"></span>
-          <span class="score-card-dot dot-yellow"></span>
-          <span class="score-card-dot dot-green"></span>
-          <span class="score-card-title">ship-safe score .</span>
+      <div class="dash-card">
+
+        <!-- Title bar -->
+        <div class="dash-header">
+          <div class="dash-dots">
+            <span class="dot dot-r"></span>
+            <span class="dot dot-y"></span>
+            <span class="dot dot-g"></span>
+          </div>
+          <span class="dash-title">ship-safe agent .</span>
+          <span class="dash-badge">LIVE</span>
         </div>
-        <div class="score-card-body">
-          <div class="score-ring-wrap">
-            <svg class="score-ring" viewBox="0 0 80 80" width="80" height="80">
-              <circle cx="40" cy="40" r="34" fill="none" stroke="var(--border)" stroke-width="5"/>
-              <circle
-                cx="40" cy="40" r="34"
-                fill="none"
-                stroke="var(--cyan)"
-                stroke-width="5"
-                stroke-linecap="round"
-                stroke-dasharray="213.6"
-                stroke-dashoffset="27.8"
-                transform="rotate(-90 40 40)"
-                class="score-arc"
-              />
-            </svg>
-            <div class="score-ring-label">
-              <span class="score-val" id="score-val">0</span>
-              <span class="score-denom">/100</span>
+
+        <!-- Scan output lines -->
+        <div class="dash-terminal">
+          <div class="term-line">
+            <span class="term-prompt">▸</span>
+            <span class="term-text dim">Scanning 847 files...</span>
+          </div>
+          <div class="term-line">
+            <span class="term-prompt red">✗</span>
+            <span class="term-text">4 secrets found</span>
+            <span class="term-tag tag-red">CRITICAL</span>
+          </div>
+          <div class="term-line">
+            <span class="term-prompt yellow">!</span>
+            <span class="term-text">3 code vulnerabilities</span>
+            <span class="term-tag tag-yellow">HIGH</span>
+          </div>
+          <div class="term-line">
+            <span class="term-prompt green">✔</span>
+            <span class="term-text dim">Dependencies clean</span>
+          </div>
+        </div>
+
+        <!-- Score section -->
+        <div class="dash-score">
+          <div class="score-left">
+            <div class="ring-wrap">
+              <svg viewBox="0 0 96 96" width="96" height="96" class="score-ring">
+                <circle cx="48" cy="48" r="40" fill="none" stroke="var(--border)" stroke-width="6"/>
+                <circle
+                  cx="48" cy="48" r="40"
+                  fill="none"
+                  stroke="url(#scoreGrad)"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                  stroke-dasharray="251.3"
+                  stroke-dashoffset="218"
+                  transform="rotate(-90 48 48)"
+                  class="score-arc"
+                  id="score-arc"
+                />
+                <defs>
+                  <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#22d3ee"/>
+                    <stop offset="100%" stop-color="#60a5fa"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div class="ring-label">
+                <span class="score-num" id="score-val">0</span>
+                <span class="score-sub">/100</span>
+              </div>
+            </div>
+            <div class="grade-row">
+              <span class="grade-letter">A</span>
+              <span class="grade-text">Ship it!</span>
             </div>
           </div>
 
-          <div class="score-details">
-            <div class="score-row score-a">
-              <span class="score-grade">A</span>
-              <span class="score-grade-label">Ship it!</span>
+          <div class="score-right">
+            <div class="metric">
+              <div class="metric-top">
+                <span class="metric-label">Secrets</span>
+                <span class="metric-val ok">0</span>
+              </div>
+              <div class="metric-bar"><div class="metric-fill fill-full" style="background: var(--green)"></div></div>
             </div>
-            <div class="score-breakdown">
-              <div class="score-line ok">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                Secrets &nbsp;<span>0 found</span>
+            <div class="metric">
+              <div class="metric-top">
+                <span class="metric-label">Code vulns</span>
+                <span class="metric-val ok">0</span>
               </div>
-              <div class="score-line ok">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                Vulns &nbsp;<span>0 found</span>
-              </div>
-              <div class="score-line ok">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                CVEs &nbsp;<span>0 found</span>
-              </div>
+              <div class="metric-bar"><div class="metric-fill fill-full" style="background: var(--green)"></div></div>
             </div>
+            <div class="metric">
+              <div class="metric-top">
+                <span class="metric-label">CVEs</span>
+                <span class="metric-val ok">0</span>
+              </div>
+              <div class="metric-bar"><div class="metric-fill fill-full" style="background: var(--green)"></div></div>
+            </div>
+            <div class="metric-files">847 files · 3.2s</div>
           </div>
         </div>
-        <div class="score-card-footer">
-          <span class="score-files">847 files scanned</span>
-          <span class="score-time">3.2s</span>
+
+        <!-- Footer status -->
+        <div class="dash-footer">
+          <span class="status-dot"></span>
+          <span>All checks passed — ready to push</span>
         </div>
       </div>
 
       <!-- Floating badges -->
       <div class="float-badge float-badge-1">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         Secret detected
       </div>
       <div class="float-badge float-badge-2">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
         Auto-fixed
       </div>
     </div>
@@ -125,16 +173,21 @@
     });
   });
 
-  // Animate score counter
+  // Animate score counter + ring
   function easeOut(t: number) { return 1 - Math.pow(1 - t, 3); }
   const scoreEl = document.getElementById('score-val');
-  if (scoreEl) {
-    const target = 100;
-    const duration = 1600;
-    const start = performance.now();
+  const arcEl   = document.getElementById('score-arc') as SVGCircleElement | null;
+  if (scoreEl && arcEl) {
+    const target   = 100;
+    const fullDash = 251.3;
+    const duration = 1800;
+    const start    = performance.now();
     function tick(now: number) {
-      const p = Math.min((now - start) / duration, 1);
-      (scoreEl as HTMLElement).textContent = String(Math.round(easeOut(p) * target));
+      const p  = Math.min((now - start) / duration, 1);
+      const ep = easeOut(p);
+      (scoreEl as HTMLElement).textContent = String(Math.round(ep * target));
+      // dashoffset: 251.3 = 0%, 0 = 100%
+      arcEl.style.strokeDashoffset = String(fullDash * (1 - ep));
       if (p < 1) requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
@@ -148,7 +201,6 @@
     overflow: hidden;
   }
 
-  /* Ambient orbs */
   .hero-orb {
     position: absolute;
     border-radius: 50%;
@@ -157,31 +209,26 @@
     z-index: 0;
   }
   .hero-orb-1 {
-    width: 560px;
-    height: 560px;
-    top: -180px;
-    left: -100px;
+    width: 560px; height: 560px;
+    top: -180px; left: -100px;
     background: radial-gradient(circle, rgba(34,211,238,0.10) 0%, transparent 70%);
   }
   .hero-orb-2 {
-    width: 400px;
-    height: 400px;
-    top: 60px;
-    right: -80px;
+    width: 400px; height: 400px;
+    top: 60px; right: -80px;
     background: radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%);
   }
 
-  /* Two-column layout */
   .hero-layout {
     position: relative;
     z-index: 1;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 4rem;
+    gap: 3.5rem;
     align-items: center;
   }
 
-  /* ── Left column ── */
+  /* ── Left ── */
   .hero-left { display: flex; flex-direction: column; align-items: flex-start; }
 
   .badge {
@@ -191,18 +238,16 @@
     background: rgba(34,211,238,0.07);
     border: 1px solid rgba(34,211,238,0.18);
     color: var(--cyan);
-    font-size: 0.73rem;
+    font-size: 0.72rem;
     font-weight: 600;
     padding: 0.3rem 0.85rem;
     border-radius: 999px;
-    margin-bottom: 1.75rem;
-    letter-spacing: 0.06em;
+    margin-bottom: 1.5rem;
+    letter-spacing: 0.07em;
     text-transform: uppercase;
   }
-
   .badge-dot {
-    width: 6px;
-    height: 6px;
+    width: 6px; height: 6px;
     border-radius: 50%;
     background: var(--cyan);
     animation: pulse-dot 2s ease-in-out infinite;
@@ -210,17 +255,19 @@
   }
   @keyframes pulse-dot {
     0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,211,238,0.5); }
-    50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(34,211,238,0); }
+    50%       { opacity: 0.7; box-shadow: 0 0 0 4px rgba(34,211,238,0); }
   }
 
   h1 {
-    font-size: clamp(2.4rem, 5vw, 3.75rem);
-    font-weight: 800;
+    font-size: clamp(2.4rem, 4.5vw, 3.5rem);
+    font-weight: 700;
     line-height: 1.1;
-    letter-spacing: -0.04em;
+    letter-spacing: -0.03em;
     margin-bottom: 1.25rem;
     animation: fade-up 0.6s ease both;
   }
+  /* Prevent the second line from wrapping — always 2 lines max */
+  .h1-line2 { white-space: nowrap; display: block; }
 
   @keyframes fade-up {
     from { opacity: 0; transform: translateY(20px); }
@@ -237,7 +284,7 @@
   .hero-sub {
     color: var(--text-muted);
     font-size: 1rem;
-    max-width: 460px;
+    max-width: 440px;
     margin: 0 0 1.75rem;
     line-height: 1.75;
     animation: fade-up 0.6s 0.15s ease both;
@@ -256,7 +303,7 @@
     animation: fade-up 0.6s 0.45s ease both;
   }
 
-  /* ── Right column: score card ── */
+  /* ── Right: dashboard card ── */
   .hero-right {
     position: relative;
     display: flex;
@@ -264,121 +311,215 @@
     animation: fade-up 0.7s 0.2s ease both;
   }
 
-  .score-card {
+  .dash-card {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
+    border-radius: 16px;
     width: 100%;
-    max-width: 340px;
+    max-width: 380px;
     overflow: hidden;
-    box-shadow: 0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(34,211,238,0.06);
+    box-shadow:
+      0 0 0 1px rgba(34,211,238,0.06),
+      0 32px 80px rgba(0,0,0,0.6),
+      0 0 60px rgba(34,211,238,0.04);
   }
 
-  .score-card-header {
+  /* Header */
+  .dash-header {
     background: var(--bg-card2);
     border-bottom: 1px solid var(--border);
-    padding: 0.65rem 1rem;
+    padding: 0.7rem 1rem;
     display: flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.5rem;
   }
-  .score-card-dot {
-    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
-  }
-  .dot-red    { background: #f87171; }
-  .dot-yellow { background: #fbbf24; }
-  .dot-green  { background: #4ade80; }
-  .score-card-title {
-    margin-left: 0.5rem;
+  .dash-dots { display: flex; gap: 0.35rem; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-r { background: #f87171; }
+  .dot-y { background: #fbbf24; }
+  .dot-g { background: #4ade80; }
+  .dash-title {
+    flex: 1;
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: 0.73rem;
     color: var(--text-dim);
+    margin-left: 0.4rem;
+  }
+  .dash-badge {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--green);
+    background: rgba(74,222,128,0.1);
+    border: 1px solid rgba(74,222,128,0.25);
+    padding: 0.15em 0.5em;
+    border-radius: 4px;
   }
 
-  .score-card-body {
-    padding: 1.5rem;
+  /* Terminal scan output */
+  .dash-terminal {
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    background: rgba(0,0,0,0.2);
+  }
+  .term-line {
     display: flex;
     align-items: center;
-    gap: 1.25rem;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.73rem;
   }
-
-  .score-ring-wrap {
-    position: relative;
+  .term-prompt {
+    width: 14px;
+    text-align: center;
+    flex-shrink: 0;
+    font-size: 0.7rem;
+  }
+  .term-prompt.red    { color: var(--red); }
+  .term-prompt.yellow { color: var(--yellow); }
+  .term-prompt.green  { color: var(--green); }
+  .term-text { color: var(--text-muted); flex: 1; }
+  .term-text.dim { color: var(--text-dim); }
+  .term-tag {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 0.1em 0.45em;
+    border-radius: 3px;
     flex-shrink: 0;
   }
-  .score-ring { display: block; }
-  .score-arc {
-    transition: stroke-dashoffset 1.6s cubic-bezier(0.16,1,0.3,1);
+  .tag-red    { background: rgba(248,113,113,0.15); color: var(--red);    border: 1px solid rgba(248,113,113,0.3); }
+  .tag-yellow { background: rgba(251,191,36,0.12);  color: var(--yellow); border: 1px solid rgba(251,191,36,0.3); }
+
+  /* Score section */
+  .dash-score {
+    padding: 1.25rem 1.1rem;
+    display: flex;
+    gap: 1.25rem;
+    align-items: center;
   }
-  .score-ring-label {
+
+  .score-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .ring-wrap {
+    position: relative;
+    width: 96px;
+    height: 96px;
+  }
+  .score-ring { display: block; }
+  .score-arc  { transition: stroke-dashoffset 1.8s cubic-bezier(0.16,1,0.3,1); }
+
+  .ring-label {
     position: absolute;
     inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 1px;
+    flex-direction: column;
+    gap: 0;
   }
-  .score-val {
+  .score-num {
     font-family: var(--font-mono);
-    font-size: 1.2rem;
+    font-size: 1.5rem;
     font-weight: 700;
     color: var(--cyan);
     line-height: 1;
   }
-  .score-denom {
+  .score-sub {
     font-family: var(--font-mono);
-    font-size: 0.65rem;
+    font-size: 0.58rem;
     color: var(--text-dim);
     line-height: 1;
-    align-self: flex-end;
-    padding-bottom: 2px;
+    margin-top: 1px;
   }
 
-  .score-details { flex: 1; min-width: 0; }
-  .score-row {
+  .grade-row {
     display: flex;
     align-items: baseline;
-    gap: 0.5rem;
-    margin-bottom: 0.6rem;
+    gap: 0.35rem;
   }
-  .score-grade {
+  .grade-letter {
     font-family: var(--font-mono);
-    font-size: 1.6rem;
+    font-size: 1.3rem;
     font-weight: 800;
     color: var(--cyan);
     line-height: 1;
   }
-  .score-grade-label {
-    font-size: 0.8rem;
-    color: var(--text-muted);
+  .grade-text {
+    font-size: 0.72rem;
     font-weight: 600;
+    color: var(--text-muted);
   }
-  .score-breakdown {
+
+  /* Metric bars */
+  .score-right {
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
+    gap: 0.7rem;
   }
-  .score-line {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 0.75rem;
-    color: var(--text-dim);
-    font-family: var(--font-mono);
-  }
-  .score-line.ok svg { color: var(--green); }
-  .score-line span { color: var(--text-muted); }
-
-  .score-card-footer {
-    background: var(--bg-card2);
-    border-top: 1px solid var(--border);
-    padding: 0.6rem 1rem;
+  .metric { display: flex; flex-direction: column; gap: 0.25rem; }
+  .metric-top {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: baseline;
     font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-size: 0.68rem;
+  }
+  .metric-label { color: var(--text-dim); }
+  .metric-val { font-weight: 700; }
+  .metric-val.ok { color: var(--green); }
+  .metric-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .metric-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 1.8s cubic-bezier(0.16,1,0.3,1);
+  }
+  .fill-full { width: 100%; }
+
+  .metric-files {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
     color: var(--text-dim);
+    margin-top: 0.2rem;
+  }
+
+  /* Footer status */
+  .dash-footer {
+    background: rgba(74,222,128,0.05);
+    border-top: 1px solid rgba(74,222,128,0.15);
+    padding: 0.55rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--green);
+    font-family: var(--font-mono);
+  }
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse-dot 2s ease-in-out infinite;
+    flex-shrink: 0;
   }
 
   /* Floating badges */
@@ -387,40 +528,36 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 0.4rem 0.75rem;
-    font-size: 0.75rem;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.72rem;
     font-weight: 600;
-    color: var(--text-muted);
+    font-family: var(--font-mono);
     box-shadow: 0 8px 24px rgba(0,0,0,0.4);
     white-space: nowrap;
-    animation: float-in 0.6s ease both;
+    animation: float-in 0.5s ease both;
   }
   .float-badge-1 {
-    top: -18px;
-    right: -12px;
-    animation-delay: 0.6s;
+    top: -16px; right: -8px;
+    animation-delay: 0.7s;
     color: var(--red);
-    border-color: rgba(248,113,113,0.25);
-    background: rgba(248,113,113,0.07);
+    border: 1px solid rgba(248,113,113,0.3);
+    background: rgba(248,113,113,0.08);
   }
   .float-badge-2 {
-    bottom: -14px;
-    left: -12px;
-    animation-delay: 0.8s;
+    bottom: -16px; left: -8px;
+    animation-delay: 0.9s;
     color: var(--green);
-    border-color: rgba(74,222,128,0.25);
-    background: rgba(74,222,128,0.07);
+    border: 1px solid rgba(74,222,128,0.3);
+    background: rgba(74,222,128,0.08);
   }
   @keyframes float-in {
-    from { opacity: 0; transform: scale(0.85); }
+    from { opacity: 0; transform: scale(0.85) translateY(4px); }
     to   { opacity: 1; transform: none; }
   }
 
-  /* Mobile: stack */
-  @media (max-width: 768px) {
+  /* Mobile */
+  @media (max-width: 800px) {
     .hero { padding: 5.5rem 0 3.5rem; }
     .hero-layout {
       grid-template-columns: 1fr;
@@ -428,7 +565,8 @@
       text-align: center;
     }
     .hero-left { align-items: center; }
-    .hero-sub { margin: 0 auto 1.75rem; }
+    .h1-line2  { white-space: normal; }
+    .hero-sub  { margin: 0 auto 1.75rem; }
     .hero-ctas { justify-content: center; }
     .hero-right { justify-content: center; }
     .float-badge-1 { top: -14px; right: 8px; }
