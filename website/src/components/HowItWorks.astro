@@ -1,0 +1,155 @@
+---
+---
+<section class="how-it-works" id="how-it-works">
+  <div class="container">
+    <span class="section-label">Agent flow</span>
+    <h2>How <span class="mono-h">agent</span> works</h2>
+    <p class="section-sub">One command. No config. Claude does the thinking.</p>
+
+    <div class="steps">
+      <div class="step" data-animate data-delay="0">
+        <div class="step-left">
+          <div class="step-num">1</div>
+          <div class="step-connector"></div>
+        </div>
+        <div class="step-body">
+          <h4>Scan</h4>
+          <p>Scans every file in your project for 50+ secret patterns and 18 OWASP code vulnerability patterns. Skips <code>node_modules</code>, test files, and binaries automatically.</p>
+        </div>
+      </div>
+
+      <div class="step" data-animate data-delay="80">
+        <div class="step-left">
+          <div class="step-num">2</div>
+          <div class="step-connector"></div>
+        </div>
+        <div class="step-body">
+          <h4>Classify with Claude</h4>
+          <p>Sends findings to Claude. For each finding, Claude classifies as <span class="tag tag-red">REAL</span> (exploitable) or <span class="tag tag-gray">FALSE POSITIVE</span> (safe in context). Secrets are masked before sending — Claude never sees your actual key values.</p>
+        </div>
+      </div>
+
+      <div class="step" data-animate data-delay="160">
+        <div class="step-left">
+          <div class="step-num">3</div>
+          <div class="step-connector"></div>
+        </div>
+        <div class="step-body">
+          <h4>Remediate secrets</h4>
+          <p>Confirmed real secrets are automatically rewritten to use environment variables. Source files are updated, a <code>.env</code> file is created with the actual values, and <code>.gitignore</code> is patched.</p>
+        </div>
+      </div>
+
+      <div class="step" data-animate data-delay="240">
+        <div class="step-left">
+          <div class="step-num">4</div>
+          <div class="step-connector"></div>
+        </div>
+        <div class="step-body">
+          <h4>Fix code vulnerabilities</h4>
+          <p>For each real vulnerability, Claude provides a specific 1-line fix with a plain-English explanation of why the current code is exploitable and how the fix addresses it.</p>
+        </div>
+      </div>
+
+      <div class="step" data-animate data-delay="320">
+        <div class="step-left">
+          <div class="step-num">5</div>
+        </div>
+        <div class="step-body">
+          <h4>Verify</h4>
+          <p>Re-scans after remediation to confirm all secrets are gone. Shows a final clean bill of health — or a clear list of what still needs manual attention.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .mono-h {
+    font-family: var(--font-mono);
+    color: var(--cyan);
+    font-size: 0.88em;
+  }
+
+  .steps {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  .step {
+    display: flex;
+    gap: 1.25rem;
+    padding-bottom: 0;
+  }
+
+  .step-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .step-num {
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 50%;
+    background: var(--cyan);
+    color: #09090b;
+    font-weight: 800;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+    box-shadow: 0 0 16px rgba(34,211,238,0.3);
+  }
+
+  .step-connector {
+    width: 2px;
+    flex: 1;
+    min-height: 2rem;
+    background: linear-gradient(to bottom, var(--cyan-dim), rgba(14,116,144,0.1));
+    margin: 0.4rem 0;
+  }
+
+  .step-body {
+    padding-bottom: 2.5rem;
+  }
+
+  .step:last-child .step-body { padding-bottom: 0; }
+
+  .step-body h4 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+    letter-spacing: -0.02em;
+  }
+
+  .step-body p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.7;
+  }
+
+  .step-body code {
+    font-family: var(--font-mono);
+    background: var(--cyan-glow);
+    color: var(--cyan);
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+    font-size: 0.85em;
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 0.1em 0.5em;
+    border-radius: 4px;
+    font-size: 0.78em;
+    font-family: var(--font-mono);
+    font-weight: 600;
+  }
+
+  .tag-red  { background: rgba(248,113,113,0.15); color: var(--red); border: 1px solid rgba(248,113,113,0.25); }
+  .tag-gray { background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); }
+</style>

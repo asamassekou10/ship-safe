@@ -1,0 +1,203 @@
+---
+---
+<section class="before-after">
+  <div class="container">
+    <span class="section-label">Auto-remediation</span>
+    <h2>From vulnerable to secure,<br />automatically.</h2>
+    <p class="section-sub">
+      <code>npx ship-safe remediate .</code> rewrites your code, writes the <code>.env</code> file, and updates <code>.gitignore</code> — all in one shot.
+    </p>
+
+    <div class="diff-grid">
+      <!-- BEFORE -->
+      <div class="diff-panel card" data-animate="left">
+        <div class="panel-header">
+          <span class="panel-filename">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            config.js
+          </span>
+          <span class="panel-badge badge-before">BEFORE</span>
+        </div>
+        <pre class="code-pre"><span class="c-dim">// config.js</span>
+<span class="c-dim">import OpenAI from 'openai';</span>
+<span class="c-dim"></span>
+<span class="c-dim">const openai = new OpenAI({"{"}</span>
+<span class="c-red line-hl">  apiKey: <span class="c-string">"sk-proj-xK9mN2pL8qR3f5..."</span>  <span class="c-comment">← 🚨 leaked</span></span>
+<span class="c-dim">{"}"});</span></pre>
+      </div>
+
+      <!-- Arrow -->
+      <div class="diff-arrow" aria-hidden="true">
+        <div class="arrow-line"></div>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </div>
+
+      <!-- AFTER -->
+      <div class="diff-panel card" data-animate="right">
+        <div class="panel-header">
+          <span class="panel-filename">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            config.js
+          </span>
+          <span class="panel-badge badge-after">AFTER</span>
+        </div>
+        <pre class="code-pre"><span class="c-dim">// config.js</span>
+<span class="c-dim">import OpenAI from 'openai';</span>
+<span class="c-dim"></span>
+<span class="c-dim">const openai = new OpenAI({"{"}</span>
+<span class="c-green line-hl">  apiKey: process.env.<span class="c-var">OPENAI_API_KEY</span>  <span class="c-comment">← ✓ safe</span></span>
+<span class="c-dim">{"}"});</span></pre>
+
+        <div class="env-block">
+          <div class="env-header">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            .env <span class="env-badge">auto-generated · git-ignored</span>
+          </div>
+          <pre class="env-pre"><span class="c-var">OPENAI_API_KEY</span>=sk-proj-xK9mN2pL8qR3f5...</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .diff-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0;
+    align-items: center;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .diff-panel {
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 1rem;
+    background: var(--bg-card2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-filename {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
+  .panel-badge {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 0.2em 0.6em;
+    border-radius: 4px;
+  }
+
+  .badge-before {
+    background: rgba(248, 113, 113, 0.12);
+    color: var(--red);
+    border: 1px solid rgba(248, 113, 113, 0.25);
+  }
+
+  .badge-after {
+    background: rgba(74, 222, 128, 0.12);
+    color: var(--green);
+    border: 1px solid rgba(74, 222, 128, 0.25);
+  }
+
+  .code-pre {
+    padding: 1.25rem 1.25rem 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 1.85;
+    background: #0d1117;
+    color: var(--text-muted);
+    overflow-x: auto;
+    margin: 0;
+  }
+
+  .line-hl {
+    display: block;
+    margin: 0 -1.25rem;
+    padding: 0 1.25rem;
+  }
+
+  .line-hl.c-red  { background: rgba(248, 113, 113, 0.1); }
+  .line-hl.c-green { background: rgba(74, 222, 128, 0.1); }
+
+  .c-dim     { color: var(--text-dim); }
+  .c-red     { color: var(--red); }
+  .c-green   { color: var(--green); }
+  .c-string  { color: #fbbf24; }
+  .c-var     { color: var(--cyan); }
+  .c-comment { color: var(--text-dim); font-style: italic; }
+
+  .env-block {
+    background: #0d1117;
+    border-top: 1px solid var(--border);
+    padding: 0.75rem 1.25rem;
+  }
+
+  .env-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    margin-bottom: 0.4rem;
+  }
+
+  .env-badge {
+    background: rgba(74, 222, 128, 0.1);
+    color: var(--green);
+    font-size: 0.65rem;
+    padding: 0.1em 0.45em;
+    border-radius: 3px;
+    border: 1px solid rgba(74, 222, 128, 0.2);
+  }
+
+  .env-pre {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  .diff-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0 1.5rem;
+    color: var(--cyan);
+  }
+
+  .arrow-line {
+    width: 1px;
+    height: 24px;
+    background: linear-gradient(to bottom, transparent, var(--cyan-dim));
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    .diff-grid {
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+    }
+    .diff-arrow {
+      flex-direction: row;
+      padding: 0.5rem 0;
+      justify-content: center;
+    }
+    .diff-arrow svg { transform: rotate(90deg); }
+  }
+</style>

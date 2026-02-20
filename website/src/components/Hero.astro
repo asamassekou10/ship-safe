@@ -1,0 +1,140 @@
+---
+---
+<section class="hero">
+  <div class="hero-glow" aria-hidden="true"></div>
+  <div class="container">
+    <div class="badge">Open source &middot; Free &middot; No signup</div>
+
+    <h1>
+      <span class="word" style="animation-delay: 0ms">Don't</span>
+      <span class="word" style="animation-delay: 80ms"> ship</span>
+      <span class="word" style="animation-delay: 160ms"> a</span>
+      <br />
+      <span class="word gradient-text" style="animation-delay: 260ms">security nightmare.</span>
+    </h1>
+
+    <p class="hero-sub">
+      Security toolkit for vibe coders and indie hackers.<br />
+      Scan for secrets, detect vulnerabilities, audit CVEs — one command.
+    </p>
+
+    <div class="install-box">
+      <span class="install-prompt">$</span>
+      <span class="install-cmd">npx ship-safe agent .</span>
+      <button class="copy-btn" id="hero-copy" title="Copy command" aria-label="Copy install command">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="hero-ctas">
+      <a href="https://github.com/asamassekou10/ship-safe" class="btn btn-primary" target="_blank" rel="noopener">
+        View on GitHub
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M17 7H7M17 7v10"/></svg>
+      </a>
+      <a href="#how-it-works" class="btn btn-ghost">See how it works</a>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.getElementById('hero-copy')?.addEventListener('click', function() {
+    navigator.clipboard.writeText('npx ship-safe agent .').then(() => {
+      this.style.color = 'var(--green)';
+      setTimeout(() => { this.style.color = ''; }, 1500);
+    });
+  });
+</script>
+
+<style>
+  .hero {
+    padding: 8rem 0 5rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-glow {
+    position: absolute;
+    top: -20%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 900px;
+    height: 600px;
+    background: radial-gradient(ellipse at center, rgba(34,211,238,0.11) 0%, rgba(129,140,248,0.07) 40%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .hero .container { position: relative; z-index: 1; }
+
+  .badge {
+    display: inline-block;
+    background: rgba(34,211,238,0.08);
+    border: 1px solid rgba(34,211,238,0.2);
+    color: var(--cyan);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.35rem 1rem;
+    border-radius: 999px;
+    margin-bottom: 1.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-size: clamp(2.6rem, 7vw, 4.75rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.04em;
+    margin-bottom: 1.5rem;
+  }
+
+  .word {
+    display: inline-block;
+    animation: word-in 0.6s ease both;
+  }
+
+  @keyframes word-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, var(--cyan) 0%, #818cf8 60%, #c084fc 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-sub {
+    color: var(--text-muted);
+    font-size: clamp(1rem, 2.5vw, 1.15rem);
+    max-width: 520px;
+    margin: 0 auto 2.25rem;
+    line-height: 1.75;
+    animation: word-in 0.6s 0.4s ease both;
+  }
+
+  .install-box {
+    animation: word-in 0.6s 0.55s ease both;
+    margin-bottom: 1.75rem;
+  }
+
+  .install-cmd { color: var(--text); font-weight: 500; }
+
+  .hero-ctas {
+    display: flex;
+    gap: 0.85rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    animation: word-in 0.6s 0.7s ease both;
+  }
+
+  @media (max-width: 640px) {
+    .hero { padding: 6rem 0 3.5rem; }
+    h1 { letter-spacing: -0.03em; }
+  }
+</style>

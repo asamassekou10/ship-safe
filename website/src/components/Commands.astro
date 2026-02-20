@@ -1,0 +1,173 @@
+---
+const commands = [
+  {
+    name: 'agent',
+    cmd: 'npx ship-safe agent .',
+    desc: 'Full AI audit — scan, classify with Claude, auto-fix secrets, suggest code fixes.',
+    flags: ['--dry-run', '--model <model>'],
+    featured: true,
+  },
+  {
+    name: 'scan',
+    cmd: 'npx ship-safe scan .',
+    desc: 'Scan for secrets and code vulnerabilities. No API key needed. CI-friendly.',
+    flags: ['--json', '--sarif', '--include-tests'],
+  },
+  {
+    name: 'score',
+    cmd: 'npx ship-safe score .',
+    desc: '0–100 security health score with A–F grade. Instant — no API call needed.',
+    flags: ['--no-deps'],
+  },
+  {
+    name: 'deps',
+    cmd: 'npx ship-safe deps .',
+    desc: 'Audit npm, yarn, pnpm, pip, or bundler dependencies for known CVEs.',
+    flags: ['--fix'],
+  },
+  {
+    name: 'remediate',
+    cmd: 'npx ship-safe remediate .',
+    desc: 'Auto-fix secrets: rewrites code, writes .env, updates .gitignore.',
+    flags: ['--dry-run', '--yes'],
+  },
+  {
+    name: 'rotate',
+    cmd: 'npx ship-safe rotate .',
+    desc: 'Opens provider dashboards with step-by-step key revocation instructions.',
+    flags: ['--provider <name>'],
+  },
+  {
+    name: 'guard',
+    cmd: 'npx ship-safe guard',
+    desc: 'Install a git hook that blocks git push if secrets are found.',
+    flags: ['--pre-commit'],
+  },
+  {
+    name: 'checklist',
+    cmd: 'npx ship-safe checklist',
+    desc: 'Interactive 10-point launch-day security checklist.',
+    flags: [],
+  },
+];
+---
+
+<section class="commands" id="commands">
+  <div class="container">
+    <span class="section-label">Reference</span>
+    <h2>All commands</h2>
+    <p class="section-sub">Everything you need. Nothing you don't.</p>
+
+    <div class="cmd-grid">
+      {commands.map((c, i) => (
+        <div class={`cmd-card card ${c.featured ? 'featured' : ''}`} data-animate data-delay={String(Math.min(i * 50, 300))}>
+          <div class="cmd-name">{c.name}</div>
+          <div class="cmd-line">
+            <span class="cmd-prompt">$</span>
+            <span class="cmd-text">{c.cmd}</span>
+            <button class="copy-btn cmd-copy" data-cmd={c.cmd} title={`Copy: ${c.cmd}`} aria-label={`Copy ${c.name} command`}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+          </div>
+          <p>{c.desc}</p>
+          {c.flags.length > 0 && (
+            <div class="flags">
+              {c.flags.map(f => <span class="flag">{f}</span>)}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<script>
+  document.querySelectorAll('.cmd-copy').forEach(btn => {
+    btn.addEventListener('click', function(this: HTMLElement) {
+      const cmd = this.dataset.cmd || '';
+      navigator.clipboard.writeText(cmd).then(() => {
+        this.style.color = 'var(--green)';
+        setTimeout(() => { this.style.color = ''; }, 1500);
+      });
+    });
+  });
+</script>
+
+<style>
+  .commands {
+    background: var(--bg-card);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .cmd-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(285px, 1fr));
+    gap: 1rem;
+  }
+
+  .cmd-card {
+    background: var(--bg);
+    padding: 1.25rem 1.4rem;
+  }
+
+  .cmd-card.featured {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, rgba(34,211,238,0.04) 0%, transparent 60%);
+    border-color: var(--cyan-dim);
+  }
+
+  @media (min-width: 700px) {
+    .cmd-card.featured { grid-column: span 2; }
+  }
+
+  .cmd-name {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--cyan);
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .cmd-line {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+  }
+
+  .cmd-prompt { color: var(--cyan); user-select: none; }
+  .cmd-text { color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .cmd-card p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 0.75rem;
+  }
+
+  .flags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .flag {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 0.15em 0.5em;
+    border-radius: 4px;
+  }
+</style>

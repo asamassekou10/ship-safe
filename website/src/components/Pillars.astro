@@ -1,0 +1,118 @@
+---
+---
+<section class="pillars">
+  <div class="container">
+    <span class="section-label">Coverage</span>
+    <h2>Everything that can get you hacked.</h2>
+    <p class="section-sub">Three attack surfaces. One tool.</p>
+
+    <div class="pillar-grid">
+      <div class="pillar card" data-animate data-delay="0">
+        <div class="pillar-icon">🔑</div>
+        <h3>Secrets</h3>
+        <p>50+ patterns covering API keys, database URLs, private keys, and JWTs. Finds what AI coding tools accidentally commit.</p>
+        <ul>
+          <li>OpenAI, Anthropic, Stripe, AWS, GitHub</li>
+          <li>Supabase, PlanetScale, MongoDB, Neon</li>
+          <li>AI classifies each as real or false positive</li>
+          <li>Auto-rewrites code to use <code>process.env</code></li>
+        </ul>
+      </div>
+
+      <div class="pillar card" data-animate data-delay="100">
+        <div class="pillar-icon">💉</div>
+        <h3>Code Vulns</h3>
+        <p>18 OWASP Top 10 patterns. Finds exploitable code before attackers do — Claude explains exactly how to fix each one.</p>
+        <ul>
+          <li>SQL injection in template literals</li>
+          <li>XSS via <code>innerHTML</code>, <code>dangerouslySetInnerHTML</code></li>
+          <li>Command injection, <code>eval()</code>, weak crypto</li>
+          <li>TLS bypass, CORS wildcard, <code>pickle.loads</code></li>
+        </ul>
+      </div>
+
+      <div class="pillar card" data-animate data-delay="200">
+        <div class="pillar-icon">📦</div>
+        <h3>Dependencies</h3>
+        <p>Audit your npm, pip, or bundler dependencies for known CVEs using the package manager's own audit tool.</p>
+        <ul>
+          <li>npm, yarn, pnpm — auto-detected from lockfile</li>
+          <li>pip-audit for Python projects</li>
+          <li>bundler-audit for Ruby projects</li>
+          <li><code>--fix</code> to auto-patch what's patchable</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .pillars {
+    background: var(--bg-card);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .pillar-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .pillar {
+    padding: 2rem;
+    background: var(--bg);
+  }
+
+  .pillar-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    display: block;
+  }
+
+  .pillar h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--cyan);
+    margin-bottom: 0.6rem;
+    letter-spacing: -0.02em;
+  }
+
+  .pillar p {
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    line-height: 1.7;
+    margin-bottom: 1rem;
+  }
+
+  .pillar ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .pillar li {
+    font-size: 0.83rem;
+    color: var(--text-dim);
+    padding-left: 1rem;
+    position: relative;
+    line-height: 1.5;
+  }
+
+  .pillar li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--cyan-dim);
+  }
+
+  .pillar code {
+    font-family: var(--font-mono);
+    background: var(--cyan-glow);
+    color: var(--cyan);
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+    font-size: 0.85em;
+  }
+</style>

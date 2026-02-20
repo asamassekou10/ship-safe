@@ -1,0 +1,171 @@
+---
+---
+<section class="terminal-section">
+  <div class="container">
+    <div class="terminal card" id="terminal-wrapper" data-animate>
+      <div class="terminal-bar">
+        <span class="dot dot-r"></span>
+        <span class="dot dot-y"></span>
+        <span class="dot dot-g"></span>
+        <span class="terminal-title">npx ship-safe agent .</span>
+      </div>
+      <div class="terminal-body" id="terminal-body" aria-live="polite">
+        <!-- JS will populate this -->
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const LINES: { text: string; cls?: string; pause?: number }[] = [
+    { text: '$ npx ship-safe agent .', cls: 'cmd', pause: 400 },
+    { text: '', pause: 200 },
+    { text: '  Scanning 247 files...', cls: 'dim', pause: 600 },
+    { text: '', pause: 100 },
+    { text: '  ✘  4 secrets found', cls: 'red', pause: 150 },
+    { text: '  ✘  3 code vulnerabilities', cls: 'yellow', pause: 150 },
+    { text: '  ✘  2 dependency CVEs', cls: 'red', pause: 500 },
+    { text: '', pause: 100 },
+    { text: '  Classifying with Claude...', cls: 'cyan', pause: 700 },
+    { text: '', pause: 100 },
+    { text: '  REAL  ·  sk-proj-xK9m***Q3f5       OpenAI API Key', cls: 'red', pause: 120 },
+    { text: '  REAL  ·  postgres://ad***8f92        Database URL', cls: 'red', pause: 120 },
+    { text: '  SKIP  ·  example_key_placeholder    False positive', cls: 'dim', pause: 500 },
+    { text: '', pause: 100 },
+    { text: '  Auto-fixing 2 confirmed secrets...', cls: 'cyan', pause: 600 },
+    { text: '  ✔  src/config.js rewritten → process.env.OPENAI_API_KEY', cls: 'green', pause: 120 },
+    { text: '  ✔  .env updated  ·  .gitignore updated', cls: 'green', pause: 500 },
+    { text: '', pause: 100 },
+    { text: '  Ship Safe Score: 83/100  ·  B — Minor issues to review', cls: 'white bold', pause: 0 },
+  ];
+
+  let started = false;
+
+  function sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  function buildLine(text: string, cls: string) {
+    if (!text) return document.createElement('div');
+    const div = document.createElement('div');
+    div.className = `t-line ${cls}`;
+    div.textContent = text;
+    return div;
+  }
+
+  async function runTypewriter() {
+    if (started) return;
+    started = true;
+
+    const body = document.getElementById('terminal-body');
+    if (!body) return;
+
+    // Respect reduced-motion: show everything instantly
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reduced) {
+      for (const line of LINES) {
+        body.appendChild(buildLine(line.text, line.cls || 'dim'));
+      }
+      return;
+    }
+
+    // Add blinking cursor line
+    const cursorEl = document.createElement('div');
+    cursorEl.className = 't-line cursor-line';
+    cursorEl.innerHTML = '<span class="cursor">▋</span>';
+    body.appendChild(cursorEl);
+
+    for (const line of LINES) {
+      await sleep(line.pause ?? 100);
+      const el = buildLine(line.text, line.cls || 'dim');
+      body.insertBefore(el, cursorEl);
+      body.scrollTop = body.scrollHeight;
+    }
+
+    // Remove cursor when done
+    cursorEl.remove();
+  }
+
+  const wrapper = document.getElementById('terminal-wrapper');
+  if (wrapper) {
+    const obs = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        runTypewriter();
+        obs.unobserve(wrapper);
+      }
+    }, { threshold: 0.3 });
+    obs.observe(wrapper);
+  }
+</script>
+
+<style>
+  .terminal-section { padding: 0 0 6rem; }
+
+  .terminal {
+    max-width: 740px;
+    margin: 0 auto;
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(34, 211, 238, 0.07), 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .terminal:hover { transform: none; } /* override card hover lift */
+
+  .terminal-bar {
+    background: #1c1c1f;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dot {
+    width: 11px; height: 11px;
+    border-radius: 50%;
+  }
+  .dot-r { background: #ff5f57; }
+  .dot-y { background: #febc2e; }
+  .dot-g { background: #28c840; }
+
+  .terminal-title {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    margin-left: 0.5rem;
+  }
+
+  .terminal-body {
+    background: #0d1117;
+    padding: 1.25rem 1.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.83rem;
+    line-height: 1.8;
+    min-height: 280px;
+    overflow-y: auto;
+    max-height: 380px;
+  }
+
+  .t-line { white-space: pre; }
+  .t-line.cmd    { color: var(--text); font-weight: 700; }
+  .t-line.cyan   { color: var(--cyan); }
+  .t-line.red    { color: var(--red); }
+  .t-line.yellow { color: var(--yellow); }
+  .t-line.green  { color: var(--green); }
+  .t-line.white  { color: var(--text); }
+  .t-line.bold   { font-weight: 700; }
+  .t-line.dim    { color: var(--text-dim); }
+
+  .cursor-line { color: var(--cyan); }
+  .cursor {
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+  }
+
+  @media (max-width: 640px) {
+    .terminal-body { font-size: 0.75rem; padding: 1rem; }
+  }
+</style>

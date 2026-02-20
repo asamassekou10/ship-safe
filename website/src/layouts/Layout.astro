@@ -16,27 +16,18 @@ const {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#0a0a0a" />
-
-    <!-- Open Graph -->
+    <meta name="theme-color" content="#09090b" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://ship-safe.vercel.app" />
-
-    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
-
     <title>{title}</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
   </head>
   <body>
     <slot />
@@ -44,34 +35,31 @@ const {
 </html>
 
 <style is:global>
-  *, *::before, *::after {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --cyan: #22d3ee;
-    --cyan-dim: #0e7490;
-    --cyan-glow: rgba(34, 211, 238, 0.15);
-    --red: #f87171;
-    --yellow: #fbbf24;
-    --green: #4ade80;
-    --gray: #6b7280;
-    --gray-light: #9ca3af;
-    --gray-dark: #374151;
-    --bg: #0a0a0a;
-    --bg-card: #111827;
-    --bg-card-border: #1f2937;
-    --text: #f9fafb;
-    --text-dim: #9ca3af;
-    --font-sans: 'Inter', system-ui, sans-serif;
-    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --bg:           #09090b;
+    --bg-elevated:  #111113;
+    --bg-card:      #18181b;
+    --bg-card2:     #1c1c1f;
+    --border:       #27272a;
+    --border-hover: #52525b;
+    --cyan:         #22d3ee;
+    --cyan-dim:     #0e7490;
+    --cyan-glow:    rgba(34, 211, 238, 0.12);
+    --red:          #f87171;
+    --yellow:       #fbbf24;
+    --green:        #4ade80;
+    --text:         #fafafa;
+    --text-muted:   #a1a1aa;
+    --text-dim:     #71717a;
+    --font-sans:    'Inter', system-ui, sans-serif;
+    --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+    --radius:       10px;
+    --radius-lg:    14px;
   }
 
-  html {
-    scroll-behavior: smooth;
-  }
+  html { scroll-behavior: smooth; }
 
   body {
     background: var(--bg);
@@ -79,23 +67,207 @@ const {
     font-family: var(--font-sans);
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+    position: relative;
   }
 
-  a {
+  /* Grain texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+    opacity: 0.035;
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  a { color: var(--cyan); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, pre, .mono { font-family: var(--font-mono); }
+
+  ::selection { background: var(--cyan-glow); color: var(--cyan); }
+
+  /* ── Scroll-triggered animations ── */
+  [data-animate] {
+    opacity: 0;
+    transform: translateY(22px);
+    transition: opacity 0.55s ease, transform 0.55s ease;
+  }
+  [data-animate].visible {
+    opacity: 1;
+    transform: none;
+  }
+  [data-animate="left"] { transform: translateX(-30px); }
+  [data-animate="right"] { transform: translateX(30px); }
+  [data-animate="left"].visible,
+  [data-animate="right"].visible { transform: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-animate], [data-animate="left"], [data-animate="right"] {
+      opacity: 1 !important;
+      transform: none !important;
+      transition: none !important;
+    }
+  }
+
+  /* ── Shared layout ── */
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  section { padding: 6rem 0; }
+
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
     color: var(--cyan);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+    display: block;
+    text-align: center;
+  }
+
+  h2 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: 0.75rem;
+    text-align: center;
+  }
+
+  .section-sub {
+    color: var(--text-muted);
+    text-align: center;
+    margin-bottom: 3rem;
+    font-size: 1.05rem;
+    max-width: 560px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .section-sub code {
+    font-family: var(--font-mono);
+    color: var(--cyan);
+    font-size: 0.88em;
+    background: var(--cyan-glow);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+  }
+
+  /* ── Shared card styles ── */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  }
+
+  .card:hover {
+    border-color: var(--border-hover);
+    box-shadow: 0 0 0 1px var(--border-hover), 0 8px 32px rgba(0,0,0,0.5);
+    transform: translateY(-2px);
+  }
+
+  /* ── Shared button ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.6rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.15s;
     text-decoration: none;
   }
 
-  a:hover {
-    text-decoration: underline;
+  .btn-primary {
+    background: var(--cyan);
+    color: #09090b;
+  }
+  .btn-primary:hover {
+    background: #67e8f9;
+    text-decoration: none;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(34,211,238,0.3);
   }
 
-  code, pre, .mono {
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover {
+    color: var(--text);
+    border-color: var(--border-hover);
+    text-decoration: none;
+  }
+
+  /* ── Copy button ── */
+  .copy-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    display: flex;
+    align-items: center;
+    border-radius: 5px;
+    transition: color 0.15s, background 0.15s;
+    color: var(--text-dim);
+  }
+  .copy-btn:hover { color: var(--cyan); background: var(--cyan-glow); }
+
+  /* ── Install box ── */
+  .install-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.85rem 1.25rem;
     font-family: var(--font-mono);
+    font-size: 1rem;
+  }
+  .install-prompt {
+    color: var(--cyan);
+    font-weight: 700;
+    user-select: none;
+    animation: pulse-prompt 2s ease-in-out infinite;
+  }
+  @keyframes pulse-prompt {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
   }
 
-  ::selection {
-    background: var(--cyan-glow);
-    color: var(--cyan);
+  @media (max-width: 640px) {
+    section { padding: 4rem 0; }
+    .install-box { font-size: 0.82rem; }
   }
 </style>
+
+<script>
+  // Scroll-triggered fade-ins
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const delay = parseInt((entry.target as HTMLElement).dataset.delay || '0');
+        setTimeout(() => entry.target.classList.add('visible'), delay);
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('[data-animate]').forEach(el => observer.observe(el));
+
+  // Nav scroll shadow
+  const nav = document.querySelector('nav');
+  window.addEventListener('scroll', () => {
+    nav?.classList.toggle('scrolled', window.scrollY > 20);
+  }, { passive: true });
+</script>

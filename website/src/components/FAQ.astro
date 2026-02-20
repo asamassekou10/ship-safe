@@ -1,0 +1,119 @@
+---
+const faqs = [
+  {
+    q: 'Does it work without an Anthropic API key?',
+    a: 'Yes. <code>scan</code>, <code>score</code>, <code>deps</code>, <code>remediate</code>, <code>rotate</code>, and <code>guard</code> all work fully offline with no API key. The <code>agent</code> command uses Claude for AI classification, but gracefully falls back to <code>remediate</code> if no <code>ANTHROPIC_API_KEY</code> is set.'
+  },
+  {
+    q: 'Is my code sent to Claude?',
+    a: 'Only the matched snippet (±2 lines of context around each finding). Secret values are masked before sending — Claude sees <code>sk-proj-***Q3f5</code> not the actual key. Claude\'s API does not train on API data.'
+  },
+  {
+    q: 'Which languages are supported?',
+    a: 'Secret detection works on any file (pattern matching is language-agnostic). Code vulnerability patterns target JavaScript, TypeScript, and Python. Dependency auditing covers Node.js (npm/yarn/pnpm), Python (pip-audit), and Ruby (bundler-audit).'
+  },
+  {
+    q: 'How is this different from git-secrets or TruffleHog?',
+    a: 'git-secrets and TruffleHog only find secrets in git history. ship-safe also detects <strong>code vulnerabilities</strong> (SQL injection, XSS, command injection, etc.), audits <strong>dependencies for CVEs</strong>, provides an AI-powered verdict on each finding, and <strong>auto-fixes</strong> confirmed issues — all in a single command.'
+  },
+  {
+    q: 'Can I add custom patterns?',
+    a: 'Yes. Create a <code>.ship-safe.json</code> file in your project root with a <code>patterns</code> array. Each entry needs a <code>name</code>, <code>pattern</code> (regex string), optional <code>severity</code>, and optional <code>description</code>. Custom patterns are picked up automatically by <code>scan</code> and <code>agent</code>.'
+  },
+  {
+    q: 'Is it safe to run in CI?',
+    a: 'Yes. Every command exits <code>0</code> (clean) or <code>1</code> (issues found), which integrates naturally with CI gate logic. Use <code>--json</code> for structured output or <code>--sarif</code> to upload findings to GitHub\'s Security tab.'
+  }
+];
+---
+
+<section class="faq">
+  <div class="container">
+    <span class="section-label">FAQ</span>
+    <h2>Common questions</h2>
+
+    <div class="faq-list" data-animate>
+      {faqs.map((item, i) => (
+        <details class="faq-item" data-index={i}>
+          <summary class="faq-question">
+            <span>{item.q}</span>
+            <svg class="faq-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+          </summary>
+          <div class="faq-answer" set:html={item.a} />
+        </details>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .faq { background: var(--bg-card); border-top: 1px solid var(--border); }
+
+  .faq-list {
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .faq-item {
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .faq-item:last-child { border-bottom: none; }
+
+  .faq-question {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.2rem 1.5rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    list-style: none;
+    user-select: none;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .faq-question::-webkit-details-marker { display: none; }
+
+  .faq-question:hover {
+    background: var(--bg-elevated);
+    color: var(--cyan);
+  }
+
+  .faq-arrow {
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+    color: var(--text-dim);
+  }
+
+  details[open] .faq-arrow { transform: rotate(90deg); }
+  details[open] .faq-question { color: var(--cyan); }
+
+  .faq-answer {
+    padding: 0 1.5rem 1.25rem;
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    line-height: 1.75;
+  }
+
+  .faq-answer :global(code) {
+    font-family: var(--font-mono);
+    background: var(--cyan-glow);
+    color: var(--cyan);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    font-size: 0.88em;
+  }
+
+  .faq-answer :global(strong) { color: var(--text); font-weight: 600; }
+</style>

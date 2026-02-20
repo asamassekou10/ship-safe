@@ -1,0 +1,132 @@
+---
+const yamlCode = `name: Security Scan
+on: [push, pull_request]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan for secrets and code vulnerabilities
+        run: npx ship-safe scan . --json
+
+      - name: Audit dependencies for CVEs
+        run: npx ship-safe deps .
+
+      - name: Security health score (fail if C or below)
+        run: npx ship-safe score . --no-deps`;
+---
+
+<section class="cicd">
+  <div class="container">
+    <span class="section-label">CI / CD</span>
+    <h2>Drop it into your pipeline.</h2>
+    <p class="section-sub">Every command exits <code>1</code> on findings, failing your build automatically. Zero config.</p>
+
+    <div class="code-block card" data-animate>
+      <div class="code-header">
+        <div class="code-filename">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          .github/workflows/security.yml
+        </div>
+        <button class="copy-btn ci-copy" id="ci-copy" title="Copy workflow" aria-label="Copy GitHub Actions workflow">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          <span id="ci-copy-label">Copy</span>
+        </button>
+      </div>
+      <pre class="yaml-pre" id="ci-yaml">{yamlCode}</pre>
+    </div>
+
+    <p class="sarif-tip" data-animate data-delay="100">
+      Use <code>--sarif</code> with <code>scan</code> to upload findings directly to GitHub's Security tab via <code>github/codeql-action/upload-sarif</code>.
+    </p>
+  </div>
+</section>
+
+<script>
+  document.getElementById('ci-copy')?.addEventListener('click', function() {
+    const code = document.getElementById('ci-yaml')?.textContent || '';
+    navigator.clipboard.writeText(code).then(() => {
+      const label = document.getElementById('ci-copy-label');
+      if (label) {
+        label.textContent = 'Copied!';
+        this.style.color = 'var(--green)';
+        setTimeout(() => { label.textContent = 'Copy'; this.style.color = ''; }, 2000);
+      }
+    });
+  });
+</script>
+
+<style>
+  .code-block {
+    max-width: 720px;
+    margin: 0 auto;
+    overflow: hidden;
+  }
+
+  .code-header {
+    background: var(--bg-card2);
+    padding: 0.65rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .code-filename {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
+  .ci-copy {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    font-family: var(--font-sans);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 0.25rem 0.6rem;
+    color: var(--text-dim);
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .ci-copy:hover { color: var(--cyan); border-color: var(--cyan-dim); }
+
+  .yaml-pre {
+    background: #0d1117;
+    padding: 1.25rem 1.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 1.8;
+    color: var(--text-muted);
+    overflow-x: auto;
+    margin: 0;
+  }
+
+  .sarif-tip {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-top: 1.25rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .sarif-tip code {
+    font-family: var(--font-mono);
+    background: var(--cyan-glow);
+    color: var(--cyan);
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+    font-size: 0.88em;
+  }
+</style>

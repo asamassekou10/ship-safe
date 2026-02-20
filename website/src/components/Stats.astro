@@ -1,0 +1,133 @@
+---
+---
+<section class="stats-section">
+  <div class="container">
+    <div class="stats-bar" data-animate>
+      <div class="stat">
+        <span class="stat-num" data-target="50" data-suffix="+">0</span>
+        <span class="stat-label">Secret patterns</span>
+      </div>
+      <div class="stat-sep" aria-hidden="true"></div>
+      <div class="stat">
+        <span class="stat-num" data-target="18">0</span>
+        <span class="stat-label">OWASP checks</span>
+      </div>
+      <div class="stat-sep" aria-hidden="true"></div>
+      <div class="stat">
+        <span class="stat-num" data-target="5">0</span>
+        <span class="stat-label">Package managers</span>
+      </div>
+      <div class="stat-sep" aria-hidden="true"></div>
+      <div class="stat">
+        <span class="stat-num" data-target="0" data-prefix="&lt;" data-suffix="5s">0</span>
+        <span class="stat-label">To run</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  function easeOut(t: number) { return 1 - Math.pow(1 - t, 3); }
+
+  function animateCounter(el: HTMLElement) {
+    const target = parseInt(el.dataset.target || '0');
+    const suffix = el.dataset.suffix || '';
+    const prefix = el.dataset.prefix || '';
+    const duration = 1200;
+    const start = performance.now();
+
+    if (target === 0) {
+      el.innerHTML = `${prefix}<span class="num">${prefix ? '5' : '0'}</span>${suffix}`;
+      return;
+    }
+
+    function tick(now: number) {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const value = Math.round(easeOut(progress) * target);
+      el.innerHTML = `<span class="num">${value}</span>${suffix}`;
+      if (progress < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  const statsBar = document.querySelector('.stats-bar');
+  if (statsBar) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          document.querySelectorAll('.stat-num').forEach(el => {
+            animateCounter(el as HTMLElement);
+          });
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.5 });
+    observer.observe(statsBar);
+  }
+</script>
+
+<style>
+  .stats-section {
+    padding: 0 0 4rem;
+  }
+
+  .stats-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem 2rem;
+    flex-wrap: wrap;
+    gap: 0;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.5rem 2.5rem;
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .stat-sep {
+    width: 1px;
+    height: 40px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  .stat-num {
+    font-family: var(--font-mono);
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--cyan);
+    line-height: 1;
+    min-width: 3rem;
+    text-align: center;
+  }
+
+  .stat-num .num {
+    display: inline-block;
+    min-width: 2rem;
+    text-align: right;
+  }
+
+  .stat-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 640px) {
+    .stats-bar { gap: 0.5rem; padding: 1.25rem 1rem; }
+    .stat { padding: 0.5rem 1rem; min-width: 80px; }
+    .stat-sep { height: 30px; }
+    .stat-num { font-size: 1.4rem; }
+  }
+</style>
