@@ -42,7 +42,7 @@ export async function watchCommand(targetPath = '.', options = {}) {
     const watcher = fs.watch(absolutePath, { recursive: true }, (eventType, filename) => {
       if (!filename) return;
 
-      const fullPath = path.join(absolutePath, filename);
+      const fullPath = path.join(absolutePath, filename); // ship-safe-ignore — filename from fs.watch, not user input
       const relPath = filename.replace(/\\/g, '/');
 
       // Skip directories we don't care about

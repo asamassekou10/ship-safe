@@ -8,6 +8,17 @@
 # It is scanned and maintained by the ship-safe team — safe to exclude.
 cli/utils/patterns.js
 
+# Agent files contain regex patterns and fix suggestions that reference
+# dangerous functions (eval, exec, pickle, etc.) — these are detection
+# rules, not actual usage. Safe to exclude.
+cli/agents/
+
+# LLM provider makes HTTP requests by design (not SSRF)
+cli/providers/
+
+# AI defense patterns file contains intentional prompt injection test data
+ai-defense/
+
 # Documentation and example files intentionally contain dangerous patterns
 snippets/
 docs/

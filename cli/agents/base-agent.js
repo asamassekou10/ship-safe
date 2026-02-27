@@ -95,6 +95,17 @@ export class BaseAgent {
   async discoverFiles(rootPath, extraGlobs = ['**/*']) {
     const globIgnore = Array.from(SKIP_DIRS).map(dir => `**/${dir}/**`);
 
+    // Load .ship-safeignore patterns
+    const ignorePatterns = this._loadIgnorePatterns(rootPath);
+    for (const p of ignorePatterns) {
+      if (p.endsWith('/')) {
+        globIgnore.push(`**/${p}**`);
+      } else {
+        globIgnore.push(`**/${p}`);
+        globIgnore.push(p);
+      }
+    }
+
     const allFiles = await fg(extraGlobs, {
       cwd: rootPath,
       absolute: true,
@@ -116,6 +127,22 @@ export class BaseAgent {
       }
       return true;
     });
+  }
+
+  /**
+   * Load .ship-safeignore patterns from the project root.
+   */
+  _loadIgnorePatterns(rootPath) {
+    const ignorePath = path.join(rootPath, '.ship-safeignore');
+    try {
+      if (!fs.existsSync(ignorePath)) return [];
+      return fs.readFileSync(ignorePath, 'utf-8')
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l && !l.startsWith('#'));
+    } catch {
+      return [];
+    }
   }
 
   /**

@@ -21,6 +21,13 @@ const POPULAR_PACKAGES = [
   'next', 'nuxt', 'svelte', 'vue', 'angular',
 ];
 
+// Well-known packages that happen to be close to other popular names
+// (not typosquats — verified legitimate packages)
+const KNOWN_SAFE = new Set([
+  'ora', 'got', 'ink', 'yup', 'joi', 'ava', 'tap', 'npm', 'nwb',
+  'pug', 'koa', 'hap', 'ejs', 'csv', 'ws', 'pg', 'ms',
+]);
+
 // Known malicious package name patterns
 const SUSPICIOUS_NAME_PATTERNS = [
   /^@[^/]+\/[^/]+-[0-9]+$/,       // @scope/package-123 (random suffix)
@@ -49,6 +56,7 @@ export class SupplyChainAudit extends BaseAgent {
 
         // ── Typosquatting detection ───────────────────────────────────────────
         for (const depName of Object.keys(allDeps)) {
+          if (KNOWN_SAFE.has(depName)) continue;
           for (const popular of POPULAR_PACKAGES) {
             const distance = this.levenshtein(depName, popular);
             if (distance > 0 && distance <= 2 && depName !== popular) {
