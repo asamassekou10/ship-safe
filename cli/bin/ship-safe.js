@@ -31,6 +31,10 @@ import { rotateCommand } from '../commands/rotate.js';
 import { agentCommand } from '../commands/agent.js';
 import { depsCommand } from '../commands/deps.js';
 import { scoreCommand } from '../commands/score.js';
+import { redTeamCommand } from '../commands/red-team.js';
+import { watchCommand } from '../commands/watch.js';
+import { PolicyEngine } from '../agents/policy-engine.js';
+import { SBOMGenerator } from '../agents/sbom-generator.js';
 
 // =============================================================================
 // CLI CONFIGURATION
@@ -175,6 +179,61 @@ program
   .action(scoreCommand);
 
 // -----------------------------------------------------------------------------
+// RED TEAM COMMAND (v4.0 — Multi-Agent Security Audit)
+// -----------------------------------------------------------------------------
+program
+  .command('red-team [path]')
+  .description('Multi-agent security audit: 12 agents scan for 50+ attack classes')
+  .option('--agents <list>', 'Comma-separated list of agents to run')
+  .option('--json', 'Output results as JSON')
+  .option('--sarif', 'Output results in SARIF format')
+  .option('--html [file]', 'Generate HTML security report')
+  .option('--sbom [file]', 'Generate CycloneDX SBOM')
+  .option('--no-deps', 'Skip dependency audit')
+  .option('--no-ai', 'Skip AI classification')
+  .option('-v, --verbose', 'Verbose output')
+  .action(redTeamCommand);
+
+// -----------------------------------------------------------------------------
+// WATCH COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('watch [path]')
+  .description('Continuous monitoring: watch files for security issues in real-time')
+  .option('--poll', 'Use polling mode (for network drives)')
+  .action(watchCommand);
+
+// -----------------------------------------------------------------------------
+// SBOM COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('sbom [path]')
+  .description('Generate Software Bill of Materials (CycloneDX SBOM)')
+  .option('-o, --output <file>', 'Output file path', 'sbom.json')
+  .action((targetPath = '.', options) => {
+    const absolutePath = join(process.cwd(), targetPath);
+    const sbom = new SBOMGenerator();
+    sbom.generateToFile(absolutePath, options.output);
+    console.log(chalk.green(`✔ SBOM saved to ${options.output}`));
+  });
+
+// -----------------------------------------------------------------------------
+// POLICY COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('policy <action>')
+  .description('Manage security policies (init: create policy template)')
+  .action((action) => {
+    if (action === 'init') {
+      const policyPath = PolicyEngine.generateTemplate(process.cwd());
+      console.log(chalk.green(`✔ Policy template created: ${policyPath}`));
+      console.log(chalk.gray('  Edit .ship-safe.policy.json to configure your security policy.'));
+    } else {
+      console.log(chalk.yellow(`Unknown policy action: ${action}. Use: policy init`));
+    }
+  });
+
+// -----------------------------------------------------------------------------
 // PARSE AND RUN
 // -----------------------------------------------------------------------------
 
@@ -182,15 +241,20 @@ program
 if (process.argv.length === 2) {
   console.log(banner);
   console.log(chalk.yellow('\nQuick start:\n'));
+  console.log(chalk.cyan.bold('  v4.0 — Multi-Agent Security Audit'));
+  console.log(chalk.white('  npx ship-safe red-team .    ') + chalk.gray('# Full 12-agent security audit (50+ attack classes)'));
+  console.log(chalk.white('  npx ship-safe watch .       ') + chalk.gray('# Continuous monitoring mode'));
+  console.log(chalk.white('  npx ship-safe sbom .        ') + chalk.gray('# Generate CycloneDX SBOM'));
+  console.log(chalk.white('  npx ship-safe policy init   ') + chalk.gray('# Create security policy template'));
+  console.log();
+  console.log(chalk.gray('  Core commands:'));
   console.log(chalk.white('  npx ship-safe agent .       ') + chalk.gray('# AI audit: scan + classify + auto-fix'));
   console.log(chalk.white('  npx ship-safe scan .        ') + chalk.gray('# Scan for secrets'));
   console.log(chalk.white('  npx ship-safe remediate .   ') + chalk.gray('# Auto-fix: rewrite code + write .env'));
   console.log(chalk.white('  npx ship-safe rotate .      ') + chalk.gray('# Revoke exposed keys (provider guides)'));
-  console.log(chalk.white('  npx ship-safe fix           ') + chalk.gray('# Generate .env.example from secrets'));
-  console.log(chalk.white('  npx ship-safe guard         ') + chalk.gray('# Block git push if secrets found'));
-  console.log(chalk.white('  npx ship-safe checklist     ') + chalk.gray('# Run security checklist'));
   console.log(chalk.white('  npx ship-safe deps .        ') + chalk.gray('# Audit dependencies for CVEs'));
   console.log(chalk.white('  npx ship-safe score .       ') + chalk.gray('# Security health score (0-100)'));
+  console.log(chalk.white('  npx ship-safe guard         ') + chalk.gray('# Block git push if secrets found'));
   console.log(chalk.white('  npx ship-safe init          ') + chalk.gray('# Add security configs to your project'));
   console.log(chalk.white('\n  npx ship-safe --help        ') + chalk.gray('# Show all options'));
   console.log();
