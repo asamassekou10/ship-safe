@@ -816,15 +816,46 @@ export const MAX_FILE_SIZE = 1_000_000;
 // .GITIGNORE LOADING
 // =============================================================================
 
+// Gitignore patterns that should NEVER be skipped by a security scanner.
+// These files are gitignored precisely because they contain secrets or
+// sensitive config — which is exactly what we want to detect.
+const SECURITY_SENSITIVE_PATTERNS = new Set([
+  '.env',
+  '.env.local',
+  '.env.development',
+  '.env.development.local',
+  '.env.test',
+  '.env.test.local',
+  '.env.production',
+  '.env.production.local',
+  '.env.staging',
+  '*.pem',
+  '*.key',
+  '*.p12',
+  '*.pfx',
+  '*.jks',
+  '*.keystore',
+  '*.crt',
+  '*.cer',
+  'credentials.json',
+  'service-account.json',
+  'serviceAccountKey.json',
+  '*.secret',
+  'htpasswd',
+  '.htpasswd',
+  'id_rsa',
+  'id_ed25519',
+  '*.sqlite',
+  '*.db',
+]);
+
 /**
  * Load patterns from .gitignore file in the project root.
  * Returns an array of glob-compatible ignore patterns.
  *
- * Handles:
- *   - Comments (#)
- *   - Negation (!) — skipped (not supported by fast-glob ignore)
- *   - Directory patterns (dir/)
- *   - Wildcard patterns (*.log, build/*)
+ * Smart filtering: skips gitignored build output, caches, and vendor dirs,
+ * but ALWAYS scans security-sensitive files (.env, *.key, *.pem, etc.)
+ * even if they appear in .gitignore.
  */
 export function loadGitignorePatterns(rootPath) {
   const gitignorePath = path.join(rootPath, '.gitignore');
@@ -834,6 +865,7 @@ export function loadGitignorePatterns(rootPath) {
       .split('\n')
       .map(l => l.trim())
       .filter(l => l && !l.startsWith('#') && !l.startsWith('!'))
+      .filter(p => !isSecuritySensitive(p))
       .map(p => {
         // Convert .gitignore patterns to fast-glob ignore patterns
         if (p.startsWith('/')) {
@@ -854,6 +886,21 @@ export function loadGitignorePatterns(rootPath) {
   } catch {
     return [];
   }
+}
+
+/**
+ * Check if a .gitignore pattern targets security-sensitive files.
+ * These should always be scanned regardless of .gitignore.
+ */
+function isSecuritySensitive(pattern) {
+  const cleaned = pattern.replace(/^\//, '').replace(/\/$/, '');
+  if (SECURITY_SENSITIVE_PATTERNS.has(cleaned)) return true;
+  // Check wildcard patterns like *.pem, *.key
+  for (const sensitive of SECURITY_SENSITIVE_PATTERNS) {
+    if (sensitive.startsWith('*') && cleaned.endsWith(sensitive.slice(1))) return true;
+    if (cleaned === sensitive || cleaned.endsWith('/' + sensitive)) return true;
+  }
+  return false;
 }
 
 // =============================================================================
