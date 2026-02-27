@@ -256,3 +256,5 @@ docker-compose.override.yml
 # -----------------------------------------------------------------------------
 
 .claude/
+.ship-safe/
+ship-safe-report.html
