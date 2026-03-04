@@ -60,12 +60,12 @@ const PATTERNS = [
   {
     rule: 'MOBILE_DEEPLINK_INJECTION',
     title: 'Mobile: Deep Link Parameter Injection',
-    regex: /(?:Linking\.getInitialURL|useURL|addEventListener.*url).*(?!validate|sanitize|verify)/g,
+    regex: /(?:Linking\.getInitialURL|useURL|addEventListener\s*\(\s*['"]url['"])/g,
     severity: 'high',
     cwe: 'CWE-20',
     owasp: 'M4',
     confidence: 'low',
-    description: 'Deep link URL parameters used without validation. Attacker can craft malicious links.',
+    description: 'Deep link URL handler detected. Ensure parameters from deep links are validated before use.',
     fix: 'Validate and sanitize all parameters from deep links before use',
   },
 

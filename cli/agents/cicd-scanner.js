@@ -17,11 +17,12 @@ const PATTERNS = [
   {
     rule: 'CICD_PR_TARGET_CHECKOUT',
     title: 'CI/CD: pull_request_target with PR Checkout',
-    regex: /pull_request_target[\s\S]{0,500}(?:actions\/checkout|checkout@)[\s\S]{0,200}(?:ref:\s*\$\{\{.*github\.event\.pull_request|head\.ref)/g,
+    regex: /\bpull_request_target\b/g,
     severity: 'critical',
     cwe: 'CWE-94',
     owasp: 'CICD-SEC-4',
-    description: 'pull_request_target with checkout of PR branch enables arbitrary code execution from forks.',
+    confidence: 'medium',
+    description: 'pull_request_target trigger detected. Runs with base branch privileges and can be exploited if combined with PR checkout.',
     fix: 'Use pull_request trigger instead, or never checkout PR branch in pull_request_target',
   },
   {
@@ -156,7 +157,7 @@ const PATTERNS = [
   {
     rule: 'CICD_SCRIPT_INJECTION',
     title: 'CI/CD: Script Injection via Expressions',
-    regex: /run\s*:\s*.*\$\{\{\s*(?:github\.event\.(?:issue|comment|pull_request|review)\.(?:title|body|head\.ref|label))/g,
+    regex: /run\s*:\s*[^\n]*\$\{\{\s*(?:github\.event\.(?:issue|comment|pull_request|review)\.(?:title|body|head\.ref|label))/g,
     severity: 'critical',
     cwe: 'CWE-78',
     owasp: 'CICD-SEC-4',

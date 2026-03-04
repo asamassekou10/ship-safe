@@ -59,7 +59,7 @@ const PATTERNS = [
   {
     rule: 'COOKIE_NO_HTTPONLY',
     title: 'Cookie Missing httpOnly Flag',
-    regex: /(?:cookie|Cookie|setCookie|set-cookie)[^;]*(?!httpOnly|httponly).*(?:secure|domain|path|maxAge|max-age)/gi,
+    regex: /(?:cookie|Cookie|setCookie|set-cookie)[^;]{0,100}(?:secure|domain|path|maxAge|max-age)(?![^;]*httpOnly)/gi,
     severity: 'medium',
     cwe: 'CWE-1004',
     owasp: 'A05:2021',
@@ -103,7 +103,7 @@ const PATTERNS = [
   {
     rule: 'SESSION_NO_REGENERATE',
     title: 'Session Not Regenerated After Login',
-    regex: /(?:login|authenticate|signIn)\s*(?:=|:)\s*(?:async\s+)?(?:function|\([^)]*\)\s*=>)[^}]{50,500}(?!regenerate|destroy|rotate)/g,
+    regex: /(?:login|authenticate|signIn)\s*(?:=|:)\s*(?:async\s+)?(?:function|\([^)]*\)\s*=>)/g,
     severity: 'medium',
     cwe: 'CWE-384',
     owasp: 'A07:2021',

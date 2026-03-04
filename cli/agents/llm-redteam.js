@@ -15,7 +15,7 @@ const PATTERNS = [
   {
     rule: 'LLM_PROMPT_INJECTION_NO_SANITIZE',
     title: 'Prompt Injection: No Input Sanitization',
-    regex: /(?:messages|prompt|content)\s*[:=]\s*(?:`[^`]*\$\{(?:req\.|request\.|body|query|params|input|user)|.*\+\s*(?:req\.|request\.|body|query|params|input|user))/g,
+    regex: /(?:messages|prompt|content)\s*[:=]\s*(?:`[^`]*\$\{(?:req\.|request\.|body|query|params|input|user)|[^\n]*\+\s*(?:req\.|request\.|body|query|params|input|user))/g,
     severity: 'high',
     cwe: 'CWE-77',
     owasp: 'LLM01',
@@ -25,7 +25,7 @@ const PATTERNS = [
   {
     rule: 'LLM_SYSTEM_USER_CONCAT',
     title: 'Prompt Injection: System + User Concatenation',
-    regex: /(?:system|systemPrompt|system_prompt)\s*[:=].*(?:\+\s*(?:user|input|query|message)|`[^`]*\$\{)/g,
+    regex: /(?:system|systemPrompt|system_prompt)\s*[:=][^\n]*(?:\+\s*(?:user|input|query|message)|`[^`]*\$\{)/g,
     severity: 'critical',
     cwe: 'CWE-77',
     owasp: 'LLM01',
@@ -37,7 +37,7 @@ const PATTERNS = [
   {
     rule: 'LLM_SECRET_IN_PROMPT',
     title: 'Sensitive Data in LLM Prompt',
-    regex: /(?:system|prompt|content)\s*[:=].*(?:API_KEY|api_key|SECRET|PASSWORD|TOKEN|PRIVATE_KEY|DATABASE_URL)/g,
+    regex: /(?:system|prompt|content)\s*[:=][^\n]*(?:API_KEY|api_key|SECRET|PASSWORD|TOKEN|PRIVATE_KEY|DATABASE_URL)/g,
     severity: 'critical',
     cwe: 'CWE-200',
     owasp: 'LLM02',

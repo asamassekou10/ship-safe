@@ -166,6 +166,16 @@ const PATTERNS = [
 
   // ── Sensitive Data in URL ──────────────────────────────────────────────────
   {
+    rule: 'API_KEY_IN_URL',
+    title: 'API: Secret in URL Query Parameter',
+    regex: /(?:url|endpoint|href)\s*[:=]\s*[`"'][^`"']*\?[^`"']*(?:key|token|secret|password|apiKey|api_key)\s*=/gi,
+    severity: 'high',
+    cwe: 'CWE-598',
+    owasp: 'A02:2021',
+    description: 'API key or secret passed in URL query parameter. URLs are logged in server logs, browser history, and proxies.',
+    fix: 'Move secrets to request headers (e.g., Authorization, x-api-key) instead of URL parameters.',
+  },
+  {
     rule: 'API_SECRET_IN_URL',
     title: 'API: Sensitive Data in URL Parameters',
     regex: /(?:app|router)\.(?:get|post)\s*\(\s*['"][^'"]*(?::token|:apiKey|:password|:secret|:key)\b/g,
