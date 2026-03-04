@@ -8,7 +8,7 @@
  * they're deleted but they're still accessible.
  */
 
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import path from 'path';
 import { BaseAgent, createFinding } from './base-agent.js';
 import { SECRET_PATTERNS } from '../utils/patterns.js';
@@ -37,14 +37,14 @@ export class GitHistoryScanner extends BaseAgent {
       const maxCommits = options?.maxCommits || 50;
       const since = options?.since || null;
 
-      let gitLogCmd = `git -C "${rootPath}" log --all --diff-filter=A --diff-filter=M -p --no-color --max-count=${maxCommits}`;
+      const gitArgs = ['-C', rootPath, 'log', '--all', '--diff-filter=A', '--diff-filter=M', '-p', '--no-color', `--max-count=${parseInt(maxCommits, 10)}`];
       if (since) {
-        gitLogCmd += ` --since="${since}"`;
+        gitArgs.push(`--since=${since}`);
       }
 
       let diffOutput;
       try {
-        diffOutput = execSync(gitLogCmd, {
+        diffOutput = execFileSync('git', gitArgs, {
           cwd: rootPath,
           encoding: 'utf-8',
           maxBuffer: 50 * 1024 * 1024, // 50MB buffer
@@ -139,7 +139,10 @@ export class GitHistoryScanner extends BaseAgent {
 
   existsInWorkingTree(rootPath, secret) {
     try {
-      const result = execSync(`git -C "${rootPath}" grep -l "${secret.slice(0, 12)}" -- "*.js" "*.ts" "*.py" "*.env" "*.json" 2>/dev/null`, {
+      const result = execFileSync('git', [
+        '-C', rootPath, 'grep', '-l', secret.slice(0, 12),
+        '--', '*.js', '*.ts', '*.py', '*.env', '*.json'
+      ], {
         cwd: rootPath,
         encoding: 'utf-8',
         timeout: 5000,

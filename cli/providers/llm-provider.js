@@ -105,8 +105,7 @@ class AnthropicProvider extends BaseLLMProvider {
     });
 
     if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`Anthropic API error ${response.status}: ${body.slice(0, 200)}`);
+      throw new Error(`Anthropic API error: HTTP ${response.status}`);
     }
 
     const data = await response.json();
@@ -143,8 +142,7 @@ class OpenAIProvider extends BaseLLMProvider {
     });
 
     if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`OpenAI API error ${response.status}: ${body.slice(0, 200)}`);
+      throw new Error(`OpenAI API error: HTTP ${response.status}`);
     }
 
     const data = await response.json();
@@ -163,11 +161,14 @@ class GoogleProvider extends BaseLLMProvider {
   }
 
   async complete(systemPrompt, userPrompt, options = {}) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': this.apiKey,
+      },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
         contents: [{ parts: [{ text: userPrompt }] }],
@@ -176,8 +177,7 @@ class GoogleProvider extends BaseLLMProvider {
     });
 
     if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`Google API error ${response.status}: ${body.slice(0, 200)}`);
+      throw new Error(`Google API error: HTTP ${response.status}`);
     }
 
     const data = await response.json();
@@ -211,8 +211,7 @@ class OllamaProvider extends BaseLLMProvider {
     });
 
     if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`Ollama error ${response.status}: ${body.slice(0, 200)}`);
+      throw new Error(`Ollama error: HTTP ${response.status}`);
     }
 
     const data = await response.json();

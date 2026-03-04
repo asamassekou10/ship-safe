@@ -311,6 +311,38 @@ const PATTERNS = [
     description: 'User-controlled regex can cause catastrophic backtracking (ReDoS). Validate or use RE2.',
     fix: 'Use the re2 package for user-supplied patterns, or validate regex complexity',
   },
+  {
+    rule: 'REDOS_NESTED_QUANTIFIER',
+    title: 'ReDoS: Nested Quantifiers in Regex',
+    regex: /\/[^/]*\([^)]*[+*][^)]*\)[+*][^/]*\//g,
+    severity: 'high',
+    cwe: 'CWE-1333',
+    owasp: 'A03:2021',
+    description: 'Regex with nested quantifiers like (a+)+ or (\\w+)* causes catastrophic backtracking.',
+    fix: 'Rewrite to avoid nested repetition or use a non-backtracking engine (re2 package).',
+  },
+  {
+    rule: 'REDOS_DOT_STAR_LOOKAHEAD',
+    title: 'ReDoS: .* with Lookahead',
+    regex: /\/[^/]*\.\*[^/]*\(\?[!=][^/]*\//g,
+    severity: 'medium',
+    cwe: 'CWE-1333',
+    owasp: 'A03:2021',
+    description: 'Regex with .* followed by lookahead can cause catastrophic backtracking on non-matching input.',
+    fix: 'Replace .* with a bounded class like [^\\n]{0,N} or use a non-backtracking engine (re2).',
+  },
+
+  // ── Command Injection with Secrets ────────────────────────────────────────
+  {
+    rule: 'CMD_INJECTION_SECRET_INTERPOLATION',
+    title: 'Command Injection: Secret in Shell Command',
+    regex: /\bexec(?:Sync)?\s*\(\s*`[^`]*\$\{[^}]*(?:secret|password|token|apiKey|api_key|credential)[^}]*\}/gi,
+    severity: 'critical',
+    cwe: 'CWE-78',
+    owasp: 'A03:2021',
+    description: 'Secret or credential interpolated into shell command. Both a command injection and credential exposure risk.',
+    fix: 'Use execFileSync(cmd, [args]) with argument arrays. Never interpolate secrets into shell strings.',
+  },
 
   // ── Prototype Pollution ────────────────────────────────────────────────────
   {

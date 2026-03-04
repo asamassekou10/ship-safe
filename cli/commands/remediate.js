@@ -34,7 +34,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { createInterface } from 'readline';
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import chalk from 'chalk';
 import ora from 'ora';
 import pkg from 'write-file-atomic';
@@ -270,6 +270,11 @@ function createBackupDir(rootPath) {
 function backupFile(filePath, backupDir, rootPath) {
   const rel = path.relative(rootPath, filePath);
   const dest = path.join(backupDir, rel);
+  const resolvedDest = path.resolve(dest);
+  const resolvedBackupDir = path.resolve(backupDir);
+  if (!resolvedDest.startsWith(resolvedBackupDir + path.sep) && resolvedDest !== resolvedBackupDir) {
+    throw new Error(`Path traversal detected: ${rel} escapes backup directory`);
+  }
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   fs.copyFileSync(filePath, dest);
 }
@@ -414,8 +419,7 @@ function checkPublicRepo(rootPath) {
 function stageFiles(files, rootPath) {
   if (files.length === 0) return;
   try {
-    const quoted = files.map(f => `"${f}"`).join(' ');
-    execSync(`git add ${quoted}`, { cwd: rootPath, stdio: 'inherit' }); // ship-safe-ignore — paths come from our own file scan
+    execFileSync('git', ['add', ...files], { cwd: rootPath, stdio: 'inherit' });
     output.success(`Staged ${files.length} file(s) with git add`);
   } catch {
     output.warning('Could not stage files — run git add manually.');
