@@ -5,6 +5,10 @@
  * Coordinates all security agents, deduplicates findings,
  * and produces a unified report.
  *
+ * Features:
+ * - Per-agent timeouts (default 30s, configurable via --timeout)
+ * - Parallel execution with configurable concurrency (default 6)
+ *
  * USAGE:
  *   const orchestrator = new Orchestrator();
  *   orchestrator.register(new InjectionTester());
@@ -15,6 +19,13 @@ import path from 'path';
 import ora from 'ora';
 import chalk from 'chalk';
 import { ReconAgent } from './recon-agent.js';
+
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+
+const DEFAULT_TIMEOUT = 30_000; // 30s per agent
+const DEFAULT_CONCURRENCY = 6;
 
 // =============================================================================
 // ORCHESTRATOR
@@ -46,14 +57,28 @@ export class Orchestrator {
   }
 
   /**
+   * Run a single agent with a timeout.
+   */
+  async runAgent(agent, context, timeout) {
+    return Promise.race([
+      agent.analyze(context),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error(`timed out after ${timeout / 1000}s`)), timeout);
+      }),
+    ]);
+  }
+
+  /**
    * Run all registered agents against the codebase.
    *
    * @param {string} rootPath — Absolute path to the project root
-   * @param {object} options  — { verbose, agents[], categories[] }
+   * @param {object} options  — { verbose, agents[], categories[], timeout, concurrency }
    * @returns {Promise<object>} — { recon, findings[], agentResults[] }
    */
   async runAll(rootPath, options = {}) {
     const absolutePath = path.resolve(rootPath);
+    const timeout = options.timeout || DEFAULT_TIMEOUT;
+    const concurrency = options.concurrency || DEFAULT_CONCURRENCY;
 
     // ── 1. Recon — map the attack surface ─────────────────────────────────────
     const quiet = options.quiet || false;
@@ -79,52 +104,90 @@ export class Orchestrator {
       agentsToRun = agentsToRun.filter(a => requested.has(a.category.toLowerCase()));
     }
 
-    // ── 4. Run each agent ─────────────────────────────────────────────────────
+    // ── 4. Build shared context ─────────────────────────────────────────────
     const context = { rootPath: absolutePath, files, recon, options };
-
-    // Pass changedFiles for incremental scanning (agents can use this to scope analysis)
     if (options.changedFiles) {
       context.changedFiles = options.changedFiles;
     }
+
+    // ── 5. Run agents in parallel (chunked by concurrency) ──────────────────
     const agentResults = [];
     let allFindings = [];
 
-    for (const agent of agentsToRun) {
-      const spinner = quiet ? null : ora({
-        text: `Running ${agent.name}...`,
-        color: 'cyan'
-      }).start();
+    const spinner = quiet ? null : ora({
+      text: `Running ${agentsToRun.length} agents in parallel...`,
+      color: 'cyan'
+    }).start();
 
-      try {
-        const findings = await agent.analyze(context);
-        agentResults.push({
-          agent: agent.name,
-          category: agent.category,
-          findingCount: findings.length,
-          success: true,
-        });
-        allFindings = allFindings.concat(findings);
-        if (spinner) spinner.succeed(
-          findings.length === 0
-            ? chalk.green(`${agent.name}: clean`)
-            : chalk.yellow(`${agent.name}: ${findings.length} finding(s)`)
-        );
-      } catch (err) {
-        agentResults.push({
-          agent: agent.name,
-          category: agent.category,
-          findingCount: 0,
-          success: false,
-          error: err.message,
-        });
-        if (spinner) spinner.fail(chalk.red(`${agent.name}: error — ${err.message}`));
+    for (let i = 0; i < agentsToRun.length; i += concurrency) {
+      const chunk = agentsToRun.slice(i, i + concurrency);
+      const settled = await Promise.allSettled(
+        chunk.map(agent => this.runAgent(agent, context, timeout))
+      );
+
+      for (let j = 0; j < chunk.length; j++) {
+        const agent = chunk[j];
+        const result = settled[j];
+
+        if (result.status === 'fulfilled') {
+          const findings = result.value;
+          agentResults.push({
+            agent: agent.name,
+            category: agent.category,
+            findingCount: findings.length,
+            success: true,
+          });
+          allFindings = allFindings.concat(findings);
+        } else {
+          agentResults.push({
+            agent: agent.name,
+            category: agent.category,
+            findingCount: 0,
+            success: false,
+            error: result.reason.message,
+          });
+        }
       }
     }
 
-    // ── 5. Deduplicate ────────────────────────────────────────────────────────
+    // Show results summary
+    if (spinner) {
+      const succeeded = agentResults.filter(a => a.success).length;
+      const failed = agentResults.filter(a => !a.success).length;
+      const totalFindings = allFindings.length;
+
+      if (failed > 0) {
+        spinner.warn(chalk.yellow(
+          `${succeeded}/${agentsToRun.length} agents completed, ${failed} failed, ${totalFindings} finding(s)`
+        ));
+      } else {
+        spinner.succeed(
+          totalFindings === 0
+            ? chalk.green(`${succeeded} agents: clean`)
+            : chalk.yellow(`${succeeded} agents: ${totalFindings} finding(s)`)
+        );
+      }
+    }
+
+    // Show per-agent results when not in quiet mode
+    if (!quiet) {
+      for (const r of agentResults) {
+        if (r.success) {
+          const icon = r.findingCount === 0 ? chalk.green('  ✔') : chalk.yellow('  ⚠');
+          const msg = r.findingCount === 0
+            ? chalk.green(`${r.agent}: clean`)
+            : chalk.yellow(`${r.agent}: ${r.findingCount} finding(s)`);
+          console.log(`${icon} ${msg}`);
+        } else {
+          console.log(chalk.red(`  ✗ ${r.agent}: ${r.error}`));
+        }
+      }
+    }
+
+    // ── 6. Deduplicate ────────────────────────────────────────────────────────
     allFindings = this.deduplicate(allFindings);
 
-    // ── 6. Sort by severity ───────────────────────────────────────────────────
+    // ── 7. Sort by severity ───────────────────────────────────────────────────
     const sevOrder = { critical: 0, high: 1, medium: 2, low: 3 };
     allFindings.sort((a, b) =>
       (sevOrder[a.severity] ?? 4) - (sevOrder[b.severity] ?? 4)

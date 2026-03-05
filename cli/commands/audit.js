@@ -71,7 +71,7 @@ const EFFORT_MAP = {
 
 export async function auditCommand(targetPath = '.', options = {}) {
   const absolutePath = path.resolve(targetPath);
-  const machineOutput = options.json || options.sarif;
+  const machineOutput = options.json || options.sarif || options.csv || options.md;
 
   if (!fs.existsSync(absolutePath)) {
     console.error(chalk.red(`  Path does not exist: ${absolutePath}`));
@@ -81,7 +81,7 @@ export async function auditCommand(targetPath = '.', options = {}) {
   if (!machineOutput) {
     console.log();
     console.log(chalk.cyan('═'.repeat(60)));
-    console.log(chalk.cyan.bold('  Ship Safe v4.0 — Full Security Audit'));
+    console.log(chalk.cyan.bold('  Ship Safe — Full Security Audit'));
     console.log(chalk.cyan('═'.repeat(60)));
     console.log();
   }
@@ -209,32 +209,67 @@ export async function auditCommand(targetPath = '.', options = {}) {
   const policy = PolicyEngine.load(absolutePath);
   const filteredFindings = policy.applyPolicy(allFindings);
 
+  // Count suppressions (ship-safe-ignore comments)
+  const suppressions = countSuppressions(allFiles);
+
   // Score
   const scoringEngine = new ScoringEngine();
   const scoreResult = scoringEngine.compute(filteredFindings, depVulns);
-  scoringEngine.saveToHistory(absolutePath, scoreResult);
+  scoringEngine.saveToHistory(absolutePath, scoreResult, suppressions);
 
   const gradeColor = scoreResult.score >= 75 ? chalk.green.bold : scoreResult.score >= 60 ? chalk.yellow.bold : chalk.red.bold;
   if (scoreSpinner) scoreSpinner.succeed(
     chalk.white('[Phase 4/4] Score: ') + gradeColor(`${scoreResult.score}/100 ${scoreResult.grade.letter}`)
   );
 
-  // ── AI Classification (optional) ─────────────────────────────────────────
+  // ── AI Classification (optional, with LLM cache) ───────────────────────
   if (options.ai !== false) {
     const provider = autoDetectProvider(absolutePath);
     if (provider && filteredFindings.length > 0 && filteredFindings.length <= 50) {
       const aiSpinner = machineOutput ? null : ora({ text: `Classifying with ${provider.name}...`, color: 'cyan' }).start();
       try {
-        const classifications = await provider.classify(filteredFindings);
-        for (const cl of classifications) {
-          const finding = filteredFindings.find(f => `${f.file}:${f.line}` === cl.id);
-          if (finding) {
-            finding.aiClassification = cl.classification;
-            finding.aiReason = cl.reason;
-            finding.aiFix = cl.fix;
+        // Check LLM cache for existing classifications
+        const llmCache = cache.loadLLMClassifications();
+        const uncachedFindings = [];
+        let cachedCount = 0;
+
+        for (const finding of filteredFindings) {
+          const key = cache.getLLMCacheKey(finding);
+          const cached = llmCache[key];
+          if (cached) {
+            finding.aiClassification = cached.classification;
+            finding.aiReason = cached.reason;
+            finding.aiFix = cached.fix;
+            cachedCount++;
+          } else {
+            uncachedFindings.push(finding);
           }
         }
-        if (aiSpinner) aiSpinner.succeed(chalk.green(`AI classification complete (${provider.name})`));
+
+        // Only send uncached findings to LLM
+        if (uncachedFindings.length > 0) {
+          const classifications = await provider.classify(uncachedFindings);
+          const newCacheEntries = {};
+          for (const cl of classifications) {
+            const finding = filteredFindings.find(f => `${f.file}:${f.line}` === cl.id);
+            if (finding) {
+              finding.aiClassification = cl.classification;
+              finding.aiReason = cl.reason;
+              finding.aiFix = cl.fix;
+              const key = cache.getLLMCacheKey(finding);
+              newCacheEntries[key] = {
+                classification: cl.classification,
+                reason: cl.reason,
+                fix: cl.fix,
+                cachedAt: new Date().toISOString(),
+              };
+            }
+          }
+          cache.saveLLMClassifications(newCacheEntries);
+        }
+
+        const cacheNote = cachedCount > 0 ? `, ${cachedCount} cached` : '';
+        if (aiSpinner) aiSpinner.succeed(chalk.green(`AI classification complete (${provider.name}${cacheNote})`));
       } catch (err) {
         if (aiSpinner) aiSpinner.fail(chalk.yellow(`AI classification failed: ${err.message}`));
       }
@@ -262,16 +297,20 @@ export async function auditCommand(targetPath = '.', options = {}) {
   // ── Output ────────────────────────────────────────────────────────────────
   console.log();
 
-  if (options.json) {
-    outputJSON(scoreResult, filteredFindings, depVulns, recon, agentResults, remediationPlan);
+  if (options.csv) {
+    outputCSV(filteredFindings, depVulns, scoreResult, absolutePath);
+  } else if (options.md) {
+    outputMarkdown(scoreResult, filteredFindings, depVulns, remediationPlan, absolutePath);
+  } else if (options.json) {
+    outputJSON(scoreResult, filteredFindings, depVulns, recon, agentResults, remediationPlan, suppressions, options.compare ? scoringEngine.loadHistory(absolutePath) : null);
   } else if (options.sarif) {
     outputSARIF(filteredFindings, absolutePath);
   } else {
     printReport(scoreResult, filteredFindings, depVulns, recon, remediationPlan, absolutePath, filesScanned);
   }
 
-  // ── HTML Report (always generate unless --json/--sarif) ───────────────────
-  if (!options.json && !options.sarif) {
+  // ── HTML Report (always generate unless machine output) ───────────────────
+  if (!options.json && !options.sarif && !options.csv && !options.md) {
     const htmlPath = typeof options.html === 'string' ? options.html : 'ship-safe-report.html';
     const reporter = new HTMLReporter();
     reporter.generateFullReport(scoreResult, filteredFindings, depVulns, recon, remediationPlan, absolutePath, htmlPath);
@@ -279,7 +318,7 @@ export async function auditCommand(targetPath = '.', options = {}) {
     console.log(chalk.cyan(`  Full report: ${chalk.white.bold(htmlPath)}`));
   }
 
-  if (!machineOutput) {
+  if (!machineOutput && !options.csv && !options.md) {
     // ── Policy Violations ──────────────────────────────────────────────────
     const violations = policy.evaluate(scoreResult, filteredFindings);
     if (violations.length > 0) {
@@ -295,6 +334,11 @@ export async function auditCommand(targetPath = '.', options = {}) {
     if (trend) {
       const arrow = trend.diff > 0 ? chalk.green('↑') : trend.diff < 0 ? chalk.red('↓') : chalk.gray('→');
       console.log(chalk.gray(`  Trend: ${trend.previousScore} → ${trend.currentScore} ${arrow} (${trend.diff > 0 ? '+' : ''}${trend.diff})`));
+    }
+
+    // ── Detailed Comparison ────────────────────────────────────────────────
+    if (options.compare) {
+      printComparison(scoringEngine, absolutePath, scoreResult);
     }
 
     console.log();
@@ -463,8 +507,8 @@ function printReport(scoreResult, findings, depVulns, recon, plan, rootPath, fil
 // JSON OUTPUT
 // =============================================================================
 
-function outputJSON(scoreResult, findings, depVulns, recon, agentResults, remediationPlan) {
-  console.log(JSON.stringify({
+function outputJSON(scoreResult, findings, depVulns, recon, agentResults, remediationPlan, suppressions, history) {
+  const output = {
     score: scoreResult.score,
     grade: scoreResult.grade.letter,
     gradeLabel: scoreResult.grade.label,
@@ -489,7 +533,29 @@ function outputJSON(scoreResult, findings, depVulns, recon, agentResults, remedi
     remediationPlan,
     recon,
     agents: agentResults,
-  }, null, 2));
+  };
+  if (suppressions) output.suppressions = suppressions;
+  if (history && history.length >= 2) {
+    const prev = history[history.length - 2];
+    output.comparison = {
+      previousScore: prev.score,
+      previousGrade: prev.grade,
+      previousDate: prev.timestamp,
+      diff: scoreResult.score - prev.score,
+      categoryComparison: Object.fromEntries(
+        Object.entries(scoreResult.categories).map(([k, v]) => {
+          const prevCat = prev.categoryScores?.[k];
+          return [k, {
+            label: v.label,
+            current: -v.deduction,
+            previous: prevCat ? -prevCat.deduction : 0,
+            delta: prevCat ? prevCat.deduction - v.deduction : 0,
+          }];
+        })
+      ),
+    };
+  }
+  console.log(JSON.stringify(output, null, 2));
 }
 
 // =============================================================================
@@ -617,4 +683,167 @@ function deduplicateFindings(findings) {
     seen.add(key);
     return true;
   });
+}
+
+// =============================================================================
+// SUPPRESSION COUNTING
+// =============================================================================
+
+function countSuppressions(files) {
+  const suppressions = {};
+  let total = 0;
+  for (const file of files) {
+    try {
+      const content = fs.readFileSync(file, 'utf-8');
+      const lines = content.split('\n');
+      for (const line of lines) {
+        if (/ship-safe-ignore/i.test(line)) {
+          total++;
+          // Try to extract rule name from comment: ship-safe-ignore RULE_NAME
+          const match = line.match(/ship-safe-ignore\s+(\w+)/i);
+          const rule = match ? match[1] : '_unspecified';
+          suppressions[rule] = (suppressions[rule] || 0) + 1;
+        }
+      }
+    } catch { /* skip */ }
+  }
+  return total > 0 ? { total, rules: suppressions } : null;
+}
+
+// =============================================================================
+// CSV OUTPUT
+// =============================================================================
+
+function outputCSV(findings, depVulns, scoreResult, rootPath) {
+  const escape = (s) => {
+    if (!s) return '';
+    const str = String(s).replace(/"/g, '""');
+    return str.includes(',') || str.includes('"') || str.includes('\n') ? `"${str}"` : str;
+  };
+
+  console.log('severity,category,rule,file,line,title,description,fix');
+  for (const f of findings) {
+    const relFile = path.relative(rootPath, f.file).replace(/\\/g, '/');
+    console.log([
+      escape(f.severity), escape(f.category), escape(f.rule),
+      escape(relFile), f.line || '', escape(f.title),
+      escape(f.description), escape(f.fix),
+    ].join(','));
+  }
+  for (const d of depVulns) {
+    console.log([
+      escape(d.severity), 'deps', escape(d.id || d.package),
+      'package.json', '', escape(`Vulnerable: ${d.package || d.id}`),
+      escape(d.description), escape('Update to patched version'),
+    ].join(','));
+  }
+}
+
+// =============================================================================
+// MARKDOWN OUTPUT
+// =============================================================================
+
+function outputMarkdown(scoreResult, findings, depVulns, remediationPlan, rootPath) {
+  const lines = [];
+  lines.push('# Ship Safe Security Report');
+  lines.push('');
+  lines.push(`**Score: ${scoreResult.score}/100 (${scoreResult.grade.letter})** — ${scoreResult.grade.label}`);
+  lines.push('');
+  lines.push(`> Generated: ${new Date().toISOString()}`);
+  lines.push('');
+
+  // Category breakdown
+  lines.push('## Category Breakdown');
+  lines.push('');
+  lines.push('| Category | Issues | Deduction |');
+  lines.push('|----------|--------|-----------|');
+  for (const [, cat] of Object.entries(scoreResult.categories)) {
+    const count = Object.values(cat.counts).reduce((a, b) => a + b, 0);
+    lines.push(`| ${cat.label} | ${count} | -${cat.deduction} |`);
+  }
+  lines.push('');
+
+  // Findings by severity
+  for (const sev of SEV_ORDER) {
+    const sevFindings = findings.filter(f => f.severity === sev);
+    if (sevFindings.length === 0) continue;
+
+    lines.push(`## ${sev.charAt(0).toUpperCase() + sev.slice(1)} (${sevFindings.length})`);
+    lines.push('');
+    lines.push('| File | Rule | Description | Fix |');
+    lines.push('|------|------|-------------|-----|');
+    for (const f of sevFindings) {
+      const relFile = path.relative(rootPath, f.file).replace(/\\/g, '/');
+      lines.push(`| ${relFile}:${f.line} | ${f.rule} | ${(f.description || '').slice(0, 80)} | ${(f.fix || '').slice(0, 60)} |`);
+    }
+    lines.push('');
+  }
+
+  // Dep vulns
+  if (depVulns.length > 0) {
+    lines.push('## Dependency Vulnerabilities');
+    lines.push('');
+    lines.push('| Severity | Package | Description |');
+    lines.push('|----------|---------|-------------|');
+    for (const d of depVulns) {
+      lines.push(`| ${d.severity} | ${d.package || d.id} | ${(d.description || '').slice(0, 80)} |`);
+    }
+    lines.push('');
+  }
+
+  console.log(lines.join('\n'));
+}
+
+// =============================================================================
+// COMPARISON OUTPUT
+// =============================================================================
+
+function printComparison(scoringEngine, rootPath, scoreResult) {
+  const history = scoringEngine.loadHistory(rootPath);
+  if (history.length < 2) {
+    console.log(chalk.gray('\n  No previous scan to compare against.'));
+    return;
+  }
+
+  const prev = history[history.length - 2];
+  console.log();
+  console.log(chalk.cyan.bold('  Detailed Comparison'));
+  console.log(chalk.gray('  ' + '─'.repeat(56)));
+  console.log(chalk.gray(`  Previous scan: ${new Date(prev.timestamp).toLocaleString()}`));
+  console.log();
+  console.log(chalk.white('  Category'.padEnd(26)) + chalk.white('Previous'.padEnd(12)) + chalk.white('Current'.padEnd(12)) + chalk.white('Delta'));
+  console.log(chalk.gray('  ' + '─'.repeat(56)));
+
+  for (const [key, cat] of Object.entries(scoreResult.categories)) {
+    const prevCat = prev.categoryScores?.[key];
+    const prevDed = prevCat ? prevCat.deduction : 0;
+    const curDed = cat.deduction;
+    const delta = prevDed - curDed;
+
+    let deltaStr;
+    if (delta > 0) deltaStr = chalk.green(`+${delta} improved`);
+    else if (delta < 0) deltaStr = chalk.red(`${delta} regressed`);
+    else deltaStr = chalk.gray('→ unchanged');
+
+    console.log(
+      `  ${chalk.white(cat.label.padEnd(24))}` +
+      `${chalk.gray(String(-prevDed).padEnd(12))}` +
+      `${chalk.gray(String(-curDed).padEnd(12))}` +
+      deltaStr
+    );
+  }
+
+  const overallDiff = scoreResult.score - prev.score;
+  let overallDelta;
+  if (overallDiff > 0) overallDelta = chalk.green(`+${overallDiff} improved`);
+  else if (overallDiff < 0) overallDelta = chalk.red(`${overallDiff} regressed`);
+  else overallDelta = chalk.gray('→ unchanged');
+
+  console.log(chalk.gray('  ' + '─'.repeat(56)));
+  console.log(
+    `  ${chalk.white.bold('Overall'.padEnd(24))}` +
+    `${chalk.gray(`${prev.score}/100 ${prev.grade}`.padEnd(12))}` +
+    `${chalk.gray(`${scoreResult.score}/100 ${scoreResult.grade.letter}`.padEnd(12))}` +
+    overallDelta
+  );
 }

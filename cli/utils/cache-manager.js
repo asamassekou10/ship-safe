@@ -253,6 +253,59 @@ export class CacheManager {
       // Silent
     }
   }
+
+  // ===========================================================================
+  // LLM CLASSIFICATION CACHE
+  // ===========================================================================
+
+  get llmCachePath() {
+    return path.join(this.cacheDir, 'llm-cache.json');
+  }
+
+  /**
+   * Generate a cache key for an LLM classification.
+   */
+  getLLMCacheKey(finding) {
+    const data = `${finding.file}:${finding.line}:${finding.rule}:${finding.matched || ''}`;
+    return crypto.createHash('sha256').update(data).digest('hex').slice(0, 16);
+  }
+
+  /**
+   * Load cached LLM classifications. Returns {} if none or expired.
+   */
+  loadLLMClassifications() {
+    const LLM_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+    try {
+      if (!fs.existsSync(this.llmCachePath)) return {};
+      const raw = JSON.parse(fs.readFileSync(this.llmCachePath, 'utf-8'));
+      const now = Date.now();
+      const valid = {};
+      for (const [key, entry] of Object.entries(raw)) {
+        if (now - new Date(entry.cachedAt).getTime() < LLM_CACHE_TTL) {
+          valid[key] = entry;
+        }
+      }
+      return valid;
+    } catch {
+      return {};
+    }
+  }
+
+  /**
+   * Save LLM classifications to cache.
+   */
+  saveLLMClassifications(classifications) {
+    try {
+      if (!fs.existsSync(this.cacheDir)) {
+        fs.mkdirSync(this.cacheDir, { recursive: true });
+      }
+      const existing = this.loadLLMClassifications();
+      const merged = { ...existing, ...classifications };
+      fs.writeFileSync(this.llmCachePath, JSON.stringify(merged, null, 2));
+    } catch {
+      // Silent
+    }
+  }
 }
 
 export default CacheManager;

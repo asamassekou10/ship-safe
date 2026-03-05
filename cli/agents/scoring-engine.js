@@ -89,13 +89,29 @@ export class ScoringEngine {
       categoryResults.deps.counts[sev] = (categoryResults.deps.counts[sev] || 0) + 1;
     }
 
-    // ── Compute deductions per category ───────────────────────────────────────
+    // ── Compute deductions per category (confidence-weighted) ─────────────────
+    const CONFIDENCE_MULTIPLIER = { high: 1.0, medium: 0.6, low: 0.3 };
+
     for (const [key, config] of Object.entries(CATEGORIES)) {
       const result = categoryResults[key];
       let deduction = 0;
 
+      // Count-based deductions for deps (no per-finding confidence)
       for (const [sev, pts] of Object.entries(config.deductions)) {
-        deduction += (result.counts[sev] || 0) * pts;
+        if (key === 'deps') {
+          deduction += (result.counts[sev] || 0) * pts;
+        }
+      }
+
+      // Per-finding confidence-weighted deductions for agent findings
+      if (key !== 'deps') {
+        for (const finding of result.findings) {
+          const sev = finding.severity || 'medium';
+          const pts = config.deductions[sev] || 0;
+          const confidence = finding.confidence || 'high';
+          const multiplier = CONFIDENCE_MULTIPLIER[confidence] || 1.0;
+          deduction += pts * multiplier;
+        }
       }
 
       result.deduction = Math.min(deduction, result.maxDeduction);
@@ -131,7 +147,7 @@ export class ScoringEngine {
   /**
    * Save score to history file for trend tracking.
    */
-  saveToHistory(rootPath, scoreResult) {
+  saveToHistory(rootPath, scoreResult, suppressions = null) {
     const historyDir = path.join(rootPath, '.ship-safe');
     const historyFile = path.join(historyDir, 'history.json');
 
@@ -147,7 +163,7 @@ export class ScoringEngine {
         } catch { history = []; }
       }
 
-      history.push({
+      const entry = {
         timestamp: new Date().toISOString(),
         score: scoreResult.score,
         grade: scoreResult.grade.letter,
@@ -159,7 +175,9 @@ export class ScoringEngine {
             counts: v.counts,
           }])
         ),
-      });
+      };
+      if (suppressions) entry.suppressions = suppressions;
+      history.push(entry);
 
       // Keep last 100 entries
       if (history.length > 100) history = history.slice(-100);
