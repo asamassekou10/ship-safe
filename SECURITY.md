@@ -60,6 +60,9 @@ Remember: ship-safe is a helper tool, not a guarantee. Always:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.x.x   | :white_check_mark: |
+| 4.x.x   | :white_check_mark: |
+| 3.x.x   | :x:                |
+| 2.x.x   | :x:                |
+| 1.x.x   | :x:                |
 
 We support the latest major version with security updates.

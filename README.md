@@ -15,7 +15,7 @@
 
 12 security agents. 50+ attack classes. One command.
 
-**Ship Safe v4.0** is an AI-powered security platform that runs 12 specialized agents against your codebase — scanning for secrets, injection vulnerabilities, auth bypass, SSRF, supply chain attacks, Docker/Terraform misconfigs, CI/CD pipeline poisoning, LLM security issues, and more. It produces a prioritized remediation plan so you know exactly what to fix first.
+**Ship Safe v4.2** is an AI-powered security platform that runs 12 specialized agents in parallel against your codebase — scanning for secrets, injection vulnerabilities, auth bypass, SSRF, supply chain attacks, Docker/Terraform misconfigs, CI/CD pipeline poisoning, LLM security issues, and more. It produces a confidence-weighted score and a prioritized remediation plan so you know exactly what to fix first.
 
 ---
 
@@ -33,6 +33,9 @@ npx ship-safe scan .
 
 # Security health score (0-100)
 npx ship-safe score .
+
+# Environment diagnostics
+npx ship-safe doctor
 ```
 
 ![ship-safe terminal demo](.github/assets/ship%20safe%20terminal.jpg)
@@ -49,7 +52,7 @@ npx ship-safe audit .
 
 ```
 ════════════════════════════════════════════════════════════
-  Ship Safe v4.0 — Full Security Audit
+  Ship Safe v4.2 — Full Security Audit
 ════════════════════════════════════════════════════════════
 
   [Phase 1/4] Scanning for secrets...         ✔ 49 found
@@ -80,16 +83,20 @@ npx ship-safe audit .
 
 **What it runs:**
 1. **Secret scan** — 50+ patterns with entropy scoring (API keys, passwords, tokens)
-2. **12 security agents** — injection, auth, SSRF, supply chain, config, LLM, mobile, git history, CI/CD, API
+2. **12 security agents** — run in parallel with per-agent timeouts (injection, auth, SSRF, supply chain, config, LLM, mobile, git history, CI/CD, API)
 3. **Dependency audit** — npm/pip/bundler CVE scanning
-4. **Score computation** — 8-category weighted scoring (0-100, A-F)
+4. **Score computation** — confidence-weighted scoring across 8 categories (0-100, A-F)
 5. **Remediation plan** — prioritized fix list grouped by severity
 6. **HTML report** — standalone dark-themed report with table of contents
 
 **Flags:**
 - `--json` — structured JSON output (clean for piping)
 - `--sarif` — SARIF format for GitHub Code Scanning
+- `--csv` — CSV export for spreadsheets
+- `--md` — Markdown report
 - `--html [file]` — custom HTML report path (default: `ship-safe-report.html`)
+- `--compare` — show per-category score delta vs. last scan
+- `--timeout <ms>` — per-agent timeout (default: 30s)
 - `--no-deps` — skip dependency audit
 - `--no-ai` — skip AI classification
 - `--no-cache` — force full rescan (ignore cached results)
@@ -100,11 +107,11 @@ npx ship-safe audit .
 
 | Agent | Category | What It Detects |
 |-------|----------|-----------------|
-| **InjectionTester** | Code Vulns | SQL/NoSQL injection, command injection, code injection (eval), XSS, path traversal, XXE, ReDoS, prototype pollution |
-| **AuthBypassAgent** | Auth | JWT vulnerabilities (alg:none, weak secrets), cookie security, CSRF, OAuth misconfig, BOLA/IDOR, weak crypto, timing attacks, TLS bypass |
+| **InjectionTester** | Code Vulns | SQL/NoSQL injection, command injection, code injection (eval), XSS, path traversal, XXE, ReDoS, prototype pollution, Python f-string SQL injection, Python subprocess shell injection |
+| **AuthBypassAgent** | Auth | JWT vulnerabilities (alg:none, weak secrets), cookie security, CSRF, OAuth misconfig, BOLA/IDOR, weak crypto, timing attacks, TLS bypass, Django `DEBUG = True`, Flask hardcoded secret keys |
 | **SSRFProber** | SSRF | User input in fetch/axios, cloud metadata endpoints, internal IPs, redirect following |
 | **SupplyChainAudit** | Supply Chain | Typosquatting (Levenshtein distance), git/URL dependencies, wildcard versions, suspicious install scripts |
-| **ConfigAuditor** | Config | Dockerfile (running as root, :latest tags), Terraform (public S3, open SG), Kubernetes (privileged containers), CORS, CSP, Firebase, Nginx |
+| **ConfigAuditor** | Config | Dockerfile (running as root, :latest tags), Terraform (public S3, open SG), Kubernetes (privileged containers), CORS, CSP, Firebase, Nginx, Go `fmt.Sprintf` SQL injection, Go unescaped templates, Rust `unsafe` blocks, Rust `.unwrap()` in production |
 | **LLMRedTeam** | AI/LLM | OWASP LLM Top 10 — prompt injection, excessive agency, system prompt leakage, unbounded consumption, RAG poisoning |
 | **MobileScanner** | Mobile | OWASP Mobile Top 10 2024 — insecure storage, WebView JS injection, HTTP endpoints, excessive permissions, debug mode |
 | **GitHistoryScanner** | Secrets | Leaked secrets in git commit history (checks if still active in working tree) |
@@ -153,6 +160,13 @@ npx ship-safe remediate .
 
 # Revoke exposed keys — opens provider dashboards
 npx ship-safe rotate .
+```
+
+### Diagnostics
+
+```bash
+# Environment check — Node.js, git, npm, API keys, cache, version
+npx ship-safe doctor
 ```
 
 ### Infrastructure Commands
@@ -214,6 +228,10 @@ Ship Safe caches file hashes and findings in `.ship-safe/context.json`. On subse
 
 The cache is stored in `.ship-safe/` which is automatically excluded from scans.
 
+### LLM Response Caching
+
+When using AI classification (`--no-ai` to disable), results are cached in `.ship-safe/llm-cache.json` with a 7-day TTL. Repeated scans reuse cached classifications — reducing API costs significantly.
+
 ---
 
 ## Smart `.gitignore` Handling
@@ -247,7 +265,7 @@ Auto-detected from environment variables. No API key required for scanning — A
 
 ## Scoring System
 
-Starts at 100. Each finding deducts points by severity and category.
+Starts at 100. Each finding deducts points by severity and category, weighted by confidence level (high: 100%, medium: 60%, low: 30%) to reduce noise from heuristic patterns.
 
 **8 Categories** (with weight caps):
 
@@ -306,6 +324,9 @@ jobs:
       - name: Full security audit
         run: npx ship-safe audit . --no-ai --json
 
+      - name: Score delta vs. last scan
+        run: npx ship-safe audit . --no-ai --compare
+
       - name: Upload SARIF to GitHub Security tab
         run: npx ship-safe audit . --no-ai --sarif > results.sarif
 
@@ -313,6 +334,8 @@ jobs:
         with:
           sarif_file: results.sarif
 ```
+
+**Export formats:** `--json`, `--sarif`, `--csv`, `--md`, `--html`
 
 ---
 

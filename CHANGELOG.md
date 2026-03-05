@@ -6,6 +6,59 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [4.2.0] — 2026-03-05
+
+### Added
+- **Parallel agent execution** — all 12 agents run concurrently with configurable concurrency (default: 6)
+- **Per-agent timeouts** — `--timeout <ms>` flag (default: 30s) prevents agent hangs
+- **Confidence-weighted scoring** — low-confidence findings count for 30%, medium for 60%, reducing noise
+- **`ship-safe doctor`** — environment diagnostics (Node.js, git, npm, API keys, cache, version)
+- **`--compare` flag** — per-category score delta table vs. previous scan
+- **`--csv` flag** — CSV export for spreadsheets
+- **`--md` flag** — Markdown report export
+- **LLM response caching** — AI classifications cached for 7 days in `.ship-safe/llm-cache.json`
+- **False positive suppression tracking** — counts `ship-safe-ignore` comments per rule in JSON output and history
+- **Python security patterns** — f-string SQL injection, `subprocess.run(shell=True)`
+- **Go security patterns** — `fmt.Sprintf` SQL injection, unescaped `template.HTML()`
+- **Rust security patterns** — `unsafe` blocks, `.unwrap()` in production code
+- **Django/Flask patterns** — `DEBUG = True`, hardcoded `secret_key`
+- **33 unit tests** — using Node.js built-in test runner (`node:test`)
+
+### Fixed
+- Patched ReDoS vulnerabilities in 6 regex patterns across agents
+- Fixed command injection risk in dependency audit (`execFileSync` instead of `exec`)
+- Fixed API key exposure in error messages
+- Fixed false positive SQL injection detection in version strings
+
+---
+
+## [4.1.0] — 2025-02-26
+
+### Added
+- **`audit` command** — full security audit: secrets + 12 agents + deps + scoring + remediation plan
+- **HTML report** — standalone dark-themed report with table of contents (`--html`)
+- **Incremental scanning** — cache file hashes and findings, ~40% faster on repeated scans
+- **Smart `.gitignore` handling** — respects gitignore but always scans `.env`, `*.pem`, `*.key`
+
+---
+
+## [4.0.0] — 2025-02-24
+
+### Added
+- **12 security agents** — InjectionTester, AuthBypassAgent, SSRFProber, SupplyChainAudit, ConfigAuditor, LLMRedTeam, MobileScanner, GitHistoryScanner, CICDScanner, APIFuzzer, ReconAgent, ScoringEngine
+- **`red-team` command** — run agents standalone with `--agents` filter
+- **`score` command** — 8-category weighted scoring (0-100, A-F grades)
+- **`watch` command** — continuous monitoring with file change detection
+- **`sbom` command** — CycloneDX SBOM generation
+- **`policy init` command** — policy-as-code with `.ship-safe.policy.json`
+- **`deps` command** — dependency CVE audit with `--fix` option
+- **SARIF output** — `--sarif` flag on audit/scan for GitHub Code Scanning
+- **Multi-LLM support** — Anthropic, OpenAI, Google AI, Ollama
+- **Claude Code plugin** — `/ship-safe`, `/ship-safe-scan`, `/ship-safe-score`
+- **OWASP coverage** — Web Top 10 2025, Mobile Top 10 2024, LLM Top 10 2025, CI/CD Top 10
+
+---
+
 ## [3.1.0] — 2025-02-19
 
 ### Added
