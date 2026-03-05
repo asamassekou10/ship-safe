@@ -116,7 +116,8 @@ export async function doctorCommand() {
       encoding: 'utf-8', timeout: 5000, shell: true,
     }).trim();
     if (latest && latest !== PACKAGE_VERSION) {
-      info(`Update available: v${latest} (current: v${PACKAGE_VERSION})`);
+      const msg = ['v', latest, ' available (current: v', PACKAGE_VERSION, ')'].join('');
+      info(msg);
     } else if (latest) {
       pass('Up to date');
     }
