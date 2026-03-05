@@ -19,6 +19,9 @@ export { auditCommand } from './commands/audit.js';
 export { redTeamCommand } from './commands/red-team.js';
 export { watchCommand } from './commands/watch.js';
 
+// ── v4.2 Commands ─────────────────────────────────────────────────────────────
+export { doctorCommand } from './commands/doctor.js';
+
 // ── Patterns ──────────────────────────────────────────────────────────────────
 export { SECRET_PATTERNS, SECURITY_PATTERNS, SKIP_DIRS, SKIP_EXTENSIONS } from './utils/patterns.js';
 

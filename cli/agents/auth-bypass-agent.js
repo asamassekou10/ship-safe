@@ -269,6 +269,28 @@ const PATTERNS = [
     fix: 'Use crypto.randomBytes(32).toString("hex") or crypto.randomUUID()',
   },
 
+  // ── Django/Flask Security ────────────────────────────────────────────────
+  {
+    rule: 'DJANGO_DEBUG_TRUE',
+    title: 'Django: DEBUG = True',
+    regex: /\bDEBUG\s*=\s*True\b/g,
+    severity: 'high',
+    cwe: 'CWE-215',
+    owasp: 'A05:2021',
+    description: 'Django DEBUG mode exposes stack traces, SQL queries, and settings to users.',
+    fix: 'Set DEBUG = False in production. Use environment variable: DEBUG = os.getenv("DEBUG", "False") == "True"',
+  },
+  {
+    rule: 'FLASK_SECRET_KEY_HARDCODED',
+    title: 'Flask: Hardcoded Secret Key',
+    regex: /app\.secret_key\s*=\s*['"][^'"]{1,30}['"]/g,
+    severity: 'high',
+    cwe: 'CWE-798',
+    owasp: 'A07:2021',
+    description: 'Flask secret key is hardcoded. Session cookies can be forged.',
+    fix: 'Use os.environ.get("SECRET_KEY") with a 256-bit random value',
+  },
+
   // ── TLS/SSL ────────────────────────────────────────────────────────────────
   {
     rule: 'TLS_REJECT_UNAUTHORIZED',

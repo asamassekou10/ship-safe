@@ -344,6 +344,28 @@ const PATTERNS = [
     fix: 'Use execFileSync(cmd, [args]) with argument arrays. Never interpolate secrets into shell strings.',
   },
 
+  // ── Python-specific Injection ─────────────────────────────────────────────
+  {
+    rule: 'PYTHON_SQL_FSTRING',
+    title: 'SQL Injection via Python f-string',
+    regex: /f["'](?:SELECT|INSERT|UPDATE|DELETE)\s+[^"']*\{/gi,
+    severity: 'critical',
+    cwe: 'CWE-89',
+    owasp: 'A03:2021',
+    description: 'Python f-string used in SQL query enables SQL injection. Use parameterized queries.',
+    fix: 'Use cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))',
+  },
+  {
+    rule: 'PYTHON_SUBPROCESS_SHELL',
+    title: 'Command Injection via subprocess shell=True',
+    regex: /subprocess\.(?:run|call|Popen)\s*\([^)]*shell\s*=\s*True/g,
+    severity: 'high',
+    cwe: 'CWE-78',
+    owasp: 'A03:2021',
+    description: 'subprocess with shell=True enables command injection when using user input.',
+    fix: 'Use subprocess.run([cmd, arg1, arg2], shell=False)',
+  },
+
   // ── Prototype Pollution ────────────────────────────────────────────────────
   {
     rule: 'PROTOTYPE_POLLUTION',

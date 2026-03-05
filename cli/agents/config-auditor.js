@@ -302,6 +302,50 @@ const CONFIG_PATTERNS = [
     fix: 'Log errors server-side. Return generic error messages to clients.',
   },
 
+  // ── Go Security ──────────────────────────────────────────────────────────
+  {
+    rule: 'GO_SQL_SPRINTF',
+    title: 'Go: SQL Injection via fmt.Sprintf',
+    regex: /fmt\.Sprintf\s*\(\s*["'](?:SELECT|INSERT|UPDATE|DELETE)\s+[^"']*%/gi,
+    severity: 'critical',
+    cwe: 'CWE-89',
+    owasp: 'A03:2021',
+    description: 'Go SQL query built with fmt.Sprintf enables SQL injection. Use parameterized queries.',
+    fix: 'Use db.Query("SELECT * FROM users WHERE id = $1", id)',
+  },
+  {
+    rule: 'GO_TEMPLATE_UNESCAPED',
+    title: 'Go: Unescaped HTML Template',
+    regex: /template\.HTML\s*\(/g,
+    severity: 'high',
+    cwe: 'CWE-79',
+    owasp: 'A03:2021',
+    description: 'template.HTML() marks content as safe, bypassing Go HTML template escaping.',
+    fix: 'Avoid template.HTML() with user input. Let html/template auto-escape.',
+  },
+
+  // ── Rust Security ──────────────────────────────────────────────────────────
+  {
+    rule: 'RUST_UNSAFE_BLOCK',
+    title: 'Rust: unsafe Block',
+    regex: /\bunsafe\s*\{/g,
+    severity: 'medium',
+    cwe: 'CWE-676',
+    confidence: 'low',
+    description: 'Rust unsafe block bypasses memory safety guarantees. Review for correctness.',
+    fix: 'Minimize unsafe code. Wrap in safe abstractions with safety invariants documented.',
+  },
+  {
+    rule: 'RUST_UNWRAP_IN_PROD',
+    title: 'Rust: .unwrap() Without Error Handling',
+    regex: /\.unwrap\(\)/g,
+    severity: 'low',
+    cwe: 'CWE-391',
+    confidence: 'low',
+    description: '.unwrap() panics on error. Use proper error handling in production code.',
+    fix: 'Use .unwrap_or(), .unwrap_or_default(), or ? operator for error propagation.',
+  },
+
   // ── Deprecated Node.js ─────────────────────────────────────────────────────
   {
     rule: 'DEPRECATED_BUFFER',
@@ -370,11 +414,12 @@ export class ConfigAuditor extends BaseAgent {
     // ── Scan all code files for general config issues ─────────────────────────
     const codeFiles = files.filter(f => {
       const ext = path.extname(f).toLowerCase();
-      return ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.py', '.rb', '.go', '.php'].includes(ext);
+      return ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.py', '.rb', '.go', '.rs', '.php'].includes(ext);
     });
     const generalPatterns = CONFIG_PATTERNS.filter(p =>
       ['CORS_WILDCARD', 'CORS_CREDENTIALS_WILDCARD', 'DEBUG_MODE_PRODUCTION',
-       'DEPRECATED_BUFFER'].includes(p.rule)
+       'DEPRECATED_BUFFER', 'GO_SQL_SPRINTF', 'GO_TEMPLATE_UNESCAPED',
+       'RUST_UNSAFE_BLOCK', 'RUST_UNWRAP_IN_PROD'].includes(p.rule)
     );
     for (const file of codeFiles) {
       findings = findings.concat(this.scanFileWithPatterns(file, generalPatterns));

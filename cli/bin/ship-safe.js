@@ -34,6 +34,7 @@ import { scoreCommand } from '../commands/score.js';
 import { redTeamCommand } from '../commands/red-team.js';
 import { watchCommand } from '../commands/watch.js';
 import { auditCommand } from '../commands/audit.js';
+import { doctorCommand } from '../commands/doctor.js';
 import { PolicyEngine } from '../agents/policy-engine.js';
 import { SBOMGenerator } from '../agents/sbom-generator.js';
 
@@ -188,7 +189,11 @@ program
   .description('Full security audit: secrets + 12 agents + deps + score + remediation plan')
   .option('--json', 'Output results as JSON')
   .option('--sarif', 'Output results in SARIF format')
+  .option('--csv', 'Output results as CSV')
+  .option('--md', 'Output results as Markdown')
   .option('--html [file]', 'HTML report path (default: ship-safe-report.html)')
+  .option('--compare', 'Show detailed comparison with last scan')
+  .option('--timeout <ms>', 'Per-agent timeout in milliseconds (default: 30000)', parseInt)
   .option('--no-deps', 'Skip dependency audit')
   .option('--no-ai', 'Skip AI classification')
   .option('--no-cache', 'Force full rescan (ignore cached results)')
@@ -251,6 +256,14 @@ program
   });
 
 // -----------------------------------------------------------------------------
+// DOCTOR COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('doctor')
+  .description('Diagnose environment: check Node.js, git, API keys, cache, and dependencies')
+  .action(doctorCommand);
+
+// -----------------------------------------------------------------------------
 // PARSE AND RUN
 // -----------------------------------------------------------------------------
 
@@ -264,6 +277,7 @@ if (process.argv.length === 2) {
   console.log(chalk.white('  npx ship-safe watch .       ') + chalk.gray('# Continuous monitoring mode'));
   console.log(chalk.white('  npx ship-safe sbom .        ') + chalk.gray('# Generate CycloneDX SBOM'));
   console.log(chalk.white('  npx ship-safe policy init   ') + chalk.gray('# Create security policy template'));
+  console.log(chalk.white('  npx ship-safe doctor        ') + chalk.gray('# Check environment and configuration'));
   console.log();
   console.log(chalk.gray('  Core commands:'));
   console.log(chalk.white('  npx ship-safe agent .       ') + chalk.gray('# AI audit: scan + classify + auto-fix'));
