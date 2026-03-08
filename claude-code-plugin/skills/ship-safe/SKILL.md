@@ -1,7 +1,7 @@
 ---
 name: ship-safe
-description: Run a full security audit on this project — 12 agents scan for secrets, injections, auth bypass, SSRF, supply chain attacks, misconfigs, and more. Use when the user wants a security audit, vulnerability scan, or asks if their code is safe to ship.
-argument-hint: "[path] [--no-deps]"
+description: Run a full security audit on this project — 13 agents scan for secrets, injections, auth bypass, SSRF, supply chain attacks, Supabase RLS, misconfigs, and more. Use when the user wants a security audit, vulnerability scan, or asks if their code is safe to ship.
+argument-hint: "[path] [--no-deps] [--baseline]"
 allowed-tools: Bash, Read, Edit, Write, Grep, Glob
 ---
 
@@ -56,6 +56,13 @@ The JSON output has this exact structure:
       "title": "Stripe Live Secret Key",
       "description": "Hardcoded Stripe live secret key",
       "fix": "Move to environment variable",
+      "confidence": "high",
+      "codeContext": [
+        { "line": 40, "text": "const config = {", "highlight": false },
+        { "line": 41, "text": "  db: process.env.DATABASE_URL,", "highlight": false },
+        { "line": 42, "text": "  stripe: 'sk_live_abc123...',", "highlight": true },
+        { "line": 43, "text": "  debug: false,", "highlight": false }
+      ],
       "cwe": "CWE-798",
       "owasp": "A07:2021"
     }
@@ -104,7 +111,9 @@ List all critical and high severity findings. For each:
 - File and line number
 - Title and description
 - The suggested fix from the `fix` field
+- Code context if available (show the highlighted line with surrounding context)
 - CWE/OWASP reference if available
+- Confidence level (high, medium, low) — note that low-confidence findings may be false positives
 
 Group by severity (critical first, then high).
 
@@ -144,9 +153,18 @@ For each fix:
 - Do not break existing functionality
 - Explain what you changed and why
 
+## Step 5: Suggest Next Steps
+
+After fixing, suggest:
+- `npx ship-safe baseline .` — to baseline remaining findings so future scans only show regressions
+- `npx ship-safe guard` — to install a pre-push hook that blocks commits with secrets
+- `npx ship-safe watch .` — for continuous monitoring during development
+
 ## Important Notes
 
 - Never display actual secret values, even if partially shown in output
 - The `--no-ai` flag is intentional — Claude Code itself is the AI layer, so ship-safe's built-in LLM classification is unnecessary
 - If the user specifies a path in `$ARGUMENTS`, use it instead of `.`
 - If the user says "no deps" or "quick", add `--no-deps` to skip dependency auditing
+- If the user says "only new" or "baseline", add `--baseline` to filter out baselined findings
+- Low-confidence findings in test files, docs, or comments are likely false positives — mention this when presenting them

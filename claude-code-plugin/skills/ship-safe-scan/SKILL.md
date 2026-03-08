@@ -83,4 +83,6 @@ For each secret found, offer to fix it:
    - Rotating the credential immediately (mention `npx ship-safe rotate`)
    - Consider using `git filter-branch` or BFG Repo Cleaner to remove from history
 
+5. **Suggest auto-fix** — mention `/ship-safe-fix` for bulk remediation, or `/ship-safe-baseline` to baseline known findings
+
 Read the file and surrounding context before making any changes. Apply fixes only after presenting the findings, unless the user asked for auto-fix.

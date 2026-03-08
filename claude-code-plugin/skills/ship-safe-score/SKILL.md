@@ -47,3 +47,5 @@ Based on the score:
 - **C (60-74)**: Recommend running `/ship-safe` for a full audit to see exactly what needs fixing. Mention the most likely problem areas based on the category breakdown.
 
 - **D or F (below 60)**: Strongly recommend running `/ship-safe` immediately. Offer to start the full audit right now. Emphasize that critical findings should be fixed before any deployment.
+
+- For any score, mention `/ship-safe-baseline` to track progress over time and `/ship-safe-fix` for automated remediation.

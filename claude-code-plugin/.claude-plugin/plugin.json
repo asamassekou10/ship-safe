@@ -1,12 +1,15 @@
 {
   "name": "ship-safe",
-  "version": "1.0.0",
-  "description": "Security audit your project with Ship Safe — 12 agents, 50+ attack classes",
+  "version": "2.0.0",
+  "description": "Security audit your project with Ship Safe — 13 agents, 50+ attack classes, baseline support",
   "author": "asamassekou10",
   "homepage": "https://github.com/asamassekou10/ship-safe",
   "skills": [
     "skills/ship-safe",
     "skills/ship-safe-scan",
-    "skills/ship-safe-score"
+    "skills/ship-safe-score",
+    "skills/ship-safe-baseline",
+    "skills/ship-safe-red-team",
+    "skills/ship-safe-fix"
   ]
 }

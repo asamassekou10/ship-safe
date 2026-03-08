@@ -1,6 +1,6 @@
 # Ship Safe Plugin for Claude Code
 
-Security audit your projects directly inside Claude Code. 12 agents, 50+ attack classes, zero setup.
+Security audit your projects directly inside Claude Code. 13 agents, 50+ attack classes, zero setup.
 
 ## Install
 
@@ -12,9 +12,12 @@ claude plugin add github:asamassekou10/ship-safe
 
 | Command | Description |
 |---------|-------------|
-| `/ship-safe` | Full security audit — 12 agents, 50+ attack classes, prioritized remediation plan |
+| `/ship-safe` | Full security audit — 13 agents, 50+ attack classes, prioritized remediation plan |
 | `/ship-safe-scan` | Quick scan for leaked secrets (API keys, passwords, tokens) |
 | `/ship-safe-score` | Security health score (0-100, A-F grade) |
+| `/ship-safe-red-team` | Multi-agent red team scan — deep vulnerability analysis |
+| `/ship-safe-baseline` | Manage security baseline — only report new regressions |
+| `/ship-safe-fix` | Auto-fix security issues (secrets, TLS, debug mode, XSS, Docker) |
 
 ## How It Works
 
@@ -24,7 +27,7 @@ These skills invoke [ship-safe](https://www.npmjs.com/package/ship-safe) via `np
 
 ```
 > /ship-safe
-Runs full audit with 12 security agents, shows score, findings grouped
+Runs full audit with 13 security agents, shows score, findings grouped
 by severity, and offers to fix critical issues in your code.
 
 > /ship-safe-scan src/
@@ -33,6 +36,16 @@ environment variables.
 
 > /ship-safe-score
 Quick score check — tells you if your project is safe to ship.
+
+> /ship-safe-red-team . --agents injection,auth
+Deep dive into injection and auth vulnerabilities with specialized agents.
+
+> /ship-safe-baseline .
+Accept current findings as baseline. Future scans only show new regressions.
+
+> /ship-safe-fix . --all
+Auto-fix hardcoded secrets AND common vulnerabilities (TLS bypass, debug
+mode, XSS, Docker :latest, shell injection).
 ```
 
 ## What Gets Scanned
@@ -41,11 +54,12 @@ Quick score check — tells you if your project is safe to ship.
 - Injection vulnerabilities (SQL, NoSQL, XSS, command injection)
 - Auth bypass (JWT, CSRF, OAuth, IDOR)
 - SSRF (user input in HTTP clients, cloud metadata)
-- Supply chain (typosquatting, wildcard versions)
+- Supply chain (typosquatting, dependency confusion, wildcard versions)
+- Supabase RLS (missing Row Level Security, service_role key exposure)
 - Config (Docker, Terraform, Kubernetes, CORS, CSP)
 - LLM security (prompt injection, system prompt leakage)
 - CI/CD (pipeline poisoning, unpinned actions)
-- API (missing auth, mass assignment, GraphQL introspection)
+- API (missing auth, rate limiting, OpenAPI spec issues)
 - Dependencies (known CVEs in npm, pip, bundler)
 
 ## Requirements
