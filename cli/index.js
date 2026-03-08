@@ -22,6 +22,9 @@ export { watchCommand } from './commands/watch.js';
 // ── v4.2 Commands ─────────────────────────────────────────────────────────────
 export { doctorCommand } from './commands/doctor.js';
 
+// ── v4.3 Commands ─────────────────────────────────────────────────────────────
+export { baselineCommand } from './commands/baseline.js';
+
 // ── Patterns ──────────────────────────────────────────────────────────────────
 export { SECRET_PATTERNS, SECURITY_PATTERNS, SKIP_DIRS, SKIP_EXTENSIONS } from './utils/patterns.js';
 
@@ -42,6 +45,7 @@ export { MobileScanner } from './agents/mobile-scanner.js';
 export { GitHistoryScanner } from './agents/git-history-scanner.js';
 export { CICDScanner } from './agents/cicd-scanner.js';
 export { APIFuzzer } from './agents/api-fuzzer.js';
+export { SupabaseRLSAgent } from './agents/supabase-rls-agent.js';
 
 // ── Supporting Modules ────────────────────────────────────────────────────────
 export { ScoringEngine, GRADES, CATEGORIES } from './agents/scoring-engine.js';

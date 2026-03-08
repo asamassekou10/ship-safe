@@ -6,6 +6,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [4.3.0] — 2026-03-08
+
+### Added
+- **Supabase RLS Agent** — dedicated agent for Row Level Security auditing: detects `service_role` key in client code, `CREATE TABLE` without `ENABLE ROW LEVEL SECURITY`, anon key inserts, unprotected storage
+- **Context-aware confidence tuning** — post-processing step downgrades confidence for test files, docs, comments, and example paths to reduce false positives by up to 70%
+- **`ship-safe baseline`** — accept current findings as a baseline, only report new findings on subsequent runs (`--diff`, `--clear`)
+- **`--baseline` flag on `audit`** — filter out baselined findings, only show regressions
+- **`--pdf` flag on `audit`** — generate PDF report via Chrome headless (falls back to print-optimized HTML)
+- **Expanded auto-fix** — `remediate --all` fixes 5 common agent patterns: TLS bypass, Docker `:latest`, debug mode, dangerouslySetInnerHTML, `shell: true`
+- **Dependency confusion detection** — scoped packages without `.npmrc` registry pinning, suspicious install scripts (`curl`, `eval`, `base64`)
+- **Rate limiting detection** — project-level check for Express/Fastify apps without rate-limiting libraries
+- **OpenAPI spec scanning** — missing `securitySchemes`, HTTP server URLs, secrets in example values
+- **Terraform patterns** — RDS public access, CloudFront HTTP, Lambda admin role, S3 no versioning
+- **Kubernetes patterns** — `:latest` image tags, missing NetworkPolicy
+- **Code context in findings** — 3 lines before/after with highlighted flagged line in HTML report and verbose output
+- **API pagination check** — `.find({})` without `.limit()` detection
+- **49 unit tests** (16 new) covering all v4.3 features
+
+---
+
 ## [4.2.0] — 2026-03-05
 
 ### Added

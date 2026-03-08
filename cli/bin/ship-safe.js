@@ -35,6 +35,7 @@ import { redTeamCommand } from '../commands/red-team.js';
 import { watchCommand } from '../commands/watch.js';
 import { auditCommand } from '../commands/audit.js';
 import { doctorCommand } from '../commands/doctor.js';
+import { baselineCommand } from '../commands/baseline.js';
 import { PolicyEngine } from '../agents/policy-engine.js';
 import { SBOMGenerator } from '../agents/sbom-generator.js';
 
@@ -142,6 +143,7 @@ program
   .option('--dry-run', 'Preview changes without writing any files')
   .option('--yes', 'Apply all fixes without prompting (for CI)')
   .option('--stage', 'Also run git add on modified files after fixing')
+  .option('--all', 'Also fix common agent findings (debug mode, TLS bypass, shell injection)')
   .action(remediateCommand);
 
 // -----------------------------------------------------------------------------
@@ -197,6 +199,8 @@ program
   .option('--no-deps', 'Skip dependency audit')
   .option('--no-ai', 'Skip AI classification')
   .option('--no-cache', 'Force full rescan (ignore cached results)')
+  .option('--baseline', 'Only show findings not in the baseline')
+  .option('--pdf [file]', 'Generate PDF report (requires Chrome/Chromium)')
   .option('-v, --verbose', 'Verbose output')
   .action(auditCommand);
 
@@ -256,6 +260,16 @@ program
   });
 
 // -----------------------------------------------------------------------------
+// BASELINE COMMAND (v4.3)
+// -----------------------------------------------------------------------------
+program
+  .command('baseline [path]')
+  .description('Create/manage a findings baseline — only report new findings on subsequent scans')
+  .option('--diff', 'Show what changed since baseline')
+  .option('--clear', 'Remove the baseline')
+  .action(baselineCommand);
+
+// -----------------------------------------------------------------------------
 // DOCTOR COMMAND
 // -----------------------------------------------------------------------------
 program
@@ -271,7 +285,7 @@ program
 if (process.argv.length === 2) {
   console.log(banner);
   console.log(chalk.yellow('\nQuick start:\n'));
-  console.log(chalk.cyan.bold('  v4.0 — Full Security Audit'));
+  console.log(chalk.cyan.bold('  v4.3 — Full Security Audit'));
   console.log(chalk.white('  npx ship-safe audit .       ') + chalk.gray('# Full audit: secrets + agents + deps + remediation plan'));
   console.log(chalk.white('  npx ship-safe red-team .    ') + chalk.gray('# 12-agent red team scan (50+ attack classes)'));
   console.log(chalk.white('  npx ship-safe watch .       ') + chalk.gray('# Continuous monitoring mode'));

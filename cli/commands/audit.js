@@ -34,6 +34,8 @@ import {
 } from '../utils/patterns.js';
 import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import { CacheManager } from '../utils/cache-manager.js';
+import { filterBaseline } from './baseline.js';
+import { generatePDF, generatePrintHTML, isChromeAvailable } from '../utils/pdf-generator.js';
 
 // =============================================================================
 // CONSTANTS
@@ -207,7 +209,16 @@ export async function auditCommand(targetPath = '.', options = {}) {
 
   // Apply policy
   const policy = PolicyEngine.load(absolutePath);
-  const filteredFindings = policy.applyPolicy(allFindings);
+  let filteredFindings = policy.applyPolicy(allFindings);
+
+  // Apply baseline filter (only show new findings)
+  if (options.baseline) {
+    const beforeCount = filteredFindings.length;
+    filteredFindings = filterBaseline(filteredFindings, absolutePath);
+    if (!machineOutput && beforeCount !== filteredFindings.length) {
+      console.log(chalk.gray(`  Baseline: ${beforeCount - filteredFindings.length} known finding(s) filtered, ${filteredFindings.length} new`));
+    }
+  }
 
   // Count suppressions (ship-safe-ignore comments)
   const suppressions = countSuppressions(allFiles);
@@ -316,6 +327,21 @@ export async function auditCommand(targetPath = '.', options = {}) {
     reporter.generateFullReport(scoreResult, filteredFindings, depVulns, recon, remediationPlan, absolutePath, htmlPath);
     console.log();
     console.log(chalk.cyan(`  Full report: ${chalk.white.bold(htmlPath)}`));
+
+    // PDF export
+    if (options.pdf) {
+      const pdfPath = typeof options.pdf === 'string' ? options.pdf : 'ship-safe-report.pdf';
+      const result = generatePDF(path.resolve(htmlPath), path.resolve(pdfPath));
+      if (result) {
+        console.log(chalk.cyan(`  PDF report:  ${chalk.white.bold(pdfPath)}`));
+      } else {
+        // Fallback: print-optimized HTML
+        const fallbackPath = pdfPath.replace(/\.pdf$/, '.print.html');
+        generatePrintHTML(path.resolve(htmlPath), path.resolve(fallbackPath));
+        console.log(chalk.yellow(`  Chrome not found — saved print-optimized HTML: ${fallbackPath}`));
+        console.log(chalk.gray('  Open in a browser and Print → Save as PDF'));
+      }
+    }
   }
 
   if (!machineOutput && !options.csv && !options.md) {

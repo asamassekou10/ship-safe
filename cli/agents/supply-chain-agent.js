@@ -147,7 +147,89 @@ export class SupplyChainAudit extends BaseAgent {
       } catch { /* skip parse errors */ }
     }
 
-    // ── 2. Check lockfile integrity ───────────────────────────────────────────
+    // ── 2. Dependency confusion detection ─────────────────────────────────────
+    if (fs.existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+        const allDeps = {
+          ...(pkg.dependencies || {}),
+          ...(pkg.devDependencies || {}),
+        };
+
+        // Check for scoped packages without registry pinning
+        const scopedPkgs = Object.keys(allDeps).filter(n => n.startsWith('@'));
+        if (scopedPkgs.length > 0) {
+          const npmrcPath = path.join(rootPath, '.npmrc');
+          const yarnrcPath = path.join(rootPath, '.yarnrc');
+          const yarnrcYmlPath = path.join(rootPath, '.yarnrc.yml');
+          const hasRegistryConfig = [npmrcPath, yarnrcPath, yarnrcYmlPath].some(p => {
+            if (!fs.existsSync(p)) return false;
+            const content = this.readFile(p) || '';
+            // Check if any scope is pinned to a registry
+            return /@[^:]+:registry/i.test(content) || /npmRegistryServer/i.test(content);
+          });
+
+          // Extract unique scopes
+          const scopes = [...new Set(scopedPkgs.map(n => n.split('/')[0]))];
+          // Check if this looks like an internal scope (not well-known public ones)
+          const publicScopes = new Set([
+            '@types', '@babel', '@eslint', '@jest', '@testing-library',
+            '@react-native', '@angular', '@vue', '@nuxt', '@next',
+            '@emotion', '@mui', '@radix-ui', '@tanstack', '@trpc',
+            '@prisma', '@supabase', '@aws-sdk', '@azure', '@google-cloud',
+            '@octokit', '@sentry', '@stripe', '@anthropic-ai', '@openai',
+          ]);
+          const internalScopes = scopes.filter(s => !publicScopes.has(s));
+
+          if (internalScopes.length > 0 && !hasRegistryConfig) {
+            findings.push(createFinding({
+              file: pkgPath,
+              line: 0,
+              severity: 'high',
+              category: 'supply-chain',
+              rule: 'DEPCONF_NO_SCOPE_REGISTRY',
+              title: `Scoped Packages Without Registry Pin: ${internalScopes.join(', ')}`,
+              description: `Scoped packages (${internalScopes.join(', ')}) found without a .npmrc pinning the scope to a private registry. An attacker could claim the scope on the public npm registry.`,
+              matched: internalScopes.join(', '),
+              confidence: 'medium',
+              fix: 'Add to .npmrc: @yourscope:registry=https://your-private-registry.com/',
+            }));
+          }
+        }
+
+        // Check for suspicious install scripts in dependencies
+        const nodeModulesPath = path.join(rootPath, 'node_modules');
+        if (fs.existsSync(nodeModulesPath)) {
+          for (const depName of Object.keys(allDeps).slice(0, 50)) {
+            const depPkgPath = path.join(nodeModulesPath, depName, 'package.json');
+            if (!fs.existsSync(depPkgPath)) continue;
+            try {
+              const depPkg = JSON.parse(fs.readFileSync(depPkgPath, 'utf-8'));
+              const scripts = depPkg.scripts || {};
+              for (const hook of ['preinstall', 'install', 'postinstall']) {
+                const cmd = scripts[hook];
+                if (!cmd) continue;
+                if (/(?:curl|wget|powershell|base64\s|eval\s|nc\s|ncat|\.sh\b)/i.test(cmd)) {
+                  findings.push(createFinding({
+                    file: depPkgPath,
+                    line: 0,
+                    severity: 'critical',
+                    category: 'supply-chain',
+                    rule: 'DEPCONF_SUSPICIOUS_INSTALL_SCRIPT',
+                    title: `Suspicious ${hook} in ${depName}`,
+                    description: `Dependency "${depName}" has a suspicious ${hook} script: ${cmd.slice(0, 120)}`,
+                    matched: cmd.slice(0, 200),
+                    fix: 'Review the script. If untrusted, remove the dependency or use npm with --ignore-scripts',
+                  }));
+                }
+              }
+            } catch { /* skip */ }
+          }
+        }
+      } catch { /* skip */ }
+    }
+
+    // ── 3. Check lockfile integrity ── ───────────────────────────────────────────
     const lockFiles = [
       { file: 'package-lock.json', manager: 'npm' },
       { file: 'yarn.lock', manager: 'yarn' },
@@ -178,7 +260,7 @@ export class SupplyChainAudit extends BaseAgent {
       }));
     }
 
-    // ── 3. Check .npmrc for security settings ─────────────────────────────────
+    // ── 4. Check .npmrc for security settings ─────────────────────────────────
     const npmrcPath = path.join(rootPath, '.npmrc');
     if (fs.existsSync(npmrcPath)) {
       const content = this.readFile(npmrcPath) || '';
@@ -201,7 +283,7 @@ export class SupplyChainAudit extends BaseAgent {
       }
     }
 
-    // ── 4. Check Python requirements ──────────────────────────────────────────
+    // ── 5. Check Python requirements ──────────────────────────────────────────
     const reqPath = path.join(rootPath, 'requirements.txt');
     if (fs.existsSync(reqPath)) {
       const content = this.readFile(reqPath) || '';

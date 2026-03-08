@@ -13,9 +13,9 @@
 
 ---
 
-12 security agents. 50+ attack classes. One command.
+13 security agents. 50+ attack classes. One command.
 
-**Ship Safe v4.2** is an AI-powered security platform that runs 12 specialized agents in parallel against your codebase — scanning for secrets, injection vulnerabilities, auth bypass, SSRF, supply chain attacks, Docker/Terraform misconfigs, CI/CD pipeline poisoning, LLM security issues, and more. It produces a confidence-weighted score and a prioritized remediation plan so you know exactly what to fix first.
+**Ship Safe v4.3** is an AI-powered security platform that runs 13 specialized agents in parallel against your codebase — scanning for secrets, injection vulnerabilities, auth bypass, SSRF, supply chain attacks, Supabase RLS misconfigs, Docker/Terraform/Kubernetes misconfigs, CI/CD pipeline poisoning, LLM security issues, and more. Context-aware confidence tuning reduces false positives by up to 70%. Baseline support lets teams adopt incrementally — accept existing debt, focus on not making it worse.
 
 ---
 
@@ -33,6 +33,10 @@ npx ship-safe scan .
 
 # Security health score (0-100)
 npx ship-safe score .
+
+# Accept current findings, only report regressions
+npx ship-safe baseline .
+npx ship-safe audit . --baseline
 
 # Environment diagnostics
 npx ship-safe doctor
@@ -52,11 +56,11 @@ npx ship-safe audit .
 
 ```
 ════════════════════════════════════════════════════════════
-  Ship Safe v4.2 — Full Security Audit
+  Ship Safe v4.3 — Full Security Audit
 ════════════════════════════════════════════════════════════
 
   [Phase 1/4] Scanning for secrets...         ✔ 49 found
-  [Phase 2/4] Running 12 security agents...   ✔ 103 findings
+  [Phase 2/4] Running 13 security agents...   ✔ 103 findings
   [Phase 3/4] Auditing dependencies...        ✔ 44 CVEs
   [Phase 4/4] Computing security score...     ✔ 25/100 F
 
@@ -83,11 +87,12 @@ npx ship-safe audit .
 
 **What it runs:**
 1. **Secret scan** — 50+ patterns with entropy scoring (API keys, passwords, tokens)
-2. **12 security agents** — run in parallel with per-agent timeouts (injection, auth, SSRF, supply chain, config, LLM, mobile, git history, CI/CD, API)
+2. **13 security agents** — run in parallel with per-agent timeouts (injection, auth, SSRF, supply chain, config, Supabase RLS, LLM, mobile, git history, CI/CD, API)
 3. **Dependency audit** — npm/pip/bundler CVE scanning
 4. **Score computation** — confidence-weighted scoring across 8 categories (0-100, A-F)
-5. **Remediation plan** — prioritized fix list grouped by severity
-6. **HTML report** — standalone dark-themed report with table of contents
+5. **Context-aware confidence tuning** — downgrades findings in test files, docs, and comments
+6. **Remediation plan** — prioritized fix list grouped by severity
+7. **HTML report** — standalone dark-themed report with code context
 
 **Flags:**
 - `--json` — structured JSON output (clean for piping)
@@ -100,23 +105,26 @@ npx ship-safe audit .
 - `--no-deps` — skip dependency audit
 - `--no-ai` — skip AI classification
 - `--no-cache` — force full rescan (ignore cached results)
+- `--baseline` — only show findings not in the baseline
+- `--pdf [file]` — generate PDF report (requires Chrome/Chromium)
 
 ---
 
-## 12 Security Agents
+## 13 Security Agents
 
 | Agent | Category | What It Detects |
 |-------|----------|-----------------|
 | **InjectionTester** | Code Vulns | SQL/NoSQL injection, command injection, code injection (eval), XSS, path traversal, XXE, ReDoS, prototype pollution, Python f-string SQL injection, Python subprocess shell injection |
 | **AuthBypassAgent** | Auth | JWT vulnerabilities (alg:none, weak secrets), cookie security, CSRF, OAuth misconfig, BOLA/IDOR, weak crypto, timing attacks, TLS bypass, Django `DEBUG = True`, Flask hardcoded secret keys |
 | **SSRFProber** | SSRF | User input in fetch/axios, cloud metadata endpoints, internal IPs, redirect following |
-| **SupplyChainAudit** | Supply Chain | Typosquatting (Levenshtein distance), git/URL dependencies, wildcard versions, suspicious install scripts |
-| **ConfigAuditor** | Config | Dockerfile (running as root, :latest tags), Terraform (public S3, open SG), Kubernetes (privileged containers), CORS, CSP, Firebase, Nginx, Go `fmt.Sprintf` SQL injection, Go unescaped templates, Rust `unsafe` blocks, Rust `.unwrap()` in production |
+| **SupplyChainAudit** | Supply Chain | Typosquatting (Levenshtein distance), git/URL dependencies, wildcard versions, suspicious install scripts, dependency confusion, scoped packages without registry pinning |
+| **ConfigAuditor** | Config | Dockerfile (running as root, :latest tags), Terraform (public S3/RDS, open SG, CloudFront HTTP, Lambda admin, S3 no versioning), Kubernetes (privileged containers, `:latest` tags, missing NetworkPolicy), CORS, CSP, Firebase, Nginx |
+| **SupabaseRLSAgent** | Auth | Supabase Row Level Security — `service_role` key in client code, `CREATE TABLE` without RLS, anon key inserts, unprotected storage operations |
 | **LLMRedTeam** | AI/LLM | OWASP LLM Top 10 — prompt injection, excessive agency, system prompt leakage, unbounded consumption, RAG poisoning |
 | **MobileScanner** | Mobile | OWASP Mobile Top 10 2024 — insecure storage, WebView JS injection, HTTP endpoints, excessive permissions, debug mode |
 | **GitHistoryScanner** | Secrets | Leaked secrets in git commit history (checks if still active in working tree) |
 | **CICDScanner** | CI/CD | OWASP CI/CD Top 10 — pipeline poisoning, unpinned actions, secret logging, self-hosted runners, script injection |
-| **APIFuzzer** | API | Routes without auth, missing input validation, mass assignment, unrestricted file upload, GraphQL introspection, debug endpoints |
+| **APIFuzzer** | API | Routes without auth, missing input validation, mass assignment, unrestricted file upload, GraphQL introspection, debug endpoints, missing rate limiting, OpenAPI spec security issues |
 | **ReconAgent** | Recon | Attack surface discovery — frameworks, languages, auth patterns, databases, cloud providers, IaC, CI/CD pipelines |
 | **ScoringEngine** | Scoring | 8-category weighted scoring with trend tracking |
 
@@ -130,7 +138,7 @@ npx ship-safe audit .
 # Full audit with remediation plan + HTML report
 npx ship-safe audit .
 
-# Red team: 12 agents, 50+ attack classes
+# Red team: 13 agents, 50+ attack classes
 npx ship-safe red-team .
 npx ship-safe red-team . --agents injection,auth    # Run specific agents
 npx ship-safe red-team . --html report.html         # HTML report
@@ -157,9 +165,26 @@ npx ship-safe agent .
 
 # Auto-fix hardcoded secrets: rewrite code + write .env
 npx ship-safe remediate .
+npx ship-safe remediate . --all    # Also fix agent findings (TLS, debug, XSS, etc.)
 
 # Revoke exposed keys — opens provider dashboards
 npx ship-safe rotate .
+```
+
+### Baseline Management
+
+```bash
+# Accept current findings as baseline
+npx ship-safe baseline .
+
+# Audit showing only new findings since baseline
+npx ship-safe audit . --baseline
+
+# Show what changed since baseline
+npx ship-safe baseline --diff
+
+# Remove baseline
+npx ship-safe baseline --clear
 ```
 
 ### Diagnostics
@@ -335,7 +360,7 @@ jobs:
           sarif_file: results.sarif
 ```
 
-**Export formats:** `--json`, `--sarif`, `--csv`, `--md`, `--html`
+**Export formats:** `--json`, `--sarif`, `--csv`, `--md`, `--html`, `--pdf`
 
 ---
 

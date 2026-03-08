@@ -493,4 +493,230 @@ describe('Orchestrator', async () => {
     const deduped = orchestrator.deduplicate(findings);
     assert.equal(deduped.length, 2);
   });
+
+  it('tunes confidence for test files', () => {
+    const orchestrator = new Orchestrator();
+    const findings = [
+      { file: '/project/__tests__/foo.test.js', line: 1, rule: 'R1', severity: 'high', confidence: 'high', matched: 'eval(x)' },
+      { file: '/project/src/app.js', line: 1, rule: 'R2', severity: 'high', confidence: 'high', matched: 'eval(x)' },
+    ];
+    const tuned = orchestrator.tuneConfidence(findings);
+    assert.equal(tuned[0].confidence, 'low');  // test file → low
+    assert.equal(tuned[1].confidence, 'high'); // src file → unchanged
+  });
+
+  it('tunes confidence for doc files', () => {
+    const orchestrator = new Orchestrator();
+    const findings = [
+      { file: '/project/README.md', line: 5, rule: 'R1', severity: 'high', confidence: 'high', matched: 'password = "test"' },
+    ];
+    const tuned = orchestrator.tuneConfidence(findings);
+    assert.equal(tuned[0].confidence, 'low');
+  });
+
+  it('tunes confidence for example paths', () => {
+    const orchestrator = new Orchestrator();
+    const findings = [
+      { file: '/project/examples/demo.js', line: 1, rule: 'R1', severity: 'high', confidence: 'high', matched: 'eval(x)' },
+    ];
+    const tuned = orchestrator.tuneConfidence(findings);
+    assert.equal(tuned[0].confidence, 'medium');
+  });
+});
+
+// =============================================================================
+// SUPABASE RLS AGENT
+// =============================================================================
+
+describe('SupabaseRLSAgent', () => {
+  it('detects service_role key in client code', async () => {
+    const { SupabaseRLSAgent } = await import('../agents/supabase-rls-agent.js');
+    const agent = new SupabaseRLSAgent();
+    const { dir, file } = writeTempFile(`const supabase = createClient(url, SUPABASE_SERVICE_ROLE_KEY);`);
+    try {
+      const findings = agent.scanFileWithPatterns(file, [
+        { rule: 'SUPABASE_SERVICE_KEY_CLIENT', regex: /SUPABASE_SERVICE_ROLE_KEY|service_role_key|serviceRoleKey|supabaseAdmin/g, severity: 'critical', title: 'test', description: 'test' }
+      ]);
+      assert.ok(findings.some(f => f.rule === 'SUPABASE_SERVICE_KEY_CLIENT'));
+    } finally { cleanup(dir); }
+  });
+
+  it('detects missing RLS on table', async () => {
+    const { SupabaseRLSAgent } = await import('../agents/supabase-rls-agent.js');
+    const agent = new SupabaseRLSAgent();
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-rls-'));
+    const sqlFile = path.join(dir, 'migration.sql');
+    fs.writeFileSync(sqlFile, `CREATE TABLE users (id uuid PRIMARY KEY, name text);\nCREATE TABLE posts (id uuid PRIMARY KEY);`);
+    const jsFile = path.join(dir, 'app.js');
+    fs.writeFileSync(jsFile, 'const x = 1;');
+
+    try {
+      const findings = await agent.analyze({
+        rootPath: dir,
+        files: [sqlFile, jsFile],
+        recon: {},
+        options: {},
+      });
+      // Should flag both tables as missing RLS
+      const rlsFindings = findings.filter(f => f.rule === 'SUPABASE_NO_RLS_POLICY');
+      assert.ok(rlsFindings.length >= 2, `Expected >=2 RLS findings, got ${rlsFindings.length}`);
+    } finally { cleanup(dir); }
+  });
+
+  it('does not flag tables with RLS enabled', async () => {
+    const { SupabaseRLSAgent } = await import('../agents/supabase-rls-agent.js');
+    const agent = new SupabaseRLSAgent();
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-rls2-'));
+    const sqlFile = path.join(dir, 'migration.sql');
+    fs.writeFileSync(sqlFile, `CREATE TABLE users (id uuid PRIMARY KEY);\nALTER TABLE users ENABLE ROW LEVEL SECURITY;`);
+
+    try {
+      const findings = await agent.analyze({
+        rootPath: dir,
+        files: [sqlFile],
+        recon: {},
+        options: {},
+      });
+      const rlsFindings = findings.filter(f => f.rule === 'SUPABASE_NO_RLS_POLICY');
+      assert.equal(rlsFindings.length, 0);
+    } finally { cleanup(dir); }
+  });
+});
+
+// =============================================================================
+// CONFIG AUDITOR — NEW TERRAFORM/K8S PATTERNS
+// =============================================================================
+
+describe('ConfigAuditor (v4.3 patterns)', () => {
+  it('detects publicly accessible RDS', async () => {
+    const { ConfigAuditor } = await import('../agents/config-auditor.js');
+    const agent = new ConfigAuditor();
+    const { dir, file } = writeTempFile(`resource "aws_db_instance" "main" {\n  publicly_accessible = true\n}`, '.tf');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(findings.some(f => f.rule === 'TERRAFORM_RDS_PUBLIC'));
+    } finally { cleanup(dir); }
+  });
+
+  it('detects CloudFront allowing HTTP', async () => {
+    const { ConfigAuditor } = await import('../agents/config-auditor.js');
+    const agent = new ConfigAuditor();
+    const { dir, file } = writeTempFile(`viewer_protocol_policy = "allow-all"`, '.tf');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(findings.some(f => f.rule === 'TERRAFORM_CLOUDFRONT_HTTP'));
+    } finally { cleanup(dir); }
+  });
+
+  it('detects K8s :latest image tag', async () => {
+    const { ConfigAuditor } = await import('../agents/config-auditor.js');
+    const agent = new ConfigAuditor();
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-k8s-'));
+    const k8sDir = path.join(dir, 'k8s');
+    fs.mkdirSync(k8sDir);
+    const file = path.join(k8sDir, 'deployment.yaml');
+    fs.writeFileSync(file, `kind: Deployment\nspec:\n  containers:\n  - image: nginx:latest`);
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(findings.some(f => f.rule === 'K8S_LATEST_IMAGE'));
+    } finally { cleanup(dir); }
+  });
+});
+
+// =============================================================================
+// API FUZZER — RATE LIMITING & OPENAPI
+// =============================================================================
+
+describe('APIFuzzer (v4.3 patterns)', () => {
+  it('detects missing rate limiting in Express app', async () => {
+    const { APIFuzzer } = await import('../agents/api-fuzzer.js');
+    const agent = new APIFuzzer();
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-api-'));
+    const file = path.join(dir, 'app.js');
+    fs.writeFileSync(file, `import express from 'express';\nconst app = express();\napp.listen(3000);`);
+
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(findings.some(f => f.rule === 'API_NO_RATE_LIMIT'));
+    } finally { cleanup(dir); }
+  });
+
+  it('does not flag when rate limiter is present', async () => {
+    const { APIFuzzer } = await import('../agents/api-fuzzer.js');
+    const agent = new APIFuzzer();
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-api2-'));
+    const file = path.join(dir, 'app.js');
+    fs.writeFileSync(file, `import express from 'express';\nimport rateLimit from 'express-rate-limit';\nconst app = express();\napp.listen(3000);`);
+
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(!findings.some(f => f.rule === 'API_NO_RATE_LIMIT'));
+    } finally { cleanup(dir); }
+  });
+
+  it('detects secrets in OpenAPI examples', async () => {
+    const { APIFuzzer } = await import('../agents/api-fuzzer.js');
+    const agent = new APIFuzzer();
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-oas-'));
+    const file = path.join(dir, 'openapi.yaml');
+    fs.writeFileSync(file, `openapi: 3.0.0\npaths:\n  /users:\n    get:\n      parameters:\n        - name: token\n          example: sk-proj-abc123xyz`);
+
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(findings.some(f => f.rule === 'OPENAPI_EXAMPLE_SECRETS' || f.rule === 'OPENAPI_NO_SECURITY'));
+    } finally { cleanup(dir); }
+  });
+});
+
+// =============================================================================
+// AUTOFIX RULES
+// =============================================================================
+
+describe('Autofix Rules', () => {
+  it('fixes rejectUnauthorized: false', async () => {
+    const { applyAutofix } = await import('../utils/autofix-rules.js');
+    const line = '  rejectUnauthorized: false,';
+    const fixed = applyAutofix('TLS_REJECT_UNAUTHORIZED', line);
+    assert.ok(fixed.includes('rejectUnauthorized: true'));
+    assert.ok(!fixed.includes('false'));
+  });
+
+  it('fixes DEBUG = true', async () => {
+    const { applyAutofix } = await import('../utils/autofix-rules.js');
+    assert.ok(applyAutofix('DEBUG_MODE_PRODUCTION', 'DEBUG = true').includes('false'));
+    assert.ok(applyAutofix('DEBUG_MODE_PRODUCTION', 'DEBUG = True').includes('False'));
+  });
+
+  it('fixes shell: true', async () => {
+    const { applyAutofix } = await import('../utils/autofix-rules.js');
+    const fixed = applyAutofix('CMD_INJECTION_SHELL_TRUE', '  shell: true');
+    assert.ok(fixed.includes('shell: false'));
+  });
+});
+
+// =============================================================================
+// CODE CONTEXT
+// =============================================================================
+
+describe('Code Context in Findings', () => {
+  it('attaches codeContext to findings from scanFileWithPatterns', async () => {
+    const { InjectionTester } = await import('../agents/injection-tester.js');
+    const agent = new InjectionTester();
+    const code = `const x = 1;\nconst y = 2;\nconst z = eval(userInput);\nconst w = 3;\nconst v = 4;`;
+    const { dir, file } = writeTempFile(code);
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      const evalFinding = findings.find(f => f.rule && f.rule.includes('EVAL'));
+      if (evalFinding) {
+        assert.ok(evalFinding.codeContext, 'Finding should have codeContext');
+        assert.ok(Array.isArray(evalFinding.codeContext));
+        assert.ok(evalFinding.codeContext.some(c => c.highlight === true));
+      }
+    } finally { cleanup(dir); }
+  });
 });

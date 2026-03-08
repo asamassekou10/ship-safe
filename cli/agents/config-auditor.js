@@ -199,6 +199,45 @@ const CONFIG_PATTERNS = [
     fix: 'Set enabled = true and configure log destination',
   },
 
+  // ── Terraform (expanded) ───────────────────────────────────────────────────
+  {
+    rule: 'TERRAFORM_RDS_PUBLIC',
+    title: 'Terraform: Publicly Accessible RDS',
+    regex: /publicly_accessible\s*=\s*true/g,
+    severity: 'critical',
+    cwe: 'CWE-284',
+    description: 'RDS instance is publicly accessible. Databases should not be exposed to the internet.',
+    fix: 'Set publicly_accessible = false and use VPC private subnets',
+  },
+  {
+    rule: 'TERRAFORM_CLOUDFRONT_HTTP',
+    title: 'Terraform: CloudFront Allows HTTP',
+    regex: /viewer_protocol_policy\s*=\s*["']allow-all["']/g,
+    severity: 'high',
+    cwe: 'CWE-319',
+    description: 'CloudFront distribution allows HTTP traffic. Enforce HTTPS-only.',
+    fix: 'Set viewer_protocol_policy = "redirect-to-https"',
+  },
+  {
+    rule: 'TERRAFORM_LAMBDA_ADMIN',
+    title: 'Terraform: Lambda with Admin Role',
+    regex: /(?:policy_arn|role)\s*=\s*.*AdministratorAccess/g,
+    severity: 'critical',
+    cwe: 'CWE-250',
+    description: 'Lambda function attached to AdministratorAccess policy. Apply least privilege.',
+    fix: 'Create a custom IAM policy with only the permissions the function needs',
+  },
+  {
+    rule: 'TERRAFORM_S3_NO_VERSIONING',
+    title: 'Terraform: S3 Bucket Without Versioning',
+    regex: /versioning\s*\{[\s\S]*?enabled\s*=\s*false/g,
+    severity: 'medium',
+    cwe: 'CWE-693',
+    confidence: 'medium',
+    description: 'S3 bucket versioning disabled. Versioning protects against accidental deletion and ransomware.',
+    fix: 'Set enabled = true in the versioning block',
+  },
+
   // ── Kubernetes ─────────────────────────────────────────────────────────────
   {
     rule: 'K8S_PRIVILEGED_CONTAINER',
@@ -245,6 +284,16 @@ const CONFIG_PATTERNS = [
     cwe: 'CWE-284',
     description: 'Using default service account. Create a dedicated SA with minimal permissions.',
     fix: 'Create a dedicated ServiceAccount with only needed RBAC bindings',
+  },
+
+  {
+    rule: 'K8S_LATEST_IMAGE',
+    title: 'Kubernetes: Container Using :latest Tag',
+    regex: /image\s*:\s*["']?\S+:latest["']?/g,
+    severity: 'medium',
+    cwe: 'CWE-1104',
+    description: 'Container image uses :latest tag, which is mutable and can change unexpectedly.',
+    fix: 'Pin to a specific image digest or version tag',
   },
 
   // ── Docker Compose ─────────────────────────────────────────────────────────
@@ -396,6 +445,28 @@ export class ConfigAuditor extends BaseAgent {
     });
     for (const file of k8sFiles) {
       findings = findings.concat(this.scanFileWithPatterns(file, CONFIG_PATTERNS));
+    }
+
+    // ── Project-level: K8s NetworkPolicy check ─────────────────────────────────
+    if (k8sFiles.length > 0) {
+      const hasNetworkPolicy = k8sFiles.some(f => {
+        const content = this.readFile(f);
+        return content && /kind\s*:\s*NetworkPolicy/i.test(content);
+      });
+      if (!hasNetworkPolicy) {
+        findings.push(createFinding({
+          file: k8sFiles[0],
+          line: 0,
+          severity: 'medium',
+          category: 'config',
+          rule: 'K8S_NO_NETWORK_POLICY',
+          title: 'Kubernetes: No NetworkPolicy Defined',
+          description: 'Kubernetes manifests found but no NetworkPolicy defined. Without network policies, all pod-to-pod traffic is allowed.',
+          matched: 'Missing NetworkPolicy',
+          confidence: 'medium',
+          fix: 'Add a NetworkPolicy resource to restrict pod-to-pod traffic',
+        }));
+      }
     }
 
     // ── Scan config files ─────────────────────────────────────────────────────

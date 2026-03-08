@@ -215,7 +215,7 @@ export class BaseAgent {
         p.regex.lastIndex = 0;
         let match;
         while ((match = p.regex.exec(line)) !== null) {
-          findings.push(createFinding({
+          const finding = createFinding({
             file: filePath,
             line: i + 1,
             column: match.index + 1,
@@ -229,7 +229,16 @@ export class BaseAgent {
             cwe: p.cwe || null,
             owasp: p.owasp || null,
             fix: p.fix || null,
+          });
+          // Attach surrounding code context (3 lines before/after)
+          const start = Math.max(0, i - 3);
+          const end = Math.min(lines.length, i + 4);
+          finding.codeContext = lines.slice(start, end).map((l, idx) => ({
+            line: start + idx + 1,
+            text: l,
+            highlight: (start + idx) === i,
           }));
+          findings.push(finding);
         }
       }
     }

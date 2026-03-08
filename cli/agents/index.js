@@ -18,6 +18,7 @@ export { MobileScanner } from './mobile-scanner.js';
 export { GitHistoryScanner } from './git-history-scanner.js';
 export { CICDScanner } from './cicd-scanner.js';
 export { APIFuzzer } from './api-fuzzer.js';
+export { SupabaseRLSAgent } from './supabase-rls-agent.js';
 export { ScoringEngine, GRADES, CATEGORIES } from './scoring-engine.js';
 export { SBOMGenerator } from './sbom-generator.js';
 export { PolicyEngine } from './policy-engine.js';
@@ -37,6 +38,7 @@ import { MobileScanner as MobileScannerClass } from './mobile-scanner.js';
 import { GitHistoryScanner as GitHistoryScannerClass } from './git-history-scanner.js';
 import { CICDScanner as CICDScannerClass } from './cicd-scanner.js';
 import { APIFuzzer as APIFuzzerClass } from './api-fuzzer.js';
+import { SupabaseRLSAgent as SupabaseRLSAgentClass } from './supabase-rls-agent.js';
 
 export function buildOrchestrator() {
   const orchestrator = new OrchestratorClass();
@@ -51,6 +53,7 @@ export function buildOrchestrator() {
     new GitHistoryScannerClass(),
     new CICDScannerClass(),
     new APIFuzzerClass(),
+    new SupabaseRLSAgentClass(),
   ]);
   return orchestrator;
 }

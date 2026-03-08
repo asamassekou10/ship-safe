@@ -209,6 +209,49 @@ const PATTERNS = [
     description: 'No body size limit configured. Large payloads can cause memory exhaustion.',
     fix: 'Set limit: express.json({ limit: "1mb" })',
   },
+  {
+    rule: 'API_NO_PAGINATION',
+    title: 'API: Query Without Limit',
+    regex: /\.find\s*\(\s*\{?\s*\}\s*\)/g,
+    severity: 'low',
+    cwe: 'CWE-400',
+    confidence: 'low',
+    description: 'Database query returns all records without limit. Can exhaust memory on large tables.',
+    fix: 'Add pagination: .find({}).limit(50).skip(offset)',
+  },
+];
+
+// OpenAPI/Swagger spec patterns
+const OPENAPI_PATTERNS = [
+  {
+    rule: 'OPENAPI_NO_SECURITY',
+    title: 'OpenAPI: No Security Scheme Defined',
+    regex: /(?:openapi|swagger)\s*:\s*["']?[23]\./g,
+    severity: 'high',
+    cwe: 'CWE-306',
+    owasp: 'A07:2021',
+    confidence: 'medium',
+    description: 'OpenAPI spec detected without security schemes. API endpoints may be unprotected.',
+    fix: 'Add securityDefinitions/securitySchemes to your OpenAPI spec',
+  },
+  {
+    rule: 'OPENAPI_HTTP_SERVER',
+    title: 'OpenAPI: Non-HTTPS Server URL',
+    regex: /url\s*:\s*["']?http:\/\//g,
+    severity: 'high',
+    cwe: 'CWE-319',
+    description: 'OpenAPI spec defines an HTTP (non-HTTPS) server URL. Use HTTPS in production.',
+    fix: 'Change server URL to use https://',
+  },
+  {
+    rule: 'OPENAPI_EXAMPLE_SECRETS',
+    title: 'OpenAPI: Secrets in Examples',
+    regex: /example\s*:\s*['"]?(?:sk-|sk_live_|ghp_|gho_|AKIA[0-9A-Z]|Bearer\s+ey[A-Za-z0-9])/g,
+    severity: 'critical',
+    cwe: 'CWE-798',
+    description: 'Real API keys or tokens found in OpenAPI spec examples.',
+    fix: 'Replace real secrets with placeholder values in examples',
+  },
 ];
 
 export class APIFuzzer extends BaseAgent {
@@ -227,6 +270,74 @@ export class APIFuzzer extends BaseAgent {
     for (const file of codeFiles) {
       findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS));
     }
+
+    // ── Project-level: Rate limiting check ────────────────────────────────────
+    let hasExpressApp = false;
+    let hasRateLimiter = false;
+    let expressAppFile = null;
+
+    for (const file of codeFiles) {
+      const content = this.readFile(file);
+      if (!content) continue;
+      if (/(?:express\s*\(\)|app\.listen|createServer)\s*/.test(content)) {
+        hasExpressApp = true;
+        if (!expressAppFile) expressAppFile = file;
+      }
+      if (/(?:express-rate-limit|rate-limiter-flexible|@upstash\/ratelimit|limiter|bottleneck|rateLimit)/i.test(content)) {
+        hasRateLimiter = true;
+      }
+    }
+
+    if (hasExpressApp && !hasRateLimiter && expressAppFile) {
+      findings.push(createFinding({
+        file: expressAppFile,
+        line: 0,
+        severity: 'medium',
+        category: 'api',
+        rule: 'API_NO_RATE_LIMIT',
+        title: 'API: No Rate Limiting Detected',
+        description: 'HTTP server detected without any rate-limiting library. APIs without rate limits are vulnerable to brute-force and DoS attacks.',
+        matched: 'No rate-limiting middleware found',
+        confidence: 'medium',
+        cwe: 'CWE-307',
+        owasp: 'A07:2021',
+        fix: 'Add rate limiting: npm i express-rate-limit && app.use(rateLimit({ windowMs: 15*60*1000, max: 100 }))',
+      }));
+    }
+
+    // ── OpenAPI/Swagger spec scanning ─────────────────────────────────────────
+    const specFiles = files.filter(f => {
+      const basename = path.basename(f).toLowerCase();
+      return /(?:openapi|swagger)\.(json|ya?ml)$/i.test(basename);
+    });
+
+    for (const file of specFiles) {
+      const specFindings = this.scanFileWithPatterns(file, OPENAPI_PATTERNS);
+      // Check if spec has securitySchemes
+      const content = this.readFile(file);
+      if (content && /(?:openapi|swagger)\s*:\s*["']?[23]\./.test(content)) {
+        if (!/securitySchemes|securityDefinitions/i.test(content)) {
+          findings.push(createFinding({
+            file,
+            line: 0,
+            severity: 'high',
+            category: 'api',
+            rule: 'OPENAPI_NO_SECURITY',
+            title: 'OpenAPI: No Security Scheme Defined',
+            description: 'OpenAPI spec has no securitySchemes/securityDefinitions. API endpoints may be unprotected.',
+            matched: 'Missing securitySchemes',
+            confidence: 'high',
+            cwe: 'CWE-306',
+            fix: 'Add securitySchemes with Bearer token, API key, or OAuth2',
+          }));
+        }
+      }
+      // Add other OpenAPI pattern matches (HTTP server, example secrets)
+      findings = findings.concat(
+        specFindings.filter(f => f.rule !== 'OPENAPI_NO_SECURITY')
+      );
+    }
+
     return findings;
   }
 }

@@ -187,7 +187,10 @@ export class Orchestrator {
     // ── 6. Deduplicate ────────────────────────────────────────────────────────
     allFindings = this.deduplicate(allFindings);
 
-    // ── 7. Sort by severity ───────────────────────────────────────────────────
+    // ── 7. Context-aware confidence tuning ──────────────────────────────────
+    allFindings = this.tuneConfidence(allFindings);
+
+    // ── 8. Sort by severity ───────────────────────────────────────────────────
     const sevOrder = { critical: 0, high: 1, medium: 2, low: 3 };
     allFindings.sort((a, b) =>
       (sevOrder[a.severity] ?? 4) - (sevOrder[b.severity] ?? 4)
@@ -201,6 +204,46 @@ export class Orchestrator {
    */
   async runCategory(category, rootPath, options = {}) {
     return this.runAll(rootPath, { ...options, categories: [category] });
+  }
+
+  /**
+   * Downgrade confidence for findings in test files, comments, docs, or examples.
+   * Reduces false-positive noise since ScoringEngine applies confidence multipliers.
+   */
+  tuneConfidence(findings) {
+    const TEST_PATH = /(?:__tests__|\.test\.|\.spec\.|\/test\/|\/tests\/|\/fixtures?\/)/i;
+    const DOC_EXT = new Set(['.md', '.txt', '.rst', '.adoc', '.rdoc']);
+    const EXAMPLE_PATH = /(?:\/examples?\/|\/samples?\/|\/demos?\/|\/fixtures?\/|\/mocks?\/)/i;
+    const COMMENT_LINE = /^\s*(?:\/\/|#|\/?\*|<!--)/;
+
+    for (const f of findings) {
+      const ext = (f.file || '').match(/\.[^.]+$/)?.[0]?.toLowerCase() || '';
+
+      // Findings in documentation files
+      if (DOC_EXT.has(ext)) {
+        f.confidence = 'low';
+        continue;
+      }
+
+      // Findings in test files
+      if (TEST_PATH.test(f.file || '')) {
+        f.confidence = 'low';
+        continue;
+      }
+
+      // Findings in example/sample/demo paths: high → medium
+      if (EXAMPLE_PATH.test(f.file || '') && f.confidence === 'high') {
+        f.confidence = 'medium';
+        continue;
+      }
+
+      // Findings on comment lines
+      if (f.matched && COMMENT_LINE.test(f.matched)) {
+        f.confidence = 'low';
+      }
+    }
+
+    return findings;
   }
 
   /**
