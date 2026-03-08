@@ -1,6 +1,10 @@
 # =============================================================================
 # SHIP SAFE .GITIGNORE
 # =============================================================================
+#
+# Ship Safe generated files
+.ship-safe/
+ship-safe-report.html
 # This file prevents you from accidentally committing sensitive data.
 # Copy this to your project root. Customize as needed.
 # =============================================================================
