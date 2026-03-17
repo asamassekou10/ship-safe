@@ -3,15 +3,15 @@ const commands = [
   {
     name: 'audit',
     cmd: 'npx ship-safe audit .',
-    desc: 'Full security audit — secrets + 13 agents + deps + score + remediation plan + HTML report.',
-    flags: ['--json', '--sarif', '--html [file]', '--pdf [file]', '--baseline', '--csv', '--md', '--no-deps', '--no-ai', '--no-cache'],
+    desc: 'Full security audit — secrets + 16 agents + deps + score + deep analysis + remediation plan + HTML report.',
+    flags: ['--json', '--sarif', '--html [file]', '--pdf [file]', '--baseline', '--csv', '--md', '--deep', '--verify', '--budget <cents>', '--no-deps', '--no-ai', '--no-cache'],
     featured: true,
   },
   {
     name: 'red-team',
     cmd: 'npx ship-safe red-team .',
-    desc: 'Run 13 security agents (50+ attack classes) against your codebase. Targeted deep scan.',
-    flags: ['--agents <list>', '--json', '--html [file]'],
+    desc: 'Run 16 security agents (80+ attack classes) against your codebase. Targeted deep scan.',
+    flags: ['--agents <list>', '--json', '--html [file]', '--deep', '--local', '--budget <cents>'],
   },
   {
     name: 'scan',
@@ -42,6 +42,12 @@ const commands = [
     cmd: 'npx ship-safe watch .',
     desc: 'Continuous monitoring — watches files for changes and re-scans automatically.',
     flags: [],
+  },
+  {
+    name: 'ci',
+    cmd: 'npx ship-safe ci .',
+    desc: 'CI/CD pipeline mode — compact output, threshold gating, exit codes. Optimized for automation.',
+    flags: ['--threshold <score>', '--fail-on <severity>', '--sarif <file>', '--json', '--baseline'],
   },
   {
     name: 'baseline',

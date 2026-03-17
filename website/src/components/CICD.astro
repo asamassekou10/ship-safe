@@ -8,13 +8,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Full security audit
-        run: npx ship-safe audit . --no-ai --json
-
-      - name: Upload SARIF to GitHub Security tab
-        run: npx ship-safe audit . --no-ai --sarif > results.sarif
+      - name: Security gate
+        run: npx ship-safe ci . --threshold 75 --sarif results.sarif
 
       - uses: github/codeql-action/upload-sarif@v3
+        if: always()
         with:
           sarif_file: results.sarif`;
 ---
@@ -23,7 +21,7 @@ jobs:
   <div class="container">
     <span class="section-label">CI / CD</span>
     <h2>Drop it into your pipeline.</h2>
-    <p class="section-sub">Every command exits <code>1</code> on findings, failing your build automatically. Zero config.</p>
+    <p class="section-sub">Use <code>ship-safe ci</code> for threshold-based gating, compact output, and SARIF. Zero config.</p>
 
     <div class="code-block card" data-animate>
       <div class="code-header">
