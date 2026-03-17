@@ -11,15 +11,24 @@ function animateCounter(el: HTMLElement) {
   const duration = 1200;
   const start = performance.now();
 
+  function setCounter(value: string | number, sfx: string, pfx: string) {
+    el.textContent = '';
+    if (pfx) el.appendChild(document.createTextNode(pfx));
+    const span = document.createElement('span');
+    span.textContent = String(value);
+    el.appendChild(span);
+    if (sfx) el.appendChild(document.createTextNode(sfx));
+  }
+
   if (target === 0) {
-    el.innerHTML = `${prefix}<span>${prefix ? '5' : '0'}</span>${suffix}`;
+    setCounter(prefix ? '5' : '0', suffix, prefix);
     return;
   }
 
   function tick(now: number) {
     const progress = Math.min((now - start) / duration, 1);
     const value = Math.round(easeOut(progress) * target);
-    el.innerHTML = `<span>${value}</span>${suffix}`;
+    setCounter(value, suffix, '');
     if (progress < 1) requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);

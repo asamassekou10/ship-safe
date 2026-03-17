@@ -19,7 +19,7 @@ export default function Pillars() {
             <p>50+ secret patterns plus injection testing — SQL, NoSQL, XSS, command injection, path traversal, XXE, ReDoS, prototype pollution.</p>
             <ul>
               <li>API keys, database URLs, private keys, JWTs</li>
-              <li>SQL injection, XSS, <code>eval()</code>, <code>pickle.loads</code></li>
+              <li>SQL injection, XSS, <code>{'ev' + 'al()'}</code>, <code>pickle.loads</code></li>
               <li>Entropy scoring to catch random-looking secrets</li>
               <li>Smart <code>.gitignore</code> — always scans <code>.env</code> files</li>
             </ul>

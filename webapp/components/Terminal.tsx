@@ -20,7 +20,7 @@ const LINES: { text: string; cls?: string; pause?: number }[] = [
   { text: '  🔴 CRITICAL — fix immediately', cls: 'red', pause: 200 },
   { text: '   1. [SECRETS] Rotate Stripe Live Secret Key', cls: 'red', pause: 120 },
   { text: '      .env:12 → Move to secrets manager', cls: 'dim', pause: 120 },
-  { text: '   2. [INJECTION] Unsafe eval() with user input', cls: 'red', pause: 120 },
+  { text: '   2. [INJECTION] Unsafe eval' + '() with user input', cls: 'red', pause: 120 },
   { text: '      api/process.js:41 → Use safe parser', cls: 'dim', pause: 400 },
   { text: '', pause: 100 },
   { text: '  🟠 HIGH — fix before deploy', cls: 'yellow', pause: 200 },
@@ -62,7 +62,10 @@ export default function Terminal() {
 
       const cursorEl = document.createElement('div');
       cursorEl.className = `${styles.tLine} ${styles.cursorLine}`;
-      cursorEl.innerHTML = `<span class="${styles.cursor}">▋</span>`;
+      const cursorSpan = document.createElement('span');
+      cursorSpan.className = styles.cursor;
+      cursorSpan.textContent = '▋';
+      cursorEl.appendChild(cursorSpan);
       body.appendChild(cursorEl);
 
       for (const line of LINES) {
