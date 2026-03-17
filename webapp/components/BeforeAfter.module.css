@@ -1,0 +1,115 @@
+.diffGrid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0;
+  align-items: center;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.diffPanel { overflow: hidden; }
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 1rem;
+  background: var(--bg-card2);
+  border-bottom: 1px solid var(--border);
+}
+
+.panelFilename {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.panelBadge {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0.2em 0.6em;
+  border-radius: 4px;
+}
+
+.badgeBefore { background: rgba(248,113,113,0.12); color: var(--red); border: 1px solid rgba(248,113,113,0.25); }
+.badgeAfter  { background: rgba(74,222,128,0.12); color: var(--green); border: 1px solid rgba(74,222,128,0.25); }
+
+.codePre {
+  display: block;
+  padding: 1.25rem 1.25rem 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.85;
+  background: #0d1117;
+  color: var(--text-muted);
+  overflow-x: auto;
+  margin: 0;
+  white-space: pre;
+}
+
+.lineHl {
+  display: block;
+  margin: 0 -1.25rem;
+  padding: 0 1.25rem;
+}
+.lineHl.cRed   { background: rgba(248,113,113,0.1); }
+.lineHl.cGreen { background: rgba(74,222,128,0.1); }
+
+.cDim     { color: var(--text-dim); }
+.cRed     { color: var(--red); }
+.cGreen   { color: var(--green); }
+.cString  { color: #fbbf24; }
+.cVar     { color: var(--cyan); }
+.cComment { color: var(--text-dim); font-style: italic; }
+
+.envBlock {
+  background: #0d1117;
+  border-top: 1px solid var(--border);
+  padding: 0.75rem 1.25rem;
+}
+
+.envHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-bottom: 0.4rem;
+}
+
+.envBadge {
+  background: rgba(74,222,128,0.1);
+  color: var(--green);
+  font-size: 0.65rem;
+  padding: 0.1em 0.45em;
+  border-radius: 3px;
+  border: 1px solid rgba(74,222,128,0.2);
+}
+
+.envPre {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.diffArrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 1.5rem;
+  color: var(--cyan);
+}
+
+@media (max-width: 768px) {
+  .diffGrid { grid-template-columns: 1fr; gap: 0.5rem; }
+  .diffArrow { flex-direction: row; padding: 0.5rem 0; justify-content: center; }
+  .diffArrow svg { transform: rotate(90deg); }
+}

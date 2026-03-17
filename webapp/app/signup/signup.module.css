@@ -1,0 +1,23 @@
+.freeBadge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(74,222,128,0.07);
+  border: 1px solid rgba(74,222,128,0.2);
+  border-radius: var(--radius);
+  padding: 0.6rem 1rem;
+  font-size: 0.82rem;
+  color: var(--green);
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+
+.terms {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.5;
+  margin-top: -0.25rem;
+}
+.terms a { color: var(--text-dim); text-decoration: underline; }
+.terms a:hover { color: var(--text-muted); }

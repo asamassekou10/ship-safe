@@ -1,0 +1,119 @@
+.shell {
+  display: flex;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.sidebarTop {
+  padding: 1.25rem 1.25rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--text);
+  text-decoration: none;
+}
+.logo:hover { text-decoration: none; opacity: 0.85; }
+.logoImg { border-radius: 5px; object-fit: contain; }
+
+.nav {
+  padding: 0.75rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 7px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+.navItem:hover { background: var(--bg-elevated); color: var(--text); text-decoration: none; }
+.navItem.active { background: var(--cyan-glow); color: var(--cyan); }
+
+.sidebarBottom {
+  padding: 1rem 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.planBadge {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.planName {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.planScans {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.planBar {
+  height: 4px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+  margin: 0.2rem 0;
+}
+
+.planBarFill {
+  height: 100%;
+  background: var(--cyan);
+  border-radius: 99px;
+}
+
+.upgradeCta {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--cyan);
+  text-decoration: none;
+  margin-top: 0.1rem;
+}
+.upgradeCta:hover { text-decoration: underline; }
+
+.main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+@media (max-width: 640px) {
+  .sidebar { display: none; }
+}

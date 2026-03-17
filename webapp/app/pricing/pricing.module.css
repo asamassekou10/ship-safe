@@ -1,0 +1,162 @@
+.hero { padding: 5rem 0 2rem; text-align: center; }
+
+.plansSection { padding: 2rem 0 5rem; }
+
+.plansGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.planCard {
+  padding: 2rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.featured {
+  border-color: var(--cyan-dim);
+  background: linear-gradient(160deg, rgba(34,211,238,0.06) 0%, var(--bg-card) 50%);
+  box-shadow: 0 0 0 1px rgba(34,211,238,0.15), 0 16px 48px rgba(0,0,0,0.5);
+}
+
+.popularBadge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--cyan);
+  color: #09090b;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.2em 0.85em;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.planHeader { display: flex; flex-direction: column; gap: 0.4rem; }
+
+.planName {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.planPrice {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.priceNum {
+  font-family: var(--font-mono);
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--cyan);
+  line-height: 1;
+}
+
+.pricePeriod {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+
+.planDesc {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.planCta {
+  width: 100%;
+  justify-content: center;
+}
+
+.featureList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.featureItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.featureItem svg { flex-shrink: 0; margin-top: 2px; }
+
+/* Open source banner */
+.openSource { padding: 0 0 5rem; }
+
+.osCard {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  flex-wrap: wrap;
+}
+
+.osIcon {
+  width: 56px; height: 56px;
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.osCard > div { flex: 1; min-width: 200px; }
+.osCard h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.35rem; }
+.osCard p { font-size: 0.88rem; color: var(--text-muted); line-height: 1.6; }
+
+/* FAQ */
+.faqSection { padding: 0 0 6rem; background: var(--bg-card); border-top: 1px solid var(--border); }
+
+.faqList {
+  max-width: 720px;
+  margin: 0 auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.faqItem { border-bottom: 1px solid var(--border); background: var(--bg); }
+.faqItem:last-child { border-bottom: none; }
+
+.faqQuestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.2rem 1.5rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  list-style: none;
+  transition: background 0.15s;
+}
+.faqQuestion::-webkit-details-marker { display: none; }
+.faqQuestion:hover { background: var(--bg-elevated); color: var(--cyan); }
+details[open] .faqQuestion { color: var(--cyan); }
+details[open] .faqQuestion svg { transform: rotate(90deg); }
+.faqQuestion svg { transition: transform 0.2s; color: var(--text-dim); flex-shrink: 0; }
+
+.faqAnswer { padding: 0 1.5rem 1.25rem; font-size: 0.88rem; color: var(--text-muted); line-height: 1.75; }

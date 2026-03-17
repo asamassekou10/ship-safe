@@ -1,0 +1,49 @@
+.pillars {
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.pillarGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 1.25rem;
+}
+
+.pillar { padding: 2rem; background: var(--bg); }
+
+.pillarIcon {
+  width: 44px; height: 44px;
+  border-radius: 10px;
+  background: var(--cyan-glow);
+  border: 1px solid rgba(34,211,238,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.1rem;
+  color: var(--cyan);
+  flex-shrink: 0;
+}
+
+.pillar h3 { font-size: 1.15rem; font-weight: 700; color: var(--cyan); margin-bottom: 0.6rem; letter-spacing: -0.02em; }
+.pillar p { color: var(--text-muted); font-size: 0.88rem; line-height: 1.7; margin-bottom: 1rem; }
+
+.pillar ul { list-style: none; display: flex; flex-direction: column; gap: 0.35rem; }
+
+.pillar li {
+  font-size: 0.83rem;
+  color: var(--text-dim);
+  padding-left: 1rem;
+  position: relative;
+  line-height: 1.5;
+}
+.pillar li::before { content: '→'; position: absolute; left: 0; color: var(--cyan-dim); }
+
+.pillar code {
+  font-family: var(--font-mono);
+  background: var(--cyan-glow);
+  color: var(--cyan);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-size: 0.85em;
+}

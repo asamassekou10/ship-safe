@@ -1,0 +1,105 @@
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(9, 9, 11, 0.8);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.scrolled {
+  border-bottom-color: var(--border);
+  background: rgba(9, 9, 11, 0.95);
+}
+
+.navInner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.navLogo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+.navLogo:hover { text-decoration: none; opacity: 0.85; }
+
+.navLogoImg {
+  display: block;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.navLinks {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.navLinks a {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 0.15s;
+  text-decoration: none;
+}
+.navLinks a:hover { color: var(--text); text-decoration: none; }
+
+.navLink {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 0.15s;
+  text-decoration: none;
+}
+.navLink:hover { color: var(--text); text-decoration: none; }
+
+.navCta {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 1rem;
+  background: var(--cyan);
+  color: #09090b !important;
+  font-weight: 700;
+  font-size: 0.85rem;
+  border-radius: 7px;
+  text-decoration: none;
+  transition: background 0.15s, transform 0.15s;
+}
+.navCta:hover {
+  background: #67e8f9;
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.navGithub {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text) !important;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.85rem;
+  border-radius: 8px;
+  transition: border-color 0.15s, background 0.15s !important;
+}
+.navGithub:hover {
+  border-color: var(--border-hover) !important;
+  background: var(--bg-elevated) !important;
+}
+
+@media (max-width: 640px) {
+  .navLinks a:not(.navGithub):not(.navCta) { display: none; }
+}

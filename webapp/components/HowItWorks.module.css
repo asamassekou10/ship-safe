@@ -1,0 +1,63 @@
+.monoH {
+  font-family: var(--font-mono);
+  color: var(--cyan);
+  font-size: 0.88em;
+}
+
+.steps {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.step {
+  display: flex;
+  gap: 1.25rem;
+  padding-bottom: 0;
+}
+
+.stepLeft {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.stepNum {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  background: var(--cyan);
+  color: #09090b;
+  font-weight: 800;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  box-shadow: 0 0 16px rgba(34,211,238,0.3);
+}
+
+.stepConnector {
+  width: 2px;
+  flex: 1;
+  min-height: 2rem;
+  background: linear-gradient(to bottom, var(--cyan-dim), rgba(14,116,144,0.1));
+  margin: 0.4rem 0;
+}
+
+.stepBody { padding-bottom: 2.5rem; }
+.step:last-child .stepBody { padding-bottom: 0; }
+
+.stepBody h4 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+  letter-spacing: -0.02em;
+}
+
+.stepBody p {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}

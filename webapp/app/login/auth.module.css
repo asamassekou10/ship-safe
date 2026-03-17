@@ -1,0 +1,134 @@
+.authPage {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.authCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 0 0 1px rgba(34,211,238,0.06), 0 24px 60px rgba(0,0,0,0.5);
+}
+
+.authHeader {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--text);
+  text-decoration: none;
+  margin-bottom: 1.5rem;
+}
+.logo:hover { text-decoration: none; opacity: 0.85; }
+
+.logoImg {
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+.authHeader h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.35rem;
+  text-align: center;
+}
+
+.authHeader p {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  text-align: center;
+}
+
+.form { display: flex; flex-direction: column; gap: 1.1rem; }
+
+.field { display: flex; flex-direction: column; gap: 0.4rem; }
+
+.field label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.forgotLink {
+  font-size: 0.78rem;
+  color: var(--cyan);
+  font-weight: 500;
+}
+.forgotLink:hover { text-decoration: underline; }
+
+.input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.7rem 1rem;
+  font-size: 0.9rem;
+  color: var(--text);
+  font-family: var(--font-sans);
+  width: 100%;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+}
+.input::placeholder { color: var(--text-dim); }
+.input:focus {
+  border-color: var(--cyan-dim);
+  box-shadow: 0 0 0 3px rgba(34,211,238,0.08);
+}
+
+.submitBtn {
+  width: 100%;
+  justify-content: center;
+  margin-top: 0.25rem;
+  font-size: 0.95rem;
+  padding: 0.8rem;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.5rem 0;
+  color: var(--text-dim);
+  font-size: 0.78rem;
+}
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.oauthBtns { display: flex; gap: 0.75rem; }
+
+.oauthBtn {
+  flex: 1;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+}
+
+.switchAuth {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-top: 1.5rem;
+}
+.switchAuth a { color: var(--cyan); font-weight: 500; }
+.switchAuth a:hover { text-decoration: underline; }

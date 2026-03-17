@@ -1,0 +1,69 @@
+.commands {
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.cmdGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(285px, 1fr));
+  gap: 1rem;
+}
+
+.cmdCard {
+  background: var(--bg);
+  padding: 1.25rem 1.4rem;
+}
+
+.cmdCard.featured {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, rgba(34,211,238,0.04) 0%, transparent 60%);
+  border-color: var(--cyan-dim);
+}
+
+@media (min-width: 700px) {
+  .featured { grid-column: span 2; }
+}
+
+.cmdName {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--cyan);
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.cmdLine {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+}
+
+.cmdPrompt { color: var(--cyan); user-select: none; }
+.cmdText { color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.cmdCard p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 0.75rem;
+}
+
+.flags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+.flag {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 0.15em 0.5em;
+  border-radius: 4px;
+}

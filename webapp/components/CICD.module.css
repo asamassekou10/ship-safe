@@ -1,0 +1,63 @@
+.codeBlock { max-width: 720px; margin: 0 auto; overflow: hidden; }
+
+.codeHeader {
+  background: var(--bg-card2);
+  padding: 0.65rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+
+.codeFilename {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.ciCopy {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-family: var(--font-sans);
+  border: 1px solid var(--border) !important;
+  border-radius: 5px;
+  padding: 0.25rem 0.6rem;
+  color: var(--text-dim);
+  transition: color 0.15s, border-color 0.15s;
+}
+.ciCopy:hover { color: var(--cyan); border-color: var(--cyan-dim) !important; }
+
+.yamlPre {
+  background: #0d1117;
+  padding: 1.25rem 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.8;
+  color: var(--text-muted);
+  overflow-x: auto;
+  margin: 0;
+}
+
+.sarifTip {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  margin-top: 1.25rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.sarifTip code {
+  font-family: var(--font-mono);
+  background: var(--cyan-glow);
+  color: var(--cyan);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-size: 0.88em;
+}

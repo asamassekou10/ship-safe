@@ -1,0 +1,178 @@
+.page {
+  padding: 2rem;
+  max-width: 700px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.header h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-align: left;
+  margin-bottom: 0.15rem;
+}
+
+.subtitle { color: var(--text-dim); font-size: 0.875rem; }
+
+/* Method tabs */
+.methodTabs {
+  display: flex;
+  gap: 0.4rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.3rem;
+}
+
+.methodTab {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  font-family: var(--font-sans);
+}
+.methodTab:hover { color: var(--text); background: var(--bg-elevated); }
+.methodTab.active { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+
+/* Form */
+.form { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.field { display: flex; flex-direction: column; gap: 0.4rem; }
+
+.field label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.fieldNote { font-size: 0.75rem; color: var(--text-dim); }
+
+.input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.7rem 1rem;
+  font-size: 0.9rem;
+  color: var(--text);
+  font-family: var(--font-sans);
+  width: 100%;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+}
+.input::placeholder { color: var(--text-dim); }
+.input:focus { border-color: var(--cyan-dim); box-shadow: 0 0 0 3px rgba(34,211,238,0.08); }
+
+/* GitHub section */
+.githubSection { display: flex; flex-direction: column; gap: 1rem; }
+
+.connectPrompt {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  flex-wrap: wrap;
+}
+.connectPrompt > svg { color: var(--text-muted); flex-shrink: 0; }
+.connectPrompt > div { flex: 1; min-width: 120px; }
+.connectPrompt strong { font-size: 0.88rem; display: block; margin-bottom: 0.2rem; }
+.connectPrompt p { font-size: 0.8rem; color: var(--text-dim); }
+
+/* Drop zone */
+.dropZone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  padding: 3rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text-dim);
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+  cursor: pointer;
+}
+.dropZone:hover { border-color: var(--cyan-dim); background: var(--cyan-glow); }
+.dropZone p { font-size: 0.88rem; }
+
+.browseLabel { color: var(--cyan); cursor: pointer; font-weight: 600; }
+.fileInput { display: none; }
+
+/* Options */
+.optionsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.optionCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.optionCard:hover { border-color: var(--border-hover); }
+.optionCard input { margin-top: 2px; accent-color: var(--cyan); flex-shrink: 0; }
+
+.optionName { font-size: 0.82rem; font-weight: 600; display: block; margin-bottom: 0.15rem; }
+.optionDesc { font-size: 0.75rem; color: var(--text-dim); line-height: 1.4; }
+
+/* Submit */
+.submitBtn {
+  font-size: 0.95rem;
+  padding: 0.85rem 2rem;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid rgba(9,9,11,0.3);
+  border-top-color: #09090b;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* CLI tip */
+.cliTip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+}
+.cliTip code {
+  font-family: var(--font-mono);
+  color: var(--cyan);
+  font-size: 0.8rem;
+  background: var(--cyan-glow);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+}
+
+@media (max-width: 640px) {
+  .optionsGrid { grid-template-columns: 1fr; }
+}
