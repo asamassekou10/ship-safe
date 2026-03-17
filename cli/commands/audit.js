@@ -29,6 +29,7 @@ import {
   SECURITY_PATTERNS,
   SKIP_DIRS,
   SKIP_EXTENSIONS,
+  SKIP_FILENAMES,
   MAX_FILE_SIZE,
   loadGitignorePatterns
 } from '../utils/patterns.js';
@@ -132,8 +133,28 @@ export async function auditCommand(targetPath = '.', options = {}) {
           description: f.description,
           matched: f.matched,
           confidence: f.confidence,
-          fix: `Move to environment variable or secrets manager`,
+          fix: file.match(/\.env(\..*)?$/)
+            ? `Ensure .env is in .gitignore and use a secrets manager for production`
+            : `Move to environment variable or secrets manager`,
         });
+      }
+    }
+
+    // Downgrade .env findings if the file is gitignored (properly managed)
+    const gitignoreContent = (() => {
+      try { return fs.readFileSync(path.join(absolutePath, '.gitignore'), 'utf-8'); } catch { return ''; }
+    })();
+    const envIsGitignored = gitignoreContent.split('\n')
+      .map(l => l.trim())
+      .some(l => /^\.env(\s|$)/.test(l) || l === '*.env' || l === '.env*' || l === '.env.local' || l === '.env.production');
+
+    if (envIsGitignored) {
+      for (const f of secretFindings) {
+        if (f.file.match(/\.env(\..*)?$/) && !f.file.includes('node_modules')) {
+          f.severity = 'low';
+          f.confidence = 'low';
+          f.fix = 'Already gitignored — ensure secrets manager is used for production deploys';
+        }
       }
     }
 
@@ -421,8 +442,38 @@ function buildRemediationPlan(findings, depVulns, rootPath) {
 
   // Group and sort
   for (const sev of SEV_ORDER) {
-    // Secrets at this severity
-    for (const f of secretFindings.filter(s => s.severity === sev)) {
+    // Secrets at this severity — group .env findings by file
+    const sevSecrets = secretFindings.filter(s => s.severity === sev);
+    const envGroups = new Map();
+    const nonEnvSecrets = [];
+
+    for (const f of sevSecrets) {
+      const relFile = path.relative(rootPath, f.file).replace(/\\/g, '/');
+      if (f.file.match(/\.env(\..*)?$/)) {
+        if (!envGroups.has(relFile)) envGroups.set(relFile, []);
+        envGroups.get(relFile).push(f);
+      } else {
+        nonEnvSecrets.push(f);
+      }
+    }
+
+    // One plan item per .env file
+    for (const [relFile, envFindings] of envGroups) {
+      const names = envFindings.map(f => f.title || f.rule).join(', ');
+      plan.push({
+        priority: priority++,
+        severity: sev,
+        category: 'secrets',
+        categoryLabel: 'SECRETS',
+        title: `${envFindings.length} secret${envFindings.length > 1 ? 's' : ''} in ${relFile} (${names})`,
+        file: relFile,
+        action: envFindings[0].fix || 'Ensure .env is in .gitignore and use a secrets manager for production',
+        effort: 'low',
+      });
+    }
+
+    // Individual items for non-.env secrets
+    for (const f of nonEnvSecrets) {
       plan.push({
         priority: priority++,
         severity: sev,
@@ -694,6 +745,7 @@ async function findFiles(rootPath) {
   return files.filter(file => {
     const ext = path.extname(file).toLowerCase();
     if (SKIP_EXTENSIONS.has(ext)) return false;
+    if (SKIP_FILENAMES.has(path.basename(file))) return false;
     if (path.basename(file).endsWith('.min.js') || path.basename(file).endsWith('.min.css')) return false;
     try { if (fs.statSync(file).size > MAX_FILE_SIZE) return false; } catch { return false; }
     return true;

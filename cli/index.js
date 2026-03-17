@@ -26,7 +26,7 @@ export { doctorCommand } from './commands/doctor.js';
 export { baselineCommand } from './commands/baseline.js';
 
 // ── Patterns ──────────────────────────────────────────────────────────────────
-export { SECRET_PATTERNS, SECURITY_PATTERNS, SKIP_DIRS, SKIP_EXTENSIONS } from './utils/patterns.js';
+export { SECRET_PATTERNS, SECURITY_PATTERNS, SKIP_DIRS, SKIP_EXTENSIONS, SKIP_FILENAMES } from './utils/patterns.js';
 
 // ── Agent Framework ───────────────────────────────────────────────────────────
 export { BaseAgent, createFinding } from './agents/base-agent.js';

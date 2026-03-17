@@ -13,7 +13,7 @@
 import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
-import { SKIP_DIRS, SKIP_EXTENSIONS, SECRET_PATTERNS, SECURITY_PATTERNS } from '../utils/patterns.js';
+import { SKIP_DIRS, SKIP_EXTENSIONS, SKIP_FILENAMES, SECRET_PATTERNS, SECURITY_PATTERNS } from '../utils/patterns.js';
 import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import * as output from '../utils/output.js';
 
@@ -53,6 +53,7 @@ export async function watchCommand(targetPath = '.', options = {}) {
       // Skip non-code files
       const ext = path.extname(filename).toLowerCase();
       if (SKIP_EXTENSIONS.has(ext)) return;
+      if (SKIP_FILENAMES.has(path.basename(filename))) return;
       if (filename.endsWith('.min.js') || filename.endsWith('.min.css')) return;
 
       // Add to pending and debounce

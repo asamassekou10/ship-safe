@@ -1,6 +1,6 @@
 # Ship Safe Plugin for Claude Code
 
-Security audit your projects directly inside Claude Code. 13 agents, 50+ attack classes, zero setup.
+Security audit your projects directly inside Claude Code. 16 agents, 80+ attack classes, zero setup.
 
 ## Install
 
@@ -12,12 +12,14 @@ claude plugin add github:asamassekou10/ship-safe
 
 | Command | Description |
 |---------|-------------|
-| `/ship-safe` | Full security audit — 13 agents, 50+ attack classes, prioritized remediation plan |
+| `/ship-safe` | Full security audit — 16 agents, 80+ attack classes, prioritized remediation plan |
 | `/ship-safe-scan` | Quick scan for leaked secrets (API keys, passwords, tokens) |
 | `/ship-safe-score` | Security health score (0-100, A-F grade) |
 | `/ship-safe-red-team` | Multi-agent red team scan — deep vulnerability analysis |
 | `/ship-safe-baseline` | Manage security baseline — only report new regressions |
 | `/ship-safe-fix` | Auto-fix security issues (secrets, TLS, debug mode, XSS, Docker) |
+| `/ship-safe-deep` | LLM-powered deep taint analysis for critical/high findings |
+| `/ship-safe-ci` | CI/CD pipeline setup — GitHub Actions, GitLab CI examples |
 
 ## How It Works
 
@@ -27,7 +29,7 @@ These skills invoke [ship-safe](https://www.npmjs.com/package/ship-safe) via `np
 
 ```
 > /ship-safe
-Runs full audit with 13 security agents, shows score, findings grouped
+Runs full audit with 16 security agents, shows score, findings grouped
 by severity, and offers to fix critical issues in your code.
 
 > /ship-safe-scan src/
@@ -58,6 +60,10 @@ mode, XSS, Docker :latest, shell injection).
 - Supabase RLS (missing Row Level Security, service_role key exposure)
 - Config (Docker, Terraform, Kubernetes, CORS, CSP)
 - LLM security (prompt injection, system prompt leakage)
+- MCP server security (tool poisoning, missing auth)
+- Agentic AI (OWASP Agentic AI Top 10 — agent hijacking, privilege escalation)
+- RAG pipelines (context injection, document poisoning)
+- PII compliance (SSNs, credit cards, emails in source code)
 - CI/CD (pipeline poisoning, unpinned actions)
 - API (missing auth, rate limiting, OpenAPI spec issues)
 - Dependencies (known CVEs in npm, pip, bundler)

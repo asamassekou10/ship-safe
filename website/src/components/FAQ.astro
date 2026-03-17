@@ -2,7 +2,7 @@
 const faqs = [
   {
     q: 'Does it work without an API key?',
-    a: 'Yes. <code>audit</code>, <code>scan</code>, <code>red-team</code>, <code>score</code>, <code>deps</code>, and <code>guard</code> all work fully offline with no API key. AI classification is optional — pass <code>--no-ai</code> to skip it. If you want AI, ship-safe supports Anthropic, OpenAI, Google Gemini, and local Ollama models.'
+    a: 'Yes. <code>audit</code>, <code>scan</code>, <code>red-team</code>, <code>ci</code>, <code>score</code>, <code>deps</code>, and <code>guard</code> all work fully offline with no API key. AI classification and deep analysis are optional — pass <code>--no-ai</code> to skip it. If you want AI, ship-safe supports Anthropic, OpenAI, Google Gemini, and local Ollama models.'
   },
   {
     q: 'Is my code sent to an LLM?',
@@ -26,11 +26,11 @@ const faqs = [
   },
   {
     q: 'Is it safe to run in CI?',
-    a: 'Yes. <code>audit</code> exits <code>0</code> for scores >= 75 (A/B grade) and <code>1</code> for lower scores. Use <code>--json</code> for structured output or <code>--sarif</code> to upload findings to GitHub\'s Security tab.'
+    a: 'Yes. Use <code>ship-safe ci .</code> for pipeline-optimized output with threshold gating (<code>--threshold 80</code>) and severity-based failure (<code>--fail-on critical</code>). Use <code>--sarif</code> to upload findings to GitHub\'s Security tab. Exit code <code>0</code> = pass, <code>1</code> = fail.'
   },
   {
     q: 'What about false positives?',
-    a: 'v4.3 adds context-aware confidence tuning that automatically downgrades findings in test files, documentation, comments, and example code — reducing false positives by up to 70%. You can also use <code>ship-safe baseline .</code> to accept current findings and only see new regressions, or add <code># ship-safe-ignore</code> to suppress individual lines.'
+    a: 'v5.0 has context-aware confidence tuning that automatically downgrades findings in test files, documentation, comments, and example code — reducing false positives by up to 70%. Use <code>--deep</code> for LLM-powered exploitability verification, <code>ship-safe baseline .</code> to accept current findings and only see new regressions, or add <code># ship-safe-ignore</code> to suppress individual lines.'
   }
 ];
 ---

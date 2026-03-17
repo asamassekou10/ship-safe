@@ -17,7 +17,7 @@ import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
 import { buildOrchestrator } from '../agents/index.js';
-import { SECRET_PATTERNS, SKIP_DIRS, SKIP_EXTENSIONS, MAX_FILE_SIZE } from '../utils/patterns.js';
+import { SECRET_PATTERNS, SKIP_DIRS, SKIP_EXTENSIONS, SKIP_FILENAMES, MAX_FILE_SIZE } from '../utils/patterns.js';
 import { isHighEntropyMatch } from '../utils/entropy.js';
 import fg from 'fast-glob';
 
@@ -45,6 +45,7 @@ async function quickScan(rootPath) {
   const filtered = files.filter(f => {
     const ext = path.extname(f).toLowerCase();
     if (SKIP_EXTENSIONS.has(ext)) return false;
+    if (SKIP_FILENAMES.has(path.basename(f))) return false;
     try { return fs.statSync(f).size <= MAX_FILE_SIZE; } catch { return false; }
   });
 

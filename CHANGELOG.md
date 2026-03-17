@@ -6,6 +6,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [5.0.0] — 2026-03-16
+
+### Added
+- **3 new security agents** — MCPSecurityAgent (MCP server misuse, tool poisoning), AgenticSecurityAgent (OWASP Agentic AI Top 10), RAGSecurityAgent (RAG pipeline security, context injection), PIIComplianceAgent (PII detection in source code)
+- **VerifierAgent** — post-processor that probes provider APIs (GitHub, OpenAI, Stripe, Slack, etc.) to verify if leaked secrets are still active
+- **DeepAnalyzer** — LLM-powered taint analysis sends critical/high findings to LLM for exploitability verification; supports Anthropic, OpenAI, Google, Ollama with budget controls (`--budget <cents>`)
+- **`ship-safe ci`** — dedicated CI/CD command with compact one-line output, threshold-based gating (`--threshold`, `--fail-on`), SARIF output for GitHub Code Scanning
+- **Cross-agent awareness** — `sharedFindings` in orchestrator context allows later agents to see findings from earlier agents
+- **Framework-aware scanning** — agents implement `shouldRun(recon)` to skip irrelevant projects (e.g., MobileScanner skips non-mobile projects)
+- **`--deep` flag** — LLM-powered deep analysis on `audit` and `red-team` commands
+- **`--local` flag** — use local Ollama model for deep analysis
+- **`--verify` flag** — probe provider APIs to check if leaked secrets are still active
+- **`--budget <cents>` flag** — cap LLM spend for deep analysis (default: 50 cents)
+- **CRA-ready SBOM** — EU Cyber Resilience Act compliance fields: supplier, lifecycles, licenses, vulnerability attachment
+- **OWASP Agentic AI Top 10 coverage** — ASI01-ASI10 via AgenticSecurityAgent
+- **Claude Code plugin v3.0** — added `/ship-safe-deep` and `/ship-safe-ci` skills
+- **90 unit tests** across 26 suites
+
+---
+
 ## [4.3.0] — 2026-03-08
 
 ### Added

@@ -28,6 +28,7 @@ import {
   SECRET_PATTERNS,
   SKIP_DIRS,
   SKIP_EXTENSIONS,
+  SKIP_FILENAMES,
   MAX_FILE_SIZE,
   loadGitignorePatterns
 } from '../utils/patterns.js';
@@ -253,6 +254,7 @@ async function findFiles(rootPath) {
   return files.filter(file => {
     const ext = path.extname(file).toLowerCase();
     if (SKIP_EXTENSIONS.has(ext)) return false;
+    if (SKIP_FILENAMES.has(path.basename(file))) return false;
     if (path.basename(file).endsWith('.min.js') || path.basename(file).endsWith('.min.css')) return false;
     try { if (fs.statSync(file).size > MAX_FILE_SIZE) return false; } catch { return false; }
     return true;

@@ -29,6 +29,7 @@ import {
   SECURITY_PATTERNS,
   SKIP_DIRS,
   SKIP_EXTENSIONS,
+  SKIP_FILENAMES,
   TEST_FILE_PATTERNS,
   MAX_FILE_SIZE,
   loadGitignorePatterns
@@ -290,6 +291,7 @@ async function findFiles(rootPath, ignorePatterns, options = {}) {
     // Skip by extension
     const ext = path.extname(file).toLowerCase();
     if (SKIP_EXTENSIONS.has(ext)) continue;
+    if (SKIP_FILENAMES.has(path.basename(file))) continue;
 
     // Handle compound extensions like .min.js
     const basename = path.basename(file);

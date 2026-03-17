@@ -33,6 +33,7 @@ import {
   SECURITY_PATTERNS,
   SKIP_DIRS,
   SKIP_EXTENSIONS,
+  SKIP_FILENAMES,
   TEST_FILE_PATTERNS,
   MAX_FILE_SIZE
 } from '../utils/patterns.js';
@@ -270,6 +271,7 @@ async function scanProject(rootPath) {
   const files = allFiles.filter(file => {
     const ext = path.extname(file).toLowerCase();
     if (SKIP_EXTENSIONS.has(ext)) return false;
+    if (SKIP_FILENAMES.has(path.basename(file))) return false;
     const basename = path.basename(file);
     if (basename.endsWith('.min.js') || basename.endsWith('.min.css')) return false;
     if (TEST_FILE_PATTERNS.some(p => p.test(file))) return false;

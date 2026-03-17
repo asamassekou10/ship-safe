@@ -810,6 +810,20 @@ export const SKIP_EXTENSIONS = new Set([
   '.map'
 ]);
 
+// Auto-generated lockfiles — large, no real secrets, cause false positives
+export const SKIP_FILENAMES = new Set([
+  'package-lock.json',
+  'pnpm-lock.yaml',
+  'composer.lock',
+  'Gemfile.lock',
+  'Pipfile.lock',
+  'poetry.lock',
+  'cargo.lock',
+  'pubspec.lock',
+  'go.sum',
+  'flake.lock',
+]);
+
 // Maximum file size to scan (1MB)
 export const MAX_FILE_SIZE = 1_000_000;
 

@@ -36,6 +36,7 @@ import {
   SECURITY_PATTERNS,
   SKIP_DIRS,
   SKIP_EXTENSIONS,
+  SKIP_FILENAMES,
   TEST_FILE_PATTERNS,
   MAX_FILE_SIZE
 } from '../utils/patterns.js';
@@ -335,6 +336,7 @@ async function findFiles(rootPath) {
   for (const file of files) {
     const ext = path.extname(file).toLowerCase();
     if (SKIP_EXTENSIONS.has(ext)) continue;
+    if (SKIP_FILENAMES.has(path.basename(file))) continue;
 
     const basename = path.basename(file);
     if (basename.endsWith('.min.js') || basename.endsWith('.min.css')) continue;

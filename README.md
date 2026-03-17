@@ -14,19 +14,22 @@
 
 ---
 
-13 security agents. 50+ attack classes. One command.
+16 security agents. 80+ attack classes. One command.
 
-**Ship Safe v4.3** is an AI-powered security platform that runs 13 specialized agents in parallel against your codebase — scanning for secrets, injection vulnerabilities, auth bypass, SSRF, supply chain attacks, Supabase RLS misconfigs, Docker/Terraform/Kubernetes misconfigs, CI/CD pipeline poisoning, LLM security issues, and more. Context-aware confidence tuning reduces false positives by up to 70%. Baseline support lets teams adopt incrementally — accept existing debt, focus on not making it worse.
+**Ship Safe v5.0** is an AI-powered security platform that runs 16 specialized agents in parallel against your codebase — scanning for secrets, injection vulnerabilities, auth bypass, SSRF, supply chain attacks, Supabase RLS misconfigs, Docker/Terraform/Kubernetes misconfigs, CI/CD pipeline poisoning, LLM/agentic AI security, MCP server misuse, RAG poisoning, PII compliance, and more. LLM-powered deep analysis verifies exploitability of critical findings. Secrets verification probes provider APIs to check if leaked keys are still active. A dedicated CI command (`ship-safe ci`) integrates into any pipeline with threshold-based gating and SARIF output.
 
 ---
 
 ## Quick Start
 
 ```bash
-# Full security audit — secrets + 12 agents + deps + remediation plan
+# Full security audit — secrets + 16 agents + deps + remediation plan
 npx ship-safe audit .
 
-# Red team scan only (12 agents, 50+ attack classes)
+# LLM-powered deep analysis (Anthropic, OpenAI, Google, Ollama)
+npx ship-safe audit . --deep
+
+# Red team scan only (16 agents, 80+ attack classes)
 npx ship-safe red-team .
 
 # Quick secret scan
@@ -35,9 +38,15 @@ npx ship-safe scan .
 # Security health score (0-100)
 npx ship-safe score .
 
+# CI/CD pipeline mode — compact output, exit codes, SARIF
+npx ship-safe ci .
+
 # Accept current findings, only report regressions
 npx ship-safe baseline .
 npx ship-safe audit . --baseline
+
+# Check if leaked secrets are still active
+npx ship-safe audit . --verify
 
 # Environment diagnostics
 npx ship-safe doctor
@@ -57,11 +66,11 @@ npx ship-safe audit .
 
 ```
 ════════════════════════════════════════════════════════════
-  Ship Safe v4.3 — Full Security Audit
+  Ship Safe v5.0 — Full Security Audit
 ════════════════════════════════════════════════════════════
 
   [Phase 1/4] Scanning for secrets...         ✔ 49 found
-  [Phase 2/4] Running 13 security agents...   ✔ 103 findings
+  [Phase 2/4] Running 16 security agents...   ✔ 103 findings
   [Phase 3/4] Auditing dependencies...        ✔ 44 CVEs
   [Phase 4/4] Computing security score...     ✔ 25/100 F
 
@@ -88,12 +97,14 @@ npx ship-safe audit .
 
 **What it runs:**
 1. **Secret scan** — 50+ patterns with entropy scoring (API keys, passwords, tokens)
-2. **13 security agents** — run in parallel with per-agent timeouts (injection, auth, SSRF, supply chain, config, Supabase RLS, LLM, mobile, git history, CI/CD, API)
+2. **16 security agents** — run in parallel with per-agent timeouts and framework-aware filtering (injection, auth, SSRF, supply chain, config, Supabase RLS, LLM, MCP, agentic AI, RAG, PII, mobile, git history, CI/CD, API)
 3. **Dependency audit** — npm/pip/bundler CVE scanning
-4. **Score computation** — confidence-weighted scoring across 8 categories (0-100, A-F)
-5. **Context-aware confidence tuning** — downgrades findings in test files, docs, and comments
-6. **Remediation plan** — prioritized fix list grouped by severity
-7. **HTML report** — standalone dark-themed report with code context
+4. **Secrets verification** — probes provider APIs (GitHub, Stripe, OpenAI, etc.) to check if leaked keys are still active
+5. **Deep analysis** — LLM-powered taint analysis verifies exploitability of critical/high findings (optional)
+6. **Score computation** — confidence-weighted scoring across 8 categories (0-100, A-F)
+7. **Context-aware confidence tuning** — downgrades findings in test files, docs, and comments
+8. **Remediation plan** — prioritized fix list grouped by severity
+9. **HTML report** — standalone dark-themed report with code context
 
 **Flags:**
 - `--json` — structured JSON output (clean for piping)
@@ -108,10 +119,15 @@ npx ship-safe audit .
 - `--no-cache` — force full rescan (ignore cached results)
 - `--baseline` — only show findings not in the baseline
 - `--pdf [file]` — generate PDF report (requires Chrome/Chromium)
+- `--deep` — LLM-powered taint analysis for critical/high findings
+- `--local` — use local Ollama model for deep analysis
+- `--model <model>` — LLM model to use for deep/AI analysis
+- `--budget <cents>` — max spend in cents for deep analysis (default: 50)
+- `--verify` — check if leaked secrets are still active (probes provider APIs)
 
 ---
 
-## 13 Security Agents
+## 16 Security Agents
 
 | Agent | Category | What It Detects |
 |-------|----------|-----------------|
@@ -122,12 +138,17 @@ npx ship-safe audit .
 | **ConfigAuditor** | Config | Dockerfile (running as root, :latest tags), Terraform (public S3/RDS, open SG, CloudFront HTTP, Lambda admin, S3 no versioning), Kubernetes (privileged containers, `:latest` tags, missing NetworkPolicy), CORS, CSP, Firebase, Nginx |
 | **SupabaseRLSAgent** | Auth | Supabase Row Level Security — `service_role` key in client code, `CREATE TABLE` without RLS, anon key inserts, unprotected storage operations |
 | **LLMRedTeam** | AI/LLM | OWASP LLM Top 10 — prompt injection, excessive agency, system prompt leakage, unbounded consumption, RAG poisoning |
+| **MCPSecurityAgent** | AI/LLM | MCP server security — unvalidated tool inputs, missing auth, excessive permissions, tool poisoning |
+| **AgenticSecurityAgent** | AI/LLM | OWASP Agentic AI Top 10 — agent hijacking, privilege escalation, unsafe code execution, memory poisoning |
+| **RAGSecurityAgent** | AI/LLM | RAG pipeline security — unvalidated embeddings, context injection, document poisoning, vector DB access control |
+| **PIIComplianceAgent** | Compliance | PII detection — SSNs, credit cards, emails, phone numbers in source code, logs, and configs |
 | **MobileScanner** | Mobile | OWASP Mobile Top 10 2024 — insecure storage, WebView JS injection, HTTP endpoints, excessive permissions, debug mode |
 | **GitHistoryScanner** | Secrets | Leaked secrets in git commit history (checks if still active in working tree) |
 | **CICDScanner** | CI/CD | OWASP CI/CD Top 10 — pipeline poisoning, unpinned actions, secret logging, self-hosted runners, script injection |
 | **APIFuzzer** | API | Routes without auth, missing input validation, mass assignment, unrestricted file upload, GraphQL introspection, debug endpoints, missing rate limiting, OpenAPI spec security issues |
 | **ReconAgent** | Recon | Attack surface discovery — frameworks, languages, auth patterns, databases, cloud providers, IaC, CI/CD pipelines |
-| **ScoringEngine** | Scoring | 8-category weighted scoring with trend tracking |
+
+**Post-processors:** ScoringEngine (8-category weighted scoring), VerifierAgent (secrets liveness verification), DeepAnalyzer (LLM-powered taint analysis)
 
 ---
 
@@ -139,7 +160,7 @@ npx ship-safe audit .
 # Full audit with remediation plan + HTML report
 npx ship-safe audit .
 
-# Red team: 13 agents, 50+ attack classes
+# Red team: 16 agents, 80+ attack classes
 npx ship-safe red-team .
 npx ship-safe red-team . --agents injection,auth    # Run specific agents
 npx ship-safe red-team . --html report.html         # HTML report
@@ -188,6 +209,28 @@ npx ship-safe baseline --diff
 npx ship-safe baseline --clear
 ```
 
+### CI/CD Pipeline
+
+```bash
+# CI mode — compact output, exit codes, threshold gating
+npx ship-safe ci .
+npx ship-safe ci . --threshold 80    # Custom passing score
+npx ship-safe ci . --fail-on critical # Fail on severity
+npx ship-safe ci . --sarif out.sarif  # SARIF for GitHub
+```
+
+### Deep Analysis & Verification
+
+```bash
+# LLM-powered deep analysis (Anthropic/OpenAI/Google/Ollama)
+npx ship-safe audit . --deep
+npx ship-safe audit . --deep --local     # Use local Ollama
+npx ship-safe audit . --deep --budget 50 # Cap spend at 50 cents
+
+# Check if leaked secrets are still active
+npx ship-safe audit . --verify
+```
+
 ### Diagnostics
 
 ```bash
@@ -232,9 +275,11 @@ claude plugin add github:asamassekou10/ship-safe
 
 | Command | Description |
 |---------|-------------|
-| `/ship-safe` | Full security audit — 12 agents, remediation plan, auto-fix |
+| `/ship-safe` | Full security audit — 16 agents, remediation plan, auto-fix |
 | `/ship-safe-scan` | Quick scan for leaked secrets |
 | `/ship-safe-score` | Security health score (0-100) |
+| `/ship-safe-deep` | LLM-powered deep taint analysis |
+| `/ship-safe-ci` | CI/CD pipeline setup guide |
 
 Claude interprets the results, explains findings in plain language, and can fix issues directly in your codebase.
 
@@ -335,6 +380,24 @@ npx ship-safe policy init
 
 ## CI/CD Integration
 
+The dedicated `ci` command is optimized for pipelines — compact output, exit codes, threshold-based gating:
+
+```bash
+# Basic CI — fail if score < 75
+npx ship-safe ci .
+
+# Strict — fail on any critical finding
+npx ship-safe ci . --fail-on critical
+
+# Custom threshold + SARIF for GitHub Security tab
+npx ship-safe ci . --threshold 80 --sarif results.sarif
+
+# Only check new findings (not in baseline)
+npx ship-safe ci . --baseline
+```
+
+**GitHub Actions example:**
+
 ```yaml
 # .github/workflows/security.yml
 name: Security Audit
@@ -347,16 +410,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Full security audit
-        run: npx ship-safe audit . --no-ai --json
-
-      - name: Score delta vs. last scan
-        run: npx ship-safe audit . --no-ai --compare
-
-      - name: Upload SARIF to GitHub Security tab
-        run: npx ship-safe audit . --no-ai --sarif > results.sarif
+      - name: Security gate
+        run: npx ship-safe ci . --threshold 75 --sarif results.sarif
 
       - uses: github/codeql-action/upload-sarif@v3
+        if: always()
         with:
           sarif_file: results.sarif
 ```
@@ -392,6 +450,7 @@ docs/
 | **OWASP Top 10 Mobile 2024** | M1-M10: Improper Credential Usage, Inadequate Supply Chain, Insecure Auth, Insufficient Validation, Insecure Communication, Inadequate Privacy, Binary Protections, Security Misconfiguration, Insecure Data Storage, Insufficient Cryptography |
 | **OWASP LLM Top 10 2025** | LLM01-LLM10: Prompt Injection, Sensitive Info Disclosure, Supply Chain, Data Poisoning, Improper Output Handling, Excessive Agency, System Prompt Leakage, Vector/Embedding Weaknesses, Misinformation, Unbounded Consumption |
 | **OWASP CI/CD Top 10** | CICD-SEC-1 to 10: Insufficient Flow Control, Identity Management, Dependency Chain Abuse, Poisoned Pipeline Execution, Insufficient PBAC, Credential Hygiene, Insecure System Config, Ungoverned Usage, Improper Artifact Integrity, Insufficient Logging |
+| **OWASP Agentic AI Top 10** | ASI01-ASI10: Agent Hijacking, Tool Misuse, Privilege Escalation, Unsafe Code Execution, Memory Poisoning, Identity Spoofing, Excessive Autonomy, Logging Gaps, Supply Chain Attacks, Cascading Hallucination |
 
 ---
 
@@ -429,6 +488,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 - [OWASP LLM Top 10 2025](https://genai.owasp.org/llm-top-10/)
 - [OWASP API Security Top 10 2023](https://owasp.org/API-Security/)
 - [OWASP CI/CD Top 10](https://owasp.org/www-project-top-10-ci-cd-security-risks/)
+- [OWASP Agentic AI Top 10](https://owasp.org/www-project-agentic-ai-top-10/)
 
 ---
 
