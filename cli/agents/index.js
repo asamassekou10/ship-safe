@@ -19,13 +19,20 @@ export { GitHistoryScanner } from './git-history-scanner.js';
 export { CICDScanner } from './cicd-scanner.js';
 export { APIFuzzer } from './api-fuzzer.js';
 export { SupabaseRLSAgent } from './supabase-rls-agent.js';
+export { MCPSecurityAgent } from './mcp-security-agent.js';
+export { AgenticSecurityAgent } from './agentic-security-agent.js';
+export { RAGSecurityAgent } from './rag-security-agent.js';
+export { PIIComplianceAgent } from './pii-compliance-agent.js';
+export { VerifierAgent } from './verifier-agent.js';
+export { DeepAnalyzer } from './deep-analyzer.js';
 export { ScoringEngine, GRADES, CATEGORIES } from './scoring-engine.js';
 export { SBOMGenerator } from './sbom-generator.js';
 export { PolicyEngine } from './policy-engine.js';
 export { HTMLReporter } from './html-reporter.js';
 
 /**
- * Create a fully configured orchestrator with all 12 agents.
+ * Create a fully configured orchestrator with all 15 scanning agents.
+ * (VerifierAgent and DeepAnalyzer run as post-processors, not in the agent pool.)
  */
 import { Orchestrator as OrchestratorClass } from './orchestrator.js';
 import { InjectionTester as InjectionTesterClass } from './injection-tester.js';
@@ -39,6 +46,10 @@ import { GitHistoryScanner as GitHistoryScannerClass } from './git-history-scann
 import { CICDScanner as CICDScannerClass } from './cicd-scanner.js';
 import { APIFuzzer as APIFuzzerClass } from './api-fuzzer.js';
 import { SupabaseRLSAgent as SupabaseRLSAgentClass } from './supabase-rls-agent.js';
+import { MCPSecurityAgent as MCPSecurityAgentClass } from './mcp-security-agent.js';
+import { AgenticSecurityAgent as AgenticSecurityAgentClass } from './agentic-security-agent.js';
+import { RAGSecurityAgent as RAGSecurityAgentClass } from './rag-security-agent.js';
+import { PIIComplianceAgent as PIIComplianceAgentClass } from './pii-compliance-agent.js';
 
 export function buildOrchestrator() {
   const orchestrator = new OrchestratorClass();
@@ -54,6 +65,10 @@ export function buildOrchestrator() {
     new CICDScannerClass(),
     new APIFuzzerClass(),
     new SupabaseRLSAgentClass(),
+    new MCPSecurityAgentClass(),
+    new AgenticSecurityAgentClass(),
+    new RAGSecurityAgentClass(),
+    new PIIComplianceAgentClass(),
   ]);
   return orchestrator;
 }

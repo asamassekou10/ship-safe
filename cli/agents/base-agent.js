@@ -86,6 +86,15 @@ export class BaseAgent {
     throw new Error(`${this.name}.analyze() not implemented`);
   }
 
+  /**
+   * Whether this agent should run given the recon results.
+   * Override in subclasses to skip irrelevant scans.
+   * Default: always run.
+   */
+  shouldRun(recon) {
+    return true;
+  }
+
   // ── Helpers available to all agents ─────────────────────────────────────────
 
   /**

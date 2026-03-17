@@ -2,7 +2,6 @@
 name: ship-safe-fix
 description: Auto-fix security issues — remediate hardcoded secrets and common vulnerabilities (TLS bypass, debug mode, XSS, shell injection, Docker :latest). Use when the user wants to automatically fix security findings.
 argument-hint: "[path] [--all] [--dry-run]"
-allowed-tools: Bash, Read, Edit, Write, Grep, Glob
 ---
 
 # Ship Safe — Auto-Fix Security Issues

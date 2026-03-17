@@ -45,10 +45,16 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
     ? options.agents.split(',').map(a => a.trim())
     : null;
 
-  const results = await orchestrator.runAll(absolutePath, {
+  const orchestratorOpts = {
     verbose: options.verbose,
     agents: agentFilter,
-  });
+  };
+  if (options.deep) orchestratorOpts.deep = true;
+  if (options.local) orchestratorOpts.local = true;
+  if (options.model) orchestratorOpts.model = options.model;
+  if (options.budget) orchestratorOpts.budget = options.budget;
+
+  const results = await orchestrator.runAll(absolutePath, orchestratorOpts);
 
   const { recon, findings, agentResults } = results;
 

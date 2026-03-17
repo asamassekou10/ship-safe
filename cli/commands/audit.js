@@ -36,6 +36,7 @@ import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import { CacheManager } from '../utils/cache-manager.js';
 import { filterBaseline } from './baseline.js';
 import { generatePDF, generatePrintHTML, isChromeAvailable } from '../utils/pdf-generator.js';
+import { SecretsVerifier } from '../utils/secrets-verifier.js';
 
 // =============================================================================
 // CONSTANTS
@@ -163,6 +164,11 @@ export async function auditCommand(targetPath = '.', options = {}) {
     // Suppress individual agent spinners by using quiet mode
     // Pass changedFiles for incremental scanning if cache is valid
     const orchestratorOpts = { quiet: true };
+    if (options.deep) orchestratorOpts.deep = true;
+    if (options.local) orchestratorOpts.local = true;
+    if (options.model) orchestratorOpts.model = options.model;
+    if (options.budget) orchestratorOpts.budget = options.budget;
+    if (options.verbose) orchestratorOpts.verbose = true;
     if (cacheDiff && cacheDiff.changedFiles.length < allFiles.length) {
       orchestratorOpts.changedFiles = cacheDiff.changedFiles;
     }
@@ -284,6 +290,32 @@ export async function auditCommand(targetPath = '.', options = {}) {
       } catch (err) {
         if (aiSpinner) aiSpinner.fail(chalk.yellow(`AI classification failed: ${err.message}`));
       }
+    }
+  }
+
+  // ── Secrets Verification (optional, --verify flag) ─────────────────────
+  if (options.verify) {
+    const verifySpinner = machineOutput ? null : ora({ text: 'Verifying leaked secrets against provider APIs...', color: 'cyan' }).start();
+    try {
+      const verifier = new SecretsVerifier();
+      const verifyResults = await verifier.verify(filteredFindings);
+      const activeCount = verifyResults.filter(r => r.result.active === true).length;
+      const inactiveCount = verifyResults.filter(r => r.result.active === false).length;
+      if (verifySpinner) {
+        verifySpinner.succeed(chalk.green(
+          `Secrets verified: ${activeCount} active, ${inactiveCount} inactive, ${verifyResults.length - activeCount - inactiveCount} unknown`
+        ));
+      }
+      // Show active secrets warning
+      if (activeCount > 0 && !machineOutput) {
+        console.log(chalk.red.bold('  ⚠ ACTIVE SECRETS DETECTED — rotate immediately:'));
+        for (const r of verifyResults.filter(r => r.result.active === true)) {
+          const rel = path.relative(absolutePath, r.finding.file).replace(/\\/g, '/');
+          console.log(chalk.red(`    ${r.result.provider}: ${rel}:${r.finding.line} — ${r.result.info}`));
+        }
+      }
+    } catch (err) {
+      if (verifySpinner) verifySpinner.fail(chalk.yellow(`Secrets verification failed: ${err.message}`));
     }
   }
 

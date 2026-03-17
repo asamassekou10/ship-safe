@@ -2,7 +2,6 @@
 name: ship-safe-scan
 description: Quick scan for leaked secrets — API keys, passwords, tokens, database URLs. Use when the user wants to check for hardcoded secrets or exposed credentials.
 argument-hint: "[path]"
-allowed-tools: Bash, Read, Edit, Write, Grep, Glob
 ---
 
 # Ship Safe — Secret Scan

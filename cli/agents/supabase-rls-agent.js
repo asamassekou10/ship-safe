@@ -66,6 +66,12 @@ export class SupabaseRLSAgent extends BaseAgent {
     super('SupabaseRLSAgent', 'Supabase Row Level Security audit', 'auth');
   }
 
+  shouldRun(recon) {
+    return recon?.databases?.includes('supabase') ||
+           recon?.authPatterns?.includes('supabase-auth') ||
+           false;
+  }
+
   async analyze(context) {
     const { rootPath, files } = context;
     let findings = [];

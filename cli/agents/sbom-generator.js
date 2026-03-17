@@ -108,7 +108,11 @@ export class SBOMGenerator {
       } catch { /* skip */ }
     }
 
-    // ── Build CycloneDX BOM ───────────────────────────────────────────────────
+    // ── Detect licenses from lock files ─────────────────────────────────────
+    const licenses = this._detectLicenses(rootPath);
+
+    // ── Build CycloneDX BOM (CRA-enhanced) ──────────────────────────────────
+    const projectMeta = this.getProjectMetadata(rootPath);
     const bom = {
       bomFormat: 'CycloneDX',
       specVersion: '1.5',
@@ -119,20 +123,54 @@ export class SBOMGenerator {
         tools: [{
           vendor: 'ship-safe',
           name: 'ship-safe',
-          version: '4.0.0',
+          version: '5.0.0',
         }],
-        component: this.getProjectMetadata(rootPath),
+        component: projectMeta,
+        // EU CRA: supplier identification
+        supplier: this._getSupplier(rootPath),
+        // EU CRA: lifecycle phase
+        lifecycles: [{ phase: 'build' }],
       },
-      components: components.map((c, i) => ({
-        'bom-ref': `component-${i}`,
-        type: c.type,
-        name: c.name,
-        version: c.version,
-        purl: c.purl,
-        scope: c.scope,
-      })),
+      components: components.map((c, i) => {
+        const comp = {
+          'bom-ref': `component-${i}`,
+          type: c.type,
+          name: c.name,
+          version: c.version,
+          purl: c.purl,
+          scope: c.scope,
+        };
+        // EU CRA: attach license if known
+        const lic = licenses[c.name];
+        if (lic) {
+          comp.licenses = [{ license: { id: lic } }];
+        }
+        return comp;
+      }),
+      // EU CRA: vulnerability disclosure info
+      vulnerabilities: [],
     };
 
+    return bom;
+  }
+
+  /**
+   * Attach known vulnerabilities to the SBOM (CRA requirement).
+   */
+  attachVulnerabilities(bom, depVulns = []) {
+    bom.vulnerabilities = depVulns.map((v, i) => ({
+      'bom-ref': `vuln-${i}`,
+      id: v.id || v.package || `VULN-${i}`,
+      source: { name: 'ship-safe' },
+      ratings: [{
+        severity: v.severity || 'unknown',
+        method: 'other',
+      }],
+      description: v.description || '',
+      affects: [{
+        ref: v.package || 'unknown',
+      }],
+    }));
     return bom;
   }
 
@@ -163,6 +201,57 @@ export class SBOMGenerator {
       name: path.basename(rootPath),
       version: '0.0.0',
     };
+  }
+
+  /**
+   * EU CRA: Extract supplier info from package.json.
+   */
+  _getSupplier(rootPath) {
+    const pkgPath = path.join(rootPath, 'package.json');
+    try {
+      if (fs.existsSync(pkgPath)) {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+        const author = typeof pkg.author === 'string' ? pkg.author
+          : pkg.author?.name || pkg.author?.email || null;
+        if (author) {
+          return { name: author, url: [pkg.homepage || pkg.repository?.url || ''].filter(Boolean) };
+        }
+      }
+    } catch { /* skip */ }
+    return { name: 'Unknown' };
+  }
+
+  /**
+   * Detect licenses from node_modules (best-effort).
+   * Returns { packageName: 'MIT' | 'ISC' | ... }
+   */
+  _detectLicenses(rootPath) {
+    const licenses = {};
+    const nodeModules = path.join(rootPath, 'node_modules');
+    const pkgPath = path.join(rootPath, 'package.json');
+
+    if (!fs.existsSync(pkgPath)) return licenses;
+
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+      const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+
+      for (const name of Object.keys(allDeps)) {
+        const depPkgPath = path.join(nodeModules, name, 'package.json');
+        try {
+          if (fs.existsSync(depPkgPath)) {
+            const depPkg = JSON.parse(fs.readFileSync(depPkgPath, 'utf-8'));
+            if (depPkg.license) {
+              licenses[name] = typeof depPkg.license === 'string'
+                ? depPkg.license
+                : depPkg.license.type || 'UNKNOWN';
+            }
+          }
+        } catch { /* skip */ }
+      }
+    } catch { /* skip */ }
+
+    return licenses;
   }
 
   uuid() {

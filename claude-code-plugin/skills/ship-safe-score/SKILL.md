@@ -2,7 +2,6 @@
 name: ship-safe-score
 description: Get your project's security health score (0-100, A-F grade). Use when the user wants a quick security check or asks "is my code safe to ship?"
 argument-hint: "[path] [--no-deps]"
-allowed-tools: Bash, Read, Grep, Glob
 ---
 
 # Ship Safe — Security Score

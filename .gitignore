@@ -82,6 +82,7 @@ stripe-cli-config.toml
 # Generic credential files
 *credentials*
 *secrets*
+!cli/utils/secrets-verifier.js
 *.secrets.json
 config/secrets.yml
 secrets.yml

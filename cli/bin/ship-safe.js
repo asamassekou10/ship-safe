@@ -36,6 +36,7 @@ import { watchCommand } from '../commands/watch.js';
 import { auditCommand } from '../commands/audit.js';
 import { doctorCommand } from '../commands/doctor.js';
 import { baselineCommand } from '../commands/baseline.js';
+import { ciCommand } from '../commands/ci.js';
 import { PolicyEngine } from '../agents/policy-engine.js';
 import { SBOMGenerator } from '../agents/sbom-generator.js';
 
@@ -188,7 +189,7 @@ program
 // -----------------------------------------------------------------------------
 program
   .command('audit [path]')
-  .description('Full security audit: secrets + 12 agents + deps + score + remediation plan')
+  .description('Full security audit: secrets + 16 agents + deps + score + deep analysis + remediation plan')
   .option('--json', 'Output results as JSON')
   .option('--sarif', 'Output results in SARIF format')
   .option('--csv', 'Output results as CSV')
@@ -201,6 +202,11 @@ program
   .option('--no-cache', 'Force full rescan (ignore cached results)')
   .option('--baseline', 'Only show findings not in the baseline')
   .option('--pdf [file]', 'Generate PDF report (requires Chrome/Chromium)')
+  .option('--deep', 'LLM-powered taint analysis for critical/high findings')
+  .option('--local', 'Use local Ollama model for deep analysis (default: llama3.2)')
+  .option('--model <model>', 'LLM model to use for deep/AI analysis')
+  .option('--budget <cents>', 'Max spend in cents for deep analysis (default: 50)', parseInt)
+  .option('--verify', 'Check if leaked secrets are still active (probes provider APIs)')
   .option('-v, --verbose', 'Verbose output')
   .action(auditCommand);
 
@@ -209,7 +215,7 @@ program
 // -----------------------------------------------------------------------------
 program
   .command('red-team [path]')
-  .description('Multi-agent security audit: 12 agents scan for 50+ attack classes')
+  .description('Multi-agent security audit: 16 agents scan for 80+ attack classes')
   .option('--agents <list>', 'Comma-separated list of agents to run')
   .option('--json', 'Output results as JSON')
   .option('--sarif', 'Output results in SARIF format')
@@ -217,6 +223,10 @@ program
   .option('--sbom [file]', 'Generate CycloneDX SBOM')
   .option('--no-deps', 'Skip dependency audit')
   .option('--no-ai', 'Skip AI classification')
+  .option('--deep', 'LLM-powered taint analysis for critical/high findings')
+  .option('--local', 'Use local Ollama model for deep analysis (default: llama3.2)')
+  .option('--model <model>', 'LLM model for deep analysis')
+  .option('--budget <cents>', 'Max spend in cents for deep analysis (default: 50)', parseInt)
   .option('-v, --verbose', 'Verbose output')
   .action(redTeamCommand);
 
@@ -270,6 +280,20 @@ program
   .action(baselineCommand);
 
 // -----------------------------------------------------------------------------
+// CI COMMAND (v5.0 — CI/CD Pipeline Integration)
+// -----------------------------------------------------------------------------
+program
+  .command('ci [path]')
+  .description('CI/CD pipeline mode: scan, score, exit 1 on failure — optimized for automation')
+  .option('--threshold <score>', 'Minimum passing score (default: 75)', parseInt)
+  .option('--fail-on <severity>', 'Fail on findings at this severity or above (critical, high, medium)')
+  .option('--sarif <file>', 'Write SARIF output for GitHub Code Scanning')
+  .option('--json', 'JSON output')
+  .option('--no-deps', 'Skip dependency audit')
+  .option('--baseline', 'Only check new findings (not in baseline)')
+  .action(ciCommand);
+
+// -----------------------------------------------------------------------------
 // DOCTOR COMMAND
 // -----------------------------------------------------------------------------
 program
@@ -285,11 +309,13 @@ program
 if (process.argv.length === 2) {
   console.log(banner);
   console.log(chalk.yellow('\nQuick start:\n'));
-  console.log(chalk.cyan.bold('  v4.3 — Full Security Audit'));
-  console.log(chalk.white('  npx ship-safe audit .       ') + chalk.gray('# Full audit: secrets + agents + deps + remediation plan'));
-  console.log(chalk.white('  npx ship-safe red-team .    ') + chalk.gray('# 12-agent red team scan (50+ attack classes)'));
+  console.log(chalk.cyan.bold('  v5.0 — Full Security Audit'));
+  console.log(chalk.white('  npx ship-safe audit .       ') + chalk.gray('# Full audit: secrets + 16 agents + deps + remediation'));
+  console.log(chalk.white('  npx ship-safe audit . --deep') + chalk.gray('# LLM-powered taint analysis (Anthropic/Ollama)'));
+  console.log(chalk.white('  npx ship-safe red-team .    ') + chalk.gray('# 16-agent red team scan (80+ attack classes)'));
+  console.log(chalk.white('  npx ship-safe ci .          ') + chalk.gray('# CI/CD mode: scan, score, exit code'));
   console.log(chalk.white('  npx ship-safe watch .       ') + chalk.gray('# Continuous monitoring mode'));
-  console.log(chalk.white('  npx ship-safe sbom .        ') + chalk.gray('# Generate CycloneDX SBOM'));
+  console.log(chalk.white('  npx ship-safe sbom .        ') + chalk.gray('# Generate CycloneDX SBOM (CRA-ready)'));
   console.log(chalk.white('  npx ship-safe policy init   ') + chalk.gray('# Create security policy template'));
   console.log(chalk.white('  npx ship-safe doctor        ') + chalk.gray('# Check environment and configuration'));
   console.log();

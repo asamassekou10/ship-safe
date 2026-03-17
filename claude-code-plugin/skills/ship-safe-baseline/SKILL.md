@@ -2,7 +2,6 @@
 name: ship-safe-baseline
 description: Manage your security baseline — accept current findings as known debt, then only report new regressions on future scans. Use when the user wants to adopt security scanning incrementally or suppress existing findings.
 argument-hint: "[path] [--diff] [--clear]"
-allowed-tools: Bash, Read, Grep, Glob
 ---
 
 # Ship Safe — Baseline Management

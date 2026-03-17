@@ -35,6 +35,10 @@ const FALLBACK_CATEGORY_MAP = {
   'history': 'secrets',
   'cicd': 'config',
   'mobile': 'injection',
+  'privacy': 'config',
+  'mcp': 'llm',
+  'agentic': 'llm',
+  'rag': 'llm',
   'recon': null, // skip recon findings
 };
 

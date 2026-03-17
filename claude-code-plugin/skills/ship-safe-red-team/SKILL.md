@@ -1,8 +1,7 @@
 ---
 name: ship-safe-red-team
-description: Run a multi-agent red team scan — 13 specialized security agents scan for 50+ attack classes including injection, auth bypass, SSRF, supply chain, Supabase RLS, LLM attacks, and more. Use when the user wants a deep security analysis beyond just secrets.
+description: Run a multi-agent red team scan — 16 specialized security agents scan for 80+ attack classes including injection, auth bypass, SSRF, supply chain, Supabase RLS, MCP security, agentic AI, RAG poisoning, PII compliance, and more. Use when the user wants a deep security analysis beyond just secrets.
 argument-hint: "[path] [--agents <list>]"
-allowed-tools: Bash, Read, Edit, Write, Grep, Glob
 ---
 
 # Ship Safe — Red Team Scan

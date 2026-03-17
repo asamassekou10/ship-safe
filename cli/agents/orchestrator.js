@@ -19,6 +19,8 @@ import path from 'path';
 import ora from 'ora';
 import chalk from 'chalk';
 import { ReconAgent } from './recon-agent.js';
+import { VerifierAgent } from './verifier-agent.js';
+import { DeepAnalyzer } from './deep-analyzer.js';
 
 // =============================================================================
 // CONSTANTS
@@ -36,6 +38,7 @@ export class Orchestrator {
     /** @type {import('./base-agent.js').BaseAgent[]} */
     this.agents = [];
     this.reconAgent = new ReconAgent();
+    this.verifierAgent = new VerifierAgent();
   }
 
   /**
@@ -105,7 +108,11 @@ export class Orchestrator {
     }
 
     // ── 4. Build shared context ─────────────────────────────────────────────
-    const context = { rootPath: absolutePath, files, recon, options };
+    // sharedFindings allows cross-agent awareness: later agents can see
+    // what earlier agents found (e.g., secrets agent finds a key,
+    // supply-chain agent can check if it's committed to a public repo).
+    const sharedFindings = [];
+    const context = { rootPath: absolutePath, files, recon, options, sharedFindings };
     if (options.changedFiles) {
       context.changedFiles = options.changedFiles;
     }
@@ -119,8 +126,17 @@ export class Orchestrator {
       color: 'cyan'
     }).start();
 
-    for (let i = 0; i < agentsToRun.length; i += concurrency) {
-      const chunk = agentsToRun.slice(i, i + concurrency);
+    // Filter agents by framework relevance (shouldRun check)
+    const relevantAgents = agentsToRun.filter(a => {
+      if (typeof a.shouldRun === 'function') {
+        return a.shouldRun(recon);
+      }
+      return true;
+    });
+    const skippedAgents = agentsToRun.length - relevantAgents.length;
+
+    for (let i = 0; i < relevantAgents.length; i += concurrency) {
+      const chunk = relevantAgents.slice(i, i + concurrency);
       const settled = await Promise.allSettled(
         chunk.map(agent => this.runAgent(agent, context, timeout))
       );
@@ -138,6 +154,8 @@ export class Orchestrator {
             success: true,
           });
           allFindings = allFindings.concat(findings);
+          // Share findings with subsequent agents
+          sharedFindings.push(...findings);
         } else {
           agentResults.push({
             agent: agent.name,
@@ -156,15 +174,16 @@ export class Orchestrator {
       const failed = agentResults.filter(a => !a.success).length;
       const totalFindings = allFindings.length;
 
+      const skipNote = skippedAgents > 0 ? `, ${skippedAgents} skipped (not relevant)` : '';
       if (failed > 0) {
         spinner.warn(chalk.yellow(
-          `${succeeded}/${agentsToRun.length} agents completed, ${failed} failed, ${totalFindings} finding(s)`
+          `${succeeded}/${relevantAgents.length} agents completed, ${failed} failed, ${totalFindings} finding(s)${skipNote}`
         ));
       } else {
         spinner.succeed(
           totalFindings === 0
-            ? chalk.green(`${succeeded} agents: clean`)
-            : chalk.yellow(`${succeeded} agents: ${totalFindings} finding(s)`)
+            ? chalk.green(`${succeeded} agents: clean${skipNote}`)
+            : chalk.yellow(`${succeeded} agents: ${totalFindings} finding(s)${skipNote}`)
         );
       }
     }
@@ -187,10 +206,50 @@ export class Orchestrator {
     // ── 6. Deduplicate ────────────────────────────────────────────────────────
     allFindings = this.deduplicate(allFindings);
 
-    // ── 7. Context-aware confidence tuning ──────────────────────────────────
+    // ── 7. Second-pass verification (confirms or downgrades findings) ───────
+    if (!options.skipVerifier) {
+      const verifySpinner = quiet ? null : ora({ text: 'Verifying findings...', color: 'cyan' }).start();
+      allFindings = this.verifierAgent.verify(allFindings, options);
+      const verified = allFindings.filter(f => f.verified === true).length;
+      const downgraded = allFindings.filter(f => f.verified === false).length;
+      if (verifySpinner) {
+        verifySpinner.succeed(chalk.green(
+          `Verified: ${verified} confirmed, ${downgraded} downgraded`
+        ));
+      }
+    }
+
+    // ── 8. Deep LLM analysis (optional, --deep flag) ───────────────────────
+    if (options.deep) {
+      const analyzer = DeepAnalyzer.create(absolutePath, {
+        local: options.local,
+        model: options.model,
+        budgetCents: options.budget || 50,
+        verbose: options.verbose,
+      });
+
+      if (analyzer) {
+        const deepSpinner = quiet ? null : ora({ text: `Deep analysis with ${analyzer.provider.name}...`, color: 'cyan' }).start();
+        try {
+          allFindings = await analyzer.analyze(allFindings, { rootPath: absolutePath, recon });
+          const stats = analyzer.getStats();
+          if (deepSpinner) {
+            deepSpinner.succeed(chalk.green(
+              `Deep analysis: ${stats.analyzedCount} findings analyzed (${stats.spentCents}c spent)`
+            ));
+          }
+        } catch (err) {
+          if (deepSpinner) deepSpinner.fail(chalk.yellow(`Deep analysis failed: ${err.message}`));
+        }
+      } else if (!quiet) {
+        console.log(chalk.gray('  Deep analysis: no LLM provider found (set ANTHROPIC_API_KEY or use --local)'));
+      }
+    }
+
+    // ── 9. Context-aware confidence tuning ──────────────────────────────────
     allFindings = this.tuneConfidence(allFindings);
 
-    // ── 8. Sort by severity ───────────────────────────────────────────────────
+    // ── 10. Sort by severity ──────────────────────────────────────────────────
     const sevOrder = { critical: 0, high: 1, medium: 2, low: 3 };
     allFindings.sort((a, b) =>
       (sevOrder[a.severity] ?? 4) - (sevOrder[b.severity] ?? 4)

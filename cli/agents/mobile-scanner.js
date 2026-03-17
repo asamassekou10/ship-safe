@@ -190,6 +190,12 @@ export class MobileScanner extends BaseAgent {
     super('MobileScanner', 'Mobile security scanning (OWASP Mobile Top 10)', 'mobile');
   }
 
+  shouldRun(recon) {
+    return recon?.frameworks?.some(f =>
+      ['react-native', 'flutter', 'expo'].includes(f)
+    ) ?? false;
+  }
+
   async analyze(context) {
     const { rootPath, files, recon } = context;
 

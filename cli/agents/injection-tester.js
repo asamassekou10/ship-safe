@@ -422,6 +422,51 @@ const PATTERNS = [
     description: 'PHP unserialize() with user input enables object injection attacks.',
     fix: 'Use json_decode() instead, or validate input with allowed_classes option',
   },
+
+  // ── Vibe Code Detection (AI-generated code with security gaps) ──────────
+  {
+    rule: 'VIBE_TODO_AUTH',
+    title: 'Vibe Code: TODO to Add Authentication',
+    regex: /(?:\/\/|#|\/\*)\s*(?:TODO|FIXME|HACK|XXX)\s*:?\s*(?:add|implement|fix|handle)\s*(?:auth|authentication|authorization|permission|access.?control|login|session)/gi,
+    severity: 'high',
+    cwe: 'CWE-306',
+    owasp: 'A07:2021',
+    confidence: 'high',
+    description: 'TODO comment indicates missing authentication/authorization. Common in AI-generated code that creates endpoints without security.',
+    fix: 'Implement the missing authentication before shipping. Do not leave security TODOs in production code.',
+  },
+  {
+    rule: 'VIBE_TODO_VALIDATION',
+    title: 'Vibe Code: TODO to Add Input Validation',
+    regex: /(?:\/\/|#|\/\*)\s*(?:TODO|FIXME|HACK|XXX)\s*:?\s*(?:add|implement|fix|handle)\s*(?:valid|sanitiz|escap|filter|check.?input|input.?valid)/gi,
+    severity: 'medium',
+    cwe: 'CWE-20',
+    owasp: 'A03:2021',
+    confidence: 'high',
+    description: 'TODO comment indicates missing input validation. AI-generated code often creates the happy path without validation.',
+    fix: 'Implement input validation before shipping. Add schema validation (Zod, Joi) for all user inputs.',
+  },
+  {
+    rule: 'VIBE_PLACEHOLDER_SECRET',
+    title: 'Vibe Code: Placeholder Secret Left in Code',
+    regex: /(?:api[_-]?key|secret|password|token)\s*[:=]\s*['"](?:your[_-]?(?:api[_-]?)?key[_-]?here|sk[_-]xxx|changeme|password123|test123|replace[_-]?me|insert[_-]?here|placeholder|example|CHANGE_ME|YOUR_SECRET)['"]/gi,
+    severity: 'high',
+    cwe: 'CWE-798',
+    owasp: 'A07:2021',
+    description: 'Placeholder secret left in code. AI-generated code often includes example credentials that developers forget to replace.',
+    fix: 'Replace with environment variable: process.env.API_KEY. Never commit placeholder secrets.',
+  },
+  {
+    rule: 'VIBE_CRUD_NO_AUTH',
+    title: 'Vibe Code: CRUD Endpoints Without Auth Middleware',
+    regex: /(?:router|app)\.(?:post|put|patch|delete)\s*\(\s*['"]\/(?:api\/)?(?:users?|posts?|items?|products?|orders?|comments?|messages?)(?:\/:[^'"]*)?['"]\s*,\s*(?:async\s+)?\(\s*(?:req|request)/g,
+    severity: 'high',
+    cwe: 'CWE-862',
+    owasp: 'A01:2021',
+    confidence: 'medium',
+    description: 'Mutation endpoint (POST/PUT/PATCH/DELETE) with no visible auth middleware. Common in AI-generated CRUD boilerplate.',
+    fix: 'Add authentication middleware before the route handler: router.post("/api/users", authMiddleware, handler)',
+  },
 ];
 
 // =============================================================================

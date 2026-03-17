@@ -1,8 +1,7 @@
 ---
 name: ship-safe
-description: Run a full security audit on this project — 13 agents scan for secrets, injections, auth bypass, SSRF, supply chain attacks, Supabase RLS, misconfigs, and more. Use when the user wants a security audit, vulnerability scan, or asks if their code is safe to ship.
+description: Run a full security audit on this project — 16 agents scan for secrets, injections, auth bypass, SSRF, supply chain, Supabase RLS, MCP security, agentic AI, RAG poisoning, PII compliance, and more. Use when the user wants a security audit, vulnerability scan, or asks if their code is safe to ship.
 argument-hint: "[path] [--no-deps] [--baseline]"
-allowed-tools: Bash, Read, Edit, Write, Grep, Glob
 ---
 
 # Ship Safe — Full Security Audit

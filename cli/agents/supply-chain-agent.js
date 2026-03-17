@@ -283,7 +283,158 @@ export class SupplyChainAudit extends BaseAgent {
       }
     }
 
-    // ── 5. Check Python requirements ──────────────────────────────────────────
+    // ── 5. Package behavioral signals (Socket-style) ─────────────────────────
+    if (fs.existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+        const allDeps = {
+          ...(pkg.dependencies || {}),
+          ...(pkg.devDependencies || {}),
+        };
+
+        // Scan node_modules for behavioral red flags
+        const nodeModulesPath = path.join(rootPath, 'node_modules');
+        if (fs.existsSync(nodeModulesPath)) {
+          for (const depName of Object.keys(allDeps).slice(0, 50)) {
+            const depDir = path.join(nodeModulesPath, depName);
+            const depPkgPath = path.join(depDir, 'package.json');
+            if (!fs.existsSync(depPkgPath)) continue;
+            try {
+              const depPkg = JSON.parse(fs.readFileSync(depPkgPath, 'utf-8'));
+
+              // Check for postinstall scripts with network/eval calls
+              const scripts = depPkg.scripts || {};
+              for (const hook of ['preinstall', 'install', 'postinstall']) {
+                const cmd = scripts[hook];
+                if (!cmd) continue;
+                if (/node\s+-e|node\s+--eval/.test(cmd)) {
+                  findings.push(createFinding({
+                    file: depPkgPath,
+                    line: 0,
+                    severity: 'high',
+                    category: 'supply-chain',
+                    rule: 'BEHAVIORAL_INLINE_EVAL',
+                    title: `Inline Code Execution in ${hook}: ${depName}`,
+                    description: `Dependency "${depName}" runs inline Node.js code during ${hook}. This is a common pattern in malicious packages.`,
+                    matched: cmd.slice(0, 200),
+                    fix: 'Review the inline code. Consider using --ignore-scripts or removing the dependency.',
+                  }));
+                }
+              }
+            } catch { /* skip */ }
+          }
+        }
+
+        // Detect obfuscated code patterns in dependencies
+        const codeFiles = (context.files || []).filter(f =>
+          f.includes('node_modules') &&
+          !f.includes('node_modules/.cache') &&
+          path.extname(f).toLowerCase() === '.js' &&
+          !path.basename(f).endsWith('.min.js')
+        ).slice(0, 30); // Sample up to 30 files
+
+        for (const file of codeFiles) {
+          const content = this.readFile(file);
+          if (!content || content.length < 100) continue;
+
+          // Excessive hex encoding
+          const hexMatches = (content.match(/\\x[0-9a-fA-F]{2}/g) || []).length;
+          if (hexMatches > 20) {
+            findings.push(createFinding({
+              file,
+              line: 1,
+              severity: 'high',
+              category: 'supply-chain',
+              rule: 'BEHAVIORAL_HEX_OBFUSCATION',
+              title: 'Obfuscated Code: Excessive Hex Encoding',
+              description: `File contains ${hexMatches} hex-encoded sequences. Common in malicious packages trying to hide payload.`,
+              matched: `${hexMatches} hex sequences detected`,
+              fix: 'Inspect the deobfuscated code. Consider removing this dependency.',
+            }));
+          }
+
+          // Excessive String.fromCharCode
+          const charCodeMatches = (content.match(/String\.fromCharCode/g) || []).length;
+          if (charCodeMatches > 5) {
+            findings.push(createFinding({
+              file,
+              line: 1,
+              severity: 'high',
+              category: 'supply-chain',
+              rule: 'BEHAVIORAL_CHARCODE_OBFUSCATION',
+              title: 'Obfuscated Code: Excessive String.fromCharCode',
+              description: `File contains ${charCodeMatches} String.fromCharCode calls. Common obfuscation technique in malicious packages.`,
+              matched: `${charCodeMatches} String.fromCharCode calls`,
+              fix: 'Inspect the deobfuscated code. Consider removing this dependency.',
+            }));
+          }
+
+          // Base64 decode chains
+          const base64Matches = (content.match(/Buffer\.from\s*\([^,]+,\s*['"]base64['"]\)/g) || []).length;
+          if (base64Matches > 3) {
+            findings.push(createFinding({
+              file,
+              line: 1,
+              severity: 'medium',
+              category: 'supply-chain',
+              rule: 'BEHAVIORAL_BASE64_DECODE',
+              title: 'Suspicious: Multiple Base64 Decode Operations',
+              description: `File contains ${base64Matches} base64 decode operations. May indicate hidden payload.`,
+              matched: `${base64Matches} base64 decode operations`,
+              confidence: 'medium',
+              fix: 'Review what data is being decoded. Legitimate use is possible but warrants inspection.',
+            }));
+          }
+        }
+
+        // Detect unused dependencies (in package.json but never imported)
+        const projectFiles = (context.files || []).filter(f =>
+          !f.includes('node_modules') &&
+          ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs'].includes(path.extname(f).toLowerCase())
+        );
+
+        if (projectFiles.length > 0 && projectFiles.length < 500) {
+          const allImports = new Set();
+          for (const file of projectFiles) {
+            const content = this.readFile(file);
+            if (!content) continue;
+            // Capture import/require module names
+            const importMatches = content.matchAll(/(?:from\s+['"]([^'"]+)['"]|require\s*\(\s*['"]([^'"]+)['"]\s*\))/g);
+            for (const m of importMatches) {
+              const mod = (m[1] || m[2] || '').split('/')[0]; // Get package name (not subpath)
+              if (mod && !mod.startsWith('.')) allImports.add(mod);
+              // Handle scoped packages
+              const fullMod = m[1] || m[2] || '';
+              if (fullMod.startsWith('@')) {
+                const scopedPkg = fullMod.split('/').slice(0, 2).join('/');
+                allImports.add(scopedPkg);
+              }
+            }
+          }
+
+          const prodDeps = Object.keys(pkg.dependencies || {});
+          for (const dep of prodDeps) {
+            if (!allImports.has(dep) && !dep.startsWith('@types/')) {
+              findings.push(createFinding({
+                file: pkgPath,
+                line: 0,
+                severity: 'low',
+                category: 'supply-chain',
+                rule: 'UNUSED_DEPENDENCY',
+                title: `Unused Dependency: ${dep}`,
+                description: `"${dep}" is in dependencies but never imported in project code. Unused dependencies increase attack surface.`,
+                matched: dep,
+                confidence: 'low',
+                fix: `Remove if unused: npm uninstall ${dep}`,
+              }));
+            }
+          }
+        }
+
+      } catch { /* skip */ }
+    }
+
+    // ── 6. Check Python requirements ──────────────────────────────────────────
     const reqPath = path.join(rootPath, 'requirements.txt');
     if (fs.existsSync(reqPath)) {
       const content = this.readFile(reqPath) || '';

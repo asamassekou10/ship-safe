@@ -1,7 +1,7 @@
 {
   "name": "ship-safe",
-  "version": "4.3.0",
-  "description": "AI-powered multi-agent security platform. 12 agents scan 50+ attack classes. Red team your code before attackers do.",
+  "version": "5.0.0",
+  "description": "AI-powered multi-agent security platform. 16 agents scan 80+ attack classes with LLM-powered deep analysis. Red team your code before attackers do.",
   "main": "cli/index.js",
   "bin": {
     "ship-safe": "cli/bin/ship-safe.js"
