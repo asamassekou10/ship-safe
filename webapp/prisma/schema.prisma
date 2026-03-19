@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Auth.js models ──────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  plan          String    @default("free") // free | pro | team | enterprise
+  accounts      Account[]
+  scans         Scan[]
+  payments      Payment[]
+  apiKeys       ApiKey[]
+  memberships   OrgMember[]
+  auditLogs     AuditLog[]
+  notifications NotificationSetting?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// ── Organizations & Teams ────────────────────────────────
+
+model Org {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  plan        String      @default("team") // team | enterprise
+  members     OrgMember[]
+  scans       Scan[]
+  repos       MonitoredRepo[]
+  policies    Policy[]
+  webhooks    Webhook[]
+  auditLogs   AuditLog[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model OrgMember {
+  id     String @id @default(cuid())
+  orgId  String
+  userId String
+  role   String @default("member") // owner | admin | member | viewer
+  org    Org    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([userId])
+}
+
+// ── Scans ───────────────────────────────────────────────
+
+model Scan {
+  id          String    @id @default(cuid())
+  userId      String
+  orgId       String?
+  repo        String          // e.g. "owner/repo" or URL
+  branch      String    @default("main")
+  method      String    @default("github") // github | url | upload | scheduled | api | github-app
+  trigger     String    @default("manual") // manual | scheduled | webhook | pr | api
+  status      String    @default("pending") // pending | running | done | failed
+  score       Int?
+  grade       String?
+  findings    Int       @default(0)
+  secrets     Int       @default(0)
+  vulns       Int       @default(0)
+  cves        Int       @default(0)
+  duration    Float?          // seconds
+  report      Json?           // full scan results
+  options     Json?           // scan options
+  prNumber    Int?            // GitHub PR number (if triggered by PR)
+  prCommented Boolean   @default(false)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org         Org?      @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([orgId, createdAt(sort: Desc)])
+  @@index([repo, createdAt(sort: Desc)])
+}
+
+// ── Monitored Repos & Scheduled Scans ────────────────────
+
+model MonitoredRepo {
+  id          String    @id @default(cuid())
+  orgId       String?
+  userId      String
+  repo        String          // owner/repo
+  branch      String    @default("main")
+  schedule    String?         // cron expression: "0 9 * * 1" = every Monday 9am
+  lastScanAt  DateTime?
+  lastScore   Int?
+  lastGrade   String?
+  enabled     Boolean   @default(true)
+  options     Json?           // default scan options
+  org         Org?      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, repo])
+  @@index([orgId])
+  @@index([schedule])
+}
+
+// ── Security Policies ────────────────────────────────────
+
+model Policy {
+  id          String   @id @default(cuid())
+  orgId       String
+  name        String
+  description String?
+  rules       Json           // array of policy rules
+  enforcement String   @default("warn") // warn | block
+  enabled     Boolean  @default(true)
+  org         Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orgId])
+}
+
+// ── API Keys ─────────────────────────────────────────────
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  userId      String
+  name        String
+  keyHash     String    @unique   // SHA-256 hash of the key
+  keyPrefix   String              // first 8 chars for display: "sk_live_aBcD..."
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  scopes      Json      @default("[]") // ["scan:create", "scan:read", "report:read"]
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ── Webhooks & Notifications ─────────────────────────────
+
+model Webhook {
+  id          String   @id @default(cuid())
+  orgId       String?
+  userId      String
+  url         String
+  events      Json     @default("[\"scan.completed\"]") // scan.completed, scan.failed, finding.critical
+  secret      String          // HMAC signing secret
+  enabled     Boolean  @default(true)
+  lastStatus  Int?            // last HTTP status code
+  org         Org?     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orgId])
+}
+
+model NotificationSetting {
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  emailOnComplete Boolean @default(true)
+  emailOnCritical Boolean @default(true)
+  emailDigest     String  @default("weekly") // off | daily | weekly
+  slackWebhookUrl String?
+  slackOnComplete Boolean @default(false)
+  slackOnCritical Boolean @default(true)
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ── GitHub App ───────────────────────────────────────────
+
+model GitHubInstallation {
+  id               String   @id @default(cuid())
+  installationId   Int      @unique
+  accountLogin     String         // org or user login
+  accountType      String         // Organization | User
+  targetType       String         // all | selected
+  repositorySelection String @default("all")
+  permissions      Json?
+  events           Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// ── Payments ────────────────────────────────────────────
+
+model Payment {
+  id                String   @id @default(cuid())
+  userId            String
+  stripeSessionId   String   @unique
+  stripePaymentId   String?
+  plan              String        // pro | team
+  amount            Int           // cents
+  currency          String   @default("usd")
+  status            String   @default("pending") // pending | paid | failed | refunded
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ── Audit Log ────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  orgId     String?
+  action    String         // scan.created, member.invited, policy.updated, settings.changed, etc.
+  target    String?        // what was acted on (scan ID, user ID, repo name, etc.)
+  meta      Json?          // additional context
+  ip        String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  org       Org?     @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([orgId, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+}

@@ -1,0 +1,51 @@
+.page { padding: 2rem; max-width: 800px; display: flex; flex-direction: column; gap: 1.5rem; }
+.header h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
+.subtitle { color: var(--text-dim); font-size: 0.875rem; }
+
+.emptyState { text-align: center; padding: 3rem 1.5rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.emptyState h3 { font-size: 1.1rem; }
+.emptyState p { color: var(--text-dim); font-size: 0.88rem; max-width: 400px; }
+
+.orgTabs { display: flex; gap: 0.4rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.3rem; }
+.orgTab { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.9rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; color: var(--text-dim); border: none; background: transparent; cursor: pointer; font-family: var(--font-sans); }
+.orgTab:hover { color: var(--text); background: var(--bg-elevated); }
+.orgTab.active { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+
+.badge { font-size: 0.68rem; padding: 0.1rem 0.4rem; border-radius: 4px; background: var(--bg-elevated); color: var(--text-dim); text-transform: capitalize; }
+
+.statsRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+.statCard { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.25rem; }
+.statValue { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 800; line-height: 1; }
+.statLabel { font-size: 0.75rem; color: var(--text-dim); }
+
+.section { display: flex; flex-direction: column; gap: 0.75rem; }
+.section h2 { font-size: 1rem; font-weight: 700; }
+
+.input { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.6rem 0.85rem; font-size: 0.88rem; color: var(--text); font-family: var(--font-sans); flex: 1; outline: none; }
+.input:focus { border-color: var(--cyan-dim); }
+
+.select { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.6rem 0.85rem; font-size: 0.88rem; color: var(--text); font-family: var(--font-sans); outline: none; }
+
+.inviteRow, .createRow { display: flex; gap: 0.5rem; align-items: center; }
+
+.memberList { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.memberRow { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1rem; border-bottom: 1px solid var(--border); }
+.memberRow:last-child { border-bottom: none; }
+.memberInfo { display: flex; align-items: center; gap: 0.75rem; }
+.avatar { border-radius: 50%; }
+.memberName { font-size: 0.88rem; font-weight: 600; }
+.memberEmail { font-size: 0.75rem; color: var(--text-dim); }
+.memberActions { display: flex; align-items: center; gap: 0.5rem; }
+
+.roleBadge { font-size: 0.72rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 4px; text-transform: capitalize; }
+.roleOwner { background: rgba(251,191,36,0.12); color: var(--yellow); }
+.roleAdmin { background: rgba(34,211,238,0.12); color: var(--cyan); }
+.roleMember { background: var(--bg-elevated); color: var(--text-muted); }
+.roleViewer { background: var(--bg-elevated); color: var(--text-dim); }
+
+.removeBtn { font-size: 0.75rem; color: var(--red); background: none; border: none; cursor: pointer; font-family: var(--font-sans); padding: 0.25rem 0.5rem; }
+.removeBtn:hover { text-decoration: underline; }
+
+.error { color: var(--red); font-size: 0.85rem; background: rgba(248,113,113,0.08); padding: 0.6rem 0.85rem; border-radius: var(--radius); }
+
+@media (max-width: 640px) { .statsRow { grid-template-columns: 1fr; } .inviteRow, .createRow { flex-direction: column; } }

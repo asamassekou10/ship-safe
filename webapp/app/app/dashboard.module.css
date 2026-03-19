@@ -156,6 +156,31 @@
 .upgradeLeft h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.35rem; }
 .upgradeLeft p { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; max-width: 480px; }
 
+.emptyState {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+.emptyState p { color: var(--text-dim); font-size: 0.9rem; }
+
+.runningBadge {
+  color: var(--cyan);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.failedBadge {
+  color: var(--red);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
 @media (max-width: 700px) {
   .statsRow { grid-template-columns: repeat(2, 1fr); }
   .page { padding: 1.25rem; }

@@ -1,0 +1,245 @@
+name: 'Ship Safe Security Scan'
+description: 'Scan your codebase for secrets, vulnerabilities, CVEs, and misconfigurations with 16 AI security agents'
+author: 'Ship Safe'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  path:
+    description: 'Path to scan (default: repository root)'
+    required: false
+    default: '.'
+  threshold:
+    description: 'Minimum score to pass (0-100, default: 75)'
+    required: false
+    default: '75'
+  fail-on:
+    description: 'Fail on severity level: critical, high, medium, low (overrides threshold)'
+    required: false
+    default: ''
+  sarif:
+    description: 'Generate SARIF file and upload to GitHub Code Scanning'
+    required: false
+    default: 'true'
+  deep:
+    description: 'Enable AI deep analysis (requires ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_AI_API_KEY)'
+    required: false
+    default: 'false'
+  deps:
+    description: 'Audit dependency CVEs'
+    required: false
+    default: 'true'
+  baseline:
+    description: 'Only report new findings (compare against baseline)'
+    required: false
+    default: 'false'
+  comment:
+    description: 'Post scan summary as PR comment'
+    required: false
+    default: 'true'
+  token:
+    description: 'GitHub token for PR comments and SARIF upload (default: github.token)'
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  score:
+    description: 'Security score (0-100)'
+  grade:
+    description: 'Letter grade (A-F)'
+  findings:
+    description: 'Total number of findings'
+  secrets:
+    description: 'Number of secrets detected'
+  vulns:
+    description: 'Number of code vulnerabilities'
+  cves:
+    description: 'Number of dependency CVEs'
+  sarif-file:
+    description: 'Path to SARIF file (if generated)'
+  report-url:
+    description: 'URL to the scan report (if available)'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Ship Safe
+      shell: bash
+      run: npm install -g ship-safe@latest
+
+    - name: Run security scan
+      id: scan
+      shell: bash
+      env:
+        ANTHROPIC_API_KEY: ${{ env.ANTHROPIC_API_KEY }}
+        OPENAI_API_KEY: ${{ env.OPENAI_API_KEY }}
+        GOOGLE_AI_API_KEY: ${{ env.GOOGLE_AI_API_KEY }}
+      run: |
+        # Build flags
+        FLAGS="--json"
+        if [ "${{ inputs.deep }}" = "true" ]; then FLAGS="$FLAGS --deep"; fi
+        if [ "${{ inputs.deps }}" = "true" ]; then FLAGS="$FLAGS --deps"; fi
+        if [ "${{ inputs.baseline }}" = "true" ]; then FLAGS="$FLAGS --baseline"; fi
+
+        # Run scan and capture output
+        set +e
+        RESULT=$(ship-safe ci "${{ inputs.path }}" --threshold "${{ inputs.threshold }}" $FLAGS 2>&1)
+        EXIT_CODE=$?
+        set -e
+
+        # Extract JSON from output (last line with JSON)
+        JSON_LINE=$(echo "$RESULT" | grep -E '^\{' | tail -1)
+
+        if [ -z "$JSON_LINE" ]; then
+          echo "::error::Ship Safe scan failed to produce output"
+          echo "$RESULT"
+          exit 1
+        fi
+
+        # Parse results
+        SCORE=$(echo "$JSON_LINE" | jq -r '.score // 0')
+        GRADE=$(echo "$JSON_LINE" | jq -r '.grade // "F"')
+        FINDINGS=$(echo "$JSON_LINE" | jq -r '.totalFindings // 0')
+        SECRETS=$(echo "$JSON_LINE" | jq -r '.categories.secrets.findingCount // 0')
+        VULNS=$(echo "$JSON_LINE" | jq -r '((.categories.injection.findingCount // 0) + (.categories.auth.findingCount // 0))')
+        CVES=$(echo "$JSON_LINE" | jq -r '.totalDepVulns // 0')
+
+        # Set outputs
+        echo "score=$SCORE" >> $GITHUB_OUTPUT
+        echo "grade=$GRADE" >> $GITHUB_OUTPUT
+        echo "findings=$FINDINGS" >> $GITHUB_OUTPUT
+        echo "secrets=$SECRETS" >> $GITHUB_OUTPUT
+        echo "vulns=$VULNS" >> $GITHUB_OUTPUT
+        echo "cves=$CVES" >> $GITHUB_OUTPUT
+
+        # Save full JSON for later steps
+        echo "$JSON_LINE" > /tmp/ship-safe-report.json
+
+        # Print summary to CI log
+        echo ""
+        echo "╔══════════════════════════════════════╗"
+        echo "║       Ship Safe Security Report      ║"
+        echo "╠══════════════════════════════════════╣"
+        printf "║  Score: %-5s  Grade: %-14s║\n" "$SCORE" "$GRADE"
+        printf "║  Findings: %-4s Secrets: %-11s║\n" "$FINDINGS" "$SECRETS"
+        printf "║  Vulns: %-6s CVEs: %-14s║\n" "$VULNS" "$CVES"
+        echo "╚══════════════════════════════════════╝"
+
+        # Generate GitHub Actions summary
+        cat >> $GITHUB_STEP_SUMMARY << EOF
+        ## 🛡️ Ship Safe Security Report
+
+        | Metric | Value |
+        |--------|-------|
+        | **Score** | $SCORE/100 ($GRADE) |
+        | **Findings** | $FINDINGS |
+        | **Secrets** | $SECRETS |
+        | **Code Vulns** | $VULNS |
+        | **CVEs** | $CVES |
+
+        EOF
+
+        # Determine pass/fail
+        FAIL=0
+        if [ -n "${{ inputs.fail-on }}" ]; then
+          SEVERITY="${{ inputs.fail-on }}"
+          COUNT=$(echo "$JSON_LINE" | jq -r "[.findings[]? | select(.severity == \"$SEVERITY\")] | length")
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error::Found $COUNT $SEVERITY findings"
+            FAIL=1
+          fi
+        elif [ "$SCORE" -lt "${{ inputs.threshold }}" ]; then
+          echo "::error::Security score $SCORE is below threshold ${{ inputs.threshold }}"
+          FAIL=1
+        fi
+
+        echo "fail=$FAIL" >> $GITHUB_OUTPUT
+
+    - name: Generate SARIF
+      if: inputs.sarif == 'true'
+      shell: bash
+      run: |
+        # Generate SARIF from the scan results
+        ship-safe ci "${{ inputs.path }}" --sarif /tmp/ship-safe-results.sarif --threshold 0 --deps 2>/dev/null || true
+        if [ -f /tmp/ship-safe-results.sarif ]; then
+          echo "sarif-file=/tmp/ship-safe-results.sarif" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Upload SARIF to GitHub Code Scanning
+      if: inputs.sarif == 'true' && hashFiles('/tmp/ship-safe-results.sarif') != ''
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: /tmp/ship-safe-results.sarif
+        category: ship-safe
+      continue-on-error: true
+
+    - name: Comment on PR
+      if: inputs.comment == 'true' && github.event_name == 'pull_request'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        SCORE="${{ steps.scan.outputs.score }}"
+        GRADE="${{ steps.scan.outputs.grade }}"
+        FINDINGS="${{ steps.scan.outputs.findings }}"
+        SECRETS="${{ steps.scan.outputs.secrets }}"
+        VULNS="${{ steps.scan.outputs.vulns }}"
+        CVES="${{ steps.scan.outputs.cves }}"
+        THRESHOLD="${{ inputs.threshold }}"
+
+        # Grade emoji
+        case "$GRADE" in
+          A) EMOJI="🟢" ;;
+          B) EMOJI="🟡" ;;
+          C) EMOJI="🟠" ;;
+          *) EMOJI="🔴" ;;
+        esac
+
+        # Build comment body
+        BODY="## $EMOJI Ship Safe Security Report
+
+        | Metric | Value |
+        |--------|-------|
+        | **Score** | **$SCORE**/100 ($GRADE) |
+        | **Findings** | $FINDINGS |
+        | **Secrets** | $SECRETS |
+        | **Code Vulns** | $VULNS |
+        | **CVEs** | $CVES |
+        | **Threshold** | $THRESHOLD |
+
+        "
+
+        if [ "$SCORE" -ge "$THRESHOLD" ]; then
+          BODY="$BODY> ✅ **Passed** — score meets the threshold of $THRESHOLD"
+        else
+          BODY="$BODY> ❌ **Failed** — score $SCORE is below threshold $THRESHOLD"
+        fi
+
+        BODY="$BODY
+
+        ---
+        <sub>🛡️ Scanned by [Ship Safe](https://shipsafe.dev) — Security toolkit for vibe coders</sub>"
+
+        # Find and update existing comment, or create new one
+        PR_NUMBER="${{ github.event.pull_request.number }}"
+        REPO="${{ github.repository }}"
+
+        EXISTING=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --jq '.[] | select(.body | contains("Ship Safe Security Report")) | .id' | head -1)
+
+        if [ -n "$EXISTING" ]; then
+          gh api "repos/$REPO/issues/comments/$EXISTING" -X PATCH -f body="$BODY"
+        else
+          gh api "repos/$REPO/issues/$PR_NUMBER/comments" -f body="$BODY"
+        fi
+
+    - name: Check threshold
+      if: steps.scan.outputs.fail == '1'
+      shell: bash
+      run: exit 1

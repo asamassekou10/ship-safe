@@ -1,0 +1,96 @@
+{
+  "name": "ship-safe",
+  "displayName": "Ship Safe — Security Scanner",
+  "description": "Real-time security scanning with 16 AI agents. Find secrets, vulnerabilities, and CVEs as you code.",
+  "version": "1.0.0",
+  "publisher": "ship-safe",
+  "license": "MIT",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/asamassekou10/ship-safe"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "security",
+    "secrets",
+    "vulnerability",
+    "scanner",
+    "ai",
+    "owasp"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "shipSafe.scanWorkspace",
+        "title": "Ship Safe: Scan Workspace"
+      },
+      {
+        "command": "shipSafe.scanFile",
+        "title": "Ship Safe: Scan Current File"
+      },
+      {
+        "command": "shipSafe.showReport",
+        "title": "Ship Safe: Show Report"
+      },
+      {
+        "command": "shipSafe.toggleWatch",
+        "title": "Ship Safe: Toggle Watch Mode"
+      }
+    ],
+    "configuration": {
+      "title": "Ship Safe",
+      "properties": {
+        "shipSafe.autoScanOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically scan files when saved"
+        },
+        "shipSafe.severity": {
+          "type": "string",
+          "default": "medium",
+          "enum": ["low", "medium", "high", "critical"],
+          "description": "Minimum severity to show in diagnostics"
+        },
+        "shipSafe.showInlineHints": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show inline hints for findings"
+        },
+        "shipSafe.deep": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable AI deep analysis (requires API key)"
+        }
+      }
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "shipSafe.scanFile",
+          "group": "shipSafe"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20",
+    "typescript": "^5.3.0"
+  }
+}

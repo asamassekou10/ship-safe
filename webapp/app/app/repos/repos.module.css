@@ -1,0 +1,37 @@
+.page { padding: 2rem; max-width: 900px; display: flex; flex-direction: column; gap: 1.5rem; }
+.header h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
+.subtitle { color: var(--text-dim); font-size: 0.875rem; }
+
+.addSection { display: flex; flex-direction: column; gap: 0.5rem; }
+.addRow { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.input { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.6rem 0.85rem; font-size: 0.88rem; color: var(--text); font-family: var(--font-sans); flex: 2; min-width: 200px; outline: none; }
+.input:focus { border-color: var(--cyan-dim); }
+.inputSmall { composes: input; flex: 0.5; min-width: 80px; }
+.select { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.6rem 0.85rem; font-size: 0.88rem; color: var(--text); font-family: var(--font-sans); outline: none; }
+
+.emptyState { text-align: center; padding: 3rem 1.5rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.emptyState p { color: var(--text-dim); font-size: 0.88rem; }
+
+.repoList { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.repoRow { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--border); gap: 1rem; }
+.repoRow:last-child { border-bottom: none; }
+
+.repoLeft { display: flex; align-items: center; gap: 0.85rem; }
+.repoIcon { width: 32px; height: 32px; border-radius: 8px; background: var(--bg-elevated); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--text-dim); flex-shrink: 0; }
+.repoName { font-size: 0.9rem; font-weight: 600; }
+.repoMeta { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.1rem; }
+
+.repoRight { display: flex; align-items: center; gap: 0.75rem; }
+.scoreChip { display: flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.6rem; border-radius: 6px; border: 1px solid; white-space: nowrap; }
+.scoreGrade { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 800; }
+.scoreNum { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600; }
+
+.scanNow { font-size: 0.78rem; color: var(--cyan); font-weight: 600; text-decoration: none; }
+.scanNow:hover { text-decoration: underline; }
+
+.removeBtn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.85rem; padding: 0.25rem; }
+.removeBtn:hover { color: var(--red); }
+
+.error { color: var(--red); font-size: 0.85rem; }
+
+@media (max-width: 640px) { .addRow { flex-direction: column; } .input, .inputSmall { width: 100%; } }
