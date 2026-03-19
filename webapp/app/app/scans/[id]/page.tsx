@@ -172,6 +172,21 @@ export default function ScanDetail() {
         )}
       </div>
 
+      {/* Actions bar */}
+      {scan.status === 'done' && (
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <a href={`/api/reports?scanId=${scan.id}&format=pdf`} className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '0.4rem 0.75rem' }} download>
+            Download Report
+          </a>
+          <a href={`/api/reports?scanId=${scan.id}&format=csv`} className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '0.4rem 0.75rem' }} download>
+            Export CSV
+          </a>
+          <a href={`/api/reports?scanId=${scan.id}&format=markdown`} className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '0.4rem 0.75rem' }} download>
+            Markdown
+          </a>
+        </div>
+      )}
+
       {/* Running */}
       {scan.status === 'running' && (
         <div className={s.runningBanner}>

@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { notifyScanComplete, notifyScanFailed } from '@/lib/notifications';
+import { logAudit } from '@/lib/audit';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { mkdtemp, rm, writeFile } from 'fs/promises';
+import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
 const execAsync = promisify(exec);
-
 const FREE_MONTHLY_LIMIT = 5;
 
 export async function POST(req: NextRequest) {
@@ -20,7 +21,6 @@ export async function POST(req: NextRequest) {
   const userId = session.user.id;
   const plan = (session.user as Record<string, unknown>).plan as string;
 
-  // Enforce free plan limits
   if (plan === 'free') {
     const monthStart = new Date();
     monthStart.setDate(1);
@@ -43,19 +43,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'repo is required' }, { status: 400 });
   }
 
-  // Create scan record
   const scan = await prisma.scan.create({
-    data: { userId, repo, branch, method, status: 'running', options },
+    data: { userId, repo, branch, method, trigger: 'manual', status: 'running', options },
   });
 
-  // Run scan in background (don't await — return immediately)
-  runScan(scan.id, repo, branch, method, options).catch(console.error);
+  await logAudit({ userId, action: 'scan.created', target: scan.id, meta: { repo, branch, method } });
+
+  runScan(scan.id, userId, repo, branch, method, options).catch(console.error);
 
   return NextResponse.json({ id: scan.id, status: 'running' });
 }
 
 async function runScan(
   scanId: string,
+  userId: string,
   repo: string,
   branch: string,
   method: string,
@@ -65,7 +66,6 @@ async function runScan(
   const startTime = Date.now();
 
   try {
-    // Clone or prepare the repo
     if (method === 'github' || method === 'url') {
       const repoUrl = method === 'github'
         ? `https://github.com/${repo}.git`
@@ -76,8 +76,6 @@ async function runScan(
     }
 
     const scanDir = join(tmpDir, 'repo');
-
-    // Build CLI command
     const flags: string[] = ['--json'];
     if (options.deep) flags.push('--deep');
     if (options.deps) flags.push('--deps');
@@ -90,12 +88,7 @@ async function runScan(
 
     const duration = (Date.now() - startTime) / 1000;
     let report: Record<string, unknown> = {};
-
-    try {
-      report = JSON.parse(stdout);
-    } catch {
-      report = { raw: stdout };
-    }
+    try { report = JSON.parse(stdout); } catch { report = { raw: stdout }; }
 
     const score = typeof report.score === 'number' ? report.score : null;
     const grade = typeof report.grade === 'string' ? report.grade : null;
@@ -105,20 +98,27 @@ async function runScan(
     const vulns = (cats?.injection?.findingCount ?? 0) + (cats?.auth?.findingCount ?? 0);
     const cves = typeof report.totalDepVulns === 'number' ? report.totalDepVulns : 0;
 
-    await prisma.scan.update({
+    const updated = await prisma.scan.update({
       where: { id: scanId },
       data: { status: 'done', score, grade, findings, secrets, vulns, cves, duration, report },
     });
+
+    // Update monitored repo stats
+    await prisma.monitoredRepo.updateMany({
+      where: { userId, repo },
+      data: { lastScanAt: new Date(), lastScore: score, lastGrade: grade },
+    });
+
+    // Notify
+    await notifyScanComplete({ ...updated, userId });
   } catch (err) {
     const duration = (Date.now() - startTime) / 1000;
+    const errorMsg = err instanceof Error ? err.message : String(err);
     await prisma.scan.update({
       where: { id: scanId },
-      data: {
-        status: 'failed',
-        duration,
-        report: { error: err instanceof Error ? err.message : String(err) },
-      },
+      data: { status: 'failed', duration, report: { error: errorMsg } },
     });
+    await notifyScanFailed({ id: scanId, repo, branch, score: null, grade: null, findings: 0, secrets: 0, vulns: 0, cves: 0, status: 'failed', userId }, errorMsg);
   } finally {
     await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }

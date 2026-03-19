@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 import styles from '../dashboard.module.css';
 import type { Metadata } from 'next';
 import UpgradeButton from './UpgradeButton';
+import NotificationSettings from './NotificationSettings';
+import ApiKeys from './ApiKeys';
 
 export const metadata: Metadata = {
   title: 'Settings — Ship Safe',
@@ -105,6 +107,23 @@ export default async function Settings() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+      {/* Notifications */}
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h2>Notifications</h2>
+        </div>
+        <NotificationSettings />
+      </div>
+
+      {/* API Keys */}
+      {user.plan !== 'free' && (
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h2>API Keys</h2>
+          </div>
+          <ApiKeys />
         </div>
       )}
     </div>

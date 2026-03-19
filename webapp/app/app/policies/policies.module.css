@@ -1,0 +1,58 @@
+.page { padding: 2rem; max-width: 900px; display: flex; flex-direction: column; gap: 1.5rem; }
+.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.header h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
+.subtitle { color: var(--text-dim); font-size: 0.875rem; }
+
+.presets { display: flex; flex-direction: column; gap: 0.75rem; }
+.presets h3 { font-size: 0.9rem; font-weight: 600; color: var(--text-muted); }
+.presetGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
+.presetCard { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.85rem; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 0.25rem; transition: border-color 0.15s; }
+.presetCard:hover { border-color: var(--cyan-dim); }
+.presetName { font-size: 0.85rem; font-weight: 700; }
+.presetDesc { font-size: 0.72rem; color: var(--text-dim); line-height: 1.4; }
+.presetRules { font-size: 0.68rem; color: var(--cyan); font-family: var(--font-mono); }
+
+.createForm { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
+.input { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.6rem 0.85rem; font-size: 0.88rem; color: var(--text); font-family: var(--font-sans); width: 100%; outline: none; }
+.input:focus { border-color: var(--cyan-dim); }
+.select { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.5rem 0.75rem; font-size: 0.85rem; color: var(--text); font-family: var(--font-sans); }
+
+.rulesPreview { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.ruleChip { display: flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.6rem; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 6px; font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-muted); }
+.ruleRemove { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.75rem; padding: 0; }
+
+.enforcementRow { display: flex; align-items: center; gap: 0.75rem; font-size: 0.85rem; }
+.enforcementRow label { color: var(--text-muted); font-weight: 600; }
+
+.error { color: var(--red); font-size: 0.85rem; }
+
+.emptyState { text-align: center; padding: 2.5rem 1.5rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.emptyState p { color: var(--text-dim); font-size: 0.88rem; }
+
+.policyList { display: flex; flex-direction: column; gap: 0.6rem; }
+.policyCard { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; }
+.policyCard.disabled { opacity: 0.5; }
+
+.policyHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }
+.policyName { font-size: 0.92rem; font-weight: 700; display: block; }
+.policyDesc { font-size: 0.78rem; color: var(--text-dim); }
+.policyActions { display: flex; align-items: center; gap: 0.75rem; }
+
+.enforceBadge { font-size: 0.68rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.03em; }
+.enforceWarn { background: rgba(251,191,36,0.12); color: var(--yellow); }
+.enforceBlock { background: rgba(248,113,113,0.12); color: var(--red); }
+
+.toggle { position: relative; display: inline-block; width: 36px; height: 20px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggleSlider { position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 20px; transition: 0.2s; }
+.toggleSlider::before { content: ''; position: absolute; height: 14px; width: 14px; left: 3px; bottom: 3px; background: var(--text); border-radius: 50%; transition: 0.2s; }
+.toggle input:checked + .toggleSlider { background: var(--cyan); }
+.toggle input:checked + .toggleSlider::before { transform: translateX(16px); }
+
+.rulesList { display: flex; flex-direction: column; gap: 0.35rem; }
+.ruleItem { display: flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; }
+.ruleType { font-family: var(--font-mono); color: var(--cyan); font-weight: 600; min-width: 100px; }
+.ruleValue { font-family: var(--font-mono); color: var(--text); font-weight: 600; }
+.ruleMsg { color: var(--text-dim); }
+
+@media (max-width: 640px) { .presetGrid { grid-template-columns: 1fr; } }
