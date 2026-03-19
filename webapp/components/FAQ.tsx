@@ -20,7 +20,7 @@ const faqs = [
   },
   {
     q: 'Is the CLI always free?',
-    a: 'Yes. The CLI is MIT open-source and will always be free. You can run unlimited scans locally on any repo. The paid plans are for the hosted web dashboard, cloud scans, team features, and AI analysis without needing your own API key.',
+    a: 'Yes. The CLI is MIT open-source and will always be free. You can run unlimited scans locally on any repo. The paid plans are for the hosted web dashboard — cloud scans, scan history, team features, and PDF reports. AI features use your own API key (Anthropic, OpenAI, Gemini, or local Ollama).',
   },
   {
     q: 'Is it safe to run in CI?',

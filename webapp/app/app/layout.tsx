@@ -1,12 +1,37 @@
 import Link from 'next/link';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { redirect } from 'next/navigation';
 import styles from './app.layout.module.css';
 import type { Metadata } from 'next';
+import SignOutButton from './SignOutButton';
 
 export const metadata: Metadata = {
   title: 'Dashboard — Ship Safe',
 };
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const session = await auth();
+  if (!session?.user) redirect('/login');
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { plan: true },
+  });
+
+  const plan = user?.plan ?? 'free';
+
+  // Count scans this month for free users
+  let scanCount = 0;
+  if (plan === 'free') {
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    scanCount = await prisma.scan.count({
+      where: { userId: session.user.id!, createdAt: { gte: monthStart } },
+    });
+  }
+
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
@@ -37,13 +62,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className={styles.sidebarBottom}>
-          <div className={styles.planBadge}>
-            <span className={styles.planName}>Free Plan</span>
-            <span className={styles.planScans}>3 / 5 scans used</span>
-            <div className={styles.planBar}>
-              <div className={styles.planBarFill} style={{ width: '60%' }} />
+          {plan === 'free' ? (
+            <div className={styles.planBadge}>
+              <span className={styles.planName}>Free Plan</span>
+              <span className={styles.planScans}>{scanCount} / 5 scans used</span>
+              <div className={styles.planBar}>
+                <div className={styles.planBarFill} style={{ width: `${Math.min((scanCount / 5) * 100, 100)}%` }} />
+              </div>
+              <Link href="/pricing" className={styles.upgradeCta}>Upgrade to Pro →</Link>
             </div>
-            <Link href="/pricing" className={styles.upgradeCta}>Upgrade to Pro →</Link>
+          ) : (
+            <div className={styles.planBadge}>
+              <span className={styles.planName}>{plan.charAt(0).toUpperCase() + plan.slice(1)} Plan</span>
+              <span className={styles.planScans}>Unlimited scans</span>
+            </div>
+          )}
+          <div className={styles.userRow}>
+            {session.user.image && (
+              <img src={session.user.image} alt="" width={24} height={24} className={styles.avatar} />
+            )}
+            <span className={styles.userName}>{session.user.name || session.user.email}</span>
+            <SignOutButton />
           </div>
         </div>
       </aside>

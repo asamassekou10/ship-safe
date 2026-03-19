@@ -152,6 +152,15 @@
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+.error {
+  background: rgba(248,113,113,0.08);
+  border: 1px solid rgba(248,113,113,0.2);
+  color: var(--red);
+  font-size: 0.88rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+}
+
 /* CLI tip */
 .cliTip {
   display: flex;

@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Auth.js models ──────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  plan          String    @default("free") // free | pro | team
+  accounts      Account[]
+  scans         Scan[]
+  payments      Payment[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// ── Scans ───────────────────────────────────────────────
+
+model Scan {
+  id        String   @id @default(cuid())
+  userId    String
+  repo      String        // e.g. "owner/repo" or URL
+  branch    String    @default("main")
+  method    String    @default("github") // github | url | upload
+  status    String    @default("pending") // pending | running | done | failed
+  score     Int?
+  grade     String?
+  findings  Int       @default(0)
+  secrets   Int       @default(0)
+  vulns     Int       @default(0)
+  cves      Int       @default(0)
+  duration  Float?        // seconds
+  report    Json?         // full scan results
+  options   Json?         // scan options (deep, verifySecrets, etc.)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+// ── Payments ────────────────────────────────────────────
+
+model Payment {
+  id                String   @id @default(cuid())
+  userId            String
+  stripeSessionId   String   @unique
+  stripePaymentId   String?
+  plan              String        // pro | team
+  amount            Int           // cents
+  currency          String   @default("usd")
+  status            String   @default("pending") // pending | paid | failed | refunded
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+
+  @@index([userId])
+}

@@ -30,17 +30,17 @@ export const plans: Plan[] = [
   },
   {
     name: 'Pro',
-    price: '$19',
-    period: 'per month',
+    price: '$9',
+    period: 'one-time',
     desc: 'For developers who ship fast and need full coverage.',
-    cta: 'Start Pro free',
+    cta: 'Buy Pro',
     ctaHref: '/signup?plan=pro',
     featured: true,
     features: [
       'Unlimited cloud scans',
       'Private repos (GitHub, GitLab, upload)',
       'All 16 security agents',
-      'AI deep analysis (no API key needed)',
+      'AI deep analysis (bring your own API key)',
       'Scan history + score trends',
       'PDF reports (branded)',
       'API access for CI/CD webhooks',
@@ -50,10 +50,10 @@ export const plans: Plan[] = [
   },
   {
     name: 'Team',
-    price: '$49',
-    period: 'per seat / month',
+    price: '$19',
+    period: 'one-time per seat',
     desc: 'For teams that need collaboration and shared visibility.',
-    cta: 'Start Team free',
+    cta: 'Buy Team',
     ctaHref: '/signup?plan=team',
     featured: false,
     features: [
@@ -89,18 +89,18 @@ export const plans: Plan[] = [
 export const pricingFaq = [
   {
     q: 'Is the CLI always free?',
-    a: 'Yes. The CLI is MIT open-source and will always be free. You can run unlimited scans locally on any repo. The paid plans are for the hosted web dashboard, cloud scans, team features, and AI analysis without needing your own API key.',
+    a: 'Yes. The CLI is MIT open-source and will always be free. You can run unlimited scans locally on any repo. The paid plans are for the hosted web dashboard — cloud scans, scan history, team features, and PDF reports. AI features use your own API key (Anthropic, OpenAI, Gemini, or local Ollama).',
   },
   {
     q: 'What counts as a cloud scan?',
     a: 'A cloud scan is when you submit a repo through the web dashboard for scanning. Running the CLI locally never counts against any limit.',
   },
   {
-    q: 'Can I cancel anytime?',
-    a: 'Yes. Cancel anytime from your account settings. Your plan stays active until the end of the billing period.',
+    q: 'Is it really one-time? No subscriptions?',
+    a: 'Yes. Pay once, use forever. No recurring charges, no surprise renewals. Future major version upgrades may be offered as optional paid upgrades at a discount.',
   },
   {
-    q: 'Do you offer a free trial?',
-    a: 'Pro and Team plans include a 14-day free trial. No credit card required.',
+    q: 'Do you offer refunds?',
+    a: 'Yes. If you are not satisfied within 30 days of purchase, we will issue a full refund — no questions asked.',
   },
 ];
