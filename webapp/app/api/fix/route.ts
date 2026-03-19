@@ -115,7 +115,7 @@ function generateFix(finding: Finding): FixSuggestion {
       file,
       title: `Fix ${finding.title}`,
       description: `Sanitize user input or use parameterized queries to prevent injection.`,
-      before: `db.query(\`SELECT * FROM users WHERE id = \${userId}\`)`,
+      before: `db.query(\`SELECT * FROM users WHERE id = \${userId}\`)`, // ship-safe-ignore
       after: `db.query('SELECT * FROM users WHERE id = $1', [userId])`,
       explanation: `Never interpolate user input directly into queries. Use parameterized/prepared statements which automatically escape values, preventing SQL injection attacks.`,
     }),
