@@ -37,6 +37,11 @@ export async function POST(req: NextRequest) {
     case 'push':
       await handlePush(payload);
       break;
+    case 'check_suite':
+      if (payload.action === 'completed') {
+        await handleCheckSuite(payload);
+      }
+      break;
   }
 
   return NextResponse.json({ ok: true });
@@ -162,6 +167,35 @@ async function handlePush(payload: Record<string, unknown>) {
   triggerScan(scan.id, monitored.userId, fullName, branch).catch(console.error);
 }
 
+async function handleCheckSuite(payload: Record<string, unknown>) {
+  const checkSuite = payload.check_suite as Record<string, unknown>;
+  const conclusion = checkSuite.conclusion as string; // success | failure | etc.
+  const headBranch = checkSuite.head_branch as string;
+  const repoData = payload.repository as Record<string, unknown>;
+  const fullName = repoData.full_name as string;
+
+  // Find any Guardian run in "verifying" state for this repo + branch
+  const run = await prisma.pRGuardianRun.findFirst({
+    where: {
+      repo: fullName,
+      prBranch: headBranch,
+      status: 'verifying',
+    },
+    orderBy: { updatedAt: 'desc' },
+  });
+
+  if (!run) return;
+
+  // Resume the Guardian pipeline
+  const { appendTimeline, advanceRun } = await import('@/lib/guardian/pipeline');
+  await appendTimeline(run.id, 'Check suite completed', `Conclusion: ${conclusion}`);
+  await prisma.pRGuardianRun.update({
+    where: { id: run.id },
+    data: { ciStatus: conclusion },
+  });
+  advanceRun(run.id).catch(console.error);
+}
+
 async function triggerScan(scanId: string, userId: string, repo: string, branch: string) {
   const { exec } = await import('child_process');
   const { promisify } = await import('util');
@@ -198,6 +232,24 @@ async function triggerScan(scanId: string, userId: string, repo: string, branch:
     });
 
     await notifyScanComplete({ ...updated, userId });
+
+    // If this was a PR scan with findings, trigger Guardian pipeline
+    if (updated.prNumber && updated.findings > 0) {
+      const { startGuardianRun } = await import('@/lib/guardian/pipeline');
+      const guardianConfig = await prisma.guardianConfig.findFirst({
+        where: { userId, repo: { in: [repo, '*'] }, enabled: true },
+      });
+      if (guardianConfig) {
+        startGuardianRun({
+          userId,
+          repo,
+          prNumber: updated.prNumber,
+          prBranch: branch,
+          baseBranch: 'main',
+          scanId,
+        }).catch(console.error);
+      }
+    }
   } catch (err) {
     const duration = (Date.now() - startTime) / 1000;
     const errorMsg = err instanceof Error ? err.message : String(err);

@@ -208,6 +208,60 @@ model GitHubInstallation {
   updatedAt        DateTime @updatedAt
 }
 
+// ── PR Guardian ────────────────────────────────────────────
+
+model PRGuardianRun {
+  id            String   @id @default(cuid())
+  userId        String
+  orgId         String?
+  repo          String          // owner/repo
+  prNumber      Int
+  prTitle       String?
+  prBranch      String          // head branch
+  baseBranch    String          // base branch
+  status        String   @default("watching")
+  // watching | analyzing | diagnosing | fixing | verifying | merging | merged | failed | blocked
+  scanId        String?         // link to the Scan that triggered this
+  ciRunId       Int?            // GitHub Actions run ID being monitored
+  ciStatus      String?         // pending | success | failure | cancelled
+  failureType   String?         // shipsafe | test | build | lint | unknown
+  failureLogs   String?  @db.Text
+  diagnosis     Json?           // { findings: [...], falsePositives: [...], realIssues: [...] }
+  fixCommitSha  String?
+  fixSummary    String?
+  mergeStrategy String?         // squash | merge | rebase
+  mergeSha      String?
+  attempts      Int      @default(0)
+  timeline      Json     @default("[]") // array of { timestamp, event, detail }
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([repo, prNumber])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status])
+}
+
+model GuardianConfig {
+  id                    String   @id @default(cuid())
+  userId                String
+  orgId                 String?
+  repo                  String          // owner/repo or "*" for default
+  enabled               Boolean  @default(true)
+  autoFixFalsePositives Boolean  @default(true)
+  autoFixRealIssues     Boolean  @default(false)
+  autoMerge             Boolean  @default(false)
+  mergeStrategy         String   @default("squash") // squash | merge | rebase
+  requireApproval       Boolean  @default(true)
+  minScoreToMerge       Int      @default(80)
+  maxAttempts           Int      @default(3)
+  fixCategories         Json     @default("[\"secrets\"]")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([userId, repo])
+  @@index([orgId])
+}
+
 // ── Payments ────────────────────────────────────────────
 
 model Payment {

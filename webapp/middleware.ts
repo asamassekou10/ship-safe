@@ -12,6 +12,7 @@ export const config = {
     '/api/policies/:path*',
     '/api/reports/:path*',
     '/api/fix/:path*',
+    '/api/guardian/:path*',
     '/api/v1/key/:path*',
   ],
 };

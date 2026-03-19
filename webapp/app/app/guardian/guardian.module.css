@@ -1,0 +1,191 @@
+.page { padding: 2rem; max-width: 960px; }
+.header { margin-bottom: 2rem; }
+.header h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+.subtitle { font-size: 0.88rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.statCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  text-align: center;
+}
+
+.statValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-top: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.section { margin-bottom: 2rem; }
+.sectionTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.configCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+}
+
+.configRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.configRow:last-child { border-bottom: none; }
+
+.configLabel { font-size: 0.85rem; }
+.configDesc { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.15rem; }
+
+.toggle {
+  width: 40px; height: 22px;
+  border-radius: 11px;
+  background: var(--border);
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--text);
+  transition: transform 0.2s;
+}
+
+.toggleOn { background: var(--cyan); }
+.toggleOn::after { transform: translateX(18px); }
+
+.select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-family: var(--font-sans);
+}
+
+.scoreInput {
+  width: 60px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-family: var(--font-mono);
+  text-align: center;
+}
+
+.runList { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.runCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.85rem 1.25rem;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.15s;
+}
+
+.runCard:hover { border-color: var(--border-hover); }
+
+.runInfo { display: flex; flex-direction: column; gap: 0.15rem; }
+.runRepo { font-size: 0.88rem; font-weight: 600; }
+.runMeta { font-size: 0.75rem; color: var(--text-dim); }
+
+.runRight { display: flex; align-items: center; gap: 0.75rem; }
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.25rem 0.65rem;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.statusMerged { background: rgba(74,222,128,0.12); color: var(--green); }
+.statusFailed { background: rgba(248,113,113,0.12); color: var(--red); }
+.statusBlocked { background: rgba(251,191,36,0.12); color: var(--yellow); }
+.statusActive { background: rgba(34,211,238,0.12); color: var(--cyan); }
+
+.retryBtn {
+  font-size: 0.75rem;
+  color: var(--cyan);
+  background: none;
+  border: 1px solid var(--cyan-dim);
+  border-radius: 6px;
+  padding: 0.3rem 0.65rem;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.retryBtn:hover { background: rgba(34,211,238,0.08); }
+
+.triggerForm {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.55rem 0.85rem;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: var(--font-sans);
+  outline: none;
+}
+
+.input:focus { border-color: var(--cyan-dim); }
+
+.empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 700px) {
+  .statsRow { grid-template-columns: repeat(2, 1fr); }
+  .triggerForm { flex-direction: column; }
+}

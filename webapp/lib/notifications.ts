@@ -192,3 +192,93 @@ export async function notifyScanFailed(scan: ScanResult, error: string) {
     error,
   }, scan.orgId);
 }
+
+/* ── Guardian Notifications ──────────────────────────── */
+
+interface GuardianResult {
+  id: string;
+  userId: string;
+  orgId?: string | null;
+  repo: string;
+  prNumber: number;
+  prTitle?: string | null;
+  status: string;
+  fixSummary?: string | null;
+  attempts: number;
+  mergeSha?: string | null;
+}
+
+export async function notifyGuardianComplete(run: GuardianResult) {
+  const settings = await prisma.notificationSetting.findUnique({
+    where: { userId: run.userId },
+  });
+
+  if (!settings) return;
+
+  const [owner, repo] = run.repo.split('/');
+  const prUrl = `https://github.com/${owner}/${repo}/pull/${run.prNumber}`;
+  const statusEmoji = run.status === 'merged' ? '🟢' : run.status === 'blocked' ? '🟡' : '🔴';
+
+  // Email notification
+  if (settings.emailOnComplete && process.env.RESEND_API_KEY) {
+    const user = await prisma.user.findUnique({ where: { id: run.userId }, select: { email: true } });
+    if (user?.email) {
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: process.env.EMAIL_FROM || 'Ship Safe <noreply@shipsafe.dev>',
+          to: [user.email],
+          subject: `${statusEmoji} PR Guardian: ${run.prTitle || `PR #${run.prNumber}`} — ${run.status}`,
+          html: `<div style="font-family:system-ui;background:#09090b;color:#fafafa;padding:2rem;border-radius:12px;max-width:560px">
+            <h2 style="margin:0 0 1rem;font-size:1.1rem">PR Guardian — ${run.status.charAt(0).toUpperCase() + run.status.slice(1)}</h2>
+            <p style="margin:0.5rem 0;font-size:0.9rem"><strong>Repo:</strong> ${run.repo}</p>
+            <p style="margin:0.5rem 0;font-size:0.9rem"><strong>PR:</strong> <a href="${prUrl}" style="color:#22d3ee">#${run.prNumber} ${run.prTitle || ''}</a></p>
+            ${run.fixSummary ? `<p style="margin:0.5rem 0;font-size:0.9rem"><strong>Fixes:</strong> ${run.fixSummary}</p>` : ''}
+            ${run.mergeSha ? `<p style="margin:0.5rem 0;font-size:0.9rem"><strong>Merge:</strong> ${run.mergeSha.slice(0, 7)}</p>` : ''}
+            <p style="margin:1rem 0 0;font-size:0.75rem;color:#71717a">Attempts: ${run.attempts}</p>
+          </div>`,
+        }),
+      }).catch(() => {});
+    }
+  }
+
+  // Slack notification
+  if (settings.slackWebhookUrl && settings.slackOnComplete) {
+    await fetch(settings.slackWebhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        blocks: [
+          { type: 'section', text: { type: 'mrkdwn', text: `${statusEmoji} *PR Guardian — ${run.status}*\n<${prUrl}|${run.repo}#${run.prNumber}>` } },
+          { type: 'section', fields: [
+            { type: 'mrkdwn', text: `*Fixes:* ${run.fixSummary || 'None'}` },
+            { type: 'mrkdwn', text: `*Attempts:* ${run.attempts}` },
+          ]},
+        ],
+      }),
+    }).catch(() => {});
+  }
+
+  // Webhooks
+  await dispatchWebhooks(`guardian.${run.status}`, {
+    runId: run.id,
+    repo: run.repo,
+    prNumber: run.prNumber,
+    status: run.status,
+    fixSummary: run.fixSummary,
+    attempts: run.attempts,
+  }, run.orgId);
+}
+
+export async function notifyGuardianBlocked(run: GuardianResult, reason: string) {
+  await dispatchWebhooks('guardian.blocked', {
+    runId: run.id,
+    repo: run.repo,
+    prNumber: run.prNumber,
+    reason,
+  }, run.orgId);
+}
