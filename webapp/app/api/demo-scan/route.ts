@@ -55,10 +55,10 @@ const SECRET_PATTERNS: Pattern[] = [
 
 const VULN_PATTERNS: Pattern[] = [
   { name: 'XSS: dangerouslySetInnerHTML', pattern: /dangerouslySetInnerHTML\s*=\s*\{\s*\{/g, severity: 'high', category: 'injection' },
-  { name: 'Code Injection: eval()', pattern: /\beval\s*\(/g, severity: 'high', category: 'injection' },
+  { name: 'Code Injection: eval()', pattern: /\beval\s*\(/g, severity: 'high', category: 'injection' }, // ship-safe-ignore
   { name: 'SQL Injection: Template Literal Query', pattern: /`(?:SELECT|INSERT|UPDATE|DELETE|DROP\s+TABLE)[^`]*\$\{/gi, severity: 'critical', category: 'injection' },
   { name: 'Command Injection: exec with Template Literal', pattern: /\bexec(?:Sync)?\s*\(\s*`[^`]*\$\{/g, severity: 'critical', category: 'injection' },
-  { name: 'TLS Bypass: NODE_TLS_REJECT_UNAUTHORIZED=0', pattern: /NODE_TLS_REJECT_UNAUTHORIZED\s*[=:]\s*['"]?0['"]?/g, severity: 'critical', category: 'config' },
+  { name: 'TLS Bypass: NODE_TLS_REJECT_UNAUTHORIZED=0', pattern: /NODE_TLS_REJECT_UNAUTHORIZED\s*[=:]\s*['"]?0['"]?/g, severity: 'critical', category: 'config' }, // ship-safe-ignore
   { name: 'TLS Bypass: rejectUnauthorized false', pattern: /\brejectUnauthorized\s*:\s*false\b/g, severity: 'high', category: 'config' },
   { name: 'Security Config: CORS Wildcard', pattern: /\borigin\s*:\s*['"]?\*['"]?/g, severity: 'medium', category: 'config' },
   { name: 'Weak Crypto: MD5', pattern: /createHash\s*\(\s*['"]md5['"]\s*\)/gi, severity: 'medium', category: 'config' },
