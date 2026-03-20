@@ -16,6 +16,7 @@
     "next-auth": "^5.0.0-beta.30",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "ship-safe": "^5.0.1",
     "stripe": "^20.4.1"
   },
   "devDependencies": {

@@ -71,9 +71,15 @@ async function runScan(
       const repoUrl = method === 'github'
         ? `https://github.com/${repo}.git`
         : repo;
-      await execAsync(`git clone --depth 1 --branch ${branch} ${repoUrl} ${tmpDir}/repo`, {
-        timeout: 60_000,
-      });
+      // Clone default branch first (avoids failure when repo uses master vs main)
+      await execAsync(`git clone --depth 1 ${repoUrl} ${tmpDir}/repo`, { timeout: 60_000 });
+      // Checkout requested branch only if it differs from whatever was cloned
+      if (branch) {
+        await execAsync(
+          `git -C ${tmpDir}/repo fetch --depth 1 origin ${branch} 2>/dev/null && git -C ${tmpDir}/repo checkout ${branch} 2>/dev/null || true`,
+          { timeout: 20_000 },
+        );
+      }
     }
 
     const scanDir = join(tmpDir, 'repo');
@@ -83,8 +89,8 @@ async function runScan(
     if (options.noAi) flags.push('--no-ai');
 
     const { stdout } = await execAsync(
-      `npx ship-safe audit ${scanDir} ${flags.join(' ')}`,
-      { timeout: 120_000, maxBuffer: 10 * 1024 * 1024 },
+      `node_modules/.bin/ship-safe audit ${scanDir} ${flags.join(' ')}`,
+      { timeout: 120_000, maxBuffer: 10 * 1024 * 1024, cwd: process.cwd() },
     );
 
     const duration = (Date.now() - startTime) / 1000;
