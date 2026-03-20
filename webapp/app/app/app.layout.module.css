@@ -134,6 +134,9 @@
   flex: 1;
   min-width: 0;
   overflow-y: auto;
+  background:
+    radial-gradient(ellipse 80% 50% at 70% 5%, rgba(8, 145, 178, 0.025), transparent 50%),
+    var(--bg);
 }
 
 @media (max-width: 640px) {

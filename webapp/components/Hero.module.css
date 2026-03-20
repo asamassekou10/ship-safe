@@ -14,12 +14,34 @@
 .heroOrb1 {
   width: 560px; height: 560px;
   top: -180px; left: -100px;
-  background: radial-gradient(circle, rgba(8,145,178,0.06) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(8,145,178,0.10) 0%, transparent 70%);
+  animation: hero-float 25s ease-in-out infinite alternate;
 }
 .heroOrb2 {
   width: 400px; height: 400px;
   top: 60px; right: -80px;
-  background: radial-gradient(circle, rgba(37,99,235,0.06) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(37,99,235,0.08) 0%, transparent 70%);
+  animation: hero-float 30s ease-in-out infinite alternate-reverse;
+}
+.heroOrb3 {
+  width: 450px; height: 450px;
+  bottom: -120px; left: 40%;
+  background: radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%);
+  animation: hero-float 35s ease-in-out infinite alternate;
+}
+
+.heroHorizon {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(8,145,178,0.15) 30%, rgba(37,99,235,0.12) 70%, transparent);
+  box-shadow: 0 0 80px 40px rgba(8,145,178,0.04);
+  z-index: 0;
+}
+
+@keyframes hero-float {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(20px, 15px) scale(1.05); }
 }
 
 .heroLayout {
@@ -345,4 +367,8 @@
   .statsNum { font-size: 1.1rem; }
   .statsLabel { font-size: 0.72rem; }
   .statsSep { margin: 0 0.5rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroOrb1, .heroOrb2, .heroOrb3 { animation: none; }
 }

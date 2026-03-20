@@ -17,6 +17,7 @@ export default function CTA() {
     <>
       <section className={styles.cta}>
         <div className={styles.ctaGlow} aria-hidden="true" />
+        <div className={styles.ctaGlow2} aria-hidden="true" />
         <div className="container">
           <div className={styles.ctaInner} data-animate>
             <span className="section-label">Get Started</span>

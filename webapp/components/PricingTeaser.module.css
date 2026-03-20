@@ -1,6 +1,8 @@
 .pricing {
   border-top: 1px solid var(--border);
-  background: var(--bg-elevated);
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 0%, rgba(8,145,178,0.03), transparent 60%),
+    var(--bg-elevated);
 }
 
 .grid {

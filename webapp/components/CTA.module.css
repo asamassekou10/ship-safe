@@ -12,9 +12,31 @@
   transform: translateX(-50%);
   width: 700px;
   height: 400px;
-  background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(8,145,178,0.06), transparent 70%);
+  background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(8,145,178,0.10), transparent 70%);
   pointer-events: none;
   z-index: 0;
+}
+
+.ctaGlow2 {
+  position: absolute;
+  top: -40px;
+  left: 55%;
+  transform: translateX(-50%);
+  width: 500px;
+  height: 300px;
+  background: radial-gradient(ellipse 50% 50% at 50% 0%, rgba(37,99,235,0.06), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+  animation: cta-pulse 8s ease-in-out infinite;
+}
+
+@keyframes cta-pulse {
+  0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); }
+  50% { opacity: 0.7; transform: translateX(-50%) scale(1.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ctaGlow2 { animation: none; }
 }
 
 .cta .container { position: relative; z-index: 1; }

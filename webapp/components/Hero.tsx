@@ -46,6 +46,8 @@ export default function Hero() {
     <section className={styles.hero}>
       <div className={`${styles.heroOrb} ${styles.heroOrb1}`} aria-hidden="true" />
       <div className={`${styles.heroOrb} ${styles.heroOrb2}`} aria-hidden="true" />
+      <div className={`${styles.heroOrb} ${styles.heroOrb3}`} aria-hidden="true" />
+      <div className={styles.heroHorizon} aria-hidden="true" />
 
       <div className={`container ${styles.heroLayout}`}>
         {/* Left */}

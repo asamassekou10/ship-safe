@@ -1,0 +1,62 @@
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  will-change: transform;
+}
+
+.blob1 {
+  width: 800px;
+  height: 600px;
+  top: -200px;
+  left: -100px;
+  background: radial-gradient(circle, rgba(8, 145, 178, 0.05) 0%, transparent 70%);
+  animation: drift1 30s ease-in-out infinite alternate;
+}
+
+.blob2 {
+  width: 600px;
+  height: 500px;
+  top: -100px;
+  right: -150px;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.04) 0%, transparent 70%);
+  animation: drift2 35s ease-in-out infinite alternate;
+}
+
+.blob3 {
+  width: 700px;
+  height: 500px;
+  bottom: -150px;
+  left: 30%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.03) 0%, transparent 70%);
+  animation: drift3 40s ease-in-out infinite alternate;
+}
+
+@keyframes drift1 {
+  from { transform: translate(0, 0); }
+  to { transform: translate(60px, 40px); }
+}
+
+@keyframes drift2 {
+  from { transform: translate(0, 0); }
+  to { transform: translate(-50px, 30px); }
+}
+
+@keyframes drift3 {
+  from { transform: translate(0, 0); }
+  to { transform: translate(40px, -40px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blob1, .blob2, .blob3 {
+    animation: none;
+  }
+}

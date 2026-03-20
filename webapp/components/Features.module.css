@@ -1,5 +1,20 @@
 .features {
   border-top: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.features::before {
+  content: '';
+  position: absolute;
+  top: -200px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  height: 600px;
+  background: radial-gradient(ellipse 60% 50% at 50% 30%, rgba(8,145,178,0.035), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .grid {
