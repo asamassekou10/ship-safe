@@ -11,6 +11,9 @@ const nextConfig = {
   // Pin trace root to webapp/ so Next.js doesn't crawl into the parent monorepo.
   // Vercel sets its own root, so this only matters for local Windows builds.
   outputFileTracingRoot: resolve(__dirname),
+  // Exclude ship-safe from webpack bundling so its files are deployed as-is
+  // and can be found by the scan API route at runtime via process.cwd().
+  serverExternalPackages: ['ship-safe'],
 };
 
 export default nextConfig;
