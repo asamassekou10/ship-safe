@@ -21,10 +21,12 @@ export const stripe = new Proxy({} as Stripe, {
 
 export const PLANS = {
   pro: {
+    priceId: 'price_1TD476CDeQdNDMtzO0XkRs8o',
     price: 900, // $9 in cents
     name: 'Ship Safe Pro',
   },
   team: {
+    priceId: 'price_1TD47iCDeQdNDMtzpvJelLIa',
     price: 1900, // $19 in cents
     name: 'Ship Safe Team',
   },
