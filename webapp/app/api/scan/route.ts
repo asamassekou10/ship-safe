@@ -6,7 +6,7 @@ import { notifyScanComplete, notifyScanFailed } from '@/lib/notifications';
 import { logAudit } from '@/lib/audit';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { mkdtemp, rm } from 'fs/promises';
+import { mkdtemp, rm, writeFile, mkdir } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
@@ -38,49 +38,80 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { repo, branch = 'main', method = 'github', options = {} } = body;
+  const { repo, branch = '', method = 'github', options = {} } = body;
 
   if (!repo) {
     return NextResponse.json({ error: 'repo is required' }, { status: 400 });
   }
 
+  // For URL method, extract GitHub owner/repo if it's a GitHub URL
+  let resolvedRepo = repo;
+  let resolvedMethod = method;
+  if (method === 'url') {
+    const ghMatch = (repo as string).match(/github\.com\/([^/]+\/[^/\s.]+)/);
+    if (ghMatch) {
+      resolvedRepo = ghMatch[1].replace(/\.git$/, '');
+      resolvedMethod = 'github';
+    } else {
+      return NextResponse.json(
+        { error: 'Only GitHub repositories are supported for cloud scans. Use the GitHub tab or upload a ZIP.' },
+        { status: 400 },
+      );
+    }
+  }
+
   const scan = await prisma.scan.create({
-    data: { userId, repo, branch, method, trigger: 'manual', status: 'running', options },
+    data: { userId, repo: resolvedRepo, branch, method: resolvedMethod, trigger: 'manual', status: 'running', options },
   });
 
-  await logAudit({ userId, action: 'scan.created', target: scan.id, meta: { repo, branch, method } });
+  await logAudit({ userId, action: 'scan.created', target: scan.id, meta: { repo: resolvedRepo, branch, method: resolvedMethod } });
 
-  runScan(scan.id, userId, repo, branch, method, options).catch(console.error);
+  runScan(scan.id, userId, resolvedRepo, branch, options).catch(console.error);
 
   return NextResponse.json({ id: scan.id, status: 'running' });
+}
+
+/** Download a GitHub repo tarball and extract it — no git required */
+async function fetchRepoTarball(owner: string, repo: string, ref: string, destDir: string) {
+  // ref can be a branch, tag, or commit SHA; empty string → default branch
+  const refSegment = ref || 'HEAD';
+  const url = `https://api.github.com/repos/${owner}/${repo}/tarball/${refSegment}`;
+
+  const headers: Record<string, string> = {
+    'User-Agent': 'ship-safe-webapp',
+    Accept: 'application/vnd.github.v3+json',
+  };
+  if (process.env.GITHUB_TOKEN) {
+    headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
+  }
+
+  const res = await fetch(url, { headers, redirect: 'follow' });
+
+  if (res.status === 404) throw new Error('Repository not found or is private.');
+  if (!res.ok) throw new Error(`GitHub API error ${res.status}: ${await res.text()}`);
+
+  const tarPath = `${destDir}.tar.gz`;
+  const buffer = Buffer.from(await res.arrayBuffer());
+  await writeFile(tarPath, buffer);
+  await mkdir(destDir, { recursive: true });
+
+  // tar is available in Vercel's Lambda (Amazon Linux); git is not
+  await execAsync(`tar -xzf "${tarPath}" -C "${destDir}" --strip-components=1`, { timeout: 30_000 });
 }
 
 async function runScan(
   scanId: string,
   userId: string,
-  repo: string,
+  repo: string,         // owner/repo format
   branch: string,
-  method: string,
   options: Record<string, boolean>,
 ) {
   const tmpDir = await mkdtemp(join(tmpdir(), 'shipsafe-'));
   const startTime = Date.now();
 
   try {
-    if (method === 'github' || method === 'url') {
-      const repoUrl = method === 'github'
-        ? `https://github.com/${repo}.git`
-        : repo;
-      // Clone default branch first (avoids failure when repo uses master vs main)
-      await execAsync(`git clone --depth 1 ${repoUrl} ${tmpDir}/repo`, { timeout: 60_000 });
-      // Checkout requested branch only if it differs from whatever was cloned
-      if (branch) {
-        await execAsync(
-          `git -C ${tmpDir}/repo fetch --depth 1 origin ${branch} 2>/dev/null && git -C ${tmpDir}/repo checkout ${branch} 2>/dev/null || true`,
-          { timeout: 20_000 },
-        );
-      }
-    }
+    const [owner, repoName] = repo.split('/');
+    await fetchRepoTarball(owner, repoName, branch, join(tmpDir, 'repo'));
 
     const scanDir = join(tmpDir, 'repo');
     const flags: string[] = ['--json'];
@@ -89,7 +120,7 @@ async function runScan(
     if (options.noAi) flags.push('--no-ai');
 
     const { stdout } = await execAsync(
-      `node_modules/.bin/ship-safe audit ${scanDir} ${flags.join(' ')}`,
+      `node_modules/.bin/ship-safe audit "${scanDir}" ${flags.join(' ')}`,
       { timeout: 120_000, maxBuffer: 10 * 1024 * 1024, cwd: process.cwd() },
     );
 
@@ -110,13 +141,11 @@ async function runScan(
       data: { status: 'done', score, grade, findings, secrets, vulns, cves, duration, report: report as Prisma.InputJsonValue },
     });
 
-    // Update monitored repo stats
     await prisma.monitoredRepo.updateMany({
       where: { userId, repo },
       data: { lastScanAt: new Date(), lastScore: score, lastGrade: grade },
     });
 
-    // Notify
     await notifyScanComplete({ ...updated, userId });
   } catch (err) {
     const duration = (Date.now() - startTime) / 1000;
