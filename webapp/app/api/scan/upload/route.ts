@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { exec } from 'child_process';
@@ -113,7 +114,7 @@ async function runUploadScan(
 
     await prisma.scan.update({
       where: { id: scanId },
-      data: { status: 'done', score, grade, findings, secrets, vulns, cves, duration, report },
+      data: { status: 'done', score, grade, findings, secrets, vulns, cves, duration, report: report as Prisma.InputJsonValue },
     });
   } catch (err) {
     const duration = (Date.now() - startTime) / 1000;

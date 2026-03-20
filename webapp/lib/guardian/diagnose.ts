@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { appendTimeline, advanceRun } from './pipeline';
 
@@ -97,7 +98,7 @@ export async function diagnoseFailure(run: Run) {
 
   await prisma.pRGuardianRun.update({
     where: { id: run.id },
-    data: { status: nextStatus, diagnosis },
+    data: { status: nextStatus, diagnosis: diagnosis as unknown as Prisma.InputJsonValue },
   });
 
   if (nextStatus === 'fixing') {

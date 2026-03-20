@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { notifyScanComplete, notifyScanFailed } from '@/lib/notifications';
@@ -100,7 +101,7 @@ async function runScan(
 
     const updated = await prisma.scan.update({
       where: { id: scanId },
-      data: { status: 'done', score, grade, findings, secrets, vulns, cves, duration, report },
+      data: { status: 'done', score, grade, findings, secrets, vulns, cves, duration, report: report as Prisma.InputJsonValue },
     });
 
     // Update monitored repo stats

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { authenticateApiKey } from '@/lib/api-auth';
@@ -112,12 +113,12 @@ async function runScanBackground(scanId: string, userId: string, repo: string, b
     const secrets = cats?.secrets?.findingCount ?? 0;
     const vulns = (cats?.injection?.findingCount ?? 0) + (cats?.auth?.findingCount ?? 0);
     const cves = typeof report.totalDepVulns === 'number' ? report.totalDepVulns : 0;
-    const updated = await prisma.scan.update({ where: { id: scanId }, data: { status: 'done', score, grade, findings, secrets, vulns, cves, duration, report } });
+    const updated = await prisma.scan.update({ where: { id: scanId }, data: { status: 'done', score, grade, findings, secrets, vulns, cves, duration, report: report as Prisma.InputJsonValue } });
     await notifyScanComplete({ ...updated, userId });
   } catch (err) {
     const duration = (Date.now() - startTime) / 1000;
     const errorMsg = err instanceof Error ? err.message : String(err);
-    await prisma.scan.update({ where: { id: scanId }, data: { status: 'failed', duration, report: { error: errorMsg } } });
+    await prisma.scan.update({ where: { id: scanId }, data: { status: 'failed', duration, report: { error: errorMsg } as Prisma.InputJsonValue } });
     await notifyScanFailed({ id: scanId, repo, branch, score: null, grade: null, findings: 0, secrets: 0, vulns: 0, cves: 0, status: 'failed', userId }, errorMsg);
   } finally {
     await rm(tmpDir, { recursive: true, force: true }).catch(() => {});

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
 import crypto from 'crypto';
@@ -61,13 +62,13 @@ async function handleInstallation(payload: Record<string, unknown>) {
         accountType: account.type as string,
         targetType: installation.target_type as string,
         repositorySelection: (installation.repository_selection as string) || 'all',
-        permissions: installation.permissions as Record<string, unknown>,
+        permissions: installation.permissions as Prisma.InputJsonValue,
         events: installation.events as string[],
       },
       update: {
         accountLogin: account.login as string,
         repositorySelection: (installation.repository_selection as string) || 'all',
-        permissions: installation.permissions as Record<string, unknown>,
+        permissions: installation.permissions as Prisma.InputJsonValue,
         events: installation.events as string[],
       },
     });
@@ -228,7 +229,7 @@ async function triggerScan(scanId: string, userId: string, repo: string, branch:
 
     const updated = await prisma.scan.update({
       where: { id: scanId },
-      data: { status: 'done', score, grade, findings, secrets, vulns, cves, duration, report },
+      data: { status: 'done', score, grade, findings, secrets, vulns, cves, duration, report: report as Prisma.InputJsonValue },
     });
 
     await notifyScanComplete({ ...updated, userId });
