@@ -9,6 +9,7 @@ import { promisify } from 'util';
 import { mkdtemp, rm, writeFile, mkdir } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import * as tar from 'tar';
 
 const execAsync = promisify(exec);
 const FREE_MONTHLY_LIMIT = 5;
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'repo is required' }, { status: 400 });
   }
 
-  // For URL method, extract GitHub owner/repo if it's a GitHub URL
+  // For URL method, resolve GitHub URLs to owner/repo
   let resolvedRepo = repo;
   let resolvedMethod = method;
   if (method === 'url') {
@@ -71,9 +72,8 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ id: scan.id, status: 'running' });
 }
 
-/** Download a GitHub repo tarball and extract it — no git required */
+/** Download GitHub repo tarball and extract using the `tar` npm package (no system binaries needed) */
 async function fetchRepoTarball(owner: string, repo: string, ref: string, destDir: string) {
-  // ref can be a branch, tag, or commit SHA; empty string → default branch
   const refSegment = ref || 'HEAD';
   const url = `https://api.github.com/repos/${owner}/${repo}/tarball/${refSegment}`;
 
@@ -95,14 +95,14 @@ async function fetchRepoTarball(owner: string, repo: string, ref: string, destDi
   await writeFile(tarPath, buffer);
   await mkdir(destDir, { recursive: true });
 
-  // tar is available in Vercel's Lambda (Amazon Linux); git is not
-  await execAsync(`tar -xzf "${tarPath}" -C "${destDir}" --strip-components=1`, { timeout: 30_000 });
+  // Pure-JS tar extraction — no system `tar` binary required
+  await tar.extract({ file: tarPath, cwd: destDir, strip: 1 });
 }
 
 async function runScan(
   scanId: string,
   userId: string,
-  repo: string,         // owner/repo format
+  repo: string,
   branch: string,
   options: Record<string, boolean>,
 ) {
