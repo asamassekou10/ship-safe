@@ -2,15 +2,20 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import styles from './Hero.module.css';
+import { formatNumber } from '@/lib/stats';
 
-const stats = [
-  { num: '16', label: 'Security agents' },
-  { num: '80+', label: 'Attack classes' },
-  { num: '5', label: 'OWASP standards' },
-  { num: '<5s', label: 'To run' },
-];
+interface HeroProps {
+  stars?: number;
+  downloads?: number;
+}
 
-export default function Hero() {
+export default function Hero({ stars, downloads }: HeroProps) {
+  const stats = [
+    { num: '16', label: 'Security agents' },
+    { num: '80+', label: 'Attack classes' },
+    { num: stars ? formatNumber(stars) : '1.2k', label: 'GitHub stars' },
+    { num: downloads ? formatNumber(downloads) : '8k+', label: 'Weekly downloads' },
+  ];
   useEffect(() => {
     const scoreEl = document.getElementById('score-val');
     const arcEl = document.getElementById('score-arc') as SVGCircleElement | null;
