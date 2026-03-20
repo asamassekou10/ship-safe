@@ -34,10 +34,10 @@ const EXAMPLE_RESULT: ScanResult = {
 type Phase = 'idle' | 'scanning' | 'done' | 'error';
 
 const SCAN_STEPS = [
-  'Cloning repository…',
+  'Fetching repository tree…',
   'Scanning for secrets…',
-  'Analyzing dependencies…',
   'Checking code patterns…',
+  'Analyzing configurations…',
   'Generating report…',
 ];
 
