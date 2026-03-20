@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import styles from '../dashboard.module.css';
+import s from './settings.module.css';
 import type { Metadata } from 'next';
 import UpgradeButton from './UpgradeButton';
 import NotificationSettings from './NotificationSettings';
@@ -41,18 +42,14 @@ export default async function Settings() {
       {/* Profile */}
       <div className={styles.section}>
         <h2>Profile</h2>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1rem',
-          padding: '1.25rem', borderRadius: '12px',
-          background: 'var(--bg-card)', border: '1px solid var(--border)',
-        }}>
+        <div className={s.profileCard}>
           {user.image && (
-            <img src={user.image} alt="" width={48} height={48} style={{ borderRadius: '50%' }} />
+            <img src={user.image} alt="" width={48} height={48} className={s.profileAvatar} />
           )}
           <div>
-            <div style={{ fontWeight: 600, fontSize: '1rem' }}>{user.name || 'User'}</div>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{user.email}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.25rem' }}>
+            <div className={s.profileName}>{user.name || 'User'}</div>
+            <div className={s.profileEmail}>{user.email}</div>
+            <div className={s.profileSince}>
               Member since {new Date(user.createdAt).toLocaleDateString()}
             </div>
           </div>
@@ -62,16 +59,12 @@ export default async function Settings() {
       {/* Plan */}
       <div className={styles.section}>
         <h2>Plan</h2>
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
-          marginTop: '1rem', padding: '1.25rem', borderRadius: '12px',
-          background: 'var(--bg-card)', border: '1px solid var(--border)', flexWrap: 'wrap',
-        }}>
+        <div className={s.planCard}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>
+            <div className={s.planName}>
               {user.plan.charAt(0).toUpperCase() + user.plan.slice(1)} Plan
             </div>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+            <div className={s.planDesc}>
               {user.plan === 'free'
                 ? '5 cloud scans per month · Public repos'
                 : 'Unlimited cloud scans · Private repos · AI analysis'}
@@ -85,23 +78,16 @@ export default async function Settings() {
       {payments.length > 0 && (
         <div className={styles.section}>
           <h2>Payment History</h2>
-          <div style={{
-            marginTop: '1rem', borderRadius: '12px', overflow: 'hidden',
-            border: '1px solid var(--border)',
-          }}>
+          <div className={s.paymentList}>
             {payments.map((p, i) => (
-              <div key={i} style={{
-                display: 'flex', justifyContent: 'space-between', padding: '0.85rem 1.25rem',
-                borderBottom: i < payments.length - 1 ? '1px solid var(--border)' : 'none',
-                background: 'var(--bg-card)',
-              }}>
-                <span style={{ fontSize: '0.88rem' }}>
+              <div key={i} className={s.paymentRow}>
+                <span className={s.paymentPlan}>
                   {p.plan.charAt(0).toUpperCase() + p.plan.slice(1)} Plan
                 </span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--green)' }}>
+                <span className={s.paymentAmount}>
                   ${(p.amount / 100).toFixed(2)}
                 </span>
-                <span style={{ fontSize: '0.82rem', color: 'var(--text-dim)' }}>
+                <span className={s.paymentDate}>
                   {new Date(p.createdAt).toLocaleDateString()}
                 </span>
               </div>

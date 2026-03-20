@@ -20,7 +20,7 @@
   height: 44px;
   border-radius: 10px;
   background: var(--cyan-glow);
-  border: 1px solid rgba(34, 211, 238, 0.18);
+  border: 1px solid rgba(8, 145, 178, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -44,7 +44,7 @@
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--border);
-  background: #0d1117;
+  background: #f3f4f6;
   margin-top: auto;
 }
 
@@ -107,8 +107,8 @@
 }
 .miniTag[data-level="medium"] {
   color: var(--yellow);
-  background: rgba(251, 191, 36, 0.12);
-  border: 1px solid rgba(251, 191, 36, 0.3);
+  background: rgba(217, 119, 6, 0.08);
+  border: 1px solid rgba(217, 119, 6, 0.2);
 }
 
 /* Diff block (Remediate card) */
@@ -116,7 +116,7 @@
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--border);
-  background: #0d1117;
+  background: #f3f4f6;
   margin-top: auto;
 }
 
@@ -139,13 +139,13 @@
 }
 .diffBadge[data-type="before"] {
   color: var(--red);
-  background: rgba(248, 113, 113, 0.12);
-  border: 1px solid rgba(248, 113, 113, 0.3);
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.2);
 }
 .diffBadge[data-type="after"] {
   color: var(--green);
-  background: rgba(74, 222, 128, 0.12);
-  border: 1px solid rgba(74, 222, 128, 0.3);
+  background: rgba(22, 163, 74, 0.08);
+  border: 1px solid rgba(22, 163, 74, 0.2);
 }
 
 .diffName {
@@ -175,7 +175,7 @@
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--border);
-  background: #0d1117;
+  background: #f3f4f6;
   margin-top: auto;
 }
 

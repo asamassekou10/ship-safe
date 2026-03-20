@@ -15,7 +15,7 @@
   padding: 2.5rem;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 0 0 1px rgba(34,211,238,0.06), 0 24px 60px rgba(0,0,0,0.5);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 24px 60px rgba(0,0,0,0.06);
 }
 
 .authHeader {
@@ -89,7 +89,7 @@
 .input::placeholder { color: var(--text-dim); }
 .input:focus {
   border-color: var(--cyan-dim);
-  box-shadow: 0 0 0 3px rgba(34,211,238,0.08);
+  box-shadow: 0 0 0 3px rgba(8,145,178,0.08);
 }
 
 .submitBtn {

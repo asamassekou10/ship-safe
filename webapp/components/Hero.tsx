@@ -130,8 +130,8 @@ export default function Hero() {
                     />
                     <defs>
                       <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#22d3ee" />
-                        <stop offset="100%" stopColor="#60a5fa" />
+                        <stop offset="0%" stopColor="#0891b2" />
+                        <stop offset="100%" stopColor="#2563eb" />
                       </linearGradient>
                     </defs>
                   </svg>

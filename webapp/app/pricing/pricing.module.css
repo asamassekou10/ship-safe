@@ -19,8 +19,8 @@
 
 .featured {
   border-color: var(--cyan-dim);
-  background: linear-gradient(160deg, rgba(34,211,238,0.06) 0%, var(--bg-card) 50%);
-  box-shadow: 0 0 0 1px rgba(34,211,238,0.15), 0 16px 48px rgba(0,0,0,0.5);
+  background: linear-gradient(160deg, rgba(8,145,178,0.04) 0%, var(--bg-card) 50%);
+  box-shadow: 0 0 0 1px rgba(8,145,178,0.12), 0 16px 48px rgba(0,0,0,0.08);
 }
 
 .popularBadge {
@@ -29,7 +29,7 @@
   left: 50%;
   transform: translateX(-50%);
   background: var(--cyan);
-  color: #09090b;
+  color: #ffffff;
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.08em;

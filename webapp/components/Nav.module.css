@@ -2,7 +2,7 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(9, 9, 11, 0.8);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid transparent;
   transition: border-color 0.2s, background 0.2s;
@@ -10,7 +10,7 @@
 
 .scrolled {
   border-bottom-color: var(--border);
-  background: rgba(9, 9, 11, 0.95);
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .navInner {
@@ -71,7 +71,7 @@
   align-items: center;
   padding: 0.4rem 1rem;
   background: var(--cyan);
-  color: #09090b !important;
+  color: #ffffff !important;
   font-weight: 700;
   font-size: 0.85rem;
   border-radius: 7px;
@@ -79,7 +79,7 @@
   transition: background 0.15s, transform 0.15s;
 }
 .navCta:hover {
-  background: #67e8f9;
+  background: #0e7490;
   text-decoration: none;
   transform: translateY(-1px);
 }

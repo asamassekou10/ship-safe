@@ -48,10 +48,10 @@
   letter-spacing: 0.03em;
 }
 
-.statusMerged { background: rgba(74,222,128,0.12); color: var(--green); }
-.statusFailed { background: rgba(248,113,113,0.12); color: var(--red); }
-.statusBlocked { background: rgba(251,191,36,0.12); color: var(--yellow); }
-.statusActive { background: rgba(34,211,238,0.12); color: var(--cyan); }
+.statusMerged { background: rgba(22,163,74,0.08); color: var(--green); }
+.statusFailed { background: rgba(220,38,38,0.08); color: var(--red); }
+.statusBlocked { background: rgba(217,119,6,0.08); color: var(--yellow); }
+.statusActive { background: rgba(8,145,178,0.08); color: var(--cyan); }
 
 .section { margin-bottom: 2rem; }
 .sectionTitle {
@@ -95,10 +95,10 @@
   background: var(--bg-card);
 }
 
-.dotGreen { border-color: var(--green); background: rgba(74,222,128,0.2); }
-.dotCyan { border-color: var(--cyan); background: rgba(34,211,238,0.2); }
-.dotYellow { border-color: var(--yellow); background: rgba(251,191,36,0.2); }
-.dotRed { border-color: var(--red); background: rgba(248,113,113,0.2); }
+.dotGreen { border-color: var(--green); background: rgba(22,163,74,0.15); }
+.dotCyan { border-color: var(--cyan); background: rgba(8,145,178,0.15); }
+.dotYellow { border-color: var(--yellow); background: rgba(217,119,6,0.15); }
+.dotRed { border-color: var(--red); background: rgba(220,38,38,0.15); }
 
 .timelineEvent {
   font-size: 0.88rem;
@@ -151,8 +151,8 @@
   font-weight: 600;
 }
 
-.fpBadgeFalse { background: rgba(251,191,36,0.12); color: var(--yellow); }
-.fpBadgeReal { background: rgba(248,113,113,0.12); color: var(--red); }
+.fpBadgeFalse { background: rgba(217,119,6,0.08); color: var(--yellow); }
+.fpBadgeReal { background: rgba(220,38,38,0.08); color: var(--red); }
 
 .actions {
   display: flex;
@@ -172,7 +172,7 @@
 }
 
 .actionBtn:hover { border-color: var(--border-hover); }
-.actionBtnPrimary { background: var(--cyan); color: #000; border-color: var(--cyan); font-weight: 600; }
+.actionBtnPrimary { background: var(--cyan); color: #fff; border-color: var(--cyan); font-weight: 600; }
 
 .loading {
   text-align: center;
