@@ -1,8 +1,10 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import styles from './dashboard.module.css';
+import UpgradeToast from './UpgradeToast';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -51,6 +53,7 @@ export default async function Dashboard() {
 
   return (
     <div className={styles.page}>
+      <Suspense fallback={null}><UpgradeToast /></Suspense>
       <div className={styles.header}>
         <div>
           <h1>Dashboard</h1>

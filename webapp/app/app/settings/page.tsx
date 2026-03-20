@@ -66,12 +66,14 @@ export default async function Settings() {
             </div>
             <div className={s.planDesc}>
               {user.plan === 'free'
-                ? '5 cloud scans per month · Public repos'
-                : 'Unlimited cloud scans · Private repos · AI analysis'}
+                ? '5 cloud scans per month · Public repos only'
+                : user.plan === 'team'
+                ? 'Unlimited scans · Private repos · Shared workspace · Webhooks'
+                : 'Unlimited scans · Private repos · AI analysis · API access'}
             </div>
           </div>
-          {user.plan === 'free' && <UpgradeButton />}
         </div>
+        {user.plan === 'free' && <UpgradeButton />}
       </div>
 
       {/* Payment history */}

@@ -167,3 +167,35 @@
 }
 
 .error { color: var(--red); font-size: 0.82rem; margin-top: 0.5rem; }
+
+/* Plan upgrade options */
+.planOptions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+  width: 100%;
+}
+
+@media (max-width: 600px) {
+  .planOptions { grid-template-columns: 1fr; }
+}
+
+.planOption {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.1rem 1.25rem;
+}
+
+.planOptionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.planOptionName { font-weight: 700; font-size: 1rem; }
+.planOptionPrice { font-weight: 700; font-size: 1.1rem; color: var(--cyan); }
+.planOptionOnce { font-size: 0.72rem; font-weight: 400; color: var(--text-dim); }
+.planOptionDesc { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; }

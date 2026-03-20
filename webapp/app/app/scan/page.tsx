@@ -50,7 +50,11 @@ export default function NewScan() {
 
         const res = await fetch('/api/scan/upload', { method: 'POST', body: formData });
         const data = await res.json();
-        if (!res.ok) { setError(data.error || 'Upload failed'); setScanning(false); return; }
+        if (!res.ok) {
+          setError(res.status === 429 ? '__LIMIT__' : (data.error || 'Upload failed'));
+          setScanning(false);
+          return;
+        }
         router.push(`/app/scans/${data.id}`);
         return;
       }
@@ -69,7 +73,15 @@ export default function NewScan() {
       });
 
       const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Scan failed'); setScanning(false); return; }
+      if (!res.ok) {
+        if (res.status === 429) {
+          setError('__LIMIT__');
+        } else {
+          setError(data.error || 'Scan failed');
+        }
+        setScanning(false);
+        return;
+      }
       router.push(`/app/scans/${data.id}`);
     } catch {
       setError('Network error. Please try again.');
@@ -210,7 +222,17 @@ export default function NewScan() {
           </label>
         </div>
 
-        {error && <div className={styles.error}>{error}</div>}
+        {error === '__LIMIT__' ? (
+          <div className={styles.error}>
+            Free plan limit reached (5 scans/month).{' '}
+            <a href="/app/settings" style={{ color: 'var(--cyan)', textDecoration: 'underline' }}>
+              Upgrade to Pro
+            </a>{' '}
+            for unlimited scans.
+          </div>
+        ) : error ? (
+          <div className={styles.error}>{error}</div>
+        ) : null}
 
         <button type="submit" className={`btn btn-primary ${styles.submitBtn}`} disabled={scanning}>
           {scanning ? (
