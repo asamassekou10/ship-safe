@@ -14,6 +14,11 @@ const nextConfig = {
   // Exclude ship-safe from webpack bundling so its files are deployed as-is
   // and can be found by the scan API route at runtime via process.cwd().
   serverExternalPackages: ['ship-safe'],
+  // Explicitly include ship-safe files in the Lambda bundle — nft won't trace
+  // them automatically because we run ship-safe as a subprocess (no import).
+  outputFileTracingIncludes: {
+    '/api/scan': ['./node_modules/ship-safe/**/*'],
+  },
 };
 
 export default nextConfig;
