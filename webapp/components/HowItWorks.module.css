@@ -27,7 +27,7 @@
   height: 2.2rem;
   border-radius: 50%;
   background: var(--cyan);
-  color: #09090b;
+  color: #ffffff;
   font-weight: 800;
   font-size: 0.9rem;
   display: flex;
@@ -35,7 +35,7 @@
   justify-content: center;
   flex-shrink: 0;
   margin-top: 0.1rem;
-  box-shadow: 0 0 16px rgba(34,211,238,0.3);
+  box-shadow: 0 0 16px rgba(8,145,178,0.2);
 }
 
 .stepConnector {

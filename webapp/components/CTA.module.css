@@ -12,7 +12,7 @@
   transform: translateX(-50%);
   width: 700px;
   height: 400px;
-  background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(34,211,238,0.12), transparent 70%);
+  background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(8,145,178,0.06), transparent 70%);
   pointer-events: none;
   z-index: 0;
 }

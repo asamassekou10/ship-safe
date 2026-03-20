@@ -244,7 +244,7 @@ export default function ScanDetail() {
                   onClick={() => { setCatFilter(catFilter === key ? null : key); setTab('findings'); }}
                 >
                   <div className={s.catIcon} style={{
-                    background: cat.findingCount > 0 ? 'rgba(248,113,113,0.1)' : 'var(--bg-elevated)',
+                    background: cat.findingCount > 0 ? 'rgba(220,38,38,0.08)' : 'var(--bg-elevated)',
                     color: cat.findingCount > 0 ? 'var(--red)' : 'var(--text-dim)',
                   }}>
                     {catIcons[key] ?? '🛡️'}

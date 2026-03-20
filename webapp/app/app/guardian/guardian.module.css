@@ -139,10 +139,10 @@
   letter-spacing: 0.03em;
 }
 
-.statusMerged { background: rgba(74,222,128,0.12); color: var(--green); }
-.statusFailed { background: rgba(248,113,113,0.12); color: var(--red); }
-.statusBlocked { background: rgba(251,191,36,0.12); color: var(--yellow); }
-.statusActive { background: rgba(34,211,238,0.12); color: var(--cyan); }
+.statusMerged { background: rgba(22,163,74,0.08); color: var(--green); }
+.statusFailed { background: rgba(220,38,38,0.08); color: var(--red); }
+.statusBlocked { background: rgba(217,119,6,0.08); color: var(--yellow); }
+.statusActive { background: rgba(8,145,178,0.08); color: var(--cyan); }
 
 .retryBtn {
   font-size: 0.75rem;
@@ -155,7 +155,7 @@
   font-family: var(--font-sans);
 }
 
-.retryBtn:hover { background: rgba(34,211,238,0.08); }
+.retryBtn:hover { background: rgba(8,145,178,0.06); }
 
 .triggerForm {
   display: flex;

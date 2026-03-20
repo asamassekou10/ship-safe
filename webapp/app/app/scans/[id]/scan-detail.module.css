@@ -90,8 +90,8 @@
 .failedBanner {
   padding: 1.25rem;
   border-radius: 12px;
-  background: rgba(248,113,113,0.08);
-  border: 1px solid rgba(248,113,113,0.2);
+  background: rgba(220,38,38,0.06);
+  border: 1px solid rgba(220,38,38,0.15);
   color: var(--red);
 }
 
@@ -262,10 +262,10 @@
   flex-shrink: 0;
 }
 
-.severityCritical { background: rgba(248,113,113,0.15); color: #f87171; }
-.severityHigh { background: rgba(251,146,60,0.15); color: #fb923c; }
-.severityMedium { background: rgba(251,191,36,0.15); color: #fbbf24; }
-.severityLow { background: rgba(74,222,128,0.12); color: #4ade80; }
+.severityCritical { background: rgba(220,38,38,0.08); color: var(--red); }
+.severityHigh { background: rgba(234,88,12,0.08); color: #ea580c; }
+.severityMedium { background: rgba(217,119,6,0.08); color: var(--yellow); }
+.severityLow { background: rgba(22,163,74,0.08); color: var(--green); }
 
 .findingTitle { font-size: 0.88rem; font-weight: 600; }
 
@@ -356,9 +356,9 @@
   letter-spacing: 0.03em;
 }
 
-.effortLow { background: rgba(74,222,128,0.12); color: var(--green); }
-.effortMedium { background: rgba(251,191,36,0.12); color: var(--yellow); }
-.effortHigh { background: rgba(248,113,113,0.12); color: var(--red); }
+.effortLow { background: rgba(22,163,74,0.08); color: var(--green); }
+.effortMedium { background: rgba(217,119,6,0.08); color: var(--yellow); }
+.effortHigh { background: rgba(220,38,38,0.08); color: var(--red); }
 
 /* Dep vulns */
 .depVulnList {
@@ -443,7 +443,7 @@
 .rawJson {
   padding: 1.25rem;
   border-radius: 12px;
-  background: #0d1117;
+  background: #f3f4f6;
   border: 1px solid var(--border);
   overflow: auto;
   max-height: 500px;

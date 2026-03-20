@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import s from './settings.module.css';
 
 interface Settings {
   emailOnComplete: boolean;
@@ -36,27 +37,21 @@ export default function NotificationSettings() {
 
   if (!settings) return <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>Loading...</p>;
 
-  const cardStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '1rem 1.25rem' };
-  const rowStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0' };
-  const labelStyle: React.CSSProperties = { fontSize: '0.85rem', fontWeight: 500 };
-  const descStyle: React.CSSProperties = { fontSize: '0.75rem', color: 'var(--text-dim)' };
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
-      <div style={cardStyle}>
-        <div style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.5rem' }}>Email Notifications</div>
-        <div style={rowStyle}>
-          <div><span style={labelStyle}>Scan complete</span><br /><span style={descStyle}>Email when a scan finishes</span></div>
-          <input type="checkbox" checked={settings.emailOnComplete} onChange={e => save({ emailOnComplete: e.target.checked })} style={{ accentColor: 'var(--cyan)' }} />
+    <div className={s.settingsGroup}>
+      <div className={s.settingsCard}>
+        <div className={s.settingsCardTitle}>Email Notifications</div>
+        <div className={s.settingsRow}>
+          <div><span className={s.settingsLabel}>Scan complete</span><br /><span className={s.settingsDesc}>Email when a scan finishes</span></div>
+          <input type="checkbox" checked={settings.emailOnComplete} onChange={e => save({ emailOnComplete: e.target.checked })} className={s.checkbox} />
         </div>
-        <div style={rowStyle}>
-          <div><span style={labelStyle}>Critical findings</span><br /><span style={descStyle}>Email when critical issues are found</span></div>
-          <input type="checkbox" checked={settings.emailOnCritical} onChange={e => save({ emailOnCritical: e.target.checked })} style={{ accentColor: 'var(--cyan)' }} />
+        <div className={s.settingsRow}>
+          <div><span className={s.settingsLabel}>Critical findings</span><br /><span className={s.settingsDesc}>Email when critical issues are found</span></div>
+          <input type="checkbox" checked={settings.emailOnCritical} onChange={e => save({ emailOnCritical: e.target.checked })} className={s.checkbox} />
         </div>
-        <div style={rowStyle}>
-          <div><span style={labelStyle}>Weekly digest</span><br /><span style={descStyle}>Summary of scan activity</span></div>
-          <select value={settings.emailDigest} onChange={e => save({ emailDigest: e.target.value })}
-            style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px', padding: '0.35rem 0.6rem', color: 'var(--text)', fontSize: '0.82rem', fontFamily: 'var(--font-sans)' }}>
+        <div className={s.settingsRow}>
+          <div><span className={s.settingsLabel}>Weekly digest</span><br /><span className={s.settingsDesc}>Summary of scan activity</span></div>
+          <select value={settings.emailDigest} onChange={e => save({ emailDigest: e.target.value })} className={s.settingsSelect}>
             <option value="off">Off</option>
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
@@ -64,30 +59,30 @@ export default function NotificationSettings() {
         </div>
       </div>
 
-      <div style={cardStyle}>
-        <div style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.5rem' }}>Slack Integration</div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem' }}>
+      <div className={s.settingsCard}>
+        <div className={s.settingsCardTitle}>Slack Integration</div>
+        <div className={s.settingsInputRow}>
           <input
             type="url"
             placeholder="https://hooks.slack.com/services/..."
             value={settings.slackWebhookUrl || ''}
             onChange={e => setSettings(prev => prev ? { ...prev, slackWebhookUrl: e.target.value } : prev)}
             onBlur={e => save({ slackWebhookUrl: e.target.value || null })}
-            style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.55rem 0.85rem', color: 'var(--text)', fontSize: '0.85rem', fontFamily: 'var(--font-sans)', outline: 'none' }}
+            className={s.settingsInput}
           />
         </div>
-        <div style={rowStyle}>
-          <div><span style={labelStyle}>Post on scan complete</span></div>
-          <input type="checkbox" checked={settings.slackOnComplete} onChange={e => save({ slackOnComplete: e.target.checked })} style={{ accentColor: 'var(--cyan)' }} />
+        <div className={s.settingsRow}>
+          <div><span className={s.settingsLabel}>Post on scan complete</span></div>
+          <input type="checkbox" checked={settings.slackOnComplete} onChange={e => save({ slackOnComplete: e.target.checked })} className={s.checkbox} />
         </div>
-        <div style={rowStyle}>
-          <div><span style={labelStyle}>Post on critical findings</span></div>
-          <input type="checkbox" checked={settings.slackOnCritical} onChange={e => save({ slackOnCritical: e.target.checked })} style={{ accentColor: 'var(--cyan)' }} />
+        <div className={s.settingsRow}>
+          <div><span className={s.settingsLabel}>Post on critical findings</span></div>
+          <input type="checkbox" checked={settings.slackOnCritical} onChange={e => save({ slackOnCritical: e.target.checked })} className={s.checkbox} />
         </div>
       </div>
 
       {(saving || saved) && (
-        <span style={{ fontSize: '0.78rem', color: saved ? 'var(--green)' : 'var(--text-dim)' }}>
+        <span className={s.savedMsg} style={{ color: saved ? 'var(--green)' : 'var(--text-dim)' }}>
           {saving ? 'Saving...' : 'Saved'}
         </span>
       )}

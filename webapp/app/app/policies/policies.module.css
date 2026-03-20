@@ -39,8 +39,8 @@
 .policyActions { display: flex; align-items: center; gap: 0.75rem; }
 
 .enforceBadge { font-size: 0.68rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.03em; }
-.enforceWarn { background: rgba(251,191,36,0.12); color: var(--yellow); }
-.enforceBlock { background: rgba(248,113,113,0.12); color: var(--red); }
+.enforceWarn { background: rgba(217,119,6,0.08); color: var(--yellow); }
+.enforceBlock { background: rgba(220,38,38,0.08); color: var(--red); }
 
 .toggle { position: relative; display: inline-block; width: 36px; height: 20px; }
 .toggle input { opacity: 0; width: 0; height: 0; }

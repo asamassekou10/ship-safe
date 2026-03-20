@@ -22,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        <meta name="theme-color" content="#09090b" />
+        <meta name="theme-color" content="#ffffff" />
         <link rel="icon" type="image/png" href="/logo.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -32,11 +32,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <div id="bg-orbs" aria-hidden="true">
-          <div className="bg-orb bg-orb-1" />
-          <div className="bg-orb bg-orb-2" />
-          <div className="bg-orb bg-orb-3" />
-        </div>
         <Providers>{children}</Providers>
       </body>
     </html>

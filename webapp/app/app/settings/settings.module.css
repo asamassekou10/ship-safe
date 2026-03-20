@@ -1,0 +1,169 @@
+.profileCard {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1.25rem;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+
+.profileAvatar { border-radius: 50%; }
+
+.profileName { font-weight: 600; font-size: 1rem; }
+.profileEmail { font-size: 0.85rem; color: var(--text-muted); }
+.profileSince { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.25rem; }
+
+.planCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1.25rem;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.planName { font-weight: 700; font-size: 1.1rem; }
+.planDesc { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+.paymentList {
+  margin-top: 1rem;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.paymentRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.85rem 1.25rem;
+  background: var(--bg-card);
+}
+
+.paymentRow + .paymentRow { border-top: 1px solid var(--border); }
+
+.paymentPlan { font-size: 0.88rem; }
+.paymentAmount { font-family: var(--font-mono); font-size: 0.85rem; color: var(--green); }
+.paymentDate { font-size: 0.82rem; color: var(--text-dim); }
+
+/* Notification settings */
+.settingsGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.settingsCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+}
+
+.settingsCardTitle { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.5rem; }
+
+.settingsRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+}
+
+.settingsLabel { font-size: 0.85rem; font-weight: 500; }
+.settingsDesc { font-size: 0.75rem; color: var(--text-dim); }
+
+.settingsSelect {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-family: var(--font-sans);
+}
+
+.settingsInput {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.55rem 0.85rem;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: var(--font-sans);
+  outline: none;
+}
+
+.settingsInputRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.checkbox { accent-color: var(--cyan); }
+
+.savedMsg { font-size: 0.78rem; }
+
+/* API Keys */
+.keyReveal {
+  background: rgba(8,145,178,0.04);
+  border: 1px solid var(--cyan-dim);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+}
+
+.keyRevealTitle { font-size: 0.82rem; font-weight: 600; color: var(--cyan); margin-bottom: 0.5rem; }
+
+.keyRevealCode {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  background: var(--bg);
+  padding: 0.6rem 0.85rem;
+  border-radius: 6px;
+  word-break: break-all;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+
+.keyRevealHint { font-size: 0.72rem; color: var(--text-dim); margin-top: 0.35rem; }
+
+.keyRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.keyRow:last-child { border-bottom: none; }
+
+.keyName { font-size: 0.85rem; font-weight: 600; }
+.keyPrefix { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim); }
+
+.revokeBtn {
+  font-size: 0.75rem;
+  color: var(--red);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.revokeBtn:hover { text-decoration: underline; }
+
+.apiTip { font-size: 0.75rem; color: var(--text-dim); line-height: 1.6; }
+
+.apiTip code {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--cyan);
+}
+
+.error { color: var(--red); font-size: 0.82rem; margin-top: 0.5rem; }

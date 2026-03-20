@@ -142,7 +142,7 @@
 
 /* Upgrade card */
 .upgradeCard {
-  background: linear-gradient(135deg, rgba(34,211,238,0.05) 0%, var(--bg-card) 60%);
+  background: linear-gradient(135deg, rgba(8,145,178,0.04) 0%, var(--bg-card) 60%);
   border: 1px solid var(--cyan-dim);
   border-radius: var(--radius-lg);
   padding: 1.5rem;
