@@ -10,8 +10,13 @@ import { mkdtemp, rm, writeFile, mkdir } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import * as tar from 'tar';
+import { createRequire } from 'module';
 
 const execAsync = promisify(exec);
+
+// Resolve ship-safe bin path at startup — works regardless of process.cwd()
+const _require = createRequire(import.meta.url);
+const SHIP_SAFE_BIN = _require.resolve('ship-safe/cli/bin/ship-safe.js');
 const FREE_MONTHLY_LIMIT = 5;
 
 export async function POST(req: NextRequest) {
@@ -120,8 +125,8 @@ async function runScan(
     if (options.noAi) flags.push('--no-ai');
 
     const { stdout } = await execAsync(
-      `node_modules/.bin/ship-safe audit "${scanDir}" ${flags.join(' ')}`,
-      { timeout: 120_000, maxBuffer: 10 * 1024 * 1024, cwd: process.cwd() },
+      `node "${SHIP_SAFE_BIN}" audit "${scanDir}" ${flags.join(' ')}`,
+      { timeout: 120_000, maxBuffer: 10 * 1024 * 1024 },
     );
 
     const duration = (Date.now() - startTime) / 1000;
