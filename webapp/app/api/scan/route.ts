@@ -10,13 +10,11 @@ import { mkdtemp, rm, writeFile, mkdir } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import * as tar from 'tar';
-import { createRequire } from 'module';
 
 const execAsync = promisify(exec);
 
-// Resolve ship-safe bin path at startup — works regardless of process.cwd()
-const _require = createRequire(import.meta.url);
-const SHIP_SAFE_BIN = _require.resolve('ship-safe/cli/bin/ship-safe.js');
+// Construct path at runtime — avoids webpack module ID substitution
+const SHIP_SAFE_BIN = join(process.cwd(), 'node_modules', 'ship-safe', 'cli', 'bin', 'ship-safe.js');
 const FREE_MONTHLY_LIMIT = 5;
 
 export async function POST(req: NextRequest) {
