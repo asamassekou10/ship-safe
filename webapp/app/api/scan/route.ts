@@ -4,17 +4,13 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { notifyScanComplete, notifyScanFailed } from '@/lib/notifications';
 import { logAudit } from '@/lib/audit';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import { mkdtemp, rm, writeFile, mkdir } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import * as tar from 'tar';
+// Direct import forces nft to trace ship-safe and all its transitive deps
+import { auditCommand } from 'ship-safe';
 
-const execAsync = promisify(exec);
-
-// Construct path at runtime — avoids webpack module ID substitution
-const SHIP_SAFE_BIN = join(process.cwd(), 'node_modules', 'ship-safe', 'cli', 'bin', 'ship-safe.js');
 const FREE_MONTHLY_LIMIT = 5;
 
 export async function POST(req: NextRequest) {
@@ -75,7 +71,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ id: scan.id, status: 'running' });
 }
 
-/** Download GitHub repo tarball and extract using the `tar` npm package (no system binaries needed) */
+/** Download GitHub repo tarball and extract using the `tar` npm package */
 async function fetchRepoTarball(owner: string, repo: string, ref: string, destDir: string) {
   const refSegment = ref || 'HEAD';
   const url = `https://api.github.com/repos/${owner}/${repo}/tarball/${refSegment}`;
@@ -97,9 +93,37 @@ async function fetchRepoTarball(owner: string, repo: string, ref: string, destDi
   const buffer = Buffer.from(await res.arrayBuffer());
   await writeFile(tarPath, buffer);
   await mkdir(destDir, { recursive: true });
-
-  // Pure-JS tar extraction — no system `tar` binary required
   await tar.extract({ file: tarPath, cwd: destDir, strip: 1 });
+}
+
+/** Run auditCommand programmatically, capturing its JSON stdout output */
+async function runAuditCapture(scanDir: string, options: Record<string, boolean>): Promise<string> {
+  const lines: string[] = [];
+  const origLog = console.log;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const origExit = (process as any).exit;
+
+  // Capture JSON output written via console.log
+  console.log = (...args: unknown[]) => lines.push(args.join(' '));
+  // Suppress process.exit() called at end of auditCommand
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (process as any).exit = () => {};
+
+  try {
+    await auditCommand(scanDir, {
+      json: true,
+      deep: options.deep ?? true,
+      deps: options.deps !== false,
+      noAi: options.noAi ?? false,
+      cache: false, // disable cache for cloud scans
+    });
+  } finally {
+    console.log = origLog;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (process as any).exit = origExit;
+  }
+
+  return lines.join('\n');
 }
 
 async function runScan(
@@ -117,15 +141,7 @@ async function runScan(
     await fetchRepoTarball(owner, repoName, branch, join(tmpDir, 'repo'));
 
     const scanDir = join(tmpDir, 'repo');
-    const flags: string[] = ['--json'];
-    if (options.deep) flags.push('--deep');
-    if (options.deps) flags.push('--deps');
-    if (options.noAi) flags.push('--no-ai');
-
-    const { stdout } = await execAsync(
-      `node "${SHIP_SAFE_BIN}" audit "${scanDir}" ${flags.join(' ')}`,
-      { timeout: 120_000, maxBuffer: 10 * 1024 * 1024 },
-    );
+    const stdout = await runAuditCapture(scanDir, options);
 
     const duration = (Date.now() - startTime) / 1000;
     let report: Record<string, unknown> = {};
