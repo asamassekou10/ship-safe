@@ -14,14 +14,7 @@ export default function Signup() {
             <span>ship-safe</span>
           </Link>
           <h1>Create your account</h1>
-          <p>Free forever. No credit card required.</p>
-        </div>
-
-        <div className={signupStyles.freeBadge}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-          5 free cloud scans · All 16 agents · No credit card
+          <p>Sign up to access the cloud dashboard and get started with Pro.</p>
         </div>
 
         <div className={styles.oauthBtns}>

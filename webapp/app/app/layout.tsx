@@ -21,17 +21,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const plan = user?.plan ?? 'free';
 
-  // Count scans this month for free users
-  let scanCount = 0;
-  if (plan === 'free') {
-    const monthStart = new Date();
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-    scanCount = await prisma.scan.count({
-      where: { userId: session.user.id!, createdAt: { gte: monthStart } },
-    });
-  }
-
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
@@ -80,11 +69,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className={styles.sidebarBottom}>
           {plan === 'free' ? (
             <div className={styles.planBadge}>
-              <span className={styles.planName}>Free Plan</span>
-              <span className={styles.planScans}>{scanCount} / 5 scans used</span>
-              <div className={styles.planBar}>
-                <div className={styles.planBarFill} style={{ width: `${Math.min((scanCount / 5) * 100, 100)}%` }} />
-              </div>
+              <span className={styles.planName}>No active plan</span>
               <Link href="/pricing" className={styles.upgradeCta}>Upgrade to Pro →</Link>
             </div>
           ) : (

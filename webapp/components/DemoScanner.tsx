@@ -267,7 +267,7 @@ export default function DemoScanner() {
                 <span className={styles.footerText}>
                   {isExample
                     ? 'Scan your own repo to see real results'
-                    : 'Full report available with a free account'}
+                    : 'Full report and scan history available with Pro'}
                 </span>
                 <Link href="/signup" className={styles.footerCta}> {/* ship-safe-ignore — navigation Link, not an auth endpoint */}
                   Get full report →

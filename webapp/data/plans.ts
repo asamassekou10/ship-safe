@@ -11,24 +11,6 @@ export interface Plan {
 
 export const plans: Plan[] = [
   {
-    name: 'Free',
-    price: '$0',
-    period: 'forever',
-    desc: 'Perfect for solo devs and open-source projects.',
-    cta: 'Get started',
-    ctaHref: '/signup',
-    featured: false,
-    features: [
-      '5 cloud scans per month',
-      'Public repos via GitHub URL',
-      'All 16 security agents',
-      '80+ attack classes',
-      'HTML report viewer',
-      'Full CLI (unlimited, local)',
-      'Community support',
-    ],
-  },
-  {
     name: 'Pro',
     price: '$9',
     period: 'one-time',

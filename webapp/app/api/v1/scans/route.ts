@@ -67,14 +67,11 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
-  if (user?.plan === 'free') {
-    const monthStart = new Date();
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-    const count = await prisma.scan.count({ where: { userId, createdAt: { gte: monthStart } } });
-    if (count >= 5) {
-      return NextResponse.json({ error: 'Free plan limit reached' }, { status: 429 });
-    }
+  if (user?.plan !== 'pro' && user?.plan !== 'team' && user?.plan !== 'enterprise') {
+    return NextResponse.json(
+      { error: 'Cloud scans require a Pro plan.' },
+      { status: 403 },
+    );
   }
 
   const body = await req.json();

@@ -11,8 +11,6 @@ import * as tar from 'tar';
 // Direct import forces nft to trace ship-safe and all its transitive deps
 import { auditCommand } from 'ship-safe';
 
-const FREE_MONTHLY_LIMIT = 5;
-
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -22,19 +20,11 @@ export async function POST(req: NextRequest) {
   const userId = session.user.id;
   const plan = (session.user as Record<string, unknown>).plan as string;
 
-  if (plan === 'free') {
-    const monthStart = new Date();
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-    const count = await prisma.scan.count({
-      where: { userId, createdAt: { gte: monthStart } },
-    });
-    if (count >= FREE_MONTHLY_LIMIT) {
-      return NextResponse.json(
-        { error: 'Free plan limit reached (5 scans/month). Upgrade to Pro for unlimited scans.' },
-        { status: 429 },
-      );
-    }
+  if (plan !== 'pro' && plan !== 'team' && plan !== 'enterprise') {
+    return NextResponse.json(
+      { error: 'Cloud scans require a Pro plan. Try the free demo scanner on the homepage.' },
+      { status: 403 },
+    );
   }
 
   const body = await req.json();

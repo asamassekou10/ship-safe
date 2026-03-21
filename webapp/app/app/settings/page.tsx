@@ -66,7 +66,7 @@ export default async function Settings() {
             </div>
             <div className={s.planDesc}>
               {user.plan === 'free'
-                ? '5 cloud scans per month · Public repos only'
+                ? 'No active plan · Upgrade to run cloud scans'
                 : user.plan === 'team'
                 ? 'Unlimited scans · Private repos · Shared workspace · Webhooks'
                 : 'Unlimited scans · Private repos · AI analysis · API access'}
@@ -106,7 +106,7 @@ export default async function Settings() {
       </div>
 
       {/* API Keys */}
-      {user.plan !== 'free' && (
+      {(user.plan === 'pro' || user.plan === 'team' || user.plan === 'enterprise') && (
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
             <h2>API Keys</h2>
