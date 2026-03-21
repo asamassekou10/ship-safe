@@ -64,6 +64,8 @@ export default function CTA() {
             <Link href="/pricing">Pricing</Link>
             <span className={styles.footerSep}>·</span>
             <a href="https://github.com/asamassekou10/ship-safe/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a>
+            <span className={styles.footerSep}>·</span>
+            <span className={styles.footerMeta}>Ship Safe by <a href="https://github.com/asamassekou10" target="_blank" rel="noopener noreferrer">Alhassane Samassekou</a></span>
           </div>
         </div>
       </footer>
