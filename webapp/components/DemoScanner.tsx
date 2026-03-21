@@ -269,6 +269,7 @@ export default function DemoScanner() {
                     ? 'Scan your own repo to see real results'
                     : 'Full report available with a free account'}
                 </span>
+                {/* ship-safe-ignore — /signup Link is a navigation element, not an auth endpoint call */}
                 <Link href="/signup" className={styles.footerCta}>
                   Get full report →
                 </Link>

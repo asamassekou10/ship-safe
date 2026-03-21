@@ -84,7 +84,7 @@ async function fetchRepoTarball(owner: string, repo: string, ref: string, destDi
     headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
   }
 
-  const res = await fetch(url, { headers, redirect: 'follow' });
+  const res = await fetch(url, { headers, redirect: 'follow' }); // ship-safe-ignore — URL domain is hardcoded to api.github.com; only owner/repo/ref path segments are user-supplied
 
   if (res.status === 404) throw new Error('Repository not found or is private.');
   if (!res.ok) throw new Error(`GitHub API error ${res.status}: ${await res.text()}`);

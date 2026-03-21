@@ -17,7 +17,7 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-const __filename = fileURLToPath(import.meta.url);
+const __filename = fileURLToPath(import.meta.url); // ship-safe-ignore — module's own path via import.meta.url, not user input
 const __dirname = dirname(__filename);
 const PACKAGE_VERSION = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf8')).version;
 

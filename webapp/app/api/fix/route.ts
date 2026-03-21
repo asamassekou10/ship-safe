@@ -123,8 +123,8 @@ function generateFix(finding: Finding): FixSuggestion {
       file,
       title: `Fix ${finding.title}`,
       description: `Strengthen authentication or authorization check.`,
-      before: `// Missing auth check\napp.get('/admin', handler)`,
-      after: `// Auth middleware added\napp.get('/admin', requireAuth, requireRole('admin'), handler)`,
+      before: `// Missing auth check\napp.get('/admin', handler)`, // ship-safe-ignore — example code string in fix template, not an actual endpoint
+      after: `// Auth middleware added\napp.get('/admin', requireAuth, requireRole('admin'), handler)`, // ship-safe-ignore — example code string in fix template
       explanation: `All sensitive endpoints should verify authentication and authorization. Use middleware to enforce access control consistently.`,
     }),
     config: () => ({

@@ -39,8 +39,8 @@ export async function watchCommand(targetPath = '.', options = {}) {
 
   // Use fs.watch recursively
   try {
-    const watcher = fs.watch(absolutePath, { recursive: true }, (eventType, filename) => {
-      if (!filename) return;
+    const watcher = fs.watch(absolutePath, { recursive: true }, (eventType, filename) => { // ship-safe-ignore — filename from fs.watch OS event, not user input
+      if (!filename) return; // ship-safe-ignore
 
       const fullPath = path.join(absolutePath, filename); // ship-safe-ignore — filename from fs.watch, not user input
       const relPath = filename.replace(/\\/g, '/');
@@ -51,9 +51,9 @@ export async function watchCommand(targetPath = '.', options = {}) {
       }
 
       // Skip non-code files
-      const ext = path.extname(filename).toLowerCase();
+      const ext = path.extname(filename).toLowerCase(); // ship-safe-ignore — filename from fs.watch OS event
       if (SKIP_EXTENSIONS.has(ext)) return;
-      if (SKIP_FILENAMES.has(path.basename(filename))) return;
+      if (SKIP_FILENAMES.has(path.basename(filename))) return; // ship-safe-ignore
       if (filename.endsWith('.min.js') || filename.endsWith('.min.css')) return;
 
       // Add to pending and debounce

@@ -23,7 +23,7 @@ import chalk from 'chalk';
 import * as output from '../utils/output.js';
 
 // Get the directory of this module (for finding config files)
-const __filename = fileURLToPath(import.meta.url);
+const __filename = fileURLToPath(import.meta.url); // ship-safe-ignore — module's own path via import.meta.url, not user input
 const __dirname = path.dirname(__filename);
 const PACKAGE_ROOT = path.resolve(__dirname, '..', '..');
 

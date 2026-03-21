@@ -30,3 +30,8 @@ website/
 # Generated HTML reports contain finding descriptions with code patterns
 ship-safe-report.html
 *.report.html
+
+# Unit test fixtures — every test file intentionally contains vulnerable patterns
+# to verify that the scanner detects them correctly. Scanning them would produce
+# hundreds of expected findings by design.
+cli/__tests__/

@@ -40,6 +40,7 @@ export default function CTA() {
             </div>
 
             <div className={styles.ctaActions}>
+              {/* ship-safe-ignore — /signup Link is a navigation element, not an auth endpoint call */}
               <Link href="/signup" className="btn btn-primary">
                 Start for free
               </Link>

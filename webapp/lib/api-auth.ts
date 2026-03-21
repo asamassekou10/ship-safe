@@ -6,7 +6,7 @@ import crypto from 'crypto';
  * Authenticate API requests via Bearer token (API key) or session.
  * Returns { userId, keyId } or null.
  */
-export async function authenticateApiKey(req: NextRequest): Promise<{ userId: string; keyId: string } | null> {
+export async function authenticateApiKey(req: NextRequest): Promise<{ userId: string; keyId: string } | null> { // ship-safe-ignore — this IS the auth library; it validates tokens, not forward credentials between tools
   const authHeader = req.headers.get('authorization');
   if (!authHeader?.startsWith('Bearer sk_')) return null;
 

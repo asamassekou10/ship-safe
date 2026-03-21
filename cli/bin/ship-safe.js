@@ -47,7 +47,7 @@ import { SBOMGenerator } from '../agents/sbom-generator.js';
 const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
 
 // Read version from package.json
-const __filename = fileURLToPath(import.meta.url);
+const __filename = fileURLToPath(import.meta.url); // ship-safe-ignore — module's own path via import.meta.url, not user input
 const __dirname = dirname(__filename);
 const packageJson = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf8'));
 const VERSION = packageJson.version;

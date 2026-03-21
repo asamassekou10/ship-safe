@@ -107,7 +107,7 @@ export default function ScanDetail() {
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
     async function fetchScan() {
-      const res = await fetch(`/api/scans/${params.id}`);
+      const res = await fetch(`/api/scans/${params.id}`); // ship-safe-ignore — relative URL to own API; params.id is a DB record ID, not a user-supplied URL
       if (res.ok) {
         const data = await res.json();
         setScan(data);

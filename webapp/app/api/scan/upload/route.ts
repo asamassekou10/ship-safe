@@ -6,7 +6,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { mkdtemp, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { join, basename } from 'path';
 
 const execAsync = promisify(exec);
 const FREE_MONTHLY_LIMIT = 5;
@@ -82,8 +82,8 @@ async function runUploadScan(
   const startTime = Date.now();
 
   try {
-    // Write ZIP to temp dir
-    const zipPath = join(tmpDir, filename);
+    // Write ZIP to temp dir — use basename to prevent path traversal
+    const zipPath = join(tmpDir, basename(filename));
     await writeFile(zipPath, buffer);
 
     // Extract ZIP

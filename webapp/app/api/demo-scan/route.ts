@@ -85,7 +85,7 @@ const SKIP_FILENAMES = new Set([
 
 function shouldSkip(path: string): boolean {
   const parts = path.split('/');
-  const filename = parts[parts.length - 1];
+  const filename = parts[parts.length - 1]; // ship-safe-ignore — filename extracted from zip entry path for skip-list filtering, not a user file upload
 
   if (SKIP_FILENAMES.has(filename)) return true;
 
