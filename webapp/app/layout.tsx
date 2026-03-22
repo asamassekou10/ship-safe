@@ -14,11 +14,13 @@ export const metadata: Metadata = {
     type: 'website',
     url: 'https://shipsafe.dev',
     siteName: 'Ship Safe',
+    images: [{ url: 'https://shipsafe.dev/api/og', width: 1200, height: 630, alt: 'Ship Safe' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Ship Safe — Find Security Vulnerabilities Before You Ship',
     description: 'Scan your codebase for secrets, vulnerabilities, and dependency CVEs. Get a 0-100 security score in seconds. Free CLI, no signup required.',
+    images: ['https://shipsafe.dev/api/og'],
   },
 };
 

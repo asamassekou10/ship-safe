@@ -18,6 +18,7 @@ const nextConfig = {
   // them automatically because we run ship-safe as a subprocess (no import).
   outputFileTracingIncludes: {
     '/api/scan': ['./node_modules/ship-safe/**/*'],
+    '/api/og': ['./public/og-shipsafe.jpg'],
   },
 };
 
