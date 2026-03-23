@@ -2,6 +2,7 @@
   <img src=".github/assets/logo%20ship%20safe.png" alt="Ship Safe Logo" width="180" />
 </p>
 <p align="center"><strong>AI-powered application security platform for developers.</strong></p>
+<p align="center"><a href="https://shipsafecli.com">shipsafecli.com</a></p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/ship-safe"><img src="https://badge.fury.io/js/ship-safe.svg" alt="npm version" /></a>
@@ -14,23 +15,33 @@
 
 ---
 
-16 security agents. 80+ attack classes. One command.
+17 security agents. 80+ attack classes. One command.
 
-**Ship Safe v5.0** is an AI-powered security platform that runs 16 specialized agents in parallel against your codebase — scanning for secrets, injection vulnerabilities, auth bypass, SSRF, supply chain attacks, Supabase RLS misconfigs, Docker/Terraform/Kubernetes misconfigs, CI/CD pipeline poisoning, LLM/agentic AI security, MCP server misuse, RAG poisoning, PII compliance, and more. LLM-powered deep analysis verifies exploitability of critical findings. Secrets verification probes provider APIs to check if leaked keys are still active. A dedicated CI command (`ship-safe ci`) integrates into any pipeline with threshold-based gating and SARIF output.
+**Ship Safe v6.0** is an AI-powered security platform that runs 17 specialized agents in parallel against your codebase — scanning for secrets, injection vulnerabilities, auth bypass, SSRF, supply chain attacks, Supabase RLS misconfigs, Docker/Terraform/Kubernetes misconfigs, CI/CD pipeline poisoning, LLM/agentic AI security, MCP server misuse, RAG poisoning, PII compliance, vibe coding patterns, exception handling, and more. OWASP 2025 scoring with EPSS exploit probability. LLM-powered deep analysis verifies exploitability of critical findings. Secrets verification probes provider APIs to check if leaked keys are still active. CI integration with GitHub PR comments, threshold gating, and SARIF output.
 
 ---
 
 ## Quick Start
 
 ```bash
-# Full security audit — secrets + 16 agents + deps + remediation plan
+# Full security audit — secrets + 17 agents + deps + remediation plan
 npx ship-safe audit .
 
 # LLM-powered deep analysis (Anthropic, OpenAI, Google, Ollama)
 npx ship-safe audit . --deep
 
-# Red team scan only (16 agents, 80+ attack classes)
+# Red team scan only (17 agents, 80+ attack classes)
 npx ship-safe red-team .
+
+# Scan only changed files (fast pre-commit & PR scanning)
+npx ship-safe diff
+npx ship-safe diff --staged
+
+# Fun emoji security grade with shareable badge
+npx ship-safe vibe-check .
+
+# Compare your score against industry averages
+npx ship-safe benchmark .
 
 # Quick secret scan
 npx ship-safe scan .
@@ -38,8 +49,9 @@ npx ship-safe scan .
 # Security health score (0-100)
 npx ship-safe score .
 
-# CI/CD pipeline mode — compact output, exit codes, SARIF
+# CI/CD pipeline mode — compact output, exit codes, PR comments
 npx ship-safe ci .
+npx ship-safe ci . --github-pr
 
 # Accept current findings, only report regressions
 npx ship-safe baseline .
@@ -66,11 +78,11 @@ npx ship-safe audit .
 
 ```
 ════════════════════════════════════════════════════════════
-  Ship Safe v5.0 — Full Security Audit
+  Ship Safe v6.0 — Full Security Audit
 ════════════════════════════════════════════════════════════
 
   [Phase 1/4] Scanning for secrets...         ✔ 49 found
-  [Phase 2/4] Running 16 security agents...   ✔ 103 findings
+  [Phase 2/4] Running 17 security agents...   ✔ 103 findings
   [Phase 3/4] Auditing dependencies...        ✔ 44 CVEs
   [Phase 4/4] Computing security score...     ✔ 25/100 F
 
@@ -97,14 +109,14 @@ npx ship-safe audit .
 
 **What it runs:**
 1. **Secret scan** — 50+ patterns with entropy scoring (API keys, passwords, tokens)
-2. **16 security agents** — run in parallel with per-agent timeouts and framework-aware filtering (injection, auth, SSRF, supply chain, config, Supabase RLS, LLM, MCP, agentic AI, RAG, PII, mobile, git history, CI/CD, API)
-3. **Dependency audit** — npm/pip/bundler CVE scanning
+2. **17 security agents** — run in parallel with per-agent timeouts and framework-aware filtering (injection, auth, SSRF, supply chain, config, Supabase RLS, LLM, MCP, agentic AI, RAG, PII, vibe coding, exception handling, mobile, git history, CI/CD, API)
+3. **Dependency audit** — npm/pip/bundler CVE scanning with EPSS exploit probability scores
 4. **Secrets verification** — probes provider APIs (GitHub, Stripe, OpenAI, etc.) to check if leaked keys are still active
 5. **Deep analysis** — LLM-powered taint analysis verifies exploitability of critical/high findings (optional)
-6. **Score computation** — confidence-weighted scoring across 8 categories (0-100, A-F)
+6. **Score computation** — OWASP 2025 weighted scoring across 8 categories (0-100, A-F)
 7. **Context-aware confidence tuning** — downgrades findings in test files, docs, and comments
 8. **Remediation plan** — prioritized fix list grouped by severity
-9. **HTML report** — standalone dark-themed report with code context
+9. **Interactive HTML report** — standalone dark-themed report with severity filtering, search, collapsible findings, and click-to-copy ignore annotations
 
 **Flags:**
 - `--json` — structured JSON output (clean for piping)
@@ -127,21 +139,23 @@ npx ship-safe audit .
 
 ---
 
-## 16 Security Agents
+## 17 Security Agents
 
 | Agent | Category | What It Detects |
 |-------|----------|-----------------|
 | **InjectionTester** | Code Vulns | SQL/NoSQL injection, command injection, code injection (eval), XSS, path traversal, XXE, ReDoS, prototype pollution, Python f-string SQL injection, Python subprocess shell injection |
 | **AuthBypassAgent** | Auth | JWT vulnerabilities (alg:none, weak secrets), cookie security, CSRF, OAuth misconfig, BOLA/IDOR, weak crypto, timing attacks, TLS bypass, Django `DEBUG = True`, Flask hardcoded secret keys |
 | **SSRFProber** | SSRF | User input in fetch/axios, cloud metadata endpoints, internal IPs, redirect following |
-| **SupplyChainAudit** | Supply Chain | Typosquatting (Levenshtein distance), git/URL dependencies, wildcard versions, suspicious install scripts, dependency confusion, scoped packages without registry pinning |
+| **SupplyChainAudit** | Supply Chain | Typosquatting (Levenshtein distance), git/URL dependencies, wildcard versions, suspicious install scripts, dependency confusion, lockfile integrity |
 | **ConfigAuditor** | Config | Dockerfile (running as root, :latest tags), Terraform (public S3/RDS, open SG, CloudFront HTTP, Lambda admin, S3 no versioning), Kubernetes (privileged containers, `:latest` tags, missing NetworkPolicy), CORS, CSP, Firebase, Nginx |
 | **SupabaseRLSAgent** | Auth | Supabase Row Level Security — `service_role` key in client code, `CREATE TABLE` without RLS, anon key inserts, unprotected storage operations |
 | **LLMRedTeam** | AI/LLM | OWASP LLM Top 10 — prompt injection, excessive agency, system prompt leakage, unbounded consumption, RAG poisoning |
-| **MCPSecurityAgent** | AI/LLM | MCP server security — unvalidated tool inputs, missing auth, excessive permissions, tool poisoning |
+| **MCPSecurityAgent** | AI/LLM | MCP server security — unvalidated tool inputs, missing auth, excessive permissions, tool poisoning, typosquatting detection, over-permissioned tools, shadow config discovery |
 | **AgenticSecurityAgent** | AI/LLM | OWASP Agentic AI Top 10 — agent hijacking, privilege escalation, unsafe code execution, memory poisoning |
 | **RAGSecurityAgent** | AI/LLM | RAG pipeline security — unvalidated embeddings, context injection, document poisoning, vector DB access control |
 | **PIIComplianceAgent** | Compliance | PII detection — SSNs, credit cards, emails, phone numbers in source code, logs, and configs |
+| **VibeCodingAgent** | Code Vulns | AI-generated code patterns — no input validation, empty catch blocks, hardcoded secrets, disabled security features, TODO-auth patterns |
+| **ExceptionHandlerAgent** | Code Vulns | OWASP A10:2025 — empty catch blocks, unhandled promise rejections, missing React error boundaries, leaked stack traces, generic catch-all without rethrow |
 | **MobileScanner** | Mobile | OWASP Mobile Top 10 2024 — insecure storage, WebView JS injection, HTTP endpoints, excessive permissions, debug mode |
 | **GitHistoryScanner** | Secrets | Leaked secrets in git commit history (checks if still active in working tree) |
 | **CICDScanner** | CI/CD | OWASP CI/CD Top 10 — pipeline poisoning, unpinned actions, secret logging, self-hosted runners, script injection |
@@ -160,7 +174,7 @@ npx ship-safe audit .
 # Full audit with remediation plan + HTML report
 npx ship-safe audit .
 
-# Red team: 16 agents, 80+ attack classes
+# Red team: 17 agents, 80+ attack classes
 npx ship-safe red-team .
 npx ship-safe red-team . --agents injection,auth    # Run specific agents
 npx ship-safe red-team . --html report.html         # HTML report
@@ -209,6 +223,28 @@ npx ship-safe baseline --diff
 npx ship-safe baseline --clear
 ```
 
+### Diff Scanning
+
+```bash
+# Scan only changed files (fast pre-commit & PR scanning)
+npx ship-safe diff                   # All uncommitted changes
+npx ship-safe diff --staged          # Only staged changes
+npx ship-safe diff HEAD~3            # Changes in last 3 commits
+npx ship-safe diff --json            # JSON output
+```
+
+### Vibe Check & Benchmark
+
+```bash
+# Fun emoji security grade
+npx ship-safe vibe-check .
+npx ship-safe vibe-check . --badge   # Generate shields.io README badge
+
+# Compare your score against industry averages (OWASP, Synopsys, Snyk)
+npx ship-safe benchmark .
+npx ship-safe benchmark . --json     # JSON output
+```
+
 ### CI/CD Pipeline
 
 ```bash
@@ -217,6 +253,7 @@ npx ship-safe ci .
 npx ship-safe ci . --threshold 80    # Custom passing score
 npx ship-safe ci . --fail-on critical # Fail on severity
 npx ship-safe ci . --sarif out.sarif  # SARIF for GitHub
+npx ship-safe ci . --github-pr       # Post results as PR comment
 ```
 
 ### Deep Analysis & Verification
@@ -275,7 +312,7 @@ claude plugin add github:asamassekou10/ship-safe
 
 | Command | Description |
 |---------|-------------|
-| `/ship-safe` | Full security audit — 16 agents, remediation plan, auto-fix |
+| `/ship-safe` | Full security audit — 17 agents, remediation plan, auto-fix |
 | `/ship-safe-scan` | Quick scan for leaked secrets |
 | `/ship-safe-score` | Security health score (0-100) |
 | `/ship-safe-deep` | LLM-powered deep taint analysis |
@@ -344,12 +381,14 @@ Starts at 100. Each finding deducts points by severity and category, weighted by
 |----------|--------|----------|------|--------|-----|
 | Secrets | 15% | -25 | -15 | -5 | -15 |
 | Code Vulnerabilities | 15% | -20 | -10 | -3 | -15 |
-| Dependencies | 15% | -20 | -10 | -5 | -15 |
+| Dependencies | 13% | -20 | -10 | -5 | -13 |
 | Auth & Access Control | 15% | -20 | -10 | -3 | -15 |
-| Configuration | 10% | -15 | -8 | -3 | -10 |
-| Supply Chain | 10% | -15 | -8 | -3 | -10 |
+| Configuration | 8% | -15 | -8 | -3 | -8 |
+| Supply Chain | 12% | -15 | -8 | -3 | -12 |
 | API Security | 10% | -15 | -8 | -3 | -10 |
-| AI/LLM Security | 10% | -15 | -8 | -3 | -10 |
+| AI/LLM Security | 12% | -15 | -8 | -3 | -12 |
+
+*Weights aligned with OWASP Top 10 2025 risk rankings.*
 
 **Grades:** A (90-100), B (75-89), C (60-74), D (40-59), F (0-39)
 
@@ -411,7 +450,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Security gate
-        run: npx ship-safe ci . --threshold 75 --sarif results.sarif
+        run: npx ship-safe ci . --threshold 75 --sarif results.sarif --github-pr
 
       - uses: github/codeql-action/upload-sarif@v3
         if: always()
@@ -504,4 +543,4 @@ MIT - Use it, share it, secure your stuff.
 
 ---
 
-**Ship fast. Ship safe.**
+**Ship fast. Ship safe.** — [shipsafecli.com](https://shipsafecli.com)
