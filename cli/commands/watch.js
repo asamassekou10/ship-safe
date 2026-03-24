@@ -250,8 +250,8 @@ async function scanConfigFiles(files, rootPath) {
 
     // Git blame (best-effort)
     try {
-      const { execSync } = await import('child_process');
-      const blame = execSync(`git log -1 --format="%an (%ar)" -- "${filePath}"`, { cwd: rootPath, encoding: 'utf-8', timeout: 5000 }).trim();
+      const { execFileSync } = await import('child_process');
+      const blame = execFileSync('git', ['log', '-1', '--format=%an (%ar)', '--', filePath], { cwd: rootPath, encoding: 'utf-8', timeout: 5000 }).trim();
       if (blame) console.log(chalk.gray(`    Last modified by: ${blame}`));
     } catch { /* not a git repo or git not available */ }
 

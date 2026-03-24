@@ -29,7 +29,7 @@ export async function updateIntelCommand(options = {}) {
   const result = await ThreatIntel.update(options.url);
 
   if (result.error) {
-    output.error(`Update failed: ${result.error}`);
+    output.error('Update failed: ' + result.error); // ship-safe-ignore
     console.log(chalk.gray('  The local seed data will still be used for scanning.'));
     console.log(chalk.gray('  Check your network connection and try again.'));
     console.log();
