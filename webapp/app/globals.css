@@ -256,3 +256,12 @@ h2 {
   section { padding: 4rem 0; }
   .install-box { font-size: 0.82rem; }
 }
+
+@media (max-width: 480px) {
+  .container { padding: 0 1rem; }
+  section { padding: 3rem 0; }
+  h2 { font-size: 1.5rem; }
+  .section-sub { font-size: 0.9rem; margin-bottom: 2rem; }
+  .install-box { font-size: 0.75rem; padding: 0.7rem 0.85rem; gap: 0.5rem; overflow-x: auto; max-width: 100%; }
+  .btn { font-size: 0.85rem; padding: 0.6rem 1.2rem; }
+}

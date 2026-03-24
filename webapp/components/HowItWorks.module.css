@@ -61,3 +61,12 @@
   font-size: 0.9rem;
   line-height: 1.7;
 }
+
+@media (max-width: 480px) {
+  .steps { max-width: 100%; }
+  .step { gap: 0.85rem; }
+  .stepNum { width: 1.8rem; height: 1.8rem; font-size: 0.78rem; }
+  .stepBody { padding-bottom: 1.75rem; }
+  .stepBody h4 { font-size: 0.95rem; }
+  .stepBody p { font-size: 0.82rem; }
+}

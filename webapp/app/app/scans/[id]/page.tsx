@@ -94,6 +94,79 @@ const catIcons: Record<string, string> = {
 
 type Tab = 'findings' | 'remediation' | 'deps' | 'agents' | 'raw';
 
+/* ── Scanning Steps (shown during progress) ──────────── */
+
+const SCAN_STEPS = [
+  { label: 'Cloning repository', desc: 'Fetching source code from GitHub', duration: 4000 },
+  { label: 'Scanning for secrets', desc: 'Checking for leaked API keys, tokens, and credentials', duration: 3000 },
+  { label: 'Running 17 security agents', desc: 'Injection, auth bypass, SSRF, supply chain, LLM red team, MCP security...', duration: 8000 },
+  { label: 'Auditing dependencies', desc: 'Checking packages for known CVEs with EPSS scoring', duration: 5000 },
+  { label: 'Computing OWASP 2025 score', desc: 'Weighing findings across 8 categories with confidence tuning', duration: 2000 },
+  { label: 'Generating remediation plan', desc: 'Prioritizing fixes by severity, effort, and exploitability', duration: 2000 },
+];
+
+function ScanProgress({ startedAt }: { startedAt: string }) {
+  const [activeStep, setActiveStep] = useState(0);
+
+  useEffect(() => {
+    let elapsed = Date.now() - new Date(startedAt).getTime();
+    let cumulative = 0;
+
+    // Figure out which step we should be on based on elapsed time
+    let initialStep = 0;
+    for (let i = 0; i < SCAN_STEPS.length; i++) {
+      cumulative += SCAN_STEPS[i].duration;
+      if (elapsed < cumulative) break;
+      initialStep = Math.min(i + 1, SCAN_STEPS.length - 1);
+    }
+    setActiveStep(initialStep);
+
+    // Advance steps on timers
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    cumulative = 0;
+    for (let i = 0; i < SCAN_STEPS.length; i++) {
+      cumulative += SCAN_STEPS[i].duration;
+      const remaining = cumulative - elapsed;
+      if (remaining > 0) {
+        timers.push(setTimeout(() => setActiveStep(Math.min(i + 1, SCAN_STEPS.length - 1)), remaining));
+      }
+    }
+    return () => timers.forEach(clearTimeout);
+  }, [startedAt]);
+
+  return (
+    <div className={s.progressCard}>
+      <div className={s.progressHeader}>
+        <span className={s.pulseOrb} />
+        <span className={s.runningText}>Scan in progress</span>
+      </div>
+      <div className={s.progressSteps}>
+        {SCAN_STEPS.map((step, i) => {
+          const state = i < activeStep ? 'done' : i === activeStep ? 'active' : 'pending';
+          return (
+            <div key={i} className={`${s.progressStep} ${s[`step_${state}`]}`}>
+              <div className={s.stepIndicator}>
+                {state === 'done' ? (
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7l3 3 5-5" stroke="var(--green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                ) : state === 'active' ? (
+                  <span className={s.stepSpinner} />
+                ) : (
+                  <span className={s.stepDot} />
+                )}
+              </div>
+              <div className={s.stepContent}>
+                <span className={s.stepLabel}>{step.label}</span>
+                <span className={s.stepDesc}>{step.desc}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className={s.progressHint}>This page updates automatically when the scan completes.</p>
+    </div>
+  );
+}
+
 /* ── Component ────────────────────────────────────────── */
 
 export default function ScanDetail() {
@@ -187,21 +260,17 @@ export default function ScanDetail() {
         </div>
       )}
 
-      {/* Running */}
-      {scan.status === 'running' && (
-        <div className={s.runningBanner}>
-          <span className={s.pulseOrb} />
-          <span className={s.runningText}>Scan in progress...</span>
-          <span className={s.runningHint}>Updates automatically when complete.</span>
-        </div>
-      )}
+      {/* Running — animated step-by-step progress */}
+      {scan.status === 'running' && <ScanProgress startedAt={scan.createdAt} />}
 
       {/* Pending */}
       {scan.status === 'pending' && (
-        <div className={s.runningBanner}>
-          <span className={s.pulseOrb} style={{ background: 'var(--yellow)', boxShadow: '0 0 8px var(--yellow)' }} />
-          <span style={{ color: 'var(--yellow)', fontWeight: 600 }}>Queued...</span>
-          <span className={s.runningHint}>Scan will start shortly.</span>
+        <div className={s.progressCard}>
+          <div className={s.progressHeader}>
+            <span className={s.pulseOrb} style={{ background: 'var(--yellow)', boxShadow: '0 0 8px var(--yellow)' }} />
+            <span style={{ color: 'var(--yellow)', fontWeight: 600 }}>Queued</span>
+          </div>
+          <p className={s.progressHint}>Your scan is in the queue and will start shortly.</p>
         </div>
       )}
 

@@ -184,4 +184,15 @@
 
 @media (max-width: 640px) {
   .optionsGrid { grid-template-columns: 1fr; }
+  .methodTabs { flex-wrap: wrap; }
+  .methodTab { font-size: 0.78rem; padding: 0.4rem 0.7rem; }
+}
+
+@media (max-width: 480px) {
+  .page { padding: 1.25rem; }
+  .header h1 { font-size: 1.25rem; }
+  .subtitle { font-size: 0.8rem; }
+  .cliTip { flex-wrap: wrap; font-size: 0.75rem; }
+  .cliTip code { font-size: 0.72rem; }
+  .dropZone { padding: 2rem 1rem; }
 }

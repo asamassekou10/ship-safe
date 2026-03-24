@@ -360,13 +360,26 @@
   .heroRight { justify-content: center; }
   .statsBar { flex-wrap: wrap; gap: 0.5rem; padding-top: 2rem; }
   .statsSep { height: 20px; margin: 0 0.75rem; }
+  .dashCard { max-width: 340px; }
 }
 
 @media (max-width: 480px) {
-  .statsBar { gap: 0.25rem; }
-  .statsNum { font-size: 1.1rem; }
-  .statsLabel { font-size: 0.72rem; }
-  .statsSep { margin: 0 0.5rem; }
+  .hero { padding: 4.5rem 0 2rem; }
+  .h1 { font-size: 1.85rem; }
+  .heroSub { font-size: 0.9rem; max-width: 320px; }
+  .statsBar { gap: 0.15rem; }
+  .statsNum { font-size: 1.05rem; }
+  .statsLabel { font-size: 0.68rem; }
+  .statsSep { margin: 0 0.35rem; }
+  .dashCard { max-width: 100%; }
+  .dashTerminal { overflow-x: auto; }
+  .termLine { white-space: nowrap; }
+  .dashScore { gap: 0.85rem; padding: 1rem 0.85rem; }
+  .ringWrap { width: 76px; height: 76px; }
+  .scoreNum { font-size: 1.2rem; }
+  .metricTop { font-size: 0.62rem; }
+  .badge { font-size: 0.65rem; padding: 0.25rem 0.7rem; }
+  .installBox { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

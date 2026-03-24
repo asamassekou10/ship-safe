@@ -100,6 +100,16 @@
   background: var(--bg-elevated) !important;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .navLinks a:not(.navGithub):not(.navCta) { display: none; }
+  .navLinks { gap: 0.75rem; }
+}
+
+@media (max-width: 480px) {
+  .navInner { padding: 0.75rem 1rem; }
+  .navLinks { gap: 0.5rem; }
+  .navGithub span { display: none; }
+  .navCta { padding: 0.35rem 0.75rem; font-size: 0.78rem; }
+  .navGithub { padding: 0.35rem 0.6rem; }
+  .navLogo { font-size: 0.92rem; }
 }

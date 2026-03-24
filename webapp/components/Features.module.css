@@ -223,3 +223,15 @@
 @media (max-width: 900px) {
   .grid { grid-template-columns: 1fr; max-width: 480px; margin: 0 auto; }
 }
+
+@media (max-width: 480px) {
+  .card { padding: 1.25rem; }
+  .cardTitle { font-size: 1rem; }
+  .cardDesc { font-size: 0.82rem; }
+  .miniBody { overflow-x: auto; }
+  .miniLine { white-space: nowrap; font-size: 0.62rem; }
+  .diffCode { overflow-x: auto; }
+  .diffCode code { font-size: 0.62rem; }
+  .yamlCode { overflow-x: auto; }
+  .yamlCode code { font-size: 0.62rem; }
+}

@@ -70,3 +70,10 @@
 
 .footerInner a { color: var(--text-dim); }
 .footerInner a:hover { color: var(--cyan); text-decoration: none; }
+
+@media (max-width: 480px) {
+  .ctaSub { font-size: 0.9rem; }
+  .ctaActions { gap: 0.6rem; }
+  .footerInner { flex-wrap: wrap; justify-content: center; gap: 0.35rem; font-size: 0.72rem; }
+  .footerSep { display: none; }
+}

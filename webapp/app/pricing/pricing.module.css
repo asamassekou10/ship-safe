@@ -160,3 +160,12 @@ details[open] .faqQuestion svg { transform: rotate(90deg); }
 .faqQuestion svg { transition: transform 0.2s; color: var(--text-dim); flex-shrink: 0; }
 
 .faqAnswer { padding: 0 1.5rem 1.25rem; font-size: 0.88rem; color: var(--text-muted); line-height: 1.75; }
+
+@media (max-width: 480px) {
+  .planCard { padding: 1.5rem; }
+  .priceNum { font-size: 1.8rem; }
+  .osCard { padding: 1.25rem; flex-direction: column; text-align: center; gap: 1rem; }
+  .osCard > div { min-width: 0; }
+  .faqQuestion { padding: 1rem; font-size: 0.88rem; }
+  .faqAnswer { padding: 0 1rem 1rem; font-size: 0.82rem; word-break: break-word; }
+}

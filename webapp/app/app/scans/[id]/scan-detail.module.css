@@ -87,6 +87,134 @@
 .runningText { color: var(--cyan); font-weight: 600; }
 .runningHint { color: var(--text-dim); font-size: 0.82rem; }
 
+/* Progress card (running state) */
+.progressCard {
+  padding: 1.5rem;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.progressHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.progressSteps {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-left: 0.25rem;
+}
+
+.progressStep {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  position: relative;
+}
+
+/* vertical connector line */
+.progressStep:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: calc(0.6rem + 16px);
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+
+.progressStep.step_done:not(:last-child)::after {
+  background: var(--green);
+  opacity: 0.4;
+}
+
+.progressStep.step_active:not(:last-child)::after {
+  background: var(--cyan);
+  opacity: 0.3;
+}
+
+.stepIndicator {
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.stepSpinner {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--cyan);
+  border-top-color: transparent;
+  animation: spin-step 0.8s linear infinite;
+}
+
+@keyframes spin-step {
+  to { transform: rotate(360deg); }
+}
+
+.stepDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.stepContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.stepLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  transition: color 0.3s;
+}
+
+.step_active .stepLabel {
+  color: var(--cyan);
+}
+
+.step_done .stepLabel {
+  color: var(--green);
+}
+
+.stepDesc {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  opacity: 0.5;
+  transition: opacity 0.3s;
+  line-height: 1.4;
+}
+
+.step_active .stepDesc {
+  opacity: 0.8;
+  color: var(--text-muted);
+}
+
+.step_done .stepDesc {
+  opacity: 0.4;
+}
+
+.progressHint {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin: 0;
+}
+
 .failedBanner {
   padding: 1.25rem;
   border-radius: 12px;
@@ -474,4 +602,26 @@
 
 @media (max-width: 480px) {
   .agentGrid { grid-template-columns: 1fr; }
+  .page { padding: 1rem; gap: 1rem; }
+  .header h1 { font-size: 1.15rem; word-break: break-word; }
+  .scoreBadge { padding: 0.5rem 0.85rem; }
+  .gradeText { font-size: 1.5rem; }
+  .scoreNum { font-size: 0.9rem; }
+  .statsRow { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
+  .statValue { font-size: 1.2rem; }
+  .statLabel { font-size: 0.68rem; }
+  .categories { grid-template-columns: 1fr; }
+  .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 0; }
+  .tab { white-space: nowrap; padding: 0.5rem 0.75rem; font-size: 0.78rem; }
+  .findingCard { padding: 0.7rem 0.85rem; }
+  .findingTop { gap: 0.35rem; }
+  .findingTitle { font-size: 0.82rem; word-break: break-word; }
+  .findingFile { font-size: 0.65rem; margin-left: 0; word-break: break-all; }
+  .findingDesc { font-size: 0.75rem; }
+  .findingFix { font-size: 0.72rem; padding: 0.5rem 0.7rem; word-break: break-word; }
+  .progressSteps { padding-left: 0; }
+  .stepLabel { font-size: 0.78rem; }
+  .stepDesc { font-size: 0.68rem; }
+  .rawJson { max-height: 300px; }
+  .rawJson pre { font-size: 0.62rem; }
 }
