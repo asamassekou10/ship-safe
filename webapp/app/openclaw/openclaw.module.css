@@ -1,0 +1,208 @@
+.hero {
+  padding: 5rem 0 3rem;
+  text-align: center;
+}
+
+.hero h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin-bottom: 1rem;
+}
+
+.heroSub {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  max-width: 640px;
+  margin: 0 auto 2rem;
+  line-height: 1.7;
+}
+
+.cveCallout {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(220, 38, 38, 0.06);
+  border: 1px solid rgba(220, 38, 38, 0.15);
+  border-radius: var(--radius);
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  color: var(--red);
+  font-weight: 600;
+  margin-bottom: 2rem;
+}
+
+/* Threats grid */
+.threatsSection { padding: 2rem 0 4rem; }
+
+.threatsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.threatCard {
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.threatIcon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.threatCard h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.threatCard p {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.sevBadge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 0.15em 0.5em;
+  border-radius: 4px;
+  width: fit-content;
+}
+.sevBadge[data-sev="critical"] { background: rgba(220,38,38,0.1); color: var(--red); }
+.sevBadge[data-sev="high"] { background: rgba(217,119,6,0.1); color: var(--yellow); }
+
+/* Before/After section */
+.compareSection { padding: 0 0 4rem; }
+
+.compareGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.compareCard {
+  padding: 1.5rem;
+}
+
+.compareCard h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.compareCard pre {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.7;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.badLine { color: var(--red); }
+.goodLine { color: var(--green); }
+
+/* Context section */
+.contextSection {
+  padding: 3rem 0 4rem;
+  background: var(--bg-card2);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.contextGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
+  margin-top: 2rem;
+}
+
+.contextCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+}
+
+.contextCard h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--red);
+}
+
+.contextCard p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.cveBadge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: rgba(220,38,38,0.08);
+  color: var(--red);
+  padding: 0.15em 0.5em;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+}
+
+/* CTA section */
+.ctaSection {
+  padding: 4rem 0 5rem;
+  text-align: center;
+}
+
+.ctaSection h2 {
+  margin-bottom: 1rem;
+}
+
+.ctaSection p {
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+  font-size: 1rem;
+}
+
+.ctaActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .compareGrid { grid-template-columns: 1fr; }
+  .threatsGrid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .hero { padding: 3rem 0 2rem; }
+  .hero h1 { font-size: 1.5rem; }
+  .heroSub { font-size: 0.9rem; }
+  .threatCard { padding: 1.25rem; }
+  .compareCard pre { font-size: 0.7rem; }
+  .ctaSection { padding: 3rem 0; }
+}

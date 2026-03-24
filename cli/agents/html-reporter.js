@@ -16,6 +16,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { getComplianceSummary } from '../utils/compliance-map.js';
 
 export class HTMLReporter {
   /**
@@ -119,6 +120,26 @@ small{color:#64748b}
     <thead><tr><th>Severity</th><th>Location</th><th>Issue</th><th>Code</th><th>Fix</th></tr></thead>
     <tbody>${findingRows || '<tr><td colspan="5" style="text-align:center;color:#22c55e">No findings — clean!</td></tr>'}</tbody>
   </table>
+
+  <h2>Compliance Mapping</h2>
+  ${(() => {
+    const compliance = getComplianceSummary(findings);
+    const s = compliance.summary;
+    return `<div class="stats">
+      <div class="stat"><div class="stat-number" style="color:#38bdf8">${s.soc2Controls}</div><div class="stat-label">SOC 2 Controls</div></div>
+      <div class="stat"><div class="stat-number" style="color:#38bdf8">${s.iso27001Controls}</div><div class="stat-label">ISO 27001 Controls</div></div>
+      <div class="stat"><div class="stat-number" style="color:#38bdf8">${s.nistAiRmfControls}</div><div class="stat-label">NIST AI RMF Controls</div></div>
+      <div class="stat"><div class="stat-number" style="color:#94a3b8">${s.totalFindings}</div><div class="stat-label">Mapped Findings</div></div>
+    </div>
+    <table>
+      <thead><tr><th>Framework</th><th>Controls Impacted</th><th>Details</th></tr></thead>
+      <tbody>
+        <tr><td>SOC 2 Type II</td><td>${s.soc2Controls}</td><td>${Object.entries(compliance.soc2).map(([k,v]) => k + ' (' + v + ')').join(', ') || 'None'}</td></tr>
+        <tr><td>ISO 27001:2022</td><td>${s.iso27001Controls}</td><td>${Object.entries(compliance.iso27001).map(([k,v]) => k + ' (' + v + ')').join(', ') || 'None'}</td></tr>
+        <tr><td>NIST AI RMF</td><td>${s.nistAiRmfControls}</td><td>${Object.entries(compliance.nistAiRmf).map(([k,v]) => k + ' (' + v + ')').join(', ') || 'None'}</td></tr>
+      </tbody>
+    </table>`;
+  })()}
 
   ${recon ? `<h2>Attack Surface</h2>
   <table>

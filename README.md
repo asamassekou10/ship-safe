@@ -15,22 +15,22 @@
 
 ---
 
-17 security agents. 80+ attack classes. One command.
+18 security agents. 80+ attack classes. One command.
 
-**Ship Safe v6.0** is an AI-powered security platform that runs 17 specialized agents in parallel against your codebase — scanning for secrets, injection vulnerabilities, auth bypass, SSRF, supply chain attacks, Supabase RLS misconfigs, Docker/Terraform/Kubernetes misconfigs, CI/CD pipeline poisoning, LLM/agentic AI security, MCP server misuse, RAG poisoning, PII compliance, vibe coding patterns, exception handling, and more. OWASP 2025 scoring with EPSS exploit probability. LLM-powered deep analysis verifies exploitability of critical findings. Secrets verification probes provider APIs to check if leaked keys are still active. CI integration with GitHub PR comments, threshold gating, and SARIF output.
+**Ship Safe v6.1** is an AI-powered security platform that runs 18 specialized agents in parallel against your codebase — scanning for secrets, injection vulnerabilities, auth bypass, SSRF, supply chain attacks, Supabase RLS misconfigs, Docker/Terraform/Kubernetes misconfigs, CI/CD pipeline poisoning, LLM/agentic AI security, MCP server misuse, RAG poisoning, PII compliance, vibe coding patterns, exception handling, AI agent config security, and more. OWASP 2025 scoring with EPSS exploit probability. LLM-powered deep analysis verifies exploitability of critical findings. Secrets verification probes provider APIs to check if leaked keys are still active. Compliance mapping to SOC 2, ISO 27001, and NIST AI RMF. Built-in threat intelligence feed with offline-first IOC matching. CI integration with GitHub PR comments, threshold gating, and SARIF output.
 
 ---
 
 ## Quick Start
 
 ```bash
-# Full security audit — secrets + 17 agents + deps + remediation plan
+# Full security audit — secrets + 18 agents + deps + remediation plan
 npx ship-safe audit .
 
 # LLM-powered deep analysis (Anthropic, OpenAI, Google, Ollama)
 npx ship-safe audit . --deep
 
-# Red team scan only (17 agents, 80+ attack classes)
+# Red team scan only (18 agents, 80+ attack classes)
 npx ship-safe red-team .
 
 # Scan only changed files (fast pre-commit & PR scanning)
@@ -82,7 +82,7 @@ npx ship-safe audit .
 ════════════════════════════════════════════════════════════
 
   [Phase 1/4] Scanning for secrets...         ✔ 49 found
-  [Phase 2/4] Running 17 security agents...   ✔ 103 findings
+  [Phase 2/4] Running 18 security agents...   ✔ 103 findings
   [Phase 3/4] Auditing dependencies...        ✔ 44 CVEs
   [Phase 4/4] Computing security score...     ✔ 25/100 F
 
@@ -109,14 +109,15 @@ npx ship-safe audit .
 
 **What it runs:**
 1. **Secret scan** — 50+ patterns with entropy scoring (API keys, passwords, tokens)
-2. **17 security agents** — run in parallel with per-agent timeouts and framework-aware filtering (injection, auth, SSRF, supply chain, config, Supabase RLS, LLM, MCP, agentic AI, RAG, PII, vibe coding, exception handling, mobile, git history, CI/CD, API)
+2. **18 security agents** — run in parallel with per-agent timeouts and framework-aware filtering (injection, auth, SSRF, supply chain, config, Supabase RLS, LLM, MCP, agentic AI, RAG, PII, vibe coding, exception handling, agent config, mobile, git history, CI/CD, API)
 3. **Dependency audit** — npm/pip/bundler CVE scanning with EPSS exploit probability scores
 4. **Secrets verification** — probes provider APIs (GitHub, Stripe, OpenAI, etc.) to check if leaked keys are still active
 5. **Deep analysis** — LLM-powered taint analysis verifies exploitability of critical/high findings (optional)
 6. **Score computation** — OWASP 2025 weighted scoring across 8 categories (0-100, A-F)
 7. **Context-aware confidence tuning** — downgrades findings in test files, docs, and comments
-8. **Remediation plan** — prioritized fix list grouped by severity
-9. **Interactive HTML report** — standalone dark-themed report with severity filtering, search, collapsible findings, and click-to-copy ignore annotations
+8. **Compliance mapping** — maps findings to SOC 2 Type II, ISO 27001:2022, and NIST AI Risk Management Framework controls
+9. **Remediation plan** — prioritized fix list grouped by severity
+10. **Interactive HTML report** — standalone dark-themed report with severity filtering, search, collapsible findings, compliance summary, and click-to-copy ignore annotations
 
 **Flags:**
 - `--json` — structured JSON output (clean for piping)
@@ -139,7 +140,7 @@ npx ship-safe audit .
 
 ---
 
-## 17 Security Agents
+## 18 Security Agents
 
 | Agent | Category | What It Detects |
 |-------|----------|-----------------|
@@ -156,6 +157,7 @@ npx ship-safe audit .
 | **PIIComplianceAgent** | Compliance | PII detection — SSNs, credit cards, emails, phone numbers in source code, logs, and configs |
 | **VibeCodingAgent** | Code Vulns | AI-generated code patterns — no input validation, empty catch blocks, hardcoded secrets, disabled security features, TODO-auth patterns |
 | **ExceptionHandlerAgent** | Code Vulns | OWASP A10:2025 — empty catch blocks, unhandled promise rejections, missing React error boundaries, leaked stack traces, generic catch-all without rethrow |
+| **AgentConfigScanner** | AI/LLM | AI agent config security — prompt injection in .cursorrules/CLAUDE.md/AGENTS.md/.windsurfrules, malicious Claude Code hooks (CVE-2026), OpenClaw public binding & malicious skills, encoded/obfuscated payloads, data exfiltration instructions, agent memory poisoning |
 | **MobileScanner** | Mobile | OWASP Mobile Top 10 2024 — insecure storage, WebView JS injection, HTTP endpoints, excessive permissions, debug mode |
 | **GitHistoryScanner** | Secrets | Leaked secrets in git commit history (checks if still active in working tree) |
 | **CICDScanner** | CI/CD | OWASP CI/CD Top 10 — pipeline poisoning, unpinned actions, secret logging, self-hosted runners, script injection |
@@ -174,7 +176,7 @@ npx ship-safe audit .
 # Full audit with remediation plan + HTML report
 npx ship-safe audit .
 
-# Red team: 17 agents, 80+ attack classes
+# Red team: 18 agents, 80+ attack classes
 npx ship-safe red-team .
 npx ship-safe red-team . --agents injection,auth    # Run specific agents
 npx ship-safe red-team . --html report.html         # HTML report
@@ -275,6 +277,52 @@ npx ship-safe audit . --verify
 npx ship-safe doctor
 ```
 
+### OpenClaw Security
+
+```bash
+# Focused OpenClaw security scan
+npx ship-safe openclaw .
+
+# Auto-harden OpenClaw configs (0.0.0.0→127.0.0.1, add auth, ws→wss)
+npx ship-safe openclaw . --fix
+
+# Red team: simulate ClawJacked, prompt injection, data exfil attacks
+npx ship-safe openclaw . --red-team
+
+# CI preflight — exit non-zero on critical findings
+npx ship-safe openclaw . --preflight
+
+# Scan a skill before installing it
+npx ship-safe scan-skill https://clawhub.io/skills/some-skill
+npx ship-safe scan-skill ./local-skill.json
+npx ship-safe scan-skill --all              # Scan all skills from openclaw.json
+
+# Generate hardened OpenClaw config
+npx ship-safe init --openclaw
+
+# Generate Agent Bill of Materials (CycloneDX 1.5)
+npx ship-safe abom .
+```
+
+### Threat Intelligence
+
+```bash
+# Update threat intel feed (ClawHavoc IOCs, malicious skills, config signatures)
+npx ship-safe update-intel
+
+# Ships with offline-first seed data — no internet required for scanning
+```
+
+### Defensive Hooks
+
+```bash
+# Install Claude Code defensive hooks (blocks curl|bash, exfil domains, rm -rf /)
+npx ship-safe guard --generate-hooks
+
+# Watch agent config files for drift (.cursorrules, CLAUDE.md, openclaw.json)
+npx ship-safe watch . --configs
+```
+
 ### Infrastructure Commands
 
 ```bash
@@ -312,7 +360,7 @@ claude plugin add github:asamassekou10/ship-safe
 
 | Command | Description |
 |---------|-------------|
-| `/ship-safe` | Full security audit — 17 agents, remediation plan, auto-fix |
+| `/ship-safe` | Full security audit — 18 agents, remediation plan, auto-fix |
 | `/ship-safe-scan` | Quick scan for leaked secrets |
 | `/ship-safe-score` | Security health score (0-100) |
 | `/ship-safe-deep` | LLM-powered deep taint analysis |

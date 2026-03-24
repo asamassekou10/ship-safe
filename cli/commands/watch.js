@@ -17,12 +17,26 @@ import { SKIP_DIRS, SKIP_EXTENSIONS, SKIP_FILENAMES, SECRET_PATTERNS, SECURITY_P
 import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import * as output from '../utils/output.js';
 
+// Agent config files to watch
+const AGENT_CONFIG_PATTERNS = [
+  '.cursorrules', '.windsurfrules', 'CLAUDE.md', 'AGENTS.md',
+  '.github/copilot-instructions.md', '.aider.conf.yml',
+  '.continue/config.json', 'openclaw.json', 'openclaw.config.json',
+  'clawhub.json', 'mcp.json', '.claude/settings.json',
+  '.cursor/mcp.json', '.vscode/mcp.json',
+];
+
 export async function watchCommand(targetPath = '.', options = {}) {
   const absolutePath = path.resolve(targetPath);
 
   if (!fs.existsSync(absolutePath)) {
     output.error(`Path does not exist: ${absolutePath}`);
     process.exit(1);
+  }
+
+  // Config-only watch mode
+  if (options.configs) {
+    return watchConfigs(absolutePath);
   }
 
   console.log();
@@ -158,4 +172,110 @@ function scanFile(filePath, patterns) {
     seen.add(key);
     return true;
   });
+}
+
+// =============================================================================
+// CONFIG-ONLY WATCH MODE
+// =============================================================================
+
+async function watchConfigs(absolutePath) {
+  console.log();
+  output.header('Ship Safe — Agent Config Watch');
+  console.log();
+  console.log(chalk.cyan('  Watching agent config files for changes...'));
+  console.log(chalk.gray('  Monitors: .cursorrules, CLAUDE.md, openclaw.json, mcp.json, .claude/settings.json, ...'));
+  console.log(chalk.gray('  Press Ctrl+C to stop'));
+  console.log();
+
+  let debounceTimer = null;
+  const pendingFiles = new Set();
+
+  try {
+    const watcher = fs.watch(absolutePath, { recursive: true }, (eventType, filename) => {
+      if (!filename) return;
+
+      // Check if this is an agent config file
+      const relPath = filename.replace(/\\/g, '/');
+      const isConfig = AGENT_CONFIG_PATTERNS.some(p => relPath === p || relPath.endsWith('/' + p));
+      const isGlobMatch = relPath.match(/\.cursor\/rules\/.*\.mdc$/) ||
+                          relPath.match(/\.openclaw\/.*\.json$/) ||
+                          relPath.match(/\.claude\/commands\/.*\.md$/) ||
+                          relPath.match(/\.claude\/memory\//);
+
+      if (!isConfig && !isGlobMatch) return;
+
+      const fullPath = path.join(absolutePath, filename);
+      pendingFiles.add(fullPath);
+
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(async () => {
+        const filesToScan = [...pendingFiles];
+        pendingFiles.clear();
+        await scanConfigFiles(filesToScan, absolutePath);
+      }, 300);
+    });
+
+    process.on('SIGINT', () => {
+      watcher.close();
+      console.log();
+      output.info('Config watch stopped.');
+      process.exit(0);
+    });
+
+    setInterval(() => {}, 1000 * 60 * 60);
+
+  } catch (err) {
+    output.error(`Watch failed: ${err.message}`);
+    process.exit(1);
+  }
+}
+
+async function scanConfigFiles(files, rootPath) {
+  // Dynamic import to avoid circular dependency
+  const { AgentConfigScanner } = await import('../agents/agent-config-scanner.js');
+  const { MCPSecurityAgent } = await import('../agents/mcp-security-agent.js');
+
+  const timestamp = new Date().toLocaleTimeString();
+  const scanner = new AgentConfigScanner();
+  const mcpScanner = new MCPSecurityAgent();
+
+  for (const filePath of files) {
+    if (!fs.existsSync(filePath)) {
+      console.log(chalk.gray(`  [${timestamp}] ${path.relative(rootPath, filePath)} — deleted`));
+      continue;
+    }
+
+    const relPath = path.relative(rootPath, filePath).replace(/\\/g, '/');
+    console.log(chalk.cyan(`  [${timestamp}] Changed: ${relPath}`));
+
+    // Git blame (best-effort)
+    try {
+      const { execSync } = await import('child_process');
+      const blame = execSync(`git log -1 --format="%an (%ar)" -- "${filePath}"`, { cwd: rootPath, encoding: 'utf-8', timeout: 5000 }).trim();
+      if (blame) console.log(chalk.gray(`    Last modified by: ${blame}`));
+    } catch { /* not a git repo or git not available */ }
+
+    // Run agent config scanner
+    const context = { rootPath, files: [] };
+    const [configFindings, mcpFindings] = await Promise.all([
+      scanner.analyze(context),
+      mcpScanner.analyze(context),
+    ]);
+
+    const findings = [...configFindings, ...mcpFindings].filter(f =>
+      f.file && path.resolve(f.file) === path.resolve(filePath)
+    );
+
+    if (findings.length > 0) {
+      for (const f of findings) {
+        const sevColor = f.severity === 'critical' ? chalk.red.bold
+          : f.severity === 'high' ? chalk.yellow
+          : chalk.blue;
+        console.log(`    ${sevColor(`[${f.severity.toUpperCase()}]`)} ${f.title || f.rule}`);
+      }
+    } else {
+      console.log(chalk.green('    ✔ Clean'));
+    }
+    console.log();
+  }
 }

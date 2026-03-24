@@ -21,7 +21,7 @@ export default function Features() {
             </div>
             <h3 className={styles.cardTitle}>Scan everything</h3>
             <p className={styles.cardDesc}>
-              17 specialized agents scan for secrets, injection, auth bypass, SSRF, supply chain attacks, LLM/MCP security, vibe coding patterns, and more. 80+ attack classes across 5 OWASP standards.
+              18 specialized agents scan for secrets, injection, auth bypass, SSRF, supply chain attacks, LLM/MCP security, vibe coding patterns, and more. 80+ attack classes across 5 OWASP standards.
             </p>
             <div className={styles.miniTerminal}>
               <div className={styles.miniHeader}>
@@ -37,7 +37,7 @@ export default function Features() {
                 </div>
                 <div className={styles.miniLine}>
                   <span className={styles.miniOk}>✔</span>
-                  <span>17 agents: 2 findings</span>
+                  <span>18 agents: 2 findings</span>
                   <span className={styles.miniTag} data-level="medium">MEDIUM</span>
                 </div>
                 <div className={styles.miniLine}>
@@ -139,7 +139,7 @@ export default function Features() {
                 </div>
                 <div className={styles.miniLine}>
                   <span className={styles.miniOk}>✔</span>
-                  <span>17 agents: 0 findings</span>
+                  <span>18 agents: 0 findings</span>
                 </div>
                 <div className={styles.miniLine}>
                   <span className={styles.miniOk}>✔</span>

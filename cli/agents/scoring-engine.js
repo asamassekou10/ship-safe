@@ -11,6 +11,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { getComplianceSummary } from '../utils/compliance-map.js';
 
 // =============================================================================
 // SCORING CONFIGURATION
@@ -47,6 +48,7 @@ const FALLBACK_CATEGORY_MAP = {
   'rag': 'llm',
   'vibe': 'injection',        // Vibe coding findings → Code Vulnerabilities
   'exception': 'injection',   // OWASP A10:2025 — Mishandling of Exceptional Conditions
+  'agent-config': 'llm',      // Agent config security → AI/LLM category
   'recon': null,               // skip recon findings
 };
 
@@ -136,12 +138,21 @@ export class ScoringEngine {
     const score = Math.max(0, 100 - totalDeduction);
     const grade = GRADES.find(g => score >= g.min);
 
+    // ── Compliance mapping ─────────────────────────────────────────────────
+    let compliance;
+    try {
+      compliance = getComplianceSummary(findings);
+    } catch {
+      compliance = null;
+    }
+
     return {
       score,
       grade,
       categories: categoryResults,
       totalFindings: findings.length,
       totalDepVulns: depVulns.length,
+      compliance,
     };
   }
 

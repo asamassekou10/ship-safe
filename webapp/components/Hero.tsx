@@ -11,7 +11,7 @@ interface HeroProps {
 
 export default function Hero({ stars, downloads }: HeroProps) {
   const stats = [
-    { num: '17', label: 'Security agents' },
+    { num: '18', label: 'Security agents' },
     { num: '80+', label: 'Attack classes' },
     { num: stars ? formatNumber(stars) : '230+', label: 'GitHub stars' },
     { num: downloads ? formatNumber(downloads) : '8k+', label: 'Weekly downloads' },
@@ -68,7 +68,7 @@ export default function Hero({ stars, downloads }: HeroProps) {
           </h1>
 
           <p className={styles.heroSub}>
-            One command finds secrets, code vulns, and CVEs across your entire codebase. 17 AI agents. 80+ attack classes. OWASP 2025 scoring.
+            One command finds secrets, code vulns, and CVEs across your entire codebase. 18 AI agents. 80+ attack classes. OWASP 2025 scoring.
           </p>
 
           <div className={`install-box ${styles.installBox}`}>
@@ -106,7 +106,7 @@ export default function Hero({ stars, downloads }: HeroProps) {
             <div className={styles.dashTerminal}>
               {[
                 { icon: '✔', text: 'Secrets: 4 found', tag: 'CRITICAL', tagCls: styles.tagRed },
-                { icon: '✔', text: '17 agents: 23 findings', tag: 'HIGH', tagCls: styles.tagYellow },
+                { icon: '✔', text: '18 agents: 23 findings', tag: 'HIGH', tagCls: styles.tagYellow },
                 { icon: '✔', text: 'Dependencies: 3 CVEs', tag: 'HIGH', tagCls: styles.tagYellow },
                 { icon: '✔', text: 'Remediation plan ready', tag: null, dim: true },
               ].map((l, i) => (

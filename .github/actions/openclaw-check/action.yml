@@ -1,0 +1,60 @@
+name: 'Ship Safe OpenClaw Check'
+description: 'Block PRs that introduce security issues in AI agent configs (OpenClaw, .cursorrules, CLAUDE.md, MCP, hooks)'
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  path:
+    description: 'Path to scan (default: repo root)'
+    required: false
+    default: '.'
+  fail-on-critical:
+    description: 'Fail the check if critical findings are found'
+    required: false
+    default: 'true'
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '20'
+
+outputs:
+  findings:
+    description: 'Number of findings detected'
+    value: ${{ steps.scan.outputs.findings }}
+  critical:
+    description: 'Number of critical findings'
+    value: ${{ steps.scan.outputs.critical }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Install ship-safe
+      shell: bash
+      run: npm install -g ship-safe
+
+    - name: Run OpenClaw security scan
+      id: scan
+      shell: bash
+      run: |
+        set +e
+        RESULT=$(ship-safe openclaw ${{ inputs.path }} --preflight --json 2>&1)
+        EXIT_CODE=$?
+        echo "$RESULT"
+
+        # Parse findings count
+        TOTAL=$(echo "$RESULT" | node -e "try{const d=JSON.parse(require('fs').readFileSync(0,'utf8'));console.log(d.summary?.total||0)}catch{console.log(0)}")
+        CRITICAL=$(echo "$RESULT" | node -e "try{const d=JSON.parse(require('fs').readFileSync(0,'utf8'));console.log(d.summary?.critical||0)}catch{console.log(0)}")
+
+        echo "findings=$TOTAL" >> $GITHUB_OUTPUT
+        echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+
+        if [ "${{ inputs.fail-on-critical }}" = "true" ] && [ "$EXIT_CODE" -ne 0 ]; then
+          echo "::error::Ship Safe found $CRITICAL critical agent config security issue(s). Fix them before merging."
+          exit 1
+        fi

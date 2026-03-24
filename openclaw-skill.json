@@ -1,0 +1,12 @@
+{
+  "name": "ship-safe-security-scan",
+  "version": "6.1.0",
+  "description": "Run ship-safe security scan on your AI agent configuration — detects ClawJacked, malicious skills, prompt injection, missing auth, and 80+ attack classes.",
+  "command": "npx ship-safe openclaw . --preflight --json",
+  "permissions": ["read"],
+  "author": "ship-safe contributors",
+  "homepage": "https://shipsafecli.com/openclaw",
+  "repository": "https://github.com/asamassekou10/ship-safe",
+  "tags": ["security", "audit", "openclaw", "mcp", "agent-config"],
+  "verified": true
+}

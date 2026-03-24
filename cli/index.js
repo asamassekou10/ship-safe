@@ -53,6 +53,8 @@ export { APIFuzzer } from './agents/api-fuzzer.js';
 export { SupabaseRLSAgent } from './agents/supabase-rls-agent.js';
 export { VibeCodingAgent } from './agents/vibe-coding-agent.js';
 export { ExceptionHandlerAgent } from './agents/exception-handler-agent.js';
+export { AgentConfigScanner } from './agents/agent-config-scanner.js';
+export { ABOMGenerator } from './agents/abom-generator.js';
 
 // ── Supporting Modules ────────────────────────────────────────────────────────
 export { ScoringEngine, GRADES, CATEGORIES } from './agents/scoring-engine.js';

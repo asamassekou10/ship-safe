@@ -25,6 +25,8 @@ export { RAGSecurityAgent } from './rag-security-agent.js';
 export { PIIComplianceAgent } from './pii-compliance-agent.js';
 export { VibeCodingAgent } from './vibe-coding-agent.js';
 export { ExceptionHandlerAgent } from './exception-handler-agent.js';
+export { AgentConfigScanner } from './agent-config-scanner.js';
+export { ABOMGenerator } from './abom-generator.js';
 export { VerifierAgent } from './verifier-agent.js';
 export { DeepAnalyzer } from './deep-analyzer.js';
 export { ScoringEngine, GRADES, CATEGORIES } from './scoring-engine.js';
@@ -33,7 +35,7 @@ export { PolicyEngine } from './policy-engine.js';
 export { HTMLReporter } from './html-reporter.js';
 
 /**
- * Create a fully configured orchestrator with all 15 scanning agents.
+ * Create a fully configured orchestrator with all 16 scanning agents.
  * (VerifierAgent and DeepAnalyzer run as post-processors, not in the agent pool.)
  */
 import { Orchestrator as OrchestratorClass } from './orchestrator.js';
@@ -54,6 +56,7 @@ import { RAGSecurityAgent as RAGSecurityAgentClass } from './rag-security-agent.
 import { PIIComplianceAgent as PIIComplianceAgentClass } from './pii-compliance-agent.js';
 import { VibeCodingAgent as VibeCodingAgentClass } from './vibe-coding-agent.js';
 import { ExceptionHandlerAgent as ExceptionHandlerAgentClass } from './exception-handler-agent.js';
+import { AgentConfigScanner as AgentConfigScannerClass } from './agent-config-scanner.js';
 
 export function buildOrchestrator() {
   const orchestrator = new OrchestratorClass();
@@ -75,6 +78,7 @@ export function buildOrchestrator() {
     new PIIComplianceAgentClass(),
     new VibeCodingAgentClass(),
     new ExceptionHandlerAgentClass(),
+    new AgentConfigScannerClass(),
   ]);
   return orchestrator;
 }

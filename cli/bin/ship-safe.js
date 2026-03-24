@@ -40,6 +40,11 @@ import { ciCommand } from '../commands/ci.js';
 import { diffCommand } from '../commands/diff.js';
 import { vibeCheckCommand } from '../commands/vibe-check.js';
 import { benchmarkCommand } from '../commands/benchmark.js';
+import { openclawCommand } from '../commands/openclaw.js';
+import { scanSkillCommand } from '../commands/scan-skill.js';
+import { abomCommand } from '../commands/abom.js';
+import { updateIntelCommand } from '../commands/update-intel.js';
+import { ABOMGenerator } from '../agents/abom-generator.js';
 import { PolicyEngine } from '../agents/policy-engine.js';
 import { SBOMGenerator } from '../agents/sbom-generator.js';
 
@@ -110,6 +115,7 @@ program
   .option('--gitignore', 'Only copy .gitignore')
   .option('--headers', 'Only copy security headers config')
   .option('--agents', 'Only add security rules to AI agent instruction files (CLAUDE.md, .cursor/rules/, .windsurfrules, copilot-instructions.md)')
+  .option('--openclaw', 'Generate a hardened openclaw.json template')
   .action(initCommand);
 
 // -----------------------------------------------------------------------------
@@ -128,6 +134,7 @@ program
   .command('guard [action]')
   .description('Install a git hook to block pushes if secrets are found')
   .option('--pre-commit', 'Install as pre-commit hook instead of pre-push')
+  .option('--generate-hooks', 'Generate defensive Claude Code hooks (.claude/settings.json)')
   .action(guardCommand);
 
 // -----------------------------------------------------------------------------
@@ -192,7 +199,7 @@ program
 // -----------------------------------------------------------------------------
 program
   .command('audit [path]')
-  .description('Full security audit: secrets + 17 agents + deps + score + deep analysis + remediation plan')
+  .description('Full security audit: secrets + 18 agents + deps + score + deep analysis + remediation plan')
   .option('--json', 'Output results as JSON')
   .option('--sarif', 'Output results in SARIF format')
   .option('--csv', 'Output results as CSV')
@@ -230,7 +237,7 @@ program
 // -----------------------------------------------------------------------------
 program
   .command('red-team [path]')
-  .description('Multi-agent security audit: 17 agents scan for 80+ attack classes')
+  .description('Multi-agent security audit: 18 agents scan for 80+ attack classes')
   .option('--agents <list>', 'Comma-separated list of agents to run')
   .option('--json', 'Output results as JSON')
   .option('--sarif', 'Output results in SARIF format')
@@ -252,6 +259,7 @@ program
   .command('watch [path]')
   .description('Continuous monitoring: watch files for security issues in real-time')
   .option('--poll', 'Use polling mode (for network drives)')
+  .option('--configs', 'Watch only agent config files (openclaw.json, .cursorrules, mcp.json, etc.)')
   .action(watchCommand);
 
 // -----------------------------------------------------------------------------
@@ -328,6 +336,47 @@ program
   .action(benchmarkCommand);
 
 // -----------------------------------------------------------------------------
+// OPENCLAW COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('openclaw [path]')
+  .description('OpenClaw security scan: agent configs, MCP servers, skills, hooks')
+  .option('--fix', 'Auto-harden OpenClaw and agent configurations')
+  .option('--preflight', 'Exit non-zero on critical findings (for CI)')
+  .option('--red-team', 'Simulate adversarial attacks against agent configs')
+  .option('--json', 'Output results as JSON')
+  .action(openclawCommand);
+
+// -----------------------------------------------------------------------------
+// SCAN-SKILL COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('scan-skill [target]')
+  .description('Analyze an AI agent skill for security issues before installing it')
+  .option('--all', 'Scan all skills defined in openclaw.json')
+  .option('--json', 'Output results as JSON')
+  .action(scanSkillCommand);
+
+// -----------------------------------------------------------------------------
+// ABOM COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('abom [path]')
+  .description('Generate Agent Bill of Materials (CycloneDX ABOM) — MCP servers, skills, configs, LLM providers')
+  .option('-o, --output <file>', 'Output file path', 'abom.json')
+  .option('--json', 'Output to stdout as JSON')
+  .action(abomCommand);
+
+// -----------------------------------------------------------------------------
+// UPDATE-INTEL COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('update-intel')
+  .description('Update threat intelligence feed (malicious skill hashes, compromised MCP servers)')
+  .option('--url <url>', 'Custom feed URL')
+  .action(updateIntelCommand);
+
+// -----------------------------------------------------------------------------
 // DOCTOR COMMAND
 // -----------------------------------------------------------------------------
 program
@@ -344,15 +393,19 @@ if (process.argv.length === 2) {
   console.log(banner);
   console.log(chalk.yellow('\nQuick start:\n'));
   console.log(chalk.cyan.bold('  v6.0 — Full Security Audit'));
-  console.log(chalk.white('  npx ship-safe audit .       ') + chalk.gray('# Full audit: secrets + 17 agents + deps + remediation'));
+  console.log(chalk.white('  npx ship-safe audit .       ') + chalk.gray('# Full audit: secrets + 18 agents + deps + remediation'));
   console.log(chalk.white('  npx ship-safe audit . --deep') + chalk.gray('# LLM-powered taint analysis (Anthropic/Ollama)'));
-  console.log(chalk.white('  npx ship-safe red-team .    ') + chalk.gray('# 17-agent red team scan (80+ attack classes)'));
+  console.log(chalk.white('  npx ship-safe red-team .    ') + chalk.gray('# 18-agent red team scan (80+ attack classes)'));
   console.log(chalk.white('  npx ship-safe vibe-check .  ') + chalk.gray('# Fun security check with emoji & shareable badge'));
   console.log(chalk.white('  npx ship-safe benchmark .   ') + chalk.gray('# Compare score against industry averages'));
   console.log(chalk.white('  npx ship-safe ci .          ') + chalk.gray('# CI/CD mode: scan, score, exit code'));
   console.log(chalk.white('  npx ship-safe diff          ') + chalk.gray('# Scan only changed files (fast pre-commit)'));
   console.log(chalk.white('  npx ship-safe watch .       ') + chalk.gray('# Continuous monitoring mode'));
+  console.log(chalk.white('  npx ship-safe openclaw .    ') + chalk.gray('# OpenClaw & agent config security scan'));
+  console.log(chalk.white('  npx ship-safe scan-skill <u>') + chalk.gray('# Vet a skill before installing'));
+  console.log(chalk.white('  npx ship-safe abom .        ') + chalk.gray('# Agent Bill of Materials (CycloneDX)'));
   console.log(chalk.white('  npx ship-safe sbom .        ') + chalk.gray('# Generate CycloneDX SBOM (CRA-ready)'));
+  console.log(chalk.white('  npx ship-safe update-intel  ') + chalk.gray('# Update threat intelligence feed'));
   console.log(chalk.white('  npx ship-safe policy init   ') + chalk.gray('# Create security policy template'));
   console.log(chalk.white('  npx ship-safe doctor        ') + chalk.gray('# Check environment and configuration'));
   console.log();

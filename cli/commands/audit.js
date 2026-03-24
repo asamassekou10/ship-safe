@@ -662,6 +662,7 @@ function outputJSON(scoreResult, findings, depVulns, recon, agentResults, remedi
     recon,
     agents: agentResults,
   };
+  if (scoreResult.compliance) output.compliance = scoreResult.compliance;
   if (suppressions) output.suppressions = suppressions;
   if (history && history.length >= 2) {
     const prev = history[history.length - 2];

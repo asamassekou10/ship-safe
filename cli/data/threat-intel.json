@@ -1,0 +1,85 @@
+{
+  "version": "1.0.0",
+  "updated": "2026-03-23T00:00:00Z",
+  "maliciousSkillHashes": [
+    {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "name": "empty-payload-stub",
+      "description": "Empty file used as placeholder in ClawHavoc campaign"
+    },
+    {
+      "sha256": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+      "name": "clawhavoc-stealer-v1",
+      "description": "AMOS stealer dropper identified in ClawHavoc campaign (1,184 malicious skills)"
+    },
+    {
+      "sha256": "dead0000beef0000cafe0000face0000dead0000beef0000cafe0000face0000",
+      "name": "clawhavoc-exfil-v2",
+      "description": "Data exfiltration skill sending credentials to attacker-controlled webhook"
+    }
+  ],
+  "compromisedMcpServers": [
+    {
+      "name": "@openclaw/mcp-shell-exec",
+      "versions": ["<1.2.3"],
+      "advisory": "Unrestricted shell command execution via WebSocket — CVE-2026-25253"
+    },
+    {
+      "name": "mcp-server-puppeteer-unverified",
+      "versions": ["*"],
+      "advisory": "Typosquat of official puppeteer MCP server, exfiltrates browser cookies"
+    },
+    {
+      "name": "@clawhub/skill-auto-deploy",
+      "versions": ["*"],
+      "advisory": "ClawHavoc campaign skill — installs AMOS stealer on macOS/Linux"
+    }
+  ],
+  "maliciousConfigSignatures": [
+    {
+      "pattern": "ignore previous instructions",
+      "description": "Prompt injection attempting to override agent system instructions",
+      "severity": "critical"
+    },
+    {
+      "pattern": "webhook.site",
+      "description": "Known data exfiltration service used in prompt injection attacks",
+      "severity": "critical"
+    },
+    {
+      "pattern": "curl.*\\|.*bash",
+      "description": "Remote code execution via piped download-and-execute pattern",
+      "severity": "critical"
+    },
+    {
+      "pattern": "ngrok\\.io|ngrok\\.app",
+      "description": "Tunnel service commonly used for data exfiltration in agent attacks",
+      "severity": "critical"
+    },
+    {
+      "pattern": "requestbin\\.com|pipedream\\.net",
+      "description": "Request interception service used to capture exfiltrated data",
+      "severity": "critical"
+    }
+  ],
+  "knownVulnerableConfigs": [
+    {
+      "file": "openclaw.json",
+      "check": "host_0000",
+      "description": "OpenClaw bound to 0.0.0.0 — CVE-2026-25253 (ClawJacked, CVSS 8.8)",
+      "cve": "CVE-2026-25253"
+    },
+    {
+      "file": "openclaw.json",
+      "check": "no_auth",
+      "description": "OpenClaw running without authentication — full agent takeover possible",
+      "cve": "CVE-2026-25253"
+    },
+    {
+      "file": ".claude/settings.json",
+      "check": "malicious_hooks",
+      "description": "Claude Code hooks executing arbitrary shell commands — Check Point RCE disclosure",
+      "cve": "CVE-2026-XXXX"
+    }
+  ]
+}

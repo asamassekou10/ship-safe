@@ -9,8 +9,8 @@ const steps = [
   },
   {
     num: 2,
-    title: 'Run 17 security agents',
-    body: 'Deploys specialized agents for injection, auth bypass, SSRF, supply chain, config, Supabase RLS, LLM/MCP security, agentic AI, RAG, PII, vibe coding, exception handling, mobile, git history, CI/CD, API fuzzing, and recon. Context-aware confidence tuning reduces false positives.',
+    title: 'Run 18 security agents',
+    body: 'Deploys specialized agents for injection, auth bypass, SSRF, supply chain, config, Supabase RLS, LLM/MCP security, agentic AI, RAG, PII, vibe coding, exception handling, agent config security, mobile, git history, CI/CD, API fuzzing, and recon. Context-aware confidence tuning reduces false positives.',
     connector: true,
   },
   {

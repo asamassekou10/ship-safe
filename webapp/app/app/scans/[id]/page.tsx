@@ -99,7 +99,7 @@ type Tab = 'findings' | 'remediation' | 'deps' | 'agents' | 'raw';
 const SCAN_STEPS = [
   { label: 'Cloning repository', desc: 'Fetching source code from GitHub', duration: 4000 },
   { label: 'Scanning for secrets', desc: 'Checking for leaked API keys, tokens, and credentials', duration: 3000 },
-  { label: 'Running 17 security agents', desc: 'Injection, auth bypass, SSRF, supply chain, LLM red team, MCP security...', duration: 8000 },
+  { label: 'Running 18 security agents', desc: 'Injection, auth bypass, SSRF, supply chain, LLM red team, MCP security, agent config...', duration: 8000 },
   { label: 'Auditing dependencies', desc: 'Checking packages for known CVEs with EPSS scoring', duration: 5000 },
   { label: 'Computing OWASP 2025 score', desc: 'Weighing findings across 8 categories with confidence tuning', duration: 2000 },
   { label: 'Generating remediation plan', desc: 'Prioritizing fixes by severity, effort, and exploitability', duration: 2000 },

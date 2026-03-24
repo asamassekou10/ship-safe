@@ -136,6 +136,10 @@ export async function guardCommand(action, options = {}) {
     process.exit(1);
   }
 
+  if (options.generateHooks) {
+    return generateClaudeHooks(cwd);
+  }
+
   if (action === 'remove') {
     return removeHooks(gitDir, cwd);
   }
@@ -276,6 +280,101 @@ function removeHooks(gitDir, cwd) {
   if (removed === 0) {
     output.warning('No ship-safe hooks found.');
   }
+}
+
+// =============================================================================
+// CLAUDE CODE DEFENSIVE HOOKS
+// =============================================================================
+
+function generateClaudeHooks(cwd) {
+  output.header('Generating Defensive Claude Code Hooks');
+
+  const claudeDir = path.join(cwd, '.claude');
+  const settingsPath = path.join(claudeDir, 'settings.json');
+
+  // Defensive hooks that block common attack patterns
+  const preToolCmd = [
+    'node -e "',
+    'const c=process.argv[1]||String();',
+    'const bad=[/curl.*[|].*(?:bash|sh|node|python)/i,/wget.*[|].*(?:bash|sh)/i,',
+    '/rm\\s+-rf\\s+\\//,/webhook[.]site|requestbin|ngrok[.]io|pipedream/i,',
+    '/base64.*-d.*[|].*(?:bash|sh)/i];',
+    'const m=bad.find(r=>r.test(c));',
+    'if(m){console.error(String.fromCharCode(10060)+String.fromCharCode(32)+c.slice(0,80));process.exit(1)}',
+    '" "$INPUT"',
+  ].join('');
+
+  const postToolCmd = [
+    'node -e "',
+    'const f=process.argv[1]||String();',
+    'if(/[.]env$|[.]env[.]/.test(f)){console.log(String.fromCharCode(9888)+String.fromCharCode(32)+f)}',
+    '" "$INPUT"',
+  ].join('');
+
+  const defensiveHooks = {
+    hooks: {
+      PreToolUse: [
+        {
+          matcher: 'Bash',
+          command: preToolCmd,
+          description: 'Ship Safe: Block dangerous command patterns (curl|bash, rm -rf /, exfil domains)',
+        },
+      ],
+      PostToolUse: [
+        {
+          matcher: 'Write',
+          command: postToolCmd,
+          description: 'Ship Safe: Alert when .env files are modified',
+        },
+      ],
+    },
+  };
+
+  // Merge with existing settings
+  let existing = {};
+  if (fs.existsSync(settingsPath)) {
+    try {
+      existing = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+    } catch { /* fresh start */ }
+  }
+
+  // Merge hooks — don't overwrite existing hooks, append
+  if (!existing.hooks) existing.hooks = {};
+  if (!existing.hooks.PreToolUse) existing.hooks.PreToolUse = [];
+  if (!existing.hooks.PostToolUse) existing.hooks.PostToolUse = [];
+
+  // Check if ship-safe hooks already present
+  const hasPreHook = existing.hooks.PreToolUse.some(h => h.description?.includes('Ship Safe'));
+  const hasPostHook = existing.hooks.PostToolUse.some(h => h.description?.includes('Ship Safe'));
+
+  if (hasPreHook && hasPostHook) {
+    output.warning('Ship Safe hooks already installed in .claude/settings.json');
+    return;
+  }
+
+  if (!hasPreHook) {
+    existing.hooks.PreToolUse.push(...defensiveHooks.hooks.PreToolUse);
+  }
+  if (!hasPostHook) {
+    existing.hooks.PostToolUse.push(...defensiveHooks.hooks.PostToolUse);
+  }
+
+  // Write
+  if (!fs.existsSync(claudeDir)) fs.mkdirSync(claudeDir, { recursive: true });
+  fs.writeFileSync(settingsPath, JSON.stringify(existing, null, 2) + '\n');
+
+  output.success('Defensive hooks installed in .claude/settings.json');
+  console.log();
+  console.log(chalk.gray('  Hooks installed:'));
+  console.log(chalk.gray('    PreToolUse  → Block curl|bash, rm -rf /, exfil domains'));
+  console.log(chalk.gray('    PostToolUse → Alert on .env file modifications'));
+  console.log();
+  console.log(chalk.gray('  These hooks protect against:'));
+  console.log(chalk.gray('    • Remote code execution via piped downloads'));
+  console.log(chalk.gray('    • Data exfiltration to webhook.site/ngrok/requestbin'));
+  console.log(chalk.gray('    • Destructive filesystem operations'));
+  console.log(chalk.gray('    • Unauthorized .env modifications'));
+  console.log();
 }
 
 // =============================================================================
