@@ -317,6 +317,47 @@ npx ship-safe update-intel
 # Ships with offline-first seed data — no internet required for scanning
 ```
 
+### OpenClaw GitHub Action
+
+Drop-in CI action that blocks PRs introducing agent config vulnerabilities:
+
+```yaml
+# .github/workflows/openclaw-security.yml
+name: OpenClaw Security Check
+
+on: [pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  openclaw:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: asamassekou10/ship-safe/.github/actions/openclaw-check@main
+        with:
+          fail-on-critical: 'true'
+```
+
+**Inputs:**
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `path` | `.` | Path to scan |
+| `fail-on-critical` | `true` | Fail the check if critical findings are found |
+| `node-version` | `20` | Node.js version to use |
+
+**Outputs:**
+
+| Output | Description |
+|--------|-------------|
+| `findings` | Total number of findings detected |
+| `critical` | Number of critical findings |
+
+Scans `openclaw.json`, `.cursorrules`, `CLAUDE.md`, Claude Code hooks, and MCP configs. Checks against the bundled threat intelligence database for known ClawHavoc IOCs.
+
 ### Defensive Hooks
 
 ```bash

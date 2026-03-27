@@ -166,6 +166,7 @@ export function summary(stats) {
 
   console.log(chalk.gray(`  Files scanned: ${stats.filesScanned}`));
   console.log(chalk.cyan('='.repeat(60)));
+  console.log(chalk.gray(`  Cloud dashboard & team scanning: `) + chalk.cyan('https://shipsafecli.com'));
 }
 
 /**

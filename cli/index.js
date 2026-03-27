@@ -29,6 +29,10 @@ export { baselineCommand } from './commands/baseline.js';
 export { diffCommand } from './commands/diff.js';
 export { vibeCheckCommand } from './commands/vibe-check.js';
 export { benchmarkCommand } from './commands/benchmark.js';
+export { openclawCommand } from './commands/openclaw.js';
+export { scanSkillCommand } from './commands/scan-skill.js';
+export { abomCommand } from './commands/abom.js';
+export { updateIntelCommand } from './commands/update-intel.js';
 
 // ── Patterns ──────────────────────────────────────────────────────────────────
 export { SECRET_PATTERNS, SECURITY_PATTERNS, SKIP_DIRS, SKIP_EXTENSIONS, SKIP_FILENAMES } from './utils/patterns.js';

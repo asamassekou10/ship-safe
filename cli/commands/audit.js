@@ -391,6 +391,7 @@ export async function auditCommand(targetPath = '.', options = {}) {
     reporter.generateFullReport(scoreResult, filteredFindings, depVulns, recon, remediationPlan, absolutePath, htmlPath);
     console.log();
     console.log(chalk.cyan(`  Full report: ${chalk.white.bold(htmlPath)}`));
+    console.log(chalk.gray(`  Dashboard:   `) + chalk.cyan('https://shipsafecli.com/app'));
 
     // PDF export
     if (options.pdf) {

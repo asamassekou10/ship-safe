@@ -404,7 +404,37 @@ npx ship-safe openclaw . --preflight
 npx ship-safe scan-skill https://clawhub.io/skills/some-skill
 
 # Generate Agent Bill of Materials
-npx ship-safe abom .`}</code></pre>
+npx ship-safe abom .
+
+# Update threat intelligence (ClawHavoc IOCs, malicious skills)
+npx ship-safe update-intel`}</code></pre>
+
+              <h3>OpenClaw GitHub Action</h3>
+              <p>Drop-in CI action that blocks PRs introducing agent config vulnerabilities:</p>
+              <pre><code>{`# .github/workflows/openclaw-security.yml
+name: OpenClaw Security Check
+on: [pull_request]
+permissions:
+  contents: read
+jobs:
+  openclaw:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: asamassekou10/ship-safe/.github/actions/openclaw-check@main
+        with:
+          fail-on-critical: 'true'`}</code></pre>
+              <div className={styles.tableWrap}>
+                <table>
+                  <thead><tr><th>Input</th><th>Default</th><th>Description</th></tr></thead>
+                  <tbody>
+                    <tr><td><code>path</code></td><td><code>.</code></td><td>Path to scan</td></tr>
+                    <tr><td><code>fail-on-critical</code></td><td><code>true</code></td><td>Fail the check if critical findings are found</td></tr>
+                    <tr><td><code>node-version</code></td><td><code>20</code></td><td>Node.js version to use</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>Scans <code>openclaw.json</code>, <code>.cursorrules</code>, <code>CLAUDE.md</code>, Claude Code hooks, and MCP configs. Checks against the bundled threat intelligence database for known ClawHavoc IOCs.</p>
             </section>
 
             {/* ── Claude Code ───────────────────────────────────────── */}

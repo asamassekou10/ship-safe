@@ -299,6 +299,7 @@ function printScore(score, grade, ctx) {
   }
 
   console.log(chalk.cyan('='.repeat(60)));
+  console.log(chalk.gray('  Share your score & track trends: ') + chalk.cyan('https://shipsafecli.com'));
   console.log();
 }
 
