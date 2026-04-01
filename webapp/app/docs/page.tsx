@@ -127,6 +127,9 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                 <table>
                   <thead><tr><th>Command</th><th>Description</th></tr></thead>
                   <tbody>
+                    <tr><td><code>hooks install</code></td><td>Install real-time Claude Code hooks — block secrets before they land on disk</td></tr>
+                    <tr><td><code>hooks status</code></td><td>Check if Claude Code hooks are installed</td></tr>
+                    <tr><td><code>hooks remove</code></td><td>Uninstall Claude Code hooks</td></tr>
                     <tr><td><code>agent .</code></td><td>AI audit: scan + classify with LLM + auto-fix</td></tr>
                     <tr><td><code>remediate .</code></td><td>Auto-fix hardcoded secrets (rewrite code + write .env)</td></tr>
                     <tr><td><code>rotate .</code></td><td>Open provider dashboards to revoke exposed keys</td></tr>
@@ -181,6 +184,8 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                     <tr><td><code>--deep</code></td><td>LLM-powered taint analysis</td></tr>
                     <tr><td><code>--local</code></td><td>Use local Ollama for deep analysis</td></tr>
                     <tr><td><code>--model &lt;model&gt;</code></td><td>Specify LLM model</td></tr>
+                    <tr><td><code>--provider &lt;name&gt;</code></td><td>LLM provider: groq, together, mistral, deepseek, xai, perplexity, lmstudio</td></tr>
+                    <tr><td><code>--base-url &lt;url&gt;</code></td><td>Custom OpenAI-compatible base URL (e.g. LM Studio, vLLM)</td></tr>
                     <tr><td><code>--budget &lt;cents&gt;</code></td><td>Cap LLM spend (default: 50 cents)</td></tr>
                     <tr><td><code>--verify</code></td><td>Check if leaked secrets are still active</td></tr>
                     <tr><td><code>--baseline</code></td><td>Only show findings not in baseline</td></tr>
@@ -313,15 +318,23 @@ jobs:
             {/* ── LLM ───────────────────────────────────────────────── */}
             <section id="llm">
               <h2>Multi-LLM Support</h2>
-              <p>AI classification is optional. All core commands work fully offline.</p>
+              <p>AI classification is optional. All core commands work fully offline. Use <code>--provider &lt;name&gt;</code> or set the matching environment variable.</p>
               <div className={styles.tableWrap}>
                 <table>
-                  <thead><tr><th>Provider</th><th>Env Variable</th><th>Model</th></tr></thead>
+                  <thead><tr><th>Provider</th><th>Env Variable</th><th>Flag</th><th>Default Model</th></tr></thead>
                   <tbody>
-                    <tr><td>Anthropic</td><td><code>ANTHROPIC_API_KEY</code></td><td>claude-haiku-4-5</td></tr>
-                    <tr><td>OpenAI</td><td><code>OPENAI_API_KEY</code></td><td>gpt-4o-mini</td></tr>
-                    <tr><td>Google</td><td><code>GOOGLE_AI_API_KEY</code></td><td>gemini-2.0-flash</td></tr>
-                    <tr><td>Ollama</td><td><code>OLLAMA_HOST</code></td><td>Local models</td></tr>
+                    <tr><td>Anthropic</td><td><code>ANTHROPIC_API_KEY</code></td><td><em>auto-detected</em></td><td>claude-haiku-4-5</td></tr>
+                    <tr><td>OpenAI</td><td><code>OPENAI_API_KEY</code></td><td><em>auto-detected</em></td><td>gpt-4o-mini</td></tr>
+                    <tr><td>Google</td><td><code>GOOGLE_AI_API_KEY</code></td><td><em>auto-detected</em></td><td>gemini-2.0-flash</td></tr>
+                    <tr><td>Ollama</td><td><code>OLLAMA_HOST</code></td><td><code>--local</code></td><td>Local models</td></tr>
+                    <tr><td>Groq</td><td><code>GROQ_API_KEY</code></td><td><code>--provider groq</code></td><td>llama-3.3-70b-versatile</td></tr>
+                    <tr><td>Together AI</td><td><code>TOGETHER_API_KEY</code></td><td><code>--provider together</code></td><td>Llama-3-70b-chat-hf</td></tr>
+                    <tr><td>Mistral</td><td><code>MISTRAL_API_KEY</code></td><td><code>--provider mistral</code></td><td>mistral-small-latest</td></tr>
+                    <tr><td>DeepSeek</td><td><code>DEEPSEEK_API_KEY</code></td><td><code>--provider deepseek</code></td><td>deepseek-chat</td></tr>
+                    <tr><td>xAI (Grok)</td><td><code>XAI_API_KEY</code></td><td><code>--provider xai</code></td><td>grok-beta</td></tr>
+                    <tr><td>Perplexity</td><td><code>PERPLEXITY_API_KEY</code></td><td><code>--provider perplexity</code></td><td>llama-3.1-sonar-small-128k-online</td></tr>
+                    <tr><td>LM Studio</td><td><em>none</em></td><td><code>--provider lmstudio</code></td><td>Local server</td></tr>
+                    <tr><td>Custom</td><td><em>any</em></td><td><code>--base-url &lt;url&gt; --model &lt;model&gt;</code></td><td>Any OpenAI-compatible</td></tr>
                   </tbody>
                 </table>
               </div>

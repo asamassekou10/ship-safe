@@ -17,6 +17,13 @@
  *                 dangerous Bash patterns (curl|bash, credential exfiltration)
  *   PostToolUse — scans the written file and injects advisory findings into
  *                 Claude's context (never blocks — just informs)
+ *
+ * STABLE PATH STRATEGY:
+ *   npx caches packages in a volatile temp directory. Writing that temp path
+ *   to ~/.claude/settings.json means hooks break silently as soon as npx
+ *   clears or rotates its cache. Instead, we copy the three hook scripts to
+ *   ~/.ship-safe/hooks/ (a stable, user-owned directory) and register those
+ *   paths. They survive npx cache rotations and package updates.
  */
 
 import fs from 'fs';
@@ -27,20 +34,20 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Resolved paths to the hook scripts (installed alongside the CLI)
-const HOOK_DIR = path.resolve(__dirname, '../hooks');
-const PRE_HOOK_SCRIPT  = path.join(HOOK_DIR, 'pre-tool-use.js');
-const POST_HOOK_SCRIPT = path.join(HOOK_DIR, 'post-tool-use.js');
+// Source: hook scripts shipped inside the package
+const PKG_HOOK_DIR = path.resolve(__dirname, '../hooks');
+
+// Stable destination: user-owned, survives npx cache rotations
+const STABLE_HOOK_DIR = path.join(os.homedir(), '.ship-safe', 'hooks');
+const PRE_HOOK_SCRIPT  = path.join(STABLE_HOOK_DIR, 'pre-tool-use.js');
+const POST_HOOK_SCRIPT = path.join(STABLE_HOOK_DIR, 'post-tool-use.js');
 
 // Claude Code settings.json location
 const CLAUDE_SETTINGS_PATH = path.join(os.homedir(), '.claude', 'settings.json');
 
-// The command strings we register
+// The command strings we register (use stable paths)
 const PRE_COMMAND  = `node "${PRE_HOOK_SCRIPT}"`;
 const POST_COMMAND = `node "${POST_HOOK_SCRIPT}"`;
-
-// Marker so we can identify our entries on removal
-const HOOK_MARKER = '# ship-safe';
 
 // =============================================================================
 // Public API
@@ -62,19 +69,37 @@ export async function hooksCommand(action = 'install', _options = {}) {
 // =============================================================================
 
 function install() {
-  // Verify hook scripts exist
-  if (!fs.existsSync(PRE_HOOK_SCRIPT) || !fs.existsSync(POST_HOOK_SCRIPT)) {
-    console.error(chalk.red('Hook scripts not found. Try reinstalling ship-safe.'));
+  // ── 1. Copy hook scripts to stable location ────────────────────────────────
+  const scripts = ['pre-tool-use.js', 'post-tool-use.js', 'patterns.js'];
+
+  for (const script of scripts) {
+    const src = path.join(PKG_HOOK_DIR, script);
+    if (!fs.existsSync(src)) {
+      console.error(chalk.red(`Hook script not found: ${src}. Try reinstalling ship-safe.`));
+      process.exit(1);
+    }
+  }
+
+  try {
+    fs.mkdirSync(STABLE_HOOK_DIR, { recursive: true });
+    for (const script of scripts) {
+      fs.copyFileSync(
+        path.join(PKG_HOOK_DIR, script),
+        path.join(STABLE_HOOK_DIR, script)
+      );
+    }
+  } catch (err) {
+    console.error(chalk.red(`Failed to copy hook scripts to ${STABLE_HOOK_DIR}: ${err.message}`));
     process.exit(1);
   }
 
+  // ── 2. Register stable paths in ~/.claude/settings.json ───────────────────
   const settings = readSettings();
-
   ensureHooksStructure(settings);
 
   let changed = false;
 
-  // ── PreToolUse: Write / Edit / MultiEdit / Bash ──────────────────────────
+  // PreToolUse: Write / Edit / MultiEdit / Bash
   const preEntry = buildEntry(
     ['Write', 'Edit', 'MultiEdit', 'Bash'],
     PRE_COMMAND,
@@ -85,7 +110,7 @@ function install() {
     changed = true;
   }
 
-  // ── PostToolUse: Write / Edit / MultiEdit ────────────────────────────────
+  // PostToolUse: Write / Edit / MultiEdit
   const postEntry = buildEntry(
     ['Write', 'Edit', 'MultiEdit'],
     POST_COMMAND,
@@ -105,6 +130,7 @@ function install() {
   writeSettings(settings);
 
   console.log(chalk.green.bold('\n✔ ship-safe hooks installed successfully.\n'));
+  console.log(chalk.gray('  Hook scripts: ') + chalk.white(STABLE_HOOK_DIR));
   console.log(chalk.gray('  Settings file: ') + chalk.white(CLAUDE_SETTINGS_PATH));
   console.log();
   console.log(chalk.cyan('  What happens now:'));
@@ -144,6 +170,7 @@ function remove() {
 
   writeSettings(settings);
   console.log(chalk.green(`✔ Removed ${removed} ship-safe hook(s) from ${CLAUDE_SETTINGS_PATH}`));
+  console.log(chalk.gray(`  Hook scripts kept at ${STABLE_HOOK_DIR} (safe to delete manually)`));
 }
 
 // =============================================================================
@@ -158,6 +185,7 @@ function status() {
 function printStatus(settings) {
   const preInstalled  = settings.hooks?.PreToolUse  && hasEntry(settings.hooks.PreToolUse,  PRE_COMMAND);
   const postInstalled = settings.hooks?.PostToolUse && hasEntry(settings.hooks.PostToolUse, POST_COMMAND);
+  const scriptsExist  = fs.existsSync(PRE_HOOK_SCRIPT) && fs.existsSync(POST_HOOK_SCRIPT);
 
   console.log(chalk.bold('\nship-safe Claude Code hooks status:\n'));
   console.log(
@@ -169,6 +197,11 @@ function printStatus(settings) {
     (postInstalled ? chalk.green('  ✔') : chalk.red('  ✗')) +
     chalk.white(' PostToolUse ') +
     chalk.gray('(advisory scan after file writes)')
+  );
+  console.log(
+    (scriptsExist  ? chalk.green('  ✔') : chalk.yellow('  ✗')) +
+    chalk.white(' Hook scripts') +
+    chalk.gray(` (${STABLE_HOOK_DIR})`)
   );
   console.log();
 
@@ -210,13 +243,11 @@ function ensureHooksStructure(settings) {
 
 function buildEntry(matchers, command, description) {
   return {
-    // matcher: pipe-separated tool names, the format Claude Code expects
     matcher: matchers.join('|'),
     hooks: [
       {
         type: 'command',
         command,
-        // description is for humans reading the JSON; not used by the runtime
         description,
       },
     ],

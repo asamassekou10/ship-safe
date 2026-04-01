@@ -6,6 +6,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [6.2.0] — 2026-04-01
+
+### Added
+- **Claude Code hooks** — `npx ship-safe hooks install` registers `PreToolUse` and `PostToolUse` hooks in `~/.claude/settings.json`. Hooks block critical secrets before they land on disk and inject advisory scan results into Claude's context after every file write.
+- **`cli/hooks/pre-tool-use.js`** — Blocks Write/Edit/MultiEdit/NotebookEdit if critical secrets detected; blocks dangerous Bash patterns (curl|bash pipe, PowerShell iex, credential file reads, env-var exfiltration, `rm -rf /`, `--unsafe-perm`). Warns on `.env` files not covered by `.gitignore`. Provides language-specific fix suggestions.
+- **`cli/hooks/post-tool-use.js`** — Advisory-only scanner that runs after every successful file write. Reports critical and high-severity findings into Claude's context without blocking. Never scans `.env`, `.env.example`, test fixtures, or mocks.
+- **`cli/hooks/patterns.js`** — Shared pattern module: 18 `CRITICAL_PATTERNS` (AWS, GitHub PAT × 4, Anthropic, OpenAI, Stripe × 2, Slack × 2, Twilio, Google, npm, PyPI, Supabase service role, PEM private key), 3 `HIGH_PATTERNS` with Shannon entropy gate, 7 `DANGEROUS_BASH_PATTERNS`, `scanCritical()`, `scanHigh()`, `buildFixSuggestion()`.
+- **Stable hook script location** — hooks are copied to `~/.ship-safe/hooks/` at install time; registered paths point there rather than the volatile `npx` cache directory. Hooks survive `npx` cache rotations and package updates.
+- **Universal LLM support** — `--provider <name>` and `--base-url <url>` flags on `audit` and `red-team`. Supports Groq, Together AI, Mistral, DeepSeek, xAI/Grok, Perplexity, LM Studio, and any OpenAI-compatible endpoint. Auto-detects `GROQ_API_KEY`, `TOGETHER_API_KEY`, `MISTRAL_API_KEY`, `DEEPSEEK_API_KEY`, `XAI_API_KEY` from environment.
+- **`OpenAICompatibleProvider`** — new provider class in `cli/providers/llm-provider.js` with preset configurations for 7 providers and generic custom-URL support.
+- **Supply chain IOC detection** — `COMPROMISED_PACKAGES` list in `supply-chain-agent.js` with known-bad versions (`litellm 1.82.7/1.82.8`, `axios 1.8.2`, `telnyx 2.1.5`). `ICP_BLOCKCHAIN_PACKAGES` check for CanisterWorm-style C2 indicators in transitive deps.
+- **CI/CD hardening patterns** — `CICD_ENV_EXFILTRATION` (secrets sent over network in Actions), `CICD_OIDC_BROAD_SUBJECT` (wildcard OIDC subjects), `CICD_OIDC_MISSING_SUBJECT` (id-token write without subject constraint) in `cicd-scanner.js`.
+- **Unpinned action detection fix** — `CICD_UNPINNED_ACTION` now catches `@v1.2.3` semver tags in addition to `@main`/`@latest` (requires 40-char SHA hex to be considered pinned).
+- **Hook pattern tests** — 30+ unit tests covering `scanCritical`, `scanHigh`, `shannonEntropy`, and `DANGEROUS_BASH_PATTERNS` in `cli/__tests__/agents.test.js`.
+
+### Fixed
+- **npx path instability** — `hooks install` no longer writes the volatile npx cache path to `~/.claude/settings.json`. Scripts are now copied to `~/.ship-safe/hooks/` before registration.
+- **Supabase JWT false positives** — pattern now requires `c2VydmljZV9yb2xl` (base64 of `service_role`) in the payload section, eliminating matches on arbitrary HS256 JWTs.
+- **Twilio Account SID false positives** — pattern tightened to `AC[a-f0-9]{32}` (lowercase hex only), removing matches on mixed-case alphanumeric strings.
+- **`/dev/stdin` not available on Windows** — hooks now read stdin via async `process.stdin` event listeners with a 3-second safety timeout instead of synchronous `/dev/stdin` reads.
+
+---
+
 ## [5.0.0] — 2026-03-16
 
 ### Added

@@ -149,34 +149,35 @@ export default function Features() {
             </div>
           </div>
 
-          {/* Card 5: Vibe Check */}
+          {/* Card 5: Claude Code Hooks */}
           <div className={`${styles.card} card`} data-animate data-delay="320">
             <div className={styles.cardIcon}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-                <line x1="9" y1="9" x2="9.01" y2="9" />
-                <line x1="15" y1="9" x2="15.01" y2="9" />
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
             </div>
-            <h3 className={styles.cardTitle}>Vibe check</h3>
+            <h3 className={styles.cardTitle}>Claude Code hooks</h3>
             <p className={styles.cardDesc}>
-              Fun emoji security grade with a shareable one-liner and shields.io badge for your README. Built for the vibe coding era.
+              Block secrets before they ever touch disk. One command installs real-time hooks into Claude Code — critical secrets are caught at write time, not after.
             </p>
             <div className={styles.miniTerminal}>
               <div className={styles.miniHeader}>
                 <span className={styles.miniDot} style={{ background: 'var(--red)' }} />
                 <span className={styles.miniDot} style={{ background: 'var(--yellow)' }} />
                 <span className={styles.miniDot} style={{ background: 'var(--green)' }} />
-                <span className={styles.miniTitle}>ship-safe vibe-check .</span>
+                <span className={styles.miniTitle}>ship-safe hooks install</span>
               </div>
               <div className={styles.miniBody}>
                 <div className={styles.miniLine}>
-                  <span style={{ fontSize: '1.2rem' }}>✅</span>
-                  <span>Score: 92/100 | Vibes: SOLID</span>
+                  <span className={styles.miniOk}>✔</span>
+                  <span>PreToolUse installed</span>
                 </div>
                 <div className={styles.miniLine}>
-                  <span className={styles.miniDim}>🟡 Medium: 2 · 🔵 Low: 1</span>
+                  <span className={styles.miniOk}>✔</span>
+                  <span>PostToolUse installed</span>
+                </div>
+                <div className={styles.miniLine}>
+                  <span className={styles.miniDim}>Secrets blocked before disk write</span>
                 </div>
               </div>
             </div>

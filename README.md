@@ -17,9 +17,9 @@
 
 18 security agents. 80+ attack classes. One command.
 
-**Ship Safe v6.1.1** is an AI-powered security platform that runs 18 specialized agents in parallel against your codebase, scanning for secrets, injection vulnerabilities, auth bypass, SSRF, supply chain attacks, Supabase RLS misconfigs, Docker/Terraform/Kubernetes misconfigs, CI/CD pipeline poisoning, LLM/agentic AI security, MCP server misuse, RAG poisoning, PII compliance, vibe coding patterns, exception handling, AI agent config security, and more. OWASP 2025 scoring with EPSS exploit probability. LLM-powered deep analysis verifies exploitability of critical findings. Secrets verification probes provider APIs to check if leaked keys are still active. Compliance mapping to SOC 2, ISO 27001, and NIST AI RMF. Built-in threat intelligence feed with offline-first IOC matching. CI integration with GitHub PR comments, threshold gating, and SARIF output.
+**Ship Safe v6.2.0** is an AI-powered security platform that runs 18 specialized agents in parallel against your codebase, scanning for secrets, injection vulnerabilities, auth bypass, SSRF, supply chain attacks, Supabase RLS misconfigs, Docker/Terraform/Kubernetes misconfigs, CI/CD pipeline poisoning, LLM/agentic AI security, MCP server misuse, RAG poisoning, PII compliance, vibe coding patterns, exception handling, AI agent config security, and more. OWASP 2025 scoring with EPSS exploit probability. LLM-powered deep analysis verifies exploitability of critical findings. Secrets verification probes provider APIs to check if leaked keys are still active. Compliance mapping to SOC 2, ISO 27001, and NIST AI RMF. Built-in threat intelligence feed with offline-first IOC matching. CI integration with GitHub PR comments, threshold gating, and SARIF output.
 
-**v6.1.1 highlights:** Supply chain hardening against the [March 2026 Trivy/CanisterWorm attack chain](https://shipsafecli.com/blog/supply-chain-attacks-2026-how-we-hardened-ship-safe). All GitHub Actions SHA-pinned, `postinstall` scripts disabled in CI, OIDC trusted publishing with provenance, CODEOWNERS on critical paths.
+**v6.2.0 highlights:** Real-time Claude Code hooks (`npx ship-safe hooks install`) block secrets before they land on disk. Universal LLM support — use Groq, Together AI, Mistral, DeepSeek, xAI, Perplexity, LM Studio, or any OpenAI-compatible endpoint for deep analysis. Supply chain IOC matching for known-compromised packages and CanisterWorm-style ICP blockchain C2 indicators.
 
 [Documentation](https://shipsafecli.com/docs) | [Blog](https://shipsafecli.com/blog) | [Pricing](https://shipsafecli.com/pricing)
 
@@ -66,6 +66,11 @@ npx ship-safe audit . --verify
 
 # Environment diagnostics
 npx ship-safe doctor
+
+# Install Claude Code hooks — real-time secret blocking + advisory scan
+npx ship-safe hooks install
+npx ship-safe hooks status
+npx ship-safe hooks remove
 ```
 
 ![ship-safe terminal demo](.github/assets/ship%20safe%20terminal.jpg)
@@ -139,6 +144,8 @@ npx ship-safe audit .
 - `--deep` — LLM-powered taint analysis for critical/high findings
 - `--local` — use local Ollama model for deep analysis
 - `--model <model>` — LLM model to use for deep/AI analysis
+- `--provider <name>` — LLM provider: groq, together, mistral, deepseek, xai, perplexity, lmstudio
+- `--base-url <url>` — custom OpenAI-compatible base URL (e.g. LM Studio, vLLM)
 - `--budget <cents>` — max spend in cents for deep analysis (default: 50)
 - `--verify` — check if leaked secrets are still active (probes provider APIs)
 
@@ -267,8 +274,18 @@ npx ship-safe ci . --github-pr       # Post results as PR comment
 ```bash
 # LLM-powered deep analysis (Anthropic/OpenAI/Google/Ollama)
 npx ship-safe audit . --deep
-npx ship-safe audit . --deep --local     # Use local Ollama
-npx ship-safe audit . --deep --budget 50 # Cap spend at 50 cents
+npx ship-safe audit . --deep --local               # Use local Ollama
+npx ship-safe audit . --deep --budget 50           # Cap spend at 50 cents
+
+# Use any OpenAI-compatible provider for deep analysis
+npx ship-safe audit . --deep --provider groq
+npx ship-safe audit . --deep --provider together
+npx ship-safe audit . --deep --provider mistral
+npx ship-safe audit . --deep --provider deepseek
+npx ship-safe audit . --deep --provider lmstudio   # Local LM Studio
+npx ship-safe audit . --deep --provider xai
+npx ship-safe audit . --deep --provider perplexity
+npx ship-safe audit . --deep --base-url http://localhost:1234/v1 --model my-model  # Custom
 
 # Check if leaked secrets are still active
 npx ship-safe audit . --verify
@@ -395,6 +412,30 @@ npx ship-safe mcp
 
 ---
 
+## Claude Code Hooks
+
+Install ship-safe as real-time Claude Code hooks — secrets are blocked **before** they ever touch disk:
+
+```bash
+npx ship-safe hooks install
+```
+
+Once installed, two hooks activate automatically on every Claude Code session:
+
+| Hook | Trigger | Behaviour |
+|------|---------|-----------|
+| **PreToolUse** | Write / Edit / MultiEdit / Bash | Blocks the write if critical secrets are detected; blocks dangerous Bash patterns (curl\|bash, credential exfiltration, `rm -rf /`) |
+| **PostToolUse** | Write / Edit / MultiEdit | Scans the saved file and injects advisory findings (high-severity patterns, DB URLs with credentials) directly into Claude's context — never blocks |
+
+Hook scripts are copied to `~/.ship-safe/hooks/` at install time — a stable, user-owned location that survives `npx` cache rotations.
+
+```bash
+npx ship-safe hooks status   # Check installation
+npx ship-safe hooks remove   # Uninstall
+```
+
+---
+
 ## Claude Code Plugin
 
 Use Ship Safe directly inside Claude Code — no CLI needed:
@@ -410,6 +451,10 @@ claude plugin add github:asamassekou10/ship-safe
 | `/ship-safe-score` | Security health score (0-100) |
 | `/ship-safe-deep` | LLM-powered deep taint analysis |
 | `/ship-safe-ci` | CI/CD pipeline setup guide |
+| `/ship-safe-hooks` | Install real-time Claude Code hooks (blocks secrets on write) |
+| `/ship-safe-baseline` | Accept current findings as baseline; report only regressions |
+| `/ship-safe-fix` | Auto-fix secrets and common vulnerabilities |
+| `/ship-safe-red-team` | Run full red-team audit and open HTML report |
 
 Claude interprets the results, explains findings in plain language, and can fix issues directly in your codebase.
 
@@ -451,16 +496,24 @@ Why? Files like `.env` are gitignored *because* they contain secrets — which i
 
 ## Multi-LLM Support
 
-Ship Safe supports multiple AI providers for classification:
+Ship Safe supports any AI provider for deep analysis and classification:
 
-| Provider | Env Variable | Model |
-|----------|-------------|-------|
-| **Anthropic** | `ANTHROPIC_API_KEY` | claude-haiku-4-5 |
-| **OpenAI** | `OPENAI_API_KEY` | gpt-4o-mini |
-| **Google** | `GOOGLE_AI_API_KEY` | gemini-2.0-flash |
-| **Ollama** | `OLLAMA_HOST` | Local models |
+| Provider | Env Variable | Flag | Default Model |
+|----------|-------------|------|---------------|
+| **Anthropic** | `ANTHROPIC_API_KEY` | *(auto-detected)* | claude-haiku-4-5 |
+| **OpenAI** | `OPENAI_API_KEY` | *(auto-detected)* | gpt-4o-mini |
+| **Google** | `GOOGLE_AI_API_KEY` | *(auto-detected)* | gemini-2.0-flash |
+| **Ollama** | `OLLAMA_HOST` | `--local` | Local models |
+| **Groq** | `GROQ_API_KEY` | `--provider groq` | llama-3.3-70b-versatile |
+| **Together AI** | `TOGETHER_API_KEY` | `--provider together` | meta-llama/Llama-3-70b-chat-hf |
+| **Mistral** | `MISTRAL_API_KEY` | `--provider mistral` | mistral-small-latest |
+| **DeepSeek** | `DEEPSEEK_API_KEY` | `--provider deepseek` | deepseek-chat |
+| **xAI (Grok)** | `XAI_API_KEY` | `--provider xai` | grok-beta |
+| **Perplexity** | `PERPLEXITY_API_KEY` | `--provider perplexity` | llama-3.1-sonar-small-128k-online |
+| **LM Studio** | *(none)* | `--provider lmstudio` | Local server |
+| **Custom** | *(any)* | `--base-url <url> --model <model>` | Any OpenAI-compatible |
 
-Auto-detected from environment variables. No API key required for scanning — AI is optional.
+Auto-detected from environment variables. Use `--provider <name>` to override. No API key required for scanning — AI is optional.
 
 ---
 

@@ -36,7 +36,7 @@ const jsonLd = {
       description: '18 AI security agents scan your codebase for secrets, vulnerabilities, and dependency CVEs in one command.',
       url: 'https://www.shipsafecli.com',
       downloadUrl: 'https://www.npmjs.com/package/ship-safe',
-      softwareVersion: '6.1.0',
+      softwareVersion: '6.2.0',
       author: {
         '@type': 'Organization',
         name: 'Ship Safe',

@@ -70,6 +70,8 @@
   padding: 0.5rem 0.75rem;
   background: var(--bg-card2);
   border-bottom: 1px solid var(--border);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .miniDot {
@@ -83,6 +85,11 @@
   font-size: 0.65rem;
   color: var(--text-dim);
   margin-left: 0.4rem;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .miniBody {
@@ -94,11 +101,18 @@
 
 .miniLine {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.45rem;
   font-family: var(--font-mono);
   font-size: 0.68rem;
   color: var(--text-muted);
+  min-width: 0;
+}
+
+.miniLine span:not(.miniOk):not(.miniTag):not(.miniDim) {
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .miniOk {
@@ -228,8 +242,7 @@
   .card { padding: 1.25rem; }
   .cardTitle { font-size: 1rem; }
   .cardDesc { font-size: 0.82rem; }
-  .miniBody { overflow-x: auto; }
-  .miniLine { white-space: nowrap; font-size: 0.62rem; }
+  .miniLine { font-size: 0.62rem; }
   .diffCode { overflow-x: auto; }
   .diffCode code { font-size: 0.62rem; }
   .yamlCode { overflow-x: auto; }
