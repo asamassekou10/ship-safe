@@ -6,6 +6,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [6.3.0] — 2026-04-01
+
+### Added
+- **`ship-safe legal [path]`** — new standalone command that scans dependency manifests (`package.json`, `requirements.txt`, `Cargo.toml`, `go.mod`) for packages carrying legal risk: DMCA takedowns, leaked-source derivatives, IP disputes, and license violations.
+- **`LegalRiskAgent`** — new agent in `cli/agents/legal-risk-agent.js`. Exports `LEGALLY_RISKY_PACKAGES` — a structured dataset where each entry carries name, ecosystem, risk type (`dmca` | `ip-dispute` | `leaked-source` | `license-violation`), severity, human-readable detail, and reference URLs.
+- **Initial legal dataset** — seeds five entries:
+  - `claw-code` (npm, all versions) — DMCA, derived from leaked Anthropic Claude Code source (March 2026)
+  - `claw-code-js` (npm, all versions) — leaked-source, JavaScript port of the same leak
+  - `claude-code-oss` (npm, all versions) — leaked-source, open-source mirror of the Claude Code leak
+  - `faker@6.6.6` (npm) — license-violation, deliberately sabotaged release (January 2022)
+  - `colors@1.4.44-liberty-2` (npm) — license-violation, deliberate infinite-loop sabotage
+- **`--include-legal` flag on `audit`** — `ship-safe audit . --include-legal` runs the legal risk scan as Phase 3b and merges findings into the final report and score.
+- **`legal` category** — added to `CATEGORY_LABELS` and `EFFORT_MAP` in `audit.js` so legal findings appear correctly in HTML reports and remediation plans.
+- **8 new unit tests** for `LegalRiskAgent` covering: DMCA detection, leaked-source detection, clean project pass, specific-version matching, safe-version pass, semver prefix stripping, Python manifest (no cross-ecosystem false positives), and category assertion.
+
+---
+
 ## [6.2.0] — 2026-04-01
 
 ### Added

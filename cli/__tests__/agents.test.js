@@ -1468,3 +1468,98 @@ describe('Hook patterns — DANGEROUS_BASH_PATTERNS', async () => {
     ));
   });
 });
+
+// =============================================================================
+// LEGAL RISK AGENT
+// =============================================================================
+
+describe('LegalRiskAgent', async () => {
+  const { LegalRiskAgent } = await import('../agents/legal-risk-agent.js');
+
+  function makeNpmProject(deps) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-legal-'));
+    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ dependencies: deps }));
+    return dir;
+  }
+
+  it('flags claw-code (DMCA) in package.json', async () => {
+    const dir = makeNpmProject({ 'claw-code': '^1.0.0', express: '^4.18.0' });
+    try {
+      const agent = new LegalRiskAgent();
+      const findings = await agent.analyze({ rootPath: dir, files: [] });
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].rule, 'LEGAL_RISK_DMCA');
+      assert.equal(findings[0].severity, 'high');
+      assert.ok(findings[0].title.includes('claw-code'));
+    } finally { cleanup(dir); }
+  });
+
+  it('flags claw-code-js (leaked-source) in package.json', async () => {
+    const dir = makeNpmProject({ 'claw-code-js': '2.0.0' });
+    try {
+      const agent = new LegalRiskAgent();
+      const findings = await agent.analyze({ rootPath: dir, files: [] });
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].rule, 'LEGAL_RISK_LEAKED_SOURCE');
+    } finally { cleanup(dir); }
+  });
+
+  it('does not flag clean package.json', async () => {
+    const dir = makeNpmProject({ express: '^4.18.0', lodash: '^4.17.21' });
+    try {
+      const agent = new LegalRiskAgent();
+      const findings = await agent.analyze({ rootPath: dir, files: [] });
+      assert.equal(findings.length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('flags faker@6.6.6 (sabotaged release)', async () => {
+    const dir = makeNpmProject({ faker: '6.6.6' });
+    try {
+      const agent = new LegalRiskAgent();
+      const findings = await agent.analyze({ rootPath: dir, files: [] });
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].rule, 'LEGAL_RISK_LICENSE_VIOLATION');
+    } finally { cleanup(dir); }
+  });
+
+  it('does not flag faker@5.5.3 (safe version)', async () => {
+    const dir = makeNpmProject({ faker: '5.5.3' });
+    try {
+      const agent = new LegalRiskAgent();
+      const findings = await agent.analyze({ rootPath: dir, files: [] });
+      assert.equal(findings.length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('flags claw-code with caret range (strips semver prefix)', async () => {
+    const dir = makeNpmProject({ 'claw-code': '^0.9.0' });
+    try {
+      const agent = new LegalRiskAgent();
+      const findings = await agent.analyze({ rootPath: dir, files: [] });
+      // claw-code versions = '*' so any version matches
+      assert.equal(findings.length, 1);
+    } finally { cleanup(dir); }
+  });
+
+  it('detects legally risky package in requirements.txt', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-legal-py-'));
+    fs.writeFileSync(path.join(dir, 'requirements.txt'), 'requests==2.28.0\nfaker==6.6.6\n');
+    try {
+      const agent = new LegalRiskAgent();
+      const findings = await agent.analyze({ rootPath: dir, files: [] });
+      // faker is an npm package — no pypi entry — so 0 findings
+      assert.equal(findings.length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('returns category "legal" on all findings', async () => {
+    const dir = makeNpmProject({ 'claw-code': '1.0.0', 'claw-code-js': '1.0.0' });
+    try {
+      const agent = new LegalRiskAgent();
+      const findings = await agent.analyze({ rootPath: dir, files: [] });
+      assert.ok(findings.length >= 2);
+      assert.ok(findings.every(f => f.category === 'legal'));
+    } finally { cleanup(dir); }
+  });
+});

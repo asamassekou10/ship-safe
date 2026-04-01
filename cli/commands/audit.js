@@ -18,6 +18,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import fg from 'fast-glob';
 import { buildOrchestrator } from '../agents/index.js';
+import { LegalRiskAgent } from '../agents/legal-risk-agent.js';
 import { ScoringEngine } from '../agents/scoring-engine.js';
 import { PolicyEngine } from '../agents/policy-engine.js';
 import { HTMLReporter } from '../agents/html-reporter.js';
@@ -56,6 +57,7 @@ const CATEGORY_LABELS = {
   'supply-chain': 'Supply Chain',
   api: 'API Security',
   llm: 'AI/LLM Security',
+  legal: 'Legal Risk',
 };
 
 const EFFORT_MAP = {
@@ -67,6 +69,7 @@ const EFFORT_MAP = {
   'supply-chain': 'medium',
   api: 'medium',
   llm: 'high',
+  legal: 'low',
 };
 
 // =============================================================================
@@ -239,11 +242,28 @@ export async function auditCommand(targetPath = '.', options = {}) {
     console.log(chalk.gray('  [Phase 3/4] Dependencies: skipped (--no-deps)'));
   }
 
+  // ── Phase 3b: Legal Risk Scan (opt-in) ───────────────────────────────────
+  let legalFindings = [];
+  if (options.includeLegal) {
+    const legalSpinner = machineOutput ? null : ora({ text: chalk.white('[Phase 3b] Legal risk scan…'), color: 'cyan' }).start();
+    try {
+      const legalAgent = new LegalRiskAgent();
+      legalFindings = await legalAgent.analyze({ rootPath: absolutePath, files: allFiles });
+      if (legalSpinner) legalSpinner.succeed(
+        legalFindings.length === 0
+          ? chalk.green('[Phase 3b] Legal: clean')
+          : chalk.yellow(`[Phase 3b] Legal: ${legalFindings.length} finding(s)`)
+      );
+    } catch {
+      if (legalSpinner) legalSpinner.succeed(chalk.gray('[Phase 3b] Legal: skipped'));
+    }
+  }
+
   // ── Phase 4: Merge, Score, and Build Plan ─────────────────────────────────
   const scoreSpinner = machineOutput ? null : ora({ text: chalk.white('[Phase 4/4] Computing security score...'), color: 'cyan' }).start();
 
-  // Merge secret findings + agent findings, deduplicate
-  const allFindings = deduplicateFindings([...secretFindings, ...agentFindings]);
+  // Merge secret findings + agent findings + legal findings, deduplicate
+  const allFindings = deduplicateFindings([...secretFindings, ...agentFindings, ...legalFindings]);
 
   // Apply policy
   const policy = PolicyEngine.load(absolutePath);

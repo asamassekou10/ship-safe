@@ -26,6 +26,7 @@ export { PIIComplianceAgent } from './pii-compliance-agent.js';
 export { VibeCodingAgent } from './vibe-coding-agent.js';
 export { ExceptionHandlerAgent } from './exception-handler-agent.js';
 export { AgentConfigScanner } from './agent-config-scanner.js';
+export { LegalRiskAgent, LEGALLY_RISKY_PACKAGES } from './legal-risk-agent.js';
 export { ABOMGenerator } from './abom-generator.js';
 export { VerifierAgent } from './verifier-agent.js';
 export { DeepAnalyzer } from './deep-analyzer.js';

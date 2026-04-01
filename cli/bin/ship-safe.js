@@ -45,6 +45,7 @@ import { scanSkillCommand } from '../commands/scan-skill.js';
 import { abomCommand } from '../commands/abom.js';
 import { updateIntelCommand } from '../commands/update-intel.js';
 import { hooksCommand } from '../commands/hooks.js';
+import { legalCommand } from '../commands/legal.js';
 import { ABOMGenerator } from '../agents/abom-generator.js';
 import { PolicyEngine } from '../agents/policy-engine.js';
 import { SBOMGenerator } from '../agents/sbom-generator.js';
@@ -220,6 +221,7 @@ program
   .option('--base-url <url>', 'Custom OpenAI-compatible endpoint (e.g. http://localhost:1234/v1/chat/completions)')
   .option('--budget <cents>', 'Max spend in cents for deep analysis (default: 50)', parseInt)
   .option('--verify', 'Check if leaked secrets are still active (probes provider APIs)')
+  .option('--include-legal', 'Also run the legal risk scan (DMCA, leaked source, IP disputes)')
   .option('-v, --verbose', 'Verbose output')
   .action(auditCommand);
 
@@ -393,6 +395,15 @@ How it works:
   .action(hooksCommand);
 
 // -----------------------------------------------------------------------------
+// LEGAL COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('legal [path]')
+  .description('Legal risk audit: DMCA notices, leaked-source derivatives, IP disputes in dependencies')
+  .option('--json', 'Output results as JSON')
+  .action(legalCommand);
+
+// -----------------------------------------------------------------------------
 // UPDATE-INTEL COMMAND
 // -----------------------------------------------------------------------------
 program
@@ -430,6 +441,7 @@ if (process.argv.length === 2) {
   console.log(chalk.white('  npx ship-safe scan-skill <u>') + chalk.gray('# Vet a skill before installing'));
   console.log(chalk.white('  npx ship-safe abom .        ') + chalk.gray('# Agent Bill of Materials (CycloneDX)'));
   console.log(chalk.white('  npx ship-safe sbom .        ') + chalk.gray('# Generate CycloneDX SBOM (CRA-ready)'));
+  console.log(chalk.white('  npx ship-safe legal .        ') + chalk.gray('# Legal risk audit: DMCA, leaked source, IP disputes'));
   console.log(chalk.white('  npx ship-safe update-intel  ') + chalk.gray('# Update threat intelligence feed'));
   console.log(chalk.white('  npx ship-safe policy init   ') + chalk.gray('# Create security policy template'));
   console.log(chalk.white('  npx ship-safe doctor        ') + chalk.gray('# Check environment and configuration'));
