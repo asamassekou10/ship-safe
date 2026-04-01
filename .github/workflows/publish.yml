@@ -36,7 +36,9 @@ jobs:
           npm pack --dry-run 2>&1 | tee /tmp/pack-contents.txt
           echo ""
           echo "=== Verifying no sensitive files ==="
-          if grep -iE '\.env|credentials|secret|\.pem|\.key' /tmp/pack-contents.txt; then
+          # Match actual sensitive file types by extension or full filename.
+          # Use word-boundary anchors so 'secrets-verifier.js' does not match '.secret'.
+          if grep -iE '\.(env|pem|p12|pfx|key|keystore|jks)(\s|$)|credentials\.json|\.env\.' /tmp/pack-contents.txt; then
             echo "::error::Sensitive files detected in package contents"
             exit 1
           fi
