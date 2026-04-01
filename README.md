@@ -11,6 +11,7 @@
   <a href="https://nodejs.org"><img src="https://img.shields.io/node/v/ship-safe" alt="Node.js version" /></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
   <a href="https://github.com/asamassekou10/ship-safe/stargazers"><img src="https://img.shields.io/github/stars/asamassekou10/ship-safe?style=social" alt="GitHub stars" /></a>
+  <a href="https://github.com/sponsors/asamassekou10"><img src="https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github" alt="Sponsor" /></a>
 </p>
 
 ---
@@ -717,6 +718,18 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 - [OWASP API Security Top 10 2023](https://owasp.org/API-Security/)
 - [OWASP CI/CD Top 10](https://owasp.org/www-project-top-10-ci-cd-security-risks/)
 - [OWASP Agentic AI Top 10](https://owasp.org/www-project-agentic-ai-top-10/)
+
+---
+
+## Sponsors
+
+Ship Safe is MIT-licensed and free forever. If it saves you time or helps you ship more securely, consider sponsoring — it helps keep the project maintained and growing.
+
+<p align="center">
+  <a href="https://github.com/sponsors/asamassekou10">
+    <img src="https://img.shields.io/badge/Sponsor%20Ship%20Safe-%E2%9D%A4-ea4aaa?style=for-the-badge&logo=github" alt="Sponsor Ship Safe" />
+  </a>
+</p>
 
 ---
 
