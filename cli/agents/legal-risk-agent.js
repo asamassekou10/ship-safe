@@ -82,6 +82,40 @@ export const LEGALLY_RISKY_PACKAGES = [
     ],
   },
   // ---------------------------------------------------------------------------
+  // openclaude (github.com/Gitlawb/openclaude)
+  // Claude Code fork that routes to any LLM via OpenAI-compatible shim.
+  // Derived directly from the leaked Anthropic source (March 31 2026).
+  // Under active DMCA enforcement alongside claw-code.
+  // ---------------------------------------------------------------------------
+  {
+    name: 'openclaude',
+    versions: '*',
+    ecosystem: 'npm',
+    risk: 'leaked-source',
+    severity: 'high',
+    detail:
+      'openclaude is a fork of the leaked Anthropic Claude Code source (March 2026) ' +
+      'that adds an OpenAI-compatible provider shim. The underlying ~512,000 lines of ' +
+      'TypeScript are Anthropic proprietary IP under active DMCA enforcement. ' +
+      'Additionally ships with auth disabled by default and binds to 0.0.0.0:18789.',
+    references: [
+      'https://github.com/Gitlawb/openclaude',
+      'https://cybernews.com/security/anthropic-claude-code-source-leak/',
+    ],
+  },
+  {
+    name: 'openclaude-core',
+    versions: '*',
+    ecosystem: 'npm',
+    risk: 'leaked-source',
+    severity: 'high',
+    detail:
+      'Core runtime package for openclaude. Derived from leaked Anthropic Claude Code ' +
+      'source (March 2026). Under active DMCA enforcement.',
+    references: ['https://github.com/Gitlawb/openclaude'],
+  },
+
+  // ---------------------------------------------------------------------------
   // License violations — well-known cases
   // ---------------------------------------------------------------------------
   {

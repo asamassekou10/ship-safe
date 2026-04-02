@@ -11,6 +11,119 @@ export interface BlogPost {
 
 export const posts: BlogPost[] = [
   {
+    slug: 'openclaude-security-risks-insecure-defaults',
+    title: 'openclaude Is Exposing Machines to the Internet by Default',
+    description: 'openclaude — the popular Claude Code fork that runs on any LLM — ships with auth disabled and binds to 0.0.0.0:18789 out of the box. Here is what that means and how to fix it.',
+    date: '2026-04-01',
+    author: 'Ship Safe Team',
+    tags: ['security research', 'AI agents', 'supply chain'],
+    keywords: ['openclaude security', 'openclaude insecure defaults', 'openclaude auth disabled', 'AI agent security', 'ToxicSkills', 'agent skill security', 'openclaude 0.0.0.0', 'Claude Code fork security', 'ship-safe openclaw'],
+    content: `
+openclaude hit 895 stars and 421 forks in days after the Claude Code source leak. If you are one of the developers running it, there are three default settings that need your attention before you point it at any real codebase.
+
+## What openclaude is
+
+openclaude is a fork of the leaked Anthropic Claude Code source that replaces the Claude-only backend with an OpenAI-compatible provider shim. You can run the full Claude Code toolset — bash, file read/write/edit, grep, glob, MCP, multi-agent tasks — with GPT-4o, Gemini, DeepSeek, Ollama, or any model that speaks the OpenAI chat completions API.
+
+It is genuinely useful, which is why it spread so fast. It is also derived from proprietary Anthropic source under active DMCA enforcement, which is a separate concern. The security issues below exist regardless of the legal situation.
+
+## The three default problems
+
+### 1. Auth is disabled by default
+
+openclaude ships with authentication turned off. The gateway accepts connections from any client with no API key, password, or session token required.
+
+If you started openclaude on a laptop on a shared network, anyone on that network can connect and issue commands. If you started it on a cloud VM without immediately restricting inbound traffic on port 18789, it was briefly public.
+
+**Fix:**
+
+\`\`\`json
+{
+  "auth": {
+    "enabled": true,
+    "apiKey": "a-long-random-string-here"
+  }
+}
+\`\`\`
+
+### 2. The gateway binds to 0.0.0.0 on port 18789
+
+The default host is \`0.0.0.0\` — every network interface, including the public internet. This is the same misconfiguration that exposed 135,000+ OpenClaw instances in CVE-2026-25253.
+
+On a VPS or cloud VM, \`0.0.0.0:18789\` is publicly reachable unless your firewall explicitly blocks it. Combined with no auth, anyone who finds that port has full agent access: they can read your source code, execute shell commands, and write files.
+
+**Fix:**
+
+\`\`\`json
+{
+  "host": "127.0.0.1",
+  "port": 18789
+}
+\`\`\`
+
+If you need remote access, put a reverse proxy with TLS and its own authentication in front of localhost.
+
+### 3. No tool allowlist
+
+openclaude runs with all available tools enabled by default. There is no allowlist restricting which tools a given session can use.
+
+This matters because of how prompt injection works against agent systems. A malicious string in any file the agent reads — a README, a config file, a comment in code it is reviewing — can instruct the agent to take actions using whatever tools are available. If bash and file-write are both enabled, a single injected instruction in a markdown file can write arbitrary files and execute shell commands.
+
+**Fix:**
+
+\`\`\`json
+{
+  "allowedTools": ["bash", "read", "write", "grep", "glob"]
+}
+\`\`\`
+
+Lock it to exactly what you need.
+
+## The ToxicSkills problem
+
+Snyk's ToxicSkills research found that 36% of AI agent skills contain security flaws, with 1,467 skills in the wild carrying active malicious payloads. The attack patterns they found include:
+
+| Pattern | What it does |
+|---|---|
+| Silent curl exfiltration | Skill instructs agent to POST data to external server without showing output |
+| System prompt override | Skill attempts to replace the agent's instructions mid-session |
+| Credential harvesting | Skill reads \`~/.npmrc\`, \`~/.ssh\`, \`~/.aws\` and sends contents outbound |
+| Output suppression | Skill explicitly instructs the agent not to report what it is doing |
+
+openclaude can load skills. Without a tool allowlist or a skill vetting step, any of these payloads run with full agent permissions.
+
+Before installing any skill:
+
+\`\`\`
+npx ship-safe scan-skill <skill-url>
+\`\`\`
+
+ship-safe scan-skill checks for all six ToxicSkills attack patterns, known malicious SHA-256 hashes, data exfiltration service domains, and permission escalation attempts.
+
+## Auditing your openclaude setup
+
+\`\`\`
+npx ship-safe openclaw .
+\`\`\`
+
+This scans your openclaude config for all four issues above: auth disabled, public binding, missing tool allowlist, and insecure provider URL. It also checks any skills defined in your config and scans agent instruction files for prompt injection payloads.
+
+The openclaw command now also detects openclaude-specific config file names (\`openclaude.json\`, \`.openclaude/config.json\`) alongside the original OpenClaw format.
+
+## On the legal situation
+
+openclaude is built on ~512,000 lines of Anthropic proprietary TypeScript that leaked via a missing \`.npmignore\` on March 31 2026. Anthropic has filed DMCA takedown notices.
+
+\`\`\`
+npx ship-safe legal .
+\`\`\`
+
+If openclaude or openclaude-core appear in your \`package.json\`, \`ship-safe legal\` will flag them as leaked-source derivatives under active DMCA enforcement.
+
+Whether you use it is a decision for you and your legal team. The security issues above apply regardless of that decision.
+`,
+  },
+  {
     slug: 'supply-chain-attacks-2026-how-we-hardened-ship-safe',
     title: 'From Trivy to CanisterWorm: How We Hardened Ship Safe Against the 2026 Supply Chain Attacks',
     description: 'The Trivy compromise cascaded into CanisterWorm, the first self-spreading npm worm. Here is what happened, why it matters, and exactly how we hardened Ship Safe against the same attack chain.',

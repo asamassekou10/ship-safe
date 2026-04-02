@@ -47,6 +47,20 @@ const SKILL_PATTERNS = [
   { name: 'Crypto operations', regex: /(?:crypto\.createCipher|crypto\.createDecipher|CryptoJS|forge\.cipher)/gi, severity: 'medium' },
   { name: 'Network listener', regex: /(?:createServer|listen\s*\(\s*\d|bind\s*\(\s*['"]0\.0\.0\.0)/gi, severity: 'high' },
   { name: 'Encoded payload block', regex: /[A-Za-z0-9+\/]{60,}={0,2}/g, severity: 'medium' },
+
+  // ── ToxicSkills patterns (Snyk research — 36% of agent skills affected) ──
+  // Silent curl exfiltration: skill instructs agent to silently send data
+  { name: 'ToxicSkills: silent data exfiltration via curl', regex: /(?:silently|quietly|without\s+(?:notif|alert|inform|telling|showing)|in\s+the\s+background)\s+.{0,60}(?:curl|wget|fetch|POST|send).{0,60}(?:http|https):\/\//gi, severity: 'critical' },
+  // System prompt override in skill definition
+  { name: 'ToxicSkills: system prompt override', regex: /(?:ignore\s+(?:all\s+)?(?:previous|prior|above|your)\s+instructions|your\s+(?:new|real|actual|true)\s+(?:instructions|role|goal|purpose)\s+(?:is|are)|disregard\s+(?:all\s+)?(?:previous|above|your))/gi, severity: 'critical' },
+  // Skill requests credentials/secrets from agent context
+  { name: 'ToxicSkills: credential harvesting', regex: /(?:extract|retrieve|collect|gather|find|read|access|get)\s+.{0,40}(?:api[_\s]?key|secret|token|password|credential|\.env|npmrc|ssh[_\s]?key|private[_\s]?key)/gi, severity: 'critical' },
+  // Skill attempts to read ~/.ssh, ~/.aws, ~/.npmrc
+  { name: 'ToxicSkills: sensitive path access', regex: /(?:~\/\.(?:ssh|aws|npmrc|netrc|gnupg|config\/gcloud)|\/etc\/(?:passwd|shadow|hosts)|%APPDATA%|%USERPROFILE%)/gi, severity: 'critical' },
+  // Skill suppresses its own output to avoid detection
+  { name: 'ToxicSkills: output suppression', regex: /(?:do\s+not\s+(?:show|display|reveal|mention|tell|report|log)\s+(?:this|these|the\s+(?:output|result|response|command|action))|hide\s+(?:this|the)\s+(?:output|result|action|command|request))/gi, severity: 'high' },
+  // Skill requests permissions beyond its stated purpose
+  { name: 'ToxicSkills: permission escalation', regex: /(?:grant\s+(?:me|this\s+skill|yourself)\s+(?:admin|root|sudo|full|all)\s+(?:access|permissions?|rights?)|elevate\s+(?:privileges?|permissions?|rights?)|run\s+as\s+(?:admin|root|sudo))/gi, severity: 'high' },
 ];
 
 // =============================================================================
