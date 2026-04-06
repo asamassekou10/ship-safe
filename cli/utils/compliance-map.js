@@ -51,6 +51,72 @@ const AGENTIC_MAP = {
 };
 
 // =============================================================================
+// OWASP AGENTIC AI TOP 10 (December 2025)
+// =============================================================================
+
+const OWASP_AGENTIC_TOP_10 = {
+  ASI01: { id: 'ASI01', title: 'Agent Goal Hijacking',          description: 'Manipulation of agent objectives through prompt injection, memory poisoning, or instruction override.' },
+  ASI02: { id: 'ASI02', title: 'Tool Misuse',                   description: 'Agent uses tools in unintended or dangerous ways — shell execution, file deletion, network access beyond scope.' },
+  ASI03: { id: 'ASI03', title: 'Privilege Abuse',               description: 'Agent operates with excessive permissions — writes outside project, accesses secrets, escalates access.' },
+  ASI04: { id: 'ASI04', title: 'Agentic Supply Chain',          description: 'Compromised skills, MCP servers, or tool packages that the agent depends on.' },
+  ASI05: { id: 'ASI05', title: 'Memory & Context Poisoning',    description: 'Malicious data persisted in agent memory, rules files, or context that survives sessions.' },
+  ASI06: { id: 'ASI06', title: 'Uncontrolled Data Exposure',    description: 'Agent leaks code, secrets, or PII through tool outputs, logs, or external API calls.' },
+  ASI07: { id: 'ASI07', title: 'Insecure Communication',        description: 'Unencrypted MCP transport, HTTP model endpoints, or plaintext inter-agent messaging.' },
+  ASI08: { id: 'ASI08', title: 'Missing Human Oversight',       description: 'Agent takes destructive or irreversible actions without user confirmation — proactive mode risks.' },
+  ASI09: { id: 'ASI09', title: 'Weak Identity & Auth',          description: 'Agent sessions without authentication, shared API keys, or no audit trail of actions.' },
+  ASI10: { id: 'ASI10', title: 'Rogue Agent Behavior',          description: 'Agent deviates from intended behavior — self-modification, stealth mode, output suppression.' },
+};
+
+/**
+ * Enrich a finding with OWASP Agentic Top 10 metadata.
+ * Attaches `agenticRisk` object if the finding maps to ASI01–ASI10.
+ * @param {object} finding
+ * @returns {object} — finding with agenticRisk attached (or unchanged)
+ */
+export function enrichAgenticRisk(finding) {
+  const owasp = finding.owasp;
+  if (!owasp || !OWASP_AGENTIC_TOP_10[owasp]) return finding;
+
+  const risk = OWASP_AGENTIC_TOP_10[owasp];
+  finding.agenticRisk = {
+    id: risk.id,
+    title: risk.title,
+    description: risk.description,
+  };
+  return finding;
+}
+
+/**
+ * Get OWASP Agentic Top 10 summary across all findings.
+ * @param {object[]} findings
+ * @returns {{ risks: object[], coverage: number }}
+ */
+export function getAgenticSummary(findings) {
+  const counts = {};
+  for (const f of findings) {
+    const owasp = f.owasp;
+    if (owasp && OWASP_AGENTIC_TOP_10[owasp]) {
+      counts[owasp] = (counts[owasp] || 0) + 1;
+    }
+  }
+
+  const risks = Object.entries(OWASP_AGENTIC_TOP_10).map(([id, info]) => ({
+    ...info,
+    findingCount: counts[id] || 0,
+    status: counts[id] ? 'flagged' : 'clear',
+  }));
+
+  const flagged = risks.filter(r => r.findingCount > 0).length;
+
+  return {
+    risks,
+    flagged,
+    total: 10,
+    coverage: `${flagged}/10`,
+  };
+}
+
+// =============================================================================
 // PUBLIC API
 // =============================================================================
 

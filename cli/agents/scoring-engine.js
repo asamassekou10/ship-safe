@@ -11,7 +11,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { getComplianceSummary } from '../utils/compliance-map.js';
+import { getComplianceSummary, getAgenticSummary, enrichAgenticRisk } from '../utils/compliance-map.js';
 
 // =============================================================================
 // SCORING CONFIGURATION
@@ -49,6 +49,7 @@ const FALLBACK_CATEGORY_MAP = {
   'vibe': 'injection',        // Vibe coding findings → Code Vulnerabilities
   'exception': 'injection',   // OWASP A10:2025 — Mishandling of Exceptional Conditions
   'agent-config': 'llm',      // Agent config security → AI/LLM category
+  'memory-poisoning': 'llm',  // Memory poisoning → AI/LLM category
   'recon': null,               // skip recon findings
 };
 
@@ -85,6 +86,11 @@ export class ScoringEngine {
         maxDeduction: config.weight, // Cap at category weight
         findings: [],
       };
+    }
+
+    // ── Enrich findings with OWASP Agentic AI Top 10 metadata ──────────────
+    for (const finding of findings) {
+      enrichAgenticRisk(finding);
     }
 
     // ── Classify findings into categories ─────────────────────────────────────
@@ -146,6 +152,14 @@ export class ScoringEngine {
       compliance = null;
     }
 
+    // ── OWASP Agentic AI Top 10 summary ──────────────────────────────────
+    let agenticSummary;
+    try {
+      agenticSummary = getAgenticSummary(findings);
+    } catch {
+      agenticSummary = null;
+    }
+
     return {
       score,
       grade,
@@ -153,6 +167,7 @@ export class ScoringEngine {
       totalFindings: findings.length,
       totalDepVulns: depVulns.length,
       compliance,
+      agenticSummary,
     };
   }
 

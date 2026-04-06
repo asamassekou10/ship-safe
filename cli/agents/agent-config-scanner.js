@@ -37,11 +37,24 @@ const AGENT_RULES_FILES = [
   '.github/copilot-instructions.md',
   '.aider.conf.yml',
   '.continue/config.json',
+  // Gemini CLI
+  '.gemini/settings.json',
+  '.gemini/rules.md',
+  // Cody (Sourcegraph)
+  '.cody/config.json',
+  '.cody/context.json',
+  // Augment Code
+  '.augment/config.json',
 ];
 
 const AGENT_RULES_GLOBS = [
   '.cursor/rules/*.mdc',
   '.claude/commands/*.md',
+  // Gemini CLI commands
+  '.gemini/commands/*.md',
+  // Cody custom commands
+  '.cody/commands/*.md',
+  '.cody/rules/*.md',
 ];
 
 const OPENCLAW_FILES = [
@@ -84,6 +97,8 @@ const MEMORY_GLOBS = [
   '.claude/memory/**',
   '.cursor/memory/**',
   '.continue/memory/**',
+  '.gemini/memory/**',
+  '.cody/memory/**',
 ];
 
 // =============================================================================

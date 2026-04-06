@@ -47,6 +47,7 @@ import { abomCommand } from '../commands/abom.js';
 import { updateIntelCommand } from '../commands/update-intel.js';
 import { hooksCommand } from '../commands/hooks.js';
 import { legalCommand } from '../commands/legal.js';
+import { runLiveAdvisories } from '../commands/live-advisories.js';
 import { ABOMGenerator } from '../agents/abom-generator.js';
 import { PolicyEngine } from '../agents/policy-engine.js';
 import { SBOMGenerator } from '../agents/sbom-generator.js';
@@ -268,7 +269,58 @@ program
   .description('Continuous monitoring: watch files for security issues in real-time')
   .option('--poll', 'Use polling mode (for network drives)')
   .option('--configs', 'Watch only agent config files (openclaw.json, .cursorrules, mcp.json, etc.)')
+  .option('--deep', 'Run full agent scanning on changes (not just pattern matching)')
+  .option('--status', 'Show current watch status and exit')
+  .option('--threshold <score>', 'Alert when score drops below threshold', parseInt)
+  .option('--debounce <ms>', 'Debounce interval in ms (default: 1500)', parseInt)
   .action(watchCommand);
+
+// -----------------------------------------------------------------------------
+// ADVISORIES COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('advisories [path]')
+  .description('Check dependencies against live advisory feeds (OSV.dev, GitHub Advisories)')
+  .option('--ecosystem <type>', 'Filter by ecosystem (npm, PyPI)')
+  .option('--json', 'Output as JSON')
+  .action(async (targetPath = '.', options) => {
+    const absolutePath = join(process.cwd(), targetPath);
+    try {
+      const result = await runLiveAdvisories(absolutePath, options);
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+      console.log();
+      console.log(chalk.cyan.bold('  Ship Safe — Live Advisories'));
+      console.log(chalk.gray(`  Checked ${result.checked} dependencies against OSV.dev`));
+      console.log();
+      if (result.advisories.length === 0) {
+        console.log(chalk.green('  ✔ No known advisories for your current dependency versions.\n'));
+      } else {
+        const malware = result.advisories.filter(a => a.isMalware);
+        const vulns = result.advisories.filter(a => !a.isMalware);
+        if (malware.length > 0) {
+          console.log(chalk.red.bold(`  !! ${malware.length} MALWARE ADVISORY(S) FOUND`));
+          for (const a of malware) {
+            console.log(chalk.red(`     ${a.package}@${a.version} — ${a.id}: ${a.summary.slice(0, 80)}`));
+          }
+          console.log();
+        }
+        if (vulns.length > 0) {
+          console.log(chalk.yellow(`  ${vulns.length} vulnerability advisory(s):`));
+          for (const a of vulns) {
+            const sev = a.severity === 'critical' ? chalk.red.bold(a.severity) : a.severity === 'high' ? chalk.yellow(a.severity) : chalk.blue(a.severity);
+            console.log(`    ${sev} ${a.package}@${a.version} — ${a.id}`);
+          }
+          console.log();
+        }
+      }
+    } catch (err) {
+      console.error(chalk.red(`  Error: ${err.message}\n`));
+      process.exit(1);
+    }
+  });
 
 // -----------------------------------------------------------------------------
 // SBOM COMMAND

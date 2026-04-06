@@ -582,7 +582,8 @@ export class SupplyChainAudit extends BaseAgent {
       }));
     }
 
-    // ── 9. Blockchain C2 indicators (CanisterWorm / ICP) ──────────────────────
+    // ── 9. Trojanized package behavioral signatures ───────────────────────────
+    //    Patterns from Axios 1.8.2, LiteLLM 1.82.7, TeamPCP campaign (Mar 2026)
     if (fs.existsSync(path.join(rootPath, 'node_modules'))) {
       try {
         const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
@@ -590,7 +591,132 @@ export class SupplyChainAudit extends BaseAgent {
           ...(pkg.dependencies || {}),
           ...(pkg.devDependencies || {}),
         };
-        for (const depName of Object.keys(allDeps)) {
+
+        for (const depName of Object.keys(allDeps).slice(0, 80)) {
+          const depDir = path.join(rootPath, 'node_modules', depName);
+          const depPkgPath = path.join(depDir, 'package.json');
+          if (!fs.existsSync(depPkgPath)) continue;
+
+          try {
+            const depPkg = JSON.parse(fs.readFileSync(depPkgPath, 'utf-8'));
+
+            // 9a. Hidden dependencies added by attacker
+            //     Axios 1.8.2 injected a hidden malicious dep that wasn't in the legitimate version.
+            //     Check for deps that only exist in certain version ranges.
+            const depDeps = depPkg.dependencies || {};
+            for (const [subDep, subVer] of Object.entries(depDeps)) {
+              // Packages with very high download counts that suddenly gain unknown subdependencies
+              if (/^[a-z]+-[a-z0-9]+-[a-z0-9]+$/.test(subDep) && typeof subVer === 'string' && subVer.startsWith('git+')) {
+                findings.push(createFinding({
+                  file: depPkgPath,
+                  line: 0,
+                  severity: 'critical',
+                  category: 'supply-chain',
+                  rule: 'TROJAN_HIDDEN_DEP',
+                  title: `Suspicious Hidden Dependency in ${depName}: ${subDep}`,
+                  description: `"${depName}" depends on "${subDep}" via a git URL. This matches the Axios/TeamPCP trojanization pattern where attackers inject a malicious dependency into a popular package.`,
+                  matched: `${subDep}: ${subVer}`,
+                  fix: `Compare this version's dependencies against the official release. If "${subDep}" was not in the previous version, this package may be trojanized.`,
+                }));
+              }
+            }
+
+            // 9b. Install scripts that read and exfiltrate env vars
+            //     LiteLLM 1.82.7 harvested AWS/GCP/Azure tokens + SSH keys
+            const scripts = depPkg.scripts || {};
+            for (const hook of ['preinstall', 'install', 'postinstall']) {
+              const cmd = scripts[hook];
+              if (!cmd) continue;
+
+              // Environment variable harvesting
+              if (/process\.env|os\.environ|ENV\[|getenv/i.test(cmd) &&
+                  /https?:|fetch|request|axios|curl|wget|net\./i.test(cmd)) {
+                findings.push(createFinding({
+                  file: depPkgPath,
+                  line: 0,
+                  severity: 'critical',
+                  category: 'supply-chain',
+                  rule: 'TROJAN_ENV_EXFIL',
+                  title: `Credential Harvesting in ${hook}: ${depName}`,
+                  description: `"${depName}" reads environment variables and makes network requests during ${hook}. This is the exact pattern used in the LiteLLM/TeamPCP attack to steal cloud credentials.`,
+                  matched: cmd.slice(0, 200),
+                  fix: 'Remove this package immediately. Rotate any credentials (AWS, GCP, Azure tokens, SSH keys) that may have been exfiltrated.',
+                }));
+              }
+
+              // SSH key / credential file access in install scripts
+              if (/\.ssh|\.aws|\.azure|\.gcp|\.kube|\.docker|credentials|\.npmrc|\.pypirc/i.test(cmd)) {
+                findings.push(createFinding({
+                  file: depPkgPath,
+                  line: 0,
+                  severity: 'critical',
+                  category: 'supply-chain',
+                  rule: 'TROJAN_CREDENTIAL_ACCESS',
+                  title: `Credential File Access in ${hook}: ${depName}`,
+                  description: `"${depName}" accesses credential files (.ssh, .aws, .kube, etc.) during ${hook}. This matches the TeamPCP credential theft pattern.`,
+                  matched: cmd.slice(0, 200),
+                  fix: 'Remove this package immediately and rotate all credentials in the accessed directories.',
+                }));
+              }
+            }
+
+            // 9c. Scan actual JS entry files for runtime exfiltration patterns
+            const main = depPkg.main || 'index.js';
+            const entryPath = path.join(depDir, main);
+            if (fs.existsSync(entryPath)) {
+              try {
+                const entryContent = fs.readFileSync(entryPath, 'utf-8');
+                if (entryContent.length < 500_000) {
+                  // DNS-based exfiltration (encode data in subdomain)
+                  if (/dns\.resolve|dns\.lookup/i.test(entryContent) &&
+                      /process\.env|os\.hostname/i.test(entryContent)) {
+                    findings.push(createFinding({
+                      file: entryPath,
+                      line: 1,
+                      severity: 'high',
+                      category: 'supply-chain',
+                      rule: 'TROJAN_DNS_EXFIL',
+                      title: `DNS Exfiltration Pattern: ${depName}`,
+                      description: `"${depName}" combines DNS lookups with system/env data reads — a known technique for exfiltrating data via DNS subdomains to bypass firewalls.`,
+                      matched: 'dns.resolve + process.env',
+                      confidence: 'medium',
+                      fix: 'Inspect the DNS usage. Legitimate packages rarely combine DNS with environment variable reading.',
+                    }));
+                  }
+
+                  // WebSocket-based C2
+                  if (/new\s+WebSocket/i.test(entryContent) &&
+                      /process\.env|child_process|exec/i.test(entryContent)) {
+                    findings.push(createFinding({
+                      file: entryPath,
+                      line: 1,
+                      severity: 'critical',
+                      category: 'supply-chain',
+                      rule: 'TROJAN_WEBSOCKET_C2',
+                      title: `WebSocket C2 Pattern: ${depName}`,
+                      description: `"${depName}" opens WebSocket connections combined with system command execution — consistent with a Remote Access Trojan.`,
+                      matched: 'WebSocket + child_process',
+                      fix: 'Remove this package immediately. Scan for persistence mechanisms (cron jobs, startup scripts).',
+                    }));
+                  }
+                }
+              } catch { /* skip */ }
+            }
+
+          } catch { /* skip */ }
+        }
+      } catch { /* skip */ }
+    }
+
+    // ── 10. Blockchain C2 indicators (CanisterWorm / ICP) ────────────────────
+    if (fs.existsSync(path.join(rootPath, 'node_modules'))) {
+      try {
+        const pkg2 = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+        const allDeps2 = {
+          ...(pkg2.dependencies || {}),
+          ...(pkg2.devDependencies || {}),
+        };
+        for (const depName of Object.keys(allDeps2)) {
           const depPkgPath = path.join(rootPath, 'node_modules', depName, 'package.json');
           if (!fs.existsSync(depPkgPath)) continue;
           try {
