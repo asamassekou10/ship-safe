@@ -16,11 +16,11 @@
 
 ---
 
-18 security agents. 80+ attack classes. One command.
+19 security agents. 80+ attack classes. One command.
 
-**Ship Safe v6.4.0** is an AI-powered security platform that runs 18 specialized agents in parallel against your codebase, scanning for secrets, injection vulnerabilities, auth bypass, SSRF, supply chain attacks, Supabase RLS misconfigs, Docker/Terraform/Kubernetes misconfigs, CI/CD pipeline poisoning, LLM/agentic AI security, MCP server misuse, RAG poisoning, PII compliance, vibe coding patterns, exception handling, AI agent config security, and more. OWASP 2025 scoring with EPSS exploit probability. LLM-powered deep analysis verifies exploitability of critical findings. Secrets verification probes provider APIs to check if leaked keys are still active. Compliance mapping to SOC 2, ISO 27001, and NIST AI RMF. Built-in threat intelligence feed with offline-first IOC matching. CI integration with GitHub PR comments, threshold gating, and SARIF output.
+**Ship Safe v7.0.0** is an AI-powered security platform that runs 19 specialized agents in parallel against your codebase, scanning for secrets, injection vulnerabilities, auth bypass, SSRF, supply chain attacks, memory poisoning, Supabase RLS misconfigs, Docker/Terraform/Kubernetes misconfigs, CI/CD pipeline poisoning, LLM/agentic AI security, MCP server misuse, RAG poisoning, PII compliance, vibe coding patterns, exception handling, AI agent config security, and more. Full OWASP Agentic AI Top 10 mapping (ASI01–ASI10) enriches every finding. Live OSV.dev advisory feed surfaces actively exploited CVEs within hours of disclosure. OWASP 2025 scoring with EPSS exploit probability. LLM-powered deep analysis verifies exploitability of critical findings. Secrets verification probes provider APIs to check if leaked keys are still active. Compliance mapping to SOC 2, ISO 27001, and NIST AI RMF. Built-in threat intelligence feed with offline-first IOC matching. CI integration with GitHub PR comments, threshold gating, and SARIF output.
 
-**v6.4.0 highlights:** MCP server scanning (`npx ship-safe scan-mcp`) vets tool manifests for prompt injection and credential harvesting before you connect. Detection support for openclaude and claw-code — the two most-starred Claude Code forks from the March 2026 source leak — with accurate config scanning based on their actual architectures. Four new CI/CD patterns flag AI agent danger modes in pipelines. Legal dataset corrected: claw-code reclassified as a clean-room rewrite, not a leaked-source derivative.
+**v7.0.0 highlights:** New **Memory Poisoning Agent** — the first scanner purpose-built for instruction injection in AI agent memory files (`.claude/memory/`, `.cursorrules`, `.cursor/rules/`, `.windsurfrules`, and more). Live advisories command (`ship-safe advisories .`) queries OSV.dev in real time — no API key, no stale data. **Deep watch mode** (`--deep`) runs the full 19-agent orchestrator on every file change and persists results to `.ship-safe/watch.json`. **OWASP Agentic AI Top 10** metadata (ASI01–ASI10) attached to every relevant finding. Trojanized package behavioral detection catches env-var harvesting, DNS exfiltration, and WebSocket C2 patterns inside `node_modules`. Expanded agent config discovery covers Gemini CLI, Cody, and Augment Code. **Gemma 4** (`--provider gemma4`) supported as the default local model via Ollama structured output — zero JSON parse failures.
 
 [Documentation](https://shipsafecli.com/docs) | [Blog](https://shipsafecli.com/blog) | [Pricing](https://shipsafecli.com/pricing)
 
@@ -29,18 +29,27 @@
 ## Quick Start
 
 ```bash
-# Full security audit — secrets + 18 agents + deps + remediation plan
+# Full security audit — secrets + 19 agents + deps + remediation plan
 npx ship-safe audit .
 
-# LLM-powered deep analysis (Anthropic, OpenAI, Google, Ollama)
+# LLM-powered deep analysis (Anthropic, OpenAI, Google, Ollama, Gemma 4)
 npx ship-safe audit . --deep
 
-# Red team scan only (18 agents, 80+ attack classes)
+# Red team scan only (19 agents, 80+ attack classes)
 npx ship-safe red-team .
 
 # Scan only changed files (fast pre-commit & PR scanning)
 npx ship-safe diff
 npx ship-safe diff --staged
+
+# Live OSV.dev advisory feed — no API key, no stale data
+npx ship-safe advisories .
+
+# Continuous monitoring
+npx ship-safe watch .                         # Lightweight file watcher
+npx ship-safe watch . --deep                  # Full 19-agent scan on every change
+npx ship-safe watch . --deep --threshold 80   # Fail if score drops below threshold
+npx ship-safe watch . --status                # Show last deep-watch results
 
 # Fun emoji security grade with shareable badge
 npx ship-safe vibe-check .
@@ -86,11 +95,11 @@ npx ship-safe audit .
 
 ```
 ════════════════════════════════════════════════════════════
-  Ship Safe v6.0 — Full Security Audit
+  Ship Safe v7.0 — Full Security Audit
 ════════════════════════════════════════════════════════════
 
   [Phase 1/4] Scanning for secrets...         ✔ 49 found
-  [Phase 2/4] Running 18 security agents...   ✔ 103 findings
+  [Phase 2/4] Running 19 security agents...   ✔ 103 findings
   [Phase 3/4] Auditing dependencies...        ✔ 44 CVEs
   [Phase 4/4] Computing security score...     ✔ 25/100 F
 
@@ -117,7 +126,7 @@ npx ship-safe audit .
 
 **What it runs:**
 1. **Secret scan** — 50+ patterns with entropy scoring (API keys, passwords, tokens)
-2. **18 security agents** — run in parallel with per-agent timeouts and framework-aware filtering (injection, auth, SSRF, supply chain, config, Supabase RLS, LLM, MCP, agentic AI, RAG, PII, vibe coding, exception handling, agent config, mobile, git history, CI/CD, API)
+2. **19 security agents** — run in parallel with per-agent timeouts and framework-aware filtering (injection, auth, SSRF, supply chain, config, Supabase RLS, LLM, MCP, agentic AI, RAG, memory poisoning, PII, vibe coding, exception handling, agent config, mobile, git history, CI/CD, API)
 3. **Dependency audit** — npm/pip/bundler CVE scanning with EPSS exploit probability scores
 4. **Secrets verification** — probes provider APIs (GitHub, Stripe, OpenAI, etc.) to check if leaked keys are still active
 5. **Deep analysis** — LLM-powered taint analysis verifies exploitability of critical/high findings (optional)
@@ -143,38 +152,39 @@ npx ship-safe audit .
 - `--deep` — LLM-powered taint analysis for critical/high findings
 - `--local` — use local Ollama model for deep analysis
 - `--model <model>` — LLM model to use for deep/AI analysis
-- `--provider <name>` — LLM provider: groq, together, mistral, deepseek, xai, perplexity, lmstudio
+- `--provider <name>` — LLM provider: groq, together, mistral, deepseek, xai, perplexity, lmstudio, gemma4
 - `--base-url <url>` — custom OpenAI-compatible base URL (e.g. LM Studio, vLLM)
 - `--budget <cents>` — max spend in cents for deep analysis (default: 50)
 - `--verify` — check if leaked secrets are still active (probes provider APIs)
 
 ---
 
-## 18 Security Agents
+## 19 Security Agents
 
 | Agent | Category | What It Detects |
 |-------|----------|-----------------|
 | **InjectionTester** | Code Vulns | SQL/NoSQL injection, command injection, code injection (eval), XSS, path traversal, XXE, ReDoS, prototype pollution, Python f-string SQL injection, Python subprocess shell injection |
 | **AuthBypassAgent** | Auth | JWT vulnerabilities (alg:none, weak secrets), cookie security, CSRF, OAuth misconfig, BOLA/IDOR, weak crypto, timing attacks, TLS bypass, Django `DEBUG = True`, Flask hardcoded secret keys |
 | **SSRFProber** | SSRF | User input in fetch/axios, cloud metadata endpoints, internal IPs, redirect following |
-| **SupplyChainAudit** | Supply Chain | Typosquatting (Levenshtein distance), git/URL dependencies, wildcard versions, suspicious install scripts, dependency confusion, lockfile integrity |
+| **SupplyChainAudit** | Supply Chain | Typosquatting (Levenshtein distance), git/URL dependencies, wildcard versions, suspicious install scripts, dependency confusion, lockfile integrity, trojanized package behavioral signatures (env-var harvesting, DNS exfiltration, WebSocket C2) |
 | **ConfigAuditor** | Config | Dockerfile (running as root, :latest tags), Terraform (public S3/RDS, open SG, CloudFront HTTP, Lambda admin, S3 no versioning), Kubernetes (privileged containers, `:latest` tags, missing NetworkPolicy), CORS, CSP, Firebase, Nginx |
 | **SupabaseRLSAgent** | Auth | Supabase Row Level Security — `service_role` key in client code, `CREATE TABLE` without RLS, anon key inserts, unprotected storage operations |
 | **LLMRedTeam** | AI/LLM | OWASP LLM Top 10 — prompt injection, excessive agency, system prompt leakage, unbounded consumption, RAG poisoning |
 | **MCPSecurityAgent** | AI/LLM | MCP server security — unvalidated tool inputs, missing auth, excessive permissions, tool poisoning, typosquatting detection, over-permissioned tools, shadow config discovery |
 | **AgenticSecurityAgent** | AI/LLM | OWASP Agentic AI Top 10 — agent hijacking, privilege escalation, unsafe code execution, memory poisoning |
 | **RAGSecurityAgent** | AI/LLM | RAG pipeline security — unvalidated embeddings, context injection, document poisoning, vector DB access control |
+| **MemoryPoisoningAgent** | AI/LLM | ASI01/ASI05 — instruction injection in `.claude/memory/`, `.cursorrules`, `.cursor/rules/`, `.windsurfrules`, `.continue/config.json`, `.gemini/`, `.cody/`, `.augment/` and docs; hidden Unicode payloads; persona hijacking; persistent trigger detection |
 | **PIIComplianceAgent** | Compliance | PII detection — SSNs, credit cards, emails, phone numbers in source code, logs, and configs |
 | **VibeCodingAgent** | Code Vulns | AI-generated code patterns — no input validation, empty catch blocks, hardcoded secrets, disabled security features, TODO-auth patterns |
 | **ExceptionHandlerAgent** | Code Vulns | OWASP A10:2025 — empty catch blocks, unhandled promise rejections, missing React error boundaries, leaked stack traces, generic catch-all without rethrow |
-| **AgentConfigScanner** | AI/LLM | AI agent config security — prompt injection in .cursorrules/CLAUDE.md/AGENTS.md/.windsurfrules, malicious Claude Code hooks (CVE-2026), OpenClaw public binding & malicious skills, openclaude profile file (`OPENAI_BASE_URL` over http://), claw-code config (`danger-full-access`, disabled sandbox, shell hooks, insecure MCP transports), encoded/obfuscated payloads, data exfiltration instructions, agent memory poisoning |
+| **AgentConfigScanner** | AI/LLM | AI agent config security — prompt injection in .cursorrules/CLAUDE.md/AGENTS.md/.windsurfrules/.gemini/rules.md, malicious Claude Code hooks (CVE-2026), OpenClaw public binding & malicious skills, openclaude profile file (`OPENAI_BASE_URL` over http://), claw-code config (`danger-full-access`, disabled sandbox, shell hooks, insecure MCP transports), Gemini CLI / Cody / Augment Code config risks, encoded/obfuscated payloads, data exfiltration instructions |
 | **MobileScanner** | Mobile | OWASP Mobile Top 10 2024 — insecure storage, WebView JS injection, HTTP endpoints, excessive permissions, debug mode |
 | **GitHistoryScanner** | Secrets | Leaked secrets in git commit history (checks if still active in working tree) |
 | **CICDScanner** | CI/CD | OWASP CI/CD Top 10 — pipeline poisoning, unpinned actions, secret logging, self-hosted runners, script injection, AI agent danger flags (`--dangerously-skip-permissions`, insecure provider URLs in CI) |
 | **APIFuzzer** | API | Routes without auth, missing input validation, mass assignment, unrestricted file upload, GraphQL introspection, debug endpoints, missing rate limiting, OpenAPI spec security issues |
 | **ReconAgent** | Recon | Attack surface discovery — frameworks, languages, auth patterns, databases, cloud providers, IaC, CI/CD pipelines |
 
-**Post-processors:** ScoringEngine (8-category weighted scoring), VerifierAgent (secrets liveness verification), DeepAnalyzer (LLM-powered taint analysis)
+**Post-processors:** ScoringEngine (8-category weighted scoring with OWASP Agentic AI Top 10 enrichment), VerifierAgent (secrets liveness verification), DeepAnalyzer (LLM-powered taint analysis)
 
 ---
 
@@ -186,7 +196,7 @@ npx ship-safe audit .
 # Full audit with remediation plan + HTML report
 npx ship-safe audit .
 
-# Red team: 18 agents, 80+ attack classes
+# Red team: 19 agents, 80+ attack classes
 npx ship-safe red-team .
 npx ship-safe red-team . --agents injection,auth    # Run specific agents
 npx ship-safe red-team . --html report.html         # HTML report
@@ -396,6 +406,16 @@ jobs:
 
 Scans `openclaw.json`, `.cursorrules`, `CLAUDE.md`, Claude Code hooks, and MCP configs. Checks against the bundled threat intelligence database for known ClawHavoc IOCs.
 
+### Live Advisory Feed
+
+```bash
+# Query OSV.dev for actively exploited CVEs across all package ecosystems
+npx ship-safe advisories .
+npx ship-safe advisories . --json    # JSON output for CI
+```
+
+No API key required. Malware advisories (MAL-*) are sorted to the top. Results include EPSS exploit probability and remediation guidance.
+
 ### Defensive Hooks
 
 ```bash
@@ -409,8 +429,14 @@ npx ship-safe watch . --configs
 ### Infrastructure Commands
 
 ```bash
-# Continuous monitoring (watch files for changes)
+# Lightweight file watcher — re-scans changed files on save
 npx ship-safe watch .
+
+# Deep watch — full 19-agent orchestrator on every change
+npx ship-safe watch . --deep
+npx ship-safe watch . --deep --threshold 80   # Fail if score drops below threshold
+npx ship-safe watch . --deep --debounce 2000  # Custom debounce in ms (default: 1000)
+npx ship-safe watch . --status                # Show last deep-watch results from .ship-safe/watch.json
 
 # Generate CycloneDX SBOM
 npx ship-safe sbom .
@@ -467,7 +493,7 @@ claude plugin add github:asamassekou10/ship-safe
 
 | Command | Description |
 |---------|-------------|
-| `/ship-safe` | Full security audit — 18 agents, remediation plan, auto-fix |
+| `/ship-safe` | Full security audit — 19 agents, remediation plan, auto-fix |
 | `/ship-safe-scan` | Quick scan for leaked secrets |
 | `/ship-safe-score` | Security health score (0-100) |
 | `/ship-safe-deep` | LLM-powered deep taint analysis |
@@ -524,7 +550,8 @@ Ship Safe supports any AI provider for deep analysis and classification:
 | **Anthropic** | `ANTHROPIC_API_KEY` | *(auto-detected)* | claude-haiku-4-5 |
 | **OpenAI** | `OPENAI_API_KEY` | *(auto-detected)* | gpt-4o-mini |
 | **Google** | `GOOGLE_AI_API_KEY` | *(auto-detected)* | gemini-2.0-flash |
-| **Ollama** | `OLLAMA_HOST` | `--local` | Local models |
+| **Gemma 4 (Ollama)** | *(none)* | `--provider gemma4` | gemma4:e4b (256K ctx) |
+| **Ollama** | `OLLAMA_HOST` | `--local` | gemma4:e4b |
 | **Groq** | `GROQ_API_KEY` | `--provider groq` | llama-3.3-70b-versatile |
 | **Together AI** | `TOGETHER_API_KEY` | `--provider together` | meta-llama/Llama-3-70b-chat-hf |
 | **Mistral** | `MISTRAL_API_KEY` | `--provider mistral` | mistral-small-latest |
