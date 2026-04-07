@@ -284,7 +284,8 @@ program
   .option('--ecosystem <type>', 'Filter by ecosystem (npm, PyPI)')
   .option('--json', 'Output as JSON')
   .action(async (targetPath = '.', options) => {
-    const absolutePath = join(process.cwd(), targetPath);
+    const { resolve } = await import('path');
+    const absolutePath = resolve(targetPath);
     try {
       const result = await runLiveAdvisories(absolutePath, options);
       if (options.json) {
