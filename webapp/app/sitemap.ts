@@ -4,12 +4,19 @@ import { posts } from '@/data/blog';
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = 'https://www.shipsafecli.com';
 
-  const blogEntries: MetadataRoute.Sitemap = posts.map((post) => ({
-    url: `${baseUrl}/blog/${post.slug}`,
-    lastModified: new Date(post.date),
-    changeFrequency: 'monthly',
-    priority: 0.7,
-  }));
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const blogEntries: MetadataRoute.Sitemap = posts.map((post) => {
+    const postDate = new Date(post.date);
+    const isRecent = postDate >= thirtyDaysAgo;
+    return {
+      url: `${baseUrl}/blog/${post.slug}`,
+      lastModified: postDate,
+      changeFrequency: isRecent ? 'weekly' : 'monthly',
+      priority: isRecent ? 0.85 : 0.75,
+    };
+  });
 
   const latestPost = posts.length > 0 ? new Date(posts[0].date) : new Date('2026-04-01');
 

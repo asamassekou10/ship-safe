@@ -9,7 +9,7 @@ const ogImage = 'https://www.shipsafecli.com/api/og?title=Security+Guides+for+De
 export const metadata: Metadata = {
   title: 'Blog',
   description: 'Security guides, vulnerability research, and best practices for developers. Learn how to find and fix security issues in your codebase.',
-  keywords: ['application security blog', 'DevSecOps blog', 'security best practices', 'vulnerability research', 'code security guides'],
+  keywords: ['application security blog', 'LLM vulnerability research', 'RAG poisoning prevention', 'MCP configuration security', 'AI agent security', 'DevSecOps blog', 'security best practices', 'code security guides'],
   alternates: {
     canonical: 'https://www.shipsafecli.com/blog',
   },

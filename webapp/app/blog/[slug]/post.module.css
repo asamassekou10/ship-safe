@@ -188,6 +188,72 @@
   justify-content: center;
 }
 
+/* More posts */
+
+.morePosts {
+  margin-top: 3rem;
+  padding-top: 2.5rem;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+
+.morePosts h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, rgba(255, 255, 255, 0.5));
+  margin-bottom: 1.25rem;
+}
+
+.moreList {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.moreLink {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  text-decoration: none;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.moreLink:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.moreLinkTitle {
+  font-size: 0.92rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.moreLinkDate {
+  font-size: 0.78rem;
+  color: var(--text-muted, rgba(255, 255, 255, 0.4));
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.allPostsLink {
+  font-size: 0.85rem;
+  color: var(--accent, #38bdf8);
+  text-decoration: none;
+}
+
+.allPostsLink:hover {
+  opacity: 0.8;
+}
+
 @media (max-width: 640px) {
   .title {
     font-size: 1.6rem;
@@ -195,5 +261,10 @@
 
   .content {
     font-size: 1rem;
+  }
+
+  .moreLink {
+    flex-direction: column;
+    gap: 0.25rem;
   }
 }

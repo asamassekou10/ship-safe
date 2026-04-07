@@ -17,9 +17,9 @@ import RecentPosts from '@/components/RecentPosts';
 import { getRepoStats } from '@/lib/stats';
 
 export const metadata: Metadata = {
-  title: 'Ship Safe — AI-Powered Security Scanner for Developers',
-  description: '19 AI security agents scan your codebase for secrets, vulnerabilities, memory poisoning, and dependency CVEs in one command. OWASP Agentic AI Top 10 mapping, live advisory feeds, and deep watch mode. Free and open source.',
-  keywords: ['application security scanner', 'AI security agents', 'secret scanner', 'code vulnerability scanner', 'OWASP 2025', 'OWASP Agentic AI Top 10', 'memory poisoning detection', 'LLM security testing', 'prompt injection scanner', 'DevSecOps tool', 'free security scanner', 'open source SAST', 'MCP security scanner'],
+  title: 'Ship Safe — AI Agent Security Scanner for Developers',
+  description: '19 AI security agents scan your codebase for LLM vulnerabilities, MCP configuration security issues, RAG poisoning, secrets, and dependency CVEs. OWASP Agentic AI Top 10 mapping, live advisory feeds, deep watch mode. Free CLI.',
+  keywords: ['AI agent security scanner', 'LLM vulnerability CLI', 'MCP configuration security', 'RAG poisoning prevention', 'prevent RAG poisoning', 'application security scanner', 'AI security agents', 'secret scanner', 'OWASP Agentic AI Top 10', 'memory poisoning detection', 'prompt injection scanner', 'DevSecOps tool', 'free security scanner', 'open source SAST'],
   alternates: {
     canonical: 'https://www.shipsafecli.com',
   },

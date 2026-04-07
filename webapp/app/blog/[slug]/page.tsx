@@ -189,14 +189,18 @@ export default async function BlogPost({ params }: Props) {
   const post = getPostBySlug(slug);
   if (!post) notFound();
 
+  const morePosts = posts.filter((p) => p.slug !== slug).slice(0, 3);
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',
     headline: post.title,
     description: post.description,
     datePublished: post.date,
+    dateModified: post.date,
+    image: `https://www.shipsafecli.com/api/og/blog?slug=${post.slug}`,
     author: {
-      '@type': 'Organization',
+      '@type': 'Person',
       name: post.author,
       url: 'https://www.shipsafecli.com',
     },
@@ -204,9 +208,15 @@ export default async function BlogPost({ params }: Props) {
       '@type': 'Organization',
       name: 'Ship Safe',
       url: 'https://www.shipsafecli.com',
-      logo: 'https://www.shipsafecli.com/logo.png',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://www.shipsafecli.com/logo.png',
+      },
     },
-    mainEntityOfPage: `https://www.shipsafecli.com/blog/${post.slug}`,
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `https://www.shipsafecli.com/blog/${post.slug}`,
+    },
     keywords: post.keywords.join(', '),
   };
 
@@ -246,12 +256,31 @@ export default async function BlogPost({ params }: Props) {
             <div className={styles.cta}>
               <h3>Scan your project now</h3>
               <pre className={styles.ctaCode}><code>npx ship-safe audit .</code></pre>
-              <p>18 agents. 80+ attack classes. Free and open source.</p>
+              <p>19 agents. 80+ attack classes. Free and open source.</p>
               <div className={styles.ctaLinks}>
                 <a href="https://github.com/asamassekou10/ship-safe" className="btn btn-primary">View on GitHub</a>
                 <Link href="/pricing" className="btn btn-ghost">See pricing</Link>
               </div>
             </div>
+
+            {morePosts.length > 0 && (
+              <div className={styles.morePosts}>
+                <h3>More from the blog</h3>
+                <ul className={styles.moreList}>
+                  {morePosts.map((p) => (
+                    <li key={p.slug}>
+                      <Link href={`/blog/${p.slug}`} className={styles.moreLink}>
+                        <span className={styles.moreLinkTitle}>{p.title}</span>
+                        <span className={styles.moreLinkDate}>
+                          {new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/blog" className={styles.allPostsLink}>All posts →</Link>
+              </div>
+            )}
           </footer>
         </article>
       </main>

@@ -2,25 +2,25 @@ import Nav from '@/components/Nav';
 import styles from './docs.module.css';
 import type { Metadata } from 'next';
 
-const ogImage = 'https://www.shipsafecli.com/api/og?title=Ship+Safe+Docs&description=Every+command%2C+agent%2C+and+flag.+Installation%2C+CI%2FCD+integration%2C+hooks%2C+multi-LLM+support%2C+and+API+reference.&label=Documentation&badge=v6.3.0';
+const ogImage = 'https://www.shipsafecli.com/api/og?title=Ship+Safe+Docs&description=Every+command%2C+agent%2C+and+flag.+LLM+vulnerability+CLI%2C+MCP+security+config%2C+RAG+poisoning+detection%2C+CI%2FCD+integration%2C+and+API+reference.&label=Documentation&badge=v7.0.0';
 
 export const metadata: Metadata = {
   title: 'Documentation',
-  description: 'Complete documentation for Ship Safe: installation, commands, agents, scoring, CI/CD integration, configuration, and API reference.',
-  keywords: ['Ship Safe docs', 'Ship Safe documentation', 'security scanner CLI', 'ship-safe commands', 'ship-safe agents', 'DevSecOps documentation'],
+  description: 'Complete Ship Safe documentation: LLM vulnerability CLI commands, MCP configuration security scanning, RAG poisoning detection, CI/CD integration, 19 agent reference, and API docs.',
+  keywords: ['Ship Safe docs', 'LLM vulnerability CLI', 'MCP configuration security', 'RAG poisoning detection', 'AI agent security scanner', 'ship-safe commands', 'ship-safe agents', 'DevSecOps documentation', 'OWASP Agentic AI Top 10'],
   alternates: {
     canonical: 'https://www.shipsafecli.com/docs',
   },
   openGraph: {
-    title: 'Ship Safe Documentation',
-    description: 'Every command, agent, and flag. Installation, CI/CD integration, hooks, multi-LLM support, and API reference.',
+    title: 'Ship Safe Documentation — v7.0.0',
+    description: 'Every command, agent, and flag. LLM vulnerability CLI, MCP security configuration, RAG poisoning detection, CI/CD integration, and API reference.',
     url: 'https://www.shipsafecli.com/docs',
     images: [{ url: ogImage, width: 1200, height: 630, alt: 'Ship Safe Documentation' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Ship Safe Documentation',
-    description: 'Every command, agent, and flag. Installation, CI/CD integration, hooks, multi-LLM support, and API reference.',
+    title: 'Ship Safe Documentation — v7.0.0',
+    description: 'Every command, agent, and flag. LLM vulnerability CLI, MCP security configuration, RAG poisoning detection, CI/CD integration, and API reference.',
     images: [ogImage],
   },
 };
@@ -50,7 +50,7 @@ export default function Docs() {
               <a href="#installation">Installation</a>
               <a href="#quick-start">Quick Start</a>
               <a href="#commands">Commands</a>
-              <a href="#agents">18 Security Agents</a>
+              <a href="#agents">19 Security Agents</a>
               <a href="#scoring">Scoring System</a>
               <a href="#cicd">CI/CD Integration</a>
               <a href="#github-action">GitHub Action</a>
@@ -71,7 +71,7 @@ export default function Docs() {
               <span className="section-label">Documentation</span>
               <h1>Ship Safe CLI</h1>
               <p className={styles.subtitle}>
-                18 AI security agents. 80+ attack classes. One command.
+                19 AI security agents. 80+ attack classes. One command.
               </p>
               <pre className={styles.heroCode}><code>npx ship-safe audit .</code></pre>
             </header>
@@ -215,7 +215,7 @@ npx ship-safe ci . --threshold 80`}</code></pre>
 
             {/* ── Agents ────────────────────────────────────────────── */}
             <section id="agents">
-              <h2>18 Security Agents</h2>
+              <h2>19 Security Agents</h2>
               <p>All agents run in parallel with per-agent timeouts. Each implements <code>shouldRun(recon)</code> to skip irrelevant projects automatically.</p>
               <div className={styles.tableWrap}>
                 <table>
