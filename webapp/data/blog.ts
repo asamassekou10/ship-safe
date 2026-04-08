@@ -11,6 +11,158 @@ export interface BlogPost {
 
 export const posts: BlogPost[] = [
   {
+    slug: 'claude-managed-agents-security-scanner-owasp-agentic',
+    title: 'Scanning Claude Managed Agents: 12 Security Rules for the OWASP Agentic Top 10',
+    description: 'Anthropic launched Claude Managed Agents — hosted agent infrastructure with bash, file write, and web access. Ship Safe v7.1 ships 12 detection rules for the misconfigurations that matter: unrestricted networking, always_allow policies, and hardcoded vault tokens.',
+    date: '2026-04-08',
+    author: 'Ship Safe Team',
+    tags: ['security research', 'AI agents', 'Claude'],
+    keywords: ['Claude Managed Agents security', 'Managed Agents scanner', 'OWASP Agentic AI Top 10', 'agent_toolset_20260401', 'always_allow permission policy', 'unrestricted networking', 'MCP server security', 'AI agent sandboxing', 'Claude Code security', 'managed agent vault tokens'],
+    content: `
+Anthropic just launched **Claude Managed Agents** — a hosted agent infrastructure where Claude runs in cloud containers with bash, file system access, web browsing, and MCP server connections. It is the most capable hosted agent platform to date. It is also the easiest to misconfigure.
+
+Ship Safe v7.1 ships a new **ManagedAgentScanner** with 12 detection rules covering the security-critical surfaces in the Managed Agents API. Every rule maps to the OWASP Agentic AI Top 10.
+
+## What Are Claude Managed Agents?
+
+Managed Agents decouples the "brain" (Claude model + system prompt + tools) from the "hands" (cloud container + networking + packages). You define four resources:
+
+| Resource | What It Controls |
+|----------|-----------------|
+| **Agent** | Model, system prompt, tools, MCP servers, skills |
+| **Environment** | Container config, networking, pre-installed packages |
+| **Session** | Running instance binding an agent to an environment |
+| **Vault** | Per-user credentials for MCP server authentication |
+
+The API is clean. The defaults are dangerous.
+
+## The Dangerous Defaults
+
+### 1. All 8 Tools Enabled by Default
+
+When you add \\\`agent_toolset_20260401\\\` to an agent, you get **all 8 tools**: bash, read, write, edit, glob, grep, web_fetch, and web_search. There is no opt-in — it is all-or-nothing unless you add a \\\`configs\\\` array.
+
+**Ship Safe rule:** \\\`MANAGED_AGENT_ALL_TOOLS_DEFAULT\\\` (high)
+
+### 2. Permission Policy Defaults to always_allow
+
+The agent toolset's default permission policy is \\\`always_allow\\\`. That means bash commands, file writes, and web fetches execute **without human confirmation**. This is the hosted equivalent of \\\`--dangerously-skip-permissions\\\` in Claude Code.
+
+**Ship Safe rules:**
+- \\\`MANAGED_AGENT_ALWAYS_ALLOW\\\` (critical) — flags any always_allow policy
+- \\\`MANAGED_AGENT_BASH_NO_CONFIRM\\\` (critical) — flags bash without always_ask override
+
+### 3. Unrestricted Networking by Default
+
+Environments default to \\\`networking: {type: "unrestricted"}\\\` — full outbound access except a safety blocklist. Combined with bash and web_fetch, an agent can exfiltrate code to any endpoint.
+
+The secure alternative is \\\`limited\\\` networking with an explicit \\\`allowed_hosts\\\` array, plus boolean flags for \\\`allow_mcp_servers\\\` and \\\`allow_package_managers\\\`.
+
+**Ship Safe rules:**
+- \\\`MANAGED_AGENT_UNRESTRICTED_NET\\\` (high) — unrestricted networking detected
+- \\\`MANAGED_AGENT_NO_NETWORK_LIMIT\\\` (medium) — environment created without networking config
+
+### 4. MCP Toolset Permission Override
+
+MCP toolsets default to the safe \\\`always_ask\\\` policy. But developers can override it to \\\`always_allow\\\` — which means any tool the MCP server exposes (including tools added after your initial review) executes without confirmation.
+
+**Ship Safe rule:** \\\`MANAGED_AGENT_MCP_ALWAYS_ALLOW\\\` (high)
+
+## Credential and Supply Chain Risks
+
+### Hardcoded Vault Tokens
+
+The vault system uses \\\`access_token\\\`, \\\`refresh_token\\\`, and \\\`client_secret\\\` fields. If these end up in source code instead of environment variables, anyone with repo access has the keys to your MCP servers.
+
+**Ship Safe rules:**
+- \\\`MANAGED_AGENT_HARDCODED_TOKEN\\\` (critical) — vault credential in source
+- \\\`MANAGED_AGENT_STATIC_BEARER_INLINE\\\` (critical) — static_bearer token in code
+
+### MCP Server Over HTTP
+
+MCP servers must use HTTPS. An \\\`http://\\\` URL (except localhost) transmits all tool calls, results, and credentials in cleartext.
+
+**Ship Safe rule:** \\\`MANAGED_AGENT_MCP_HTTP\\\` (critical)
+
+### Unpinned Environment Packages
+
+The \\\`packages\\\` field installs pip, npm, apt, cargo, gem, and go packages into the container. Without version pins, a supply chain attack on any package registry compromises every new session.
+
+**Ship Safe rule:** \\\`MANAGED_AGENT_UNPINNED_PACKAGE\\\` (medium)
+
+## OWASP Agentic AI Mapping
+
+| Ship Safe Rule | OWASP | Risk |
+|----------------|-------|------|
+| MANAGED_AGENT_ALWAYS_ALLOW | ASI-03 | Excessive Agency |
+| MANAGED_AGENT_BASH_NO_CONFIRM | ASI-03 | Excessive Agency |
+| MANAGED_AGENT_ALL_TOOLS_DEFAULT | ASI-05 | Improper Tool Use |
+| MANAGED_AGENT_MCP_ALWAYS_ALLOW | ASI-05 | Improper Tool Use |
+| MANAGED_AGENT_UNRESTRICTED_NET | ASI-04 | Inadequate Sandboxing |
+| MANAGED_AGENT_NO_NETWORK_LIMIT | ASI-04 | Inadequate Sandboxing |
+| MANAGED_AGENT_MCP_HTTP | ASI-04 | Inadequate Sandboxing |
+| MANAGED_AGENT_UNPINNED_PACKAGE | ASI-04 | Inadequate Sandboxing |
+| MANAGED_AGENT_CALLABLE_AGENTS | ASI-03 | Excessive Agency |
+| MANAGED_AGENT_NO_SYSTEM_PROMPT | ASI-07 | Lack of Human Oversight |
+| MANAGED_AGENT_HARDCODED_TOKEN | ASI-04 | Inadequate Sandboxing |
+| MANAGED_AGENT_STATIC_BEARER_INLINE | ASI-04 | Inadequate Sandboxing |
+
+## Secure Configuration Checklist
+
+Here is a secure-by-default Managed Agent configuration:
+
+\\\`\\\`\\\`json
+{
+  "name": "My Secure Agent",
+  "model": "claude-sonnet-4-6",
+  "system": "You are a coding assistant. Never execute destructive commands.",
+  "tools": [{
+    "type": "agent_toolset_20260401",
+    "default_config": { "enabled": false },
+    "configs": [
+      { "name": "read", "enabled": true },
+      { "name": "write", "enabled": true },
+      { "name": "edit", "enabled": true },
+      { "name": "glob", "enabled": true },
+      { "name": "grep", "enabled": true },
+      { "name": "bash", "enabled": true, "permission_policy": { "type": "always_ask" } }
+    ]
+  }]
+}
+\\\`\\\`\\\`
+
+For the environment:
+
+\\\`\\\`\\\`json
+{
+  "name": "production",
+  "config": {
+    "type": "cloud",
+    "networking": {
+      "type": "limited",
+      "allowed_hosts": ["api.github.com"],
+      "allow_mcp_servers": true,
+      "allow_package_managers": false
+    },
+    "packages": {
+      "pip": ["pandas==2.2.0", "numpy==1.26.4"]
+    }
+  }
+}
+\\\`\\\`\\\`
+
+## Scan Your Managed Agent Configs Now
+
+\\\`\\\`\\\`bash
+npx ship-safe audit .
+\\\`\\\`\\\`
+
+Ship Safe's ManagedAgentScanner automatically detects files with Managed Agents API calls or SDK usage and applies all 12 rules. No configuration needed.
+
+**Ship Safe is free, open-source, and MIT-licensed.** Star the repo and scan before you ship.
+`,
+  },
+  {
     slug: 'docker-authz-chatgpt-dns-codex-branch-injection-ai-container-security',
     title: 'Docker AuthZ Bypass, ChatGPT DNS Escape, Codex Branch Injection: AI Containers Are Under Siege',
     description: 'Three AI tool vulnerabilities disclosed in one week — Docker CVE-2026-34040, ChatGPT DNS tunneling exfiltration, and OpenAI Codex branch name injection. All share the same root cause: containers trusted to isolate AI agents are not isolating them.',

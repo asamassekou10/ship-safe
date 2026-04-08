@@ -6,6 +6,43 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [7.1.0] — 2026-04-08
+
+### Added
+
+- **`ManagedAgentScanner`** — new 20th scanning agent purpose-built for Claude Managed Agents configuration security. Anthropic's Managed Agents platform (beta, April 2026) runs Claude in cloud containers with bash, file system access, and web browsing. The default configuration is maximally permissive: all 8 tools enabled, `always_allow` permission policy, and unrestricted outbound networking. This agent detects 12 classes of misconfiguration across every security-relevant surface in the Managed Agents API.
+
+  Detection rules:
+
+  | Rule | Severity | OWASP |
+  |------|----------|-------|
+  | `MANAGED_AGENT_ALWAYS_ALLOW` | critical | ASI-03 |
+  | `MANAGED_AGENT_BASH_NO_CONFIRM` | critical | ASI-03 |
+  | `MANAGED_AGENT_ALL_TOOLS_DEFAULT` | high | ASI-05 |
+  | `MANAGED_AGENT_MCP_ALWAYS_ALLOW` | high | ASI-05 |
+  | `MANAGED_AGENT_UNRESTRICTED_NET` | high | ASI-04 |
+  | `MANAGED_AGENT_NO_NETWORK_LIMIT` | medium | ASI-04 |
+  | `MANAGED_AGENT_MCP_HTTP` | critical | ASI-04 |
+  | `MANAGED_AGENT_CALLABLE_AGENTS` | medium | ASI-03 |
+  | `MANAGED_AGENT_NO_SYSTEM_PROMPT` | low | ASI-07 |
+  | `MANAGED_AGENT_HARDCODED_TOKEN` | critical | ASI-04 |
+  | `MANAGED_AGENT_STATIC_BEARER_INLINE` | critical | ASI-04 |
+  | `MANAGED_AGENT_UNPINNED_PACKAGE` | medium | ASI-04 |
+
+  The scanner uses a relevance signal check (API calls, SDK usage, `agent_toolset_20260401` references) before running patterns, so it adds zero overhead to projects not using Managed Agents.
+
+- **Blog post** — "Scanning Claude Managed Agents: 12 Security Rules for the OWASP Agentic Top 10" covering the full config schema, dangerous defaults, and a secure-by-default configuration checklist.
+
+- **Webapp updates** — new FAQ entry, 4 new ThreatMarquee entries, updated JSON-LD structured data, agent count bumped to 20 throughout.
+
+### Changed
+
+- Agent pool bumped from 19 to 20 agents in `buildOrchestrator()`.
+- `package.json` version bumped to `7.1.0`, description updated.
+- README: all "19 agents" references updated to 20, v7.1.0 highlights added, ManagedAgentScanner added to the agent table.
+
+---
+
 ## [6.4.0] — 2026-04-01
 
 ### Added

@@ -33,6 +33,10 @@ const THREATS = [
   { name: 'DNS Tunneling Exfiltration', sev: 'critical' },
   { name: 'Branch Name Injection',     sev: 'critical' },
   { name: 'S3 NFS Mount Unrestricted', sev: 'high'     },
+  { name: 'Managed Agent always_allow', sev: 'critical' },
+  { name: 'Unrestricted Agent Network', sev: 'high'     },
+  { name: 'Agent Bash No Confirm',     sev: 'critical' },
+  { name: 'MCP Server Over HTTP',      sev: 'critical' },
 ];
 
 const SEV_STYLE: Record<string, { color: string; bg: string; border: string }> = {

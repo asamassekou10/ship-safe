@@ -16,11 +16,13 @@
 
 ---
 
-19 security agents. 80+ attack classes. One command.
+20 security agents. 80+ attack classes. One command.
 
-**Ship Safe v7.0.0** is an AI-powered security platform that runs 19 specialized agents in parallel against your codebase, scanning for secrets, injection vulnerabilities, auth bypass, SSRF, supply chain attacks, memory poisoning, Supabase RLS misconfigs, Docker/Terraform/Kubernetes misconfigs, CI/CD pipeline poisoning, LLM/agentic AI security, MCP server misuse, RAG poisoning, PII compliance, vibe coding patterns, exception handling, AI agent config security, and more. Full OWASP Agentic AI Top 10 mapping (ASI01–ASI10) enriches every finding. Live OSV.dev advisory feed surfaces actively exploited CVEs within hours of disclosure. OWASP 2025 scoring with EPSS exploit probability. LLM-powered deep analysis verifies exploitability of critical findings. Secrets verification probes provider APIs to check if leaked keys are still active. Compliance mapping to SOC 2, ISO 27001, and NIST AI RMF. Built-in threat intelligence feed with offline-first IOC matching. CI integration with GitHub PR comments, threshold gating, and SARIF output.
+**Ship Safe v7.1.0** is an AI-powered security platform that runs 20 specialized agents in parallel against your codebase, scanning for secrets, injection vulnerabilities, auth bypass, SSRF, supply chain attacks, memory poisoning, Supabase RLS misconfigs, Docker/Terraform/Kubernetes misconfigs, CI/CD pipeline poisoning, LLM/agentic AI security, MCP server misuse, RAG poisoning, PII compliance, vibe coding patterns, exception handling, AI agent config security, Claude Managed Agents misconfigurations, and more. Full OWASP Agentic AI Top 10 mapping (ASI01–ASI10) enriches every finding. Live OSV.dev advisory feed surfaces actively exploited CVEs within hours of disclosure. OWASP 2025 scoring with EPSS exploit probability. LLM-powered deep analysis verifies exploitability of critical findings. Secrets verification probes provider APIs to check if leaked keys are still active. Compliance mapping to SOC 2, ISO 27001, and NIST AI RMF. Built-in threat intelligence feed with offline-first IOC matching. CI integration with GitHub PR comments, threshold gating, and SARIF output.
 
-**v7.0.0 highlights:** New **Memory Poisoning Agent** — the first scanner purpose-built for instruction injection in AI agent memory files (`.claude/memory/`, `.cursorrules`, `.cursor/rules/`, `.windsurfrules`, and more). Live advisories command (`ship-safe advisories .`) queries OSV.dev in real time — no API key, no stale data. **Deep watch mode** (`--deep`) runs the full 19-agent orchestrator on every file change and persists results to `.ship-safe/watch.json`. **OWASP Agentic AI Top 10** metadata (ASI01–ASI10) attached to every relevant finding. Trojanized package behavioral detection catches env-var harvesting, DNS exfiltration, and WebSocket C2 patterns inside `node_modules`. Expanded agent config discovery covers Gemini CLI, Cody, and Augment Code. **Gemma 4** (`--provider gemma4`) supported as the default local model via Ollama structured output — zero JSON parse failures.
+**v7.1.0 highlights:** New **ManagedAgentScanner** — the first scanner purpose-built for Claude Managed Agents configuration security. Detects 12 classes of misconfiguration: unrestricted networking, `always_allow` permission policies (the hosted equivalent of `--dangerously-skip-permissions`), bash without human confirmation, MCP servers over plain HTTP, hardcoded vault tokens, unpinned environment packages, and multi-agent privilege escalation surfaces. All findings map to OWASP Agentic AI Top 10 (ASI-03, ASI-04, ASI-05, ASI-07). Automatically activates on any project using the Managed Agents API or SDK.
+
+**v7.0.0 highlights:** New **Memory Poisoning Agent** — the first scanner purpose-built for instruction injection in AI agent memory files (`.claude/memory/`, `.cursorrules`, `.cursor/rules/`, `.windsurfrules`, and more). Live advisories command (`ship-safe advisories .`) queries OSV.dev in real time — no API key, no stale data. **Deep watch mode** (`--deep`) runs the full 20-agent orchestrator on every file change and persists results to `.ship-safe/watch.json`. **OWASP Agentic AI Top 10** metadata (ASI01–ASI10) attached to every relevant finding. Trojanized package behavioral detection catches env-var harvesting, DNS exfiltration, and WebSocket C2 patterns inside `node_modules`. Expanded agent config discovery covers Gemini CLI, Cody, and Augment Code. **Gemma 4** (`--provider gemma4`) supported as the default local model via Ollama structured output — zero JSON parse failures.
 
 [Documentation](https://shipsafecli.com/docs) | [Blog](https://shipsafecli.com/blog) | [Pricing](https://shipsafecli.com/pricing)
 
@@ -29,13 +31,13 @@
 ## Quick Start
 
 ```bash
-# Full security audit — secrets + 19 agents + deps + remediation plan
+# Full security audit — secrets + 20 agents + deps + remediation plan
 npx ship-safe audit .
 
 # LLM-powered deep analysis (Anthropic, OpenAI, Google, Ollama, Gemma 4)
 npx ship-safe audit . --deep
 
-# Red team scan only (19 agents, 80+ attack classes)
+# Red team scan only (20 agents, 80+ attack classes)
 npx ship-safe red-team .
 
 # Scan only changed files (fast pre-commit & PR scanning)
@@ -47,7 +49,7 @@ npx ship-safe advisories .
 
 # Continuous monitoring
 npx ship-safe watch .                         # Lightweight file watcher
-npx ship-safe watch . --deep                  # Full 19-agent scan on every change
+npx ship-safe watch . --deep                  # Full 20-agent scan on every change
 npx ship-safe watch . --deep --threshold 80   # Fail if score drops below threshold
 npx ship-safe watch . --status                # Show last deep-watch results
 
@@ -95,11 +97,11 @@ npx ship-safe audit .
 
 ```
 ════════════════════════════════════════════════════════════
-  Ship Safe v7.0 — Full Security Audit
+  Ship Safe v7.1 — Full Security Audit
 ════════════════════════════════════════════════════════════
 
   [Phase 1/4] Scanning for secrets...         ✔ 49 found
-  [Phase 2/4] Running 19 security agents...   ✔ 103 findings
+  [Phase 2/4] Running 20 security agents...   ✔ 103 findings
   [Phase 3/4] Auditing dependencies...        ✔ 44 CVEs
   [Phase 4/4] Computing security score...     ✔ 25/100 F
 
@@ -126,7 +128,7 @@ npx ship-safe audit .
 
 **What it runs:**
 1. **Secret scan** — 50+ patterns with entropy scoring (API keys, passwords, tokens)
-2. **19 security agents** — run in parallel with per-agent timeouts and framework-aware filtering (injection, auth, SSRF, supply chain, config, Supabase RLS, LLM, MCP, agentic AI, RAG, memory poisoning, PII, vibe coding, exception handling, agent config, mobile, git history, CI/CD, API)
+2. **20 security agents** — run in parallel with per-agent timeouts and framework-aware filtering (injection, auth, SSRF, supply chain, config, Supabase RLS, LLM, MCP, agentic AI, RAG, memory poisoning, PII, vibe coding, exception handling, agent config, mobile, git history, CI/CD, API)
 3. **Dependency audit** — npm/pip/bundler CVE scanning with EPSS exploit probability scores
 4. **Secrets verification** — probes provider APIs (GitHub, Stripe, OpenAI, etc.) to check if leaked keys are still active
 5. **Deep analysis** — LLM-powered taint analysis verifies exploitability of critical/high findings (optional)
@@ -159,7 +161,7 @@ npx ship-safe audit .
 
 ---
 
-## 19 Security Agents
+## 20 Security Agents
 
 | Agent | Category | What It Detects |
 |-------|----------|-----------------|
@@ -182,6 +184,7 @@ npx ship-safe audit .
 | **GitHistoryScanner** | Secrets | Leaked secrets in git commit history (checks if still active in working tree) |
 | **CICDScanner** | CI/CD | OWASP CI/CD Top 10 — pipeline poisoning, unpinned actions, secret logging, self-hosted runners, script injection, AI agent danger flags (`--dangerously-skip-permissions`, insecure provider URLs in CI) |
 | **APIFuzzer** | API | Routes without auth, missing input validation, mass assignment, unrestricted file upload, GraphQL introspection, debug endpoints, missing rate limiting, OpenAPI spec security issues |
+| **ManagedAgentScanner** | AI/LLM | Claude Managed Agents misconfigurations — `always_allow` permission policies, unrestricted networking, bash without human confirmation, MCP servers over HTTP, hardcoded vault tokens, unpinned environment packages (ASI-03, ASI-04, ASI-05, ASI-07) |
 | **ReconAgent** | Recon | Attack surface discovery — frameworks, languages, auth patterns, databases, cloud providers, IaC, CI/CD pipelines |
 
 **Post-processors:** ScoringEngine (8-category weighted scoring with OWASP Agentic AI Top 10 enrichment), VerifierAgent (secrets liveness verification), DeepAnalyzer (LLM-powered taint analysis)
@@ -196,7 +199,7 @@ npx ship-safe audit .
 # Full audit with remediation plan + HTML report
 npx ship-safe audit .
 
-# Red team: 19 agents, 80+ attack classes
+# Red team: 20 agents, 80+ attack classes
 npx ship-safe red-team .
 npx ship-safe red-team . --agents injection,auth    # Run specific agents
 npx ship-safe red-team . --html report.html         # HTML report
@@ -432,7 +435,7 @@ npx ship-safe watch . --configs
 # Lightweight file watcher — re-scans changed files on save
 npx ship-safe watch .
 
-# Deep watch — full 19-agent orchestrator on every change
+# Deep watch — full 20-agent orchestrator on every change
 npx ship-safe watch . --deep
 npx ship-safe watch . --deep --threshold 80   # Fail if score drops below threshold
 npx ship-safe watch . --deep --debounce 2000  # Custom debounce in ms (default: 1000)
@@ -493,7 +496,7 @@ claude plugin add github:asamassekou10/ship-safe
 
 | Command | Description |
 |---------|-------------|
-| `/ship-safe` | Full security audit — 19 agents, remediation plan, auto-fix |
+| `/ship-safe` | Full security audit — 20 agents, remediation plan, auto-fix |
 | `/ship-safe-scan` | Quick scan for leaked secrets |
 | `/ship-safe-score` | Security health score (0-100) |
 | `/ship-safe-deep` | LLM-powered deep taint analysis |

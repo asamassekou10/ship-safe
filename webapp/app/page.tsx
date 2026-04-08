@@ -18,7 +18,7 @@ import { getRepoStats } from '@/lib/stats';
 
 export const metadata: Metadata = {
   title: 'Ship Safe — AI Agent Security Scanner for Developers',
-  description: '19 AI security agents scan your codebase for LLM vulnerabilities, MCP configuration security issues, RAG poisoning, secrets, and dependency CVEs. OWASP Agentic AI Top 10 mapping, live advisory feeds, deep watch mode. Free CLI.',
+  description: '20 AI security agents scan your codebase for LLM vulnerabilities, MCP configuration security issues, RAG poisoning, Claude Managed Agent misconfigs, secrets, and dependency CVEs. OWASP Agentic AI Top 10 mapping, live advisory feeds. Free CLI.',
   keywords: ['AI agent security scanner', 'LLM vulnerability CLI', 'MCP configuration security', 'RAG poisoning prevention', 'prevent RAG poisoning', 'application security scanner', 'AI security agents', 'secret scanner', 'OWASP Agentic AI Top 10', 'memory poisoning detection', 'prompt injection scanner', 'DevSecOps tool', 'free security scanner', 'open source SAST'],
   alternates: {
     canonical: 'https://www.shipsafecli.com',
@@ -38,10 +38,10 @@ const jsonLd = {
         price: '0',
         priceCurrency: 'USD',
       },
-      description: '19 AI security agents scan your codebase for secrets, vulnerabilities, memory poisoning, and dependency CVEs in one command.',
+      description: '20 AI security agents scan your codebase for secrets, vulnerabilities, memory poisoning, Claude Managed Agent misconfigurations, and dependency CVEs in one command.',
       url: 'https://www.shipsafecli.com',
       downloadUrl: 'https://www.npmjs.com/package/ship-safe',
-      softwareVersion: '7.0.0',
+      softwareVersion: '7.1.0',
       author: {
         '@type': 'Organization',
         name: 'Ship Safe',
@@ -105,6 +105,14 @@ const jsonLd = {
           acceptedAnswer: {
             '@type': 'Answer',
             text: "Yes. Ship Safe flags Docker Engine versions before 29.3.1 (CVE-2026-34040, CVSS 8.8) and the container misconfigurations that amplify the impact: privileged mode, host network, writable root filesystems, and missing seccomp profiles.",
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Does Ship Safe scan Claude Managed Agents configs?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: "Yes. Ship Safe's ManagedAgentScanner detects misconfigurations in Claude Managed Agents definitions — unrestricted networking, always_allow permission policies, bash without human confirmation, MCP servers over HTTP, hardcoded vault tokens, and unpinned environment packages. All findings map to OWASP Agentic AI Top 10 controls.",
           },
         },
         {

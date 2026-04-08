@@ -35,6 +35,10 @@ const faqs = [
     a: "Yes. Ship Safe's ConfigAuditor flags Docker Engine versions before 29.3.1, which are vulnerable to CVE-2026-34040 (CVSS 8.8) — an AuthZ bypass that lets attackers create privileged containers via oversized API requests. It also detects the conditions that amplify the impact: privileged mode, host network, writable root filesystems, SYS_ADMIN capability, and missing seccomp profiles. Run npx ship-safe audit . to check your Docker and container configurations.",
   },
   {
+    q: 'Does Ship Safe scan Claude Managed Agents configs?',
+    a: "Yes. Ship Safe's ManagedAgentScanner detects misconfigurations in Claude Managed Agents definitions — unrestricted networking, always_allow permission policies, bash without human confirmation, MCP servers over HTTP, hardcoded vault tokens, and unpinned environment packages. All findings map to OWASP Agentic AI Top 10 controls (ASI-03, ASI-04, ASI-05, ASI-07). Run npx ship-safe audit . on any project using the Managed Agents API or SDK.",
+  },
+  {
     q: "Can Ship Safe detect the attack patterns behind the Anthropic Mythos sandbox escape?",
     a: "Yes. The Mythos escape involved privilege escalation, unrestricted network egress, and autonomous consequential actions without human approval — all of which map directly to the OWASP Agentic AI Top 10. Ship Safe's AgenticSecurityAgent flags dangerouslySkipPermissions and danger-full-access in agent configs (ASI-03), the ConfigAuditor checks containers for unrestricted outbound networking (ASI-04), and the MCPSecurityAgent and MemoryPoisoningAgent cover unconstrained tool access and memory store vulnerabilities (ASI-05). Run npx ship-safe audit . to check your AI pipelines against all 10 OWASP Agentic controls.",
   },
