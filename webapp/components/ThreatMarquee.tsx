@@ -29,6 +29,10 @@ const THREATS = [
   { name: 'Agent Privilege Escalation', sev: 'critical' },
   { name: 'Unrestricted Network Egress', sev: 'high'   },
   { name: 'Missing Human-in-the-Loop', sev: 'high'     },
+  { name: 'Docker AuthZ Bypass',       sev: 'critical' },
+  { name: 'DNS Tunneling Exfiltration', sev: 'critical' },
+  { name: 'Branch Name Injection',     sev: 'critical' },
+  { name: 'S3 NFS Mount Unrestricted', sev: 'high'     },
 ];
 
 const SEV_STYLE: Record<string, { color: string; bg: string; border: string }> = {

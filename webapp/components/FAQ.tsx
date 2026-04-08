@@ -31,6 +31,10 @@ const faqs = [
     a: "Yes — they're complementary. Stripe Projects provisions your stack and syncs real credentials into your environment with stripe projects env --pull. Ship Safe is the security layer on top: it scans your codebase to ensure those credentials haven't leaked into source code, checks that every .env file is covered by .gitignore, and with ship-safe hooks install, intercepts any AI-assisted write that would embed a live key in your code before it hits disk. Run npx ship-safe audit . immediately after a credentials sync.",
   },
   {
+    q: 'Does Ship Safe detect Docker CVE-2026-34040?',
+    a: "Yes. Ship Safe's ConfigAuditor flags Docker Engine versions before 29.3.1, which are vulnerable to CVE-2026-34040 (CVSS 8.8) — an AuthZ bypass that lets attackers create privileged containers via oversized API requests. It also detects the conditions that amplify the impact: privileged mode, host network, writable root filesystems, SYS_ADMIN capability, and missing seccomp profiles. Run npx ship-safe audit . to check your Docker and container configurations.",
+  },
+  {
     q: "Can Ship Safe detect the attack patterns behind the Anthropic Mythos sandbox escape?",
     a: "Yes. The Mythos escape involved privilege escalation, unrestricted network egress, and autonomous consequential actions without human approval — all of which map directly to the OWASP Agentic AI Top 10. Ship Safe's AgenticSecurityAgent flags dangerouslySkipPermissions and danger-full-access in agent configs (ASI-03), the ConfigAuditor checks containers for unrestricted outbound networking (ASI-04), and the MCPSecurityAgent and MemoryPoisoningAgent cover unconstrained tool access and memory store vulnerabilities (ASI-05). Run npx ship-safe audit . to check your AI pipelines against all 10 OWASP Agentic controls.",
   },

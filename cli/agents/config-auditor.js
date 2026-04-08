@@ -299,6 +299,74 @@ const CONFIG_PATTERNS = [
     fix: 'Remove sensitive host mounts. Use named volumes for data persistence.',
   },
 
+  // ── Container Sandbox Hardening (Mythos-class escape prevention) ──────────
+  {
+    rule: 'DOCKER_NO_READ_ONLY_ROOT',
+    title: 'Docker: Writable Root Filesystem',
+    regex: /(?:read_only|readOnlyRootFilesystem)\s*:\s*false/g,
+    severity: 'high',
+    cwe: 'CWE-732',
+    description: 'Container has writable root filesystem. Attackers can write exploit payloads after gaining code execution.',
+    fix: 'Set read_only: true (Compose) or readOnlyRootFilesystem: true (K8s). Use tmpfs mounts for writable paths.',
+  },
+  {
+    rule: 'DOCKER_NO_NEW_PRIVILEGES',
+    title: 'Docker: Missing no-new-privileges Flag',
+    regex: /security_opt\s*:\s*\[?[^\]]*no-new-privileges\s*:\s*false/g,
+    severity: 'high',
+    cwe: 'CWE-269',
+    description: 'Container allows privilege escalation via setuid/setgid binaries. This enables sandbox escape.',
+    fix: 'Add security_opt: [no-new-privileges:true] to container configuration.',
+  },
+  {
+    rule: 'DOCKER_NETWORK_HOST',
+    title: 'Docker: Host Network Mode',
+    regex: /network_mode\s*:\s*["']?host["']?/g,
+    severity: 'critical',
+    cwe: 'CWE-284',
+    description: 'Container uses host network stack. A sandbox escape gains full network access to the host and local network.',
+    fix: 'Remove network_mode: host. Use bridge networking with explicit port mappings.',
+  },
+  {
+    rule: 'DOCKER_CAP_SYS_ADMIN',
+    title: 'Docker: SYS_ADMIN Capability',
+    regex: /cap_add\s*:[\s\S]*?(?:SYS_ADMIN|ALL)/g,
+    severity: 'critical',
+    cwe: 'CWE-250',
+    description: 'SYS_ADMIN or ALL capabilities grant near-root host access. This is equivalent to privileged mode.',
+    fix: 'Remove SYS_ADMIN from cap_add. Use the minimum capabilities required.',
+  },
+  {
+    rule: 'DOCKER_PID_HOST',
+    title: 'Docker: Host PID Namespace',
+    regex: /pid\s*:\s*["']?host["']?/g,
+    severity: 'high',
+    cwe: 'CWE-284',
+    description: 'Container shares host PID namespace. Processes can inspect and signal host processes after escape.',
+    fix: 'Remove pid: host. Use default PID namespace isolation.',
+  },
+
+  // ── Kubernetes Sandbox Hardening ──────────────────────────────────────────
+  {
+    rule: 'K8S_ALLOW_PRIVILEGE_ESCALATION',
+    title: 'Kubernetes: allowPrivilegeEscalation Not Disabled',
+    regex: /allowPrivilegeEscalation\s*:\s*true/g,
+    severity: 'high',
+    cwe: 'CWE-269',
+    description: 'Container allows privilege escalation. Set to false to prevent setuid-based escape.',
+    fix: 'Set allowPrivilegeEscalation: false in securityContext.',
+  },
+  {
+    rule: 'K8S_NO_SECCOMP',
+    title: 'Kubernetes: Missing Seccomp Profile',
+    regex: /securityContext\s*:\s*\{(?:(?!seccompProfile)[\s\S])*?\}/g,
+    severity: 'medium',
+    cwe: 'CWE-693',
+    confidence: 'low',
+    description: 'No seccomp profile configured. Seccomp restricts syscalls available to the container, reducing escape surface.',
+    fix: 'Add seccompProfile: { type: RuntimeDefault } to securityContext.',
+  },
+
   // ── Nginx ──────────────────────────────────────────────────────────────────
   {
     rule: 'NGINX_AUTOINDEX',
@@ -416,18 +484,25 @@ export class ConfigAuditor extends BaseAgent {
     for (const file of dockerfiles) {
       findings = findings.concat(this.scanFileWithPatterns(file, DOCKERFILE_PATTERNS));
       findings = findings.concat(this.checkDockerfileUser(file));
+      findings = findings.concat(this.checkDockerEngineVersion(file));
     }
 
     // ── Scan docker-compose ───────────────────────────────────────────────────
     const composeFiles = files.filter(f => /docker-compose\.ya?ml$/i.test(path.basename(f)));
     for (const file of composeFiles) {
       findings = findings.concat(this.scanFileWithPatterns(file, CONFIG_PATTERNS));
+      findings = findings.concat(this.checkComposeNetworkIsolation(file));
     }
 
     // ── Scan Terraform ────────────────────────────────────────────────────────
     const tfFiles = files.filter(f => path.extname(f) === '.tf');
     for (const file of tfFiles) {
       findings = findings.concat(this.scanFileWithPatterns(file, CONFIG_PATTERNS));
+    }
+
+    // ── Scan for S3 Files NFS mounts (Terraform, ECS task defs, K8s) ─────────
+    for (const file of tfFiles) {
+      findings = findings.concat(this.checkS3FilesMountSecurity(file));
     }
 
     // ── Scan Kubernetes manifests ─────────────────────────────────────────────
@@ -437,6 +512,20 @@ export class ConfigAuditor extends BaseAgent {
     });
     for (const file of k8sFiles) {
       findings = findings.concat(this.scanFileWithPatterns(file, CONFIG_PATTERNS));
+    }
+
+    // ── S3 Files NFS mounts in K8s ─────────────────────────────────────────────
+    for (const file of k8sFiles) {
+      findings = findings.concat(this.checkS3FilesMountSecurity(file));
+    }
+
+    // ── ECS task definitions with S3 Files ────────────────────────────────────
+    const ecsFiles = files.filter(f => {
+      const content = this.readFile(f);
+      return content && /taskDefinition|containerDefinitions/i.test(content) && /\.(?:json|ya?ml|tf)$/i.test(f);
+    });
+    for (const file of ecsFiles) {
+      findings = findings.concat(this.checkS3FilesMountSecurity(file));
     }
 
     // ── Project-level: K8s NetworkPolicy check ─────────────────────────────────
@@ -515,6 +604,152 @@ export class ConfigAuditor extends BaseAgent {
       })];
     }
     return [];
+  }
+
+  /**
+   * Check Dockerfile for vulnerable Docker Engine versions (CVE-2026-34040).
+   * Detects version pins in FROM directives and docker-compose engine constraints.
+   */
+  checkDockerEngineVersion(filePath) {
+    const content = this.readFile(filePath);
+    if (!content) return [];
+
+    const findings = [];
+    const lines = content.split('\n');
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (this.isSuppressed(line)) continue;
+
+      // Match: FROM docker:<version> or engine version references in comments/labels
+      const versionMatch = line.match(/(?:docker|moby)[:\s]+(\d+)\.(\d+)\.(\d+)/i);
+      if (versionMatch) {
+        const major = parseInt(versionMatch[1], 10);
+        const minor = parseInt(versionMatch[2], 10);
+        const patch = parseInt(versionMatch[3], 10);
+
+        // CVE-2026-34040: fixed in 29.3.1
+        if (major < 29 || (major === 29 && minor < 3) || (major === 29 && minor === 3 && patch < 1)) {
+          findings.push(createFinding({
+            file: filePath,
+            line: i + 1,
+            severity: 'critical',
+            category: 'config',
+            rule: 'DOCKER_CVE_2026_34040',
+            title: 'Docker: Engine Version Vulnerable to AuthZ Bypass (CVE-2026-34040)',
+            description: `Docker Engine ${versionMatch[1]}.${versionMatch[2]}.${versionMatch[3]} is vulnerable to CVE-2026-34040 (CVSS 8.8). Attackers can bypass authorization plugins via oversized requests, creating privileged containers and extracting host credentials.`,
+            matched: versionMatch[0],
+            cwe: 'CWE-863',
+            fix: 'Upgrade to Docker Engine 29.3.1 or later. As a temporary mitigation, run Docker in rootless mode or use --userns-remap.',
+          }));
+        }
+      }
+    }
+    return findings;
+  }
+
+  /**
+   * Check for S3 Files NFS mounts without security restrictions.
+   * S3 Files (April 2026) allows mounting S3 buckets as NFS filesystems.
+   * When AI agents have filesystem access to mounted S3 buckets, prompt injection
+   * can access entire buckets through normal file reads.
+   */
+  checkS3FilesMountSecurity(filePath) {
+    const content = this.readFile(filePath);
+    if (!content) return [];
+
+    const findings = [];
+    const lines = content.split('\n');
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (this.isSuppressed(line)) continue;
+
+      // Detect S3 Files / S3 NFS mount references
+      const isS3Mount = /(?:s3[_-]?files|s3.*(?:nfs|mount|filesystem)|file_system_id.*s3|efs.*s3|mount.*s3:\/\/)/i.test(line);
+      if (!isS3Mount) continue;
+
+      // Check surrounding context (10 lines) for read-only or prefix scoping
+      const contextStart = Math.max(0, i - 5);
+      const contextEnd = Math.min(lines.length, i + 10);
+      const context = lines.slice(contextStart, contextEnd).join('\n');
+
+      const hasReadOnly = /read[_-]?only|readOnly|ro\b|access_mode.*read/i.test(context);
+      const hasPrefixScope = /prefix|sub[_-]?path|path[_-]?prefix|mount[_-]?point.*\/[a-z]/i.test(context);
+
+      if (!hasReadOnly) {
+        findings.push(createFinding({
+          file: filePath,
+          line: i + 1,
+          severity: 'high',
+          category: 'config',
+          rule: 'S3_FILES_MOUNT_NOT_READONLY',
+          title: 'S3 Files: NFS Mount Without Read-Only Restriction',
+          description: 'S3 bucket mounted as a filesystem without read-only flag. AI agents or compromised workloads can write arbitrary data to the entire bucket via standard file operations.',
+          matched: line.trim(),
+          cwe: 'CWE-732',
+          fix: 'Mount S3 Files with read-only access unless writes are explicitly needed. Use IAM policies to restrict access scope.',
+        }));
+      }
+
+      if (!hasPrefixScope) {
+        findings.push(createFinding({
+          file: filePath,
+          line: i + 1,
+          severity: 'medium',
+          category: 'config',
+          rule: 'S3_FILES_MOUNT_NO_PREFIX',
+          title: 'S3 Files: NFS Mount Without Prefix Scoping',
+          description: 'S3 bucket mounted at root without prefix scoping. The entire bucket is accessible as a filesystem. Scope mounts to specific prefixes to limit blast radius.',
+          matched: line.trim(),
+          cwe: 'CWE-284',
+          confidence: 'medium',
+          fix: 'Mount only the specific S3 prefix needed (e.g., s3://bucket/app-data/) instead of the entire bucket.',
+        }));
+      }
+    }
+    return findings;
+  }
+
+  /**
+   * Check if a docker-compose service running an AI agent has network restrictions.
+   * Services with "agent", "ai", "llm", "mcp" in the name or image without
+   * explicit network_mode or networks configuration are flagged.
+   */
+  checkComposeNetworkIsolation(filePath) {
+    const content = this.readFile(filePath);
+    if (!content) return [];
+
+    const findings = [];
+    // Check for services that look like AI/agent containers without network restrictions
+    const serviceBlockRe = /^\s{2}(\S+):\s*\n((?:\s{4,}.+\n)*)/gm;
+    let match;
+    while ((match = serviceBlockRe.exec(content)) !== null) {
+      const serviceName = match[1];
+      const serviceBlock = match[2];
+      const isAgentService = /(?:agent|ai|llm|mcp|model|inference)/i.test(serviceName) ||
+        /(?:agent|ai|llm|mcp|model|inference)/i.test(serviceBlock);
+
+      if (isAgentService) {
+        const hasNetworkRestriction = /network_mode\s*:|networks\s*:/m.test(serviceBlock);
+        if (!hasNetworkRestriction) {
+          const lineNum = content.substring(0, match.index).split('\n').length;
+          findings.push(createFinding({
+            file: filePath,
+            line: lineNum,
+            severity: 'high',
+            category: 'config',
+            rule: 'COMPOSE_AGENT_UNRESTRICTED_NETWORK',
+            title: 'Docker Compose: AI Agent Service Without Network Restrictions',
+            description: `Service "${serviceName}" appears to run an AI agent but has no network_mode or networks configuration. Unrestricted outbound network access enables data exfiltration after sandbox escape.`,
+            matched: serviceName,
+            cwe: 'CWE-284',
+            fix: 'Add network_mode: none for fully isolated agents, or configure a restricted network with explicit egress rules.',
+          }));
+        }
+      }
+    }
+    return findings;
   }
 }
 

@@ -241,6 +241,28 @@ const PATTERNS = [
     description: 'claw-code (Rust/Python Claude Code rewrite) is invoked with --dangerously-skip-permissions in CI. Any prompt injection in the workspace executes without confirmation.',
     fix: 'Remove --dangerously-skip-permissions. Use --permission-mode=workspace-write for CI automation.',
   },
+
+  // ── Branch Name Injection (Codex-class attack, CVE pending) ──────────────
+  {
+    rule: 'CICD_BRANCH_NAME_INJECTION',
+    title: 'CI/CD: Unsanitized Branch Name in Shell Command',
+    regex: /(?:git\s+(?:checkout|switch|clone\s+--branch|fetch\s+origin))\s+(?:\$\{\{[^}]*(?:head\.ref|branch|ref_name)[^}]*\}\}|\$(?:BRANCH|GITHUB_HEAD_REF|CI_COMMIT_BRANCH|BITBUCKET_BRANCH))/gi,
+    severity: 'critical',
+    cwe: 'CWE-78',
+    owasp: 'CICD-SEC-4',
+    description: 'Branch name from an external source (PR head ref, environment variable) is passed directly to a git shell command without sanitization. Attackers can create branches with names containing shell metacharacters to inject arbitrary commands. This is the exact attack vector used in the OpenAI Codex GitHub token theft (BeyondTrust Phantom Labs, Mar 2026).',
+    fix: 'Sanitize branch names: strip shell metacharacters, use -- to separate git options from arguments, or use actions/checkout which handles this safely.',
+  },
+  {
+    rule: 'CICD_BRANCH_NAME_IN_RUN',
+    title: 'CI/CD: Branch Name Interpolated in run Step',
+    regex: /run\s*:\s*[^\n]*\$\{\{\s*(?:github\.head_ref|github\.ref_name)\s*\}\}/g,
+    severity: 'high',
+    cwe: 'CWE-78',
+    owasp: 'CICD-SEC-4',
+    description: 'GitHub expression for branch name used directly in a run step. An attacker can craft a branch name with shell injection payloads. This pattern was exploited in the OpenAI Codex vulnerability to steal GitHub OAuth tokens.',
+    fix: 'Assign to an environment variable first: env: BRANCH: ${{ github.head_ref }}, then reference as "$BRANCH" (quoted) in the run step.',
+  },
 ];
 
 export class CICDScanner extends BaseAgent {

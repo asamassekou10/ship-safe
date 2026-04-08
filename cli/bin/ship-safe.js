@@ -48,6 +48,7 @@ import { updateIntelCommand } from '../commands/update-intel.js';
 import { hooksCommand } from '../commands/hooks.js';
 import { legalCommand } from '../commands/legal.js';
 import { runLiveAdvisories } from '../commands/live-advisories.js';
+import { envAuditCommand } from '../commands/env-audit.js';
 import { ABOMGenerator } from '../agents/abom-generator.js';
 import { PolicyEngine } from '../agents/policy-engine.js';
 import { SBOMGenerator } from '../agents/sbom-generator.js';
@@ -458,6 +459,15 @@ How it works:
   .action(hooksCommand);
 
 // -----------------------------------------------------------------------------
+// ENV AUDIT COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('env-audit [path]')
+  .description('Credential health check: verify .env coverage, cross-reference source, check git history')
+  .option('--json', 'Output results as JSON')
+  .action(envAuditCommand);
+
+// -----------------------------------------------------------------------------
 // LEGAL COMMAND
 // -----------------------------------------------------------------------------
 program
@@ -517,6 +527,7 @@ if (process.argv.length === 2) {
   console.log(chalk.white('  npx ship-safe rotate .      ') + chalk.gray('# Revoke exposed keys (provider guides)'));
   console.log(chalk.white('  npx ship-safe deps .        ') + chalk.gray('# Audit dependencies for CVEs'));
   console.log(chalk.white('  npx ship-safe score .       ') + chalk.gray('# Security health score (0-100)'));
+  console.log(chalk.white('  npx ship-safe env-audit .   ') + chalk.gray('# Credential health check (after stripe projects env --pull)'));
   console.log(chalk.white('  npx ship-safe hooks install ') + chalk.gray('# Real-time security gate inside Claude Code (PreToolUse/PostToolUse)'));
   console.log(chalk.white('  npx ship-safe guard         ') + chalk.gray('# Block git push if secrets found'));
   console.log(chalk.white('  npx ship-safe init          ') + chalk.gray('# Add security configs to your project'));

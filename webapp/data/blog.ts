@@ -11,6 +11,136 @@ export interface BlogPost {
 
 export const posts: BlogPost[] = [
   {
+    slug: 'docker-authz-chatgpt-dns-codex-branch-injection-ai-container-security',
+    title: 'Docker AuthZ Bypass, ChatGPT DNS Escape, Codex Branch Injection: AI Containers Are Under Siege',
+    description: 'Three AI tool vulnerabilities disclosed in one week — Docker CVE-2026-34040, ChatGPT DNS tunneling exfiltration, and OpenAI Codex branch name injection. All share the same root cause: containers trusted to isolate AI agents are not isolating them.',
+    date: '2026-04-08',
+    author: 'Ship Safe Team',
+    tags: ['security research', 'containers', 'AI agents'],
+    keywords: ['CVE-2026-34040', 'Docker AuthZ bypass', 'ChatGPT DNS tunneling', 'OpenAI Codex command injection', 'AI container security', 'container escape', 'branch name injection', 'Docker Engine 29.3.1', 'OWASP Agentic Top 10', 'S3 Files security'],
+    content: `
+Three separate AI tool vulnerabilities were disclosed in the span of a week. Each used a different attack vector. All three share the same root cause: **the container boundary that's supposed to isolate AI agents is not doing its job.**
+
+Here is what happened, what they have in common, and what to do about it.
+
+## 1. Docker CVE-2026-34040 — AuthZ Bypass via Oversized Requests (CVSS 8.8)
+
+**What happened:** Five independent researchers discovered that Docker Engine's authorization plugin can be bypassed by sending HTTP requests larger than 1MB. The oversized body gets dropped before reaching the AuthZ plugin, but the daemon processes the full request — creating privileged containers, mounting host filesystems, and extracting credentials. Affects all Docker Engine versions before 29.3.1.
+
+**The attack chain:**
+- Craft an HTTP request to the Docker API with >1MB of padding
+- The body is silently dropped before the AuthZ plugin sees it
+- The daemon processes the unmodified request
+- Create a privileged container with host filesystem mounts
+- Extract AWS keys, SSH keys, Kubernetes configs from the host
+
+**Why it matters for AI agents:** If your AI agent runs inside a Docker container and the Docker Engine on the host is < 29.3.1, an attacker who gains Docker API access (common in CI/CD) can bypass all container isolation in a single request. The agent's sandbox becomes meaningless.
+
+**Source:** [The Hacker News](https://thehackernews.com/2026/04/docker-cve-2026-34040-lets-attackers.html)
+
+## 2. ChatGPT DNS Tunneling — Sandbox Escape via Covert Channel
+
+**What happened:** Check Point Research found that ChatGPT's code execution sandbox blocked direct internet access but left DNS resolution open. A single malicious prompt could encode data into DNS queries, exfiltrating prompts, uploaded files, and sensitive content through a covert channel. The DNS channel was bidirectional — attackers could send commands back via DNS responses, creating a remote shell inside the sandbox.
+
+**The attack chain:**
+- User sends a prompt (or a malicious prompt is injected)
+- ChatGPT's code interpreter runs in a Linux container with no outbound TCP
+- DNS resolution is available for normal operation
+- Attacker encodes data into DNS subdomain queries: \\\`exfil.data-here.attacker.com\\\`
+- DNS responses carry commands back — establishing a full C2 channel
+- Prompts, files, and conversation history are exfiltrated
+
+**Why it matters for AI agents:** Every containerized AI agent that blocks TCP egress but allows DNS is vulnerable to this same class of attack. DNS is the most commonly overlooked egress channel because blocking it breaks hostname resolution.
+
+**Source:** [Check Point Research](https://research.checkpoint.com/2026/chatgpt-data-leakage-via-a-hidden-outbound-channel-in-the-code-execution-runtime/)
+
+## 3. OpenAI Codex Branch Injection — Command Injection via Git Branch Names
+
+**What happened:** BeyondTrust Phantom Labs discovered that OpenAI Codex passed GitHub branch names unsanitized into shell commands during environment setup. An attacker creates a branch with shell metacharacters in the name, and when any Codex user opens a task referencing that branch, the injected commands execute inside Codex's managed container — stealing the GitHub OAuth token.
+
+**The attack chain:**
+- Attacker creates a branch with a malicious name containing shell injection payloads
+- Uses Unicode obfuscation to hide the payload in the UI
+- A Codex user opens a task referencing the repository
+- Codex runs \\\`git checkout <branch>\\\` with the unsanitized name
+- Injected commands execute inside the agent's container
+- The GitHub OAuth token is exfiltrated via task output or network requests
+- Attacker uses the token for lateral movement across the organization's repositories
+
+**Why it matters for AI agents:** Any AI coding tool that runs git commands with user-controllable branch names is vulnerable. The attack is scalable — embed the payload once, compromise every user who touches the repo.
+
+**Source:** [BeyondTrust Phantom Labs](https://www.beyondtrust.com/blog/entry/openai-codex-command-injection-vulnerability-github-token) via [SiliconAngle](https://siliconangle.com/2026/03/30/openai-codex-vulnerability-enabled-github-token-theft-via-command-injection-report-finds/)
+
+## The Common Thread
+
+All three vulnerabilities share the same architectural assumption: **the container is the security boundary.** In each case, the container failed:
+
+| Vulnerability | Container Bypass Method | What Leaked |
+|---|---|---|
+| Docker CVE-2026-34040 | AuthZ plugin bypassed entirely | Host filesystem, AWS keys, SSH keys |
+| ChatGPT DNS Tunneling | DNS egress left open | User prompts, uploaded files |
+| Codex Branch Injection | Unsanitized input in shell command | GitHub OAuth tokens |
+
+The lesson is not that containers are useless. It is that a single containment layer is not enough for AI agents that process untrusted input and have access to credentials.
+
+## What Ship Safe Detects
+
+Ship Safe's agents map directly to every stage of these attack chains:
+
+| Attack Pattern | Ship Safe Agent | Detection Rule |
+|---|---|---|
+| Docker Engine < 29.3.1 | ConfigAuditor | \\\`DOCKER_CVE_2026_34040\\\` |
+| Privileged containers | ConfigAuditor | \\\`DOCKER_PRIVILEGED\\\` |
+| Host network mode | ConfigAuditor | \\\`DOCKER_NETWORK_HOST\\\` |
+| Writable root filesystem | ConfigAuditor | \\\`DOCKER_NO_READ_ONLY_ROOT\\\` |
+| SYS_ADMIN capability | ConfigAuditor | \\\`DOCKER_CAP_SYS_ADMIN\\\` |
+| No seccomp profile | ConfigAuditor | \\\`K8S_NO_SECCOMP\\\` |
+| AI agent without network restriction | ConfigAuditor | \\\`COMPOSE_AGENT_UNRESTRICTED_NETWORK\\\` |
+| Branch name in shell command | CICDScanner | \\\`CICD_BRANCH_NAME_INJECTION\\\` |
+| Branch name in run step | CICDScanner | \\\`CICD_BRANCH_NAME_IN_RUN\\\` |
+| Agent with shell access | AgenticSecurityAgent | \\\`AGENT_TOOL_SHELL_ACCESS\\\` |
+| Agent with both file + network access | AgenticSecurityAgent | \\\`AGENT_NETWORK_AND_FILE_ACCESS\\\` |
+| \\\`dangerouslySkipPermissions\\\` in CI | CICDScanner | \\\`CICD_AGENT_SKIP_PERMISSIONS\\\` |
+
+## The Defense Checklist
+
+Run this today:
+
+\\\`\\\`\\\`bash
+npx ship-safe audit . --deep
+\\\`\\\`\\\`
+
+Then verify:
+
+- Docker Engine is 29.3.1 or later on all hosts running AI agents
+- Containers use \\\`read_only: true\\\` root filesystem and \\\`no-new-privileges:true\\\`
+- AI agent containers have \\\`network_mode: none\\\` or explicit network policies — whitelist egress, don't just block TCP
+- DNS egress is restricted or monitored for AI agent containers (Docker's default allows it)
+- No branch names, PR titles, or issue bodies are interpolated directly into shell commands in CI
+- Git commands in CI use \\\`--\\\` to separate options from arguments: \\\`git checkout -- "$BRANCH"\\\`
+- S3 Files NFS mounts are read-only and prefix-scoped, not full-bucket
+- \\\`dangerouslySkipPermissions\\\` does not appear anywhere in your codebase
+
+## Also This Week: Amazon S3 Files
+
+AWS launched [S3 Files](https://aws.amazon.com/s3/features/files/) — S3 buckets mountable as NFS filesystems on EC2, ECS, EKS, and Lambda. Designed explicitly for AI agent workloads.
+
+When an AI agent has filesystem access and the filesystem IS S3, a prompt injection that reads the mount point can access an entire bucket of production data through normal file operations. Ship Safe's ConfigAuditor now checks for S3 Files mounts without read-only restrictions or prefix scoping.
+
+Ship fast. Ship safe.
+
+## Sources
+
+- [The Hacker News: Docker CVE-2026-34040](https://thehackernews.com/2026/04/docker-cve-2026-34040-lets-attackers.html)
+- [Check Point Research: ChatGPT DNS Tunneling](https://research.checkpoint.com/2026/chatgpt-data-leakage-via-a-hidden-outbound-channel-in-the-code-execution-runtime/)
+- [BeyondTrust: OpenAI Codex Command Injection](https://www.beyondtrust.com/blog/entry/openai-codex-command-injection-vulnerability-github-token)
+- [SiliconAngle: Codex Branch Name Injection](https://siliconangle.com/2026/03/30/openai-codex-vulnerability-enabled-github-token-theft-via-command-injection-report-finds/)
+- [The Hacker News: OpenAI Patches ChatGPT + Codex](https://thehackernews.com/2026/03/openai-patches-chatgpt-data.html)
+- [AWS: Amazon S3 Files](https://aws.amazon.com/about-aws/whats-new/2026/04/amazon-s3-files/)
+- [All Things Distributed: S3 Files](https://www.allthingsdistributed.com/2026/04/s3-files-and-the-changing-face-of-s3.html)
+    `.trim(),
+  },
+  {
     slug: 'stripe-projects-credential-security',
     title: 'Stripe Projects Gets Your Keys In. Ship Safe Keeps Them There.',
     description: "Stripe just launched Projects — a CLI tool that provisions your whole dev stack and syncs real credentials into your environment. Here's the security layer every Stripe Projects user needs to add.",

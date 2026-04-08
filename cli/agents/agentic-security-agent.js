@@ -215,6 +215,41 @@ const PATTERNS = [
     fix: 'Validate LLM structured output against a schema (Zod, Joi, Pydantic) before processing.',
   },
 
+  // ── Credential Isolation ─────────────────────────────────────────────────
+  {
+    rule: 'AGENT_ENV_FILE_ACCESS',
+    title: 'Agent: Reads .env Files Without Restriction',
+    regex: /(?:readFile|readFileSync|fs\.read|open)\s*\(\s*(?:.*\.env|.*process\.env|.*dotenv)/g,
+    severity: 'high',
+    cwe: 'CWE-522',
+    owasp: 'A02:2021',
+    confidence: 'medium',
+    description: 'Agent code reads .env files or loads dotenv directly. If the agent is compromised via prompt injection, all credentials in the environment file are exposed.',
+    fix: 'Inject only the specific environment variables the agent needs, not the entire .env file. Use scoped credential providers.',
+  },
+  {
+    rule: 'AGENT_NETWORK_AND_FILE_ACCESS',
+    title: 'Agent: Both Network and File Access (Exfiltration Risk)',
+    regex: /(?:tools|capabilities|functions)[\s\S]{0,800}(?:(?:fetch|http|request|axios|got|curl)[\s\S]{0,400}(?:read|file|fs|disk|path)|(?:read|file|fs|disk|path)[\s\S]{0,400}(?:fetch|http|request|axios|got|curl))/g,
+    severity: 'high',
+    cwe: 'CWE-200',
+    owasp: 'A01:2021',
+    confidence: 'medium',
+    description: 'Agent has tools for both file access and network requests. This is the exfiltration combination: read credentials from disk, send them over the network.',
+    fix: 'Separate file-reading agents from network-capable agents. If both are needed, add human-in-the-loop approval for network requests that follow file reads.',
+  },
+  {
+    rule: 'AGENT_ENV_FORWARDED_TO_TOOL',
+    title: 'Agent: Environment Variables Forwarded to Tool',
+    regex: /(?:process\.env|os\.environ|ENV)\s*(?:\[|\.)[\s\S]{0,100}(?:tool|function|action|invoke|call|execute)/g,
+    severity: 'high',
+    cwe: 'CWE-522',
+    owasp: 'A02:2021',
+    confidence: 'medium',
+    description: 'Environment variables (which may contain secrets from Stripe Projects or similar) are forwarded directly to agent tools. A compromised tool receives credentials.',
+    fix: 'Pass only the specific variables each tool needs. Never forward the entire process.env to tool invocations.',
+  },
+
   // ── Audit & Observability ────────────────────────────────────────────────
   {
     rule: 'AGENT_NO_AUDIT_LOG',

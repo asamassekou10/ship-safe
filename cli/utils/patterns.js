@@ -865,6 +865,7 @@ const SECURITY_SENSITIVE_PATTERNS = new Set([
   'id_ed25519',
   '*.sqlite',
   '*.db',
+  '.projects',
 ]);
 
 /**

@@ -26,7 +26,7 @@ const COMPROMISED_PACKAGES = [
   {
     name: 'axios',
     badVersions: ['1.8.2'],
-    note: 'TeamPCP/CanisterWorm campaign (Mar 31 2026). Malicious publish delivered a Remote Access Trojan with persistence.',
+    note: 'TeamPCP/CanisterWorm campaign (Mar 31 2026). Attributed to Sapphire Sleet (North Korean state actor) by Microsoft Threat Intelligence. Malicious publish connected to C2 domain delivering a second-stage RAT with persistence.',
   },
   {
     name: 'telnyx',

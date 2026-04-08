@@ -101,6 +101,14 @@ const jsonLd = {
         },
         {
           '@type': 'Question',
+          name: 'Does Ship Safe detect Docker CVE-2026-34040?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: "Yes. Ship Safe flags Docker Engine versions before 29.3.1 (CVE-2026-34040, CVSS 8.8) and the container misconfigurations that amplify the impact: privileged mode, host network, writable root filesystems, and missing seccomp profiles.",
+          },
+        },
+        {
+          '@type': 'Question',
           name: 'Can Ship Safe detect the attack patterns behind the Anthropic Mythos sandbox escape?',
           acceptedAnswer: {
             '@type': 'Answer',
