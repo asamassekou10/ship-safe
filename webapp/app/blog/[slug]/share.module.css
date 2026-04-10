@@ -13,7 +13,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.4);
   flex-shrink: 0;
 }
 
@@ -24,11 +24,11 @@
   flex-wrap: wrap;
 }
 
-/* Reset everything — fight global a{} and button{} overrides */
+/* Target both a and button elements */
+a.btn,
+button.btn,
 .btn {
-  all: unset;
-  box-sizing: border-box;
-  display: inline-flex !important;
+  display: inline-flex;
   align-items: center;
   gap: 0.45rem;
   padding: 0.45rem 0.9rem;
@@ -39,21 +39,25 @@
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  text-decoration: none !important;
+  text-decoration: none;
 
-  /* Visible pill style */
-  color: rgba(255, 255, 255, 0.8) !important;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  /* Override globals */
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
   user-select: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
+a.btn:hover,
+button.btn:hover,
 .btn:hover {
   background: rgba(56, 189, 248, 0.15);
-  color: #38bdf8 !important;
-  border-color: rgba(56, 189, 248, 0.35);
-  text-decoration: none !important;
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.4);
+  text-decoration: none;
   transform: translateY(-1px);
 }
 
@@ -61,7 +65,6 @@
   transform: translateY(0);
 }
 
-/* SVG inherits color */
 .btn svg {
   flex-shrink: 0;
   color: inherit;
