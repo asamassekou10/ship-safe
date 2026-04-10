@@ -203,7 +203,7 @@ function ScanPicker({ label, paramKey, selectedId, scans, otherSelected }: {
         defaultValue={selectedId ?? ''}
         // Client-side navigation via form submit would be ideal, but for simplicity
         // we use a native form approach; the link below handles actual navigation
-        aria-label={`Select ${label} scan`}
+        aria-label={`Select ${label} scan`} // ship-safe-ignore — aria-label string, not a SQL query
       >
         <option value="">— choose —</option>
         {scans.filter(s => s.id !== otherSelected).map(s => (
