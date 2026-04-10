@@ -195,7 +195,7 @@ export default function NewScan() {
           <label className={styles.optionCard}>
             <input type="checkbox" checked={options.deep} onChange={() => toggleOption('deep')} />
             <div>
-              <span className={styles.optionName}>Deep AI analysis</span>
+              <span className={styles.optionName}>Deep AI analysis<span className={styles.recommendedBadge}>Recommended</span></span>
               <span className={styles.optionDesc}>LLM-powered exploitability verification (uses your API key)</span>
             </div>
           </label>

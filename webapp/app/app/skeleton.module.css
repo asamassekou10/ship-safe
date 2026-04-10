@@ -1,0 +1,38 @@
+/* Shimmer animation */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.bone {
+  background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--border) 50%, var(--bg-elevated) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+/* Heights */
+.h3  { height: 10px; }
+.h4  { height: 14px; }
+.h5  { height: 18px; }
+.h6  { height: 22px; }
+.h8  { height: 30px; }
+
+/* Widths */
+.w16 { width: 64px; }
+.w20 { width: 80px; }
+.w24 { width: 96px; }
+.w32 { width: 128px; }
+.w40 { width: 160px; }
+.w48 { width: 192px; }
+.wFull { width: 100%; }
+
+/* Special shapes */
+.btn  { width: 100px; height: 36px; border-radius: 8px; }
+.chip { width: 64px;  height: 26px; border-radius: 6px; }
+.icon { width: 32px;  height: 32px; border-radius: 8px; flex-shrink: 0; }
+
+/* Spacing */
+.mt1 { margin-top: 6px; }
+.mt2 { margin-top: 10px; }

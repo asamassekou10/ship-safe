@@ -1,0 +1,98 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Filter tabs */
+.filterTabs {
+  display: flex;
+  gap: 0.3rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.25rem;
+}
+
+.filterTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.filterTab:hover { color: var(--text); background: var(--bg-elevated); text-decoration: none; }
+.filterTabActive { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.filterTabActive:hover { background: var(--bg); }
+
+.runningDot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 4px var(--cyan);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+.failedDot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--red);
+}
+
+.passedDot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+/* Sort */
+.sortRow {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.sortLabel {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-right: 0.15rem;
+}
+
+.sortBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+.sortBtn:hover { background: var(--bg-elevated); color: var(--text); text-decoration: none; }
+.sortBtnActive { color: var(--cyan); background: var(--cyan-glow); }
+.sortBtnActive:hover { background: var(--cyan-glow); }
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+@media (max-width: 600px) {
+  .toolbar { flex-direction: column; align-items: flex-start; }
+  .filterTabs { flex-wrap: wrap; }
+  .sortRow { flex-wrap: wrap; }
+}

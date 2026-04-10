@@ -112,12 +112,24 @@ export default function Pricing() {
                     </div>
                     <p className={styles.planDesc}>{plan.desc}</p>
                   </div>
+                  {plan.price !== 'Free' && (
+                    <div className={styles.oneTimeBadge}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                      Pay once, use forever
+                    </div>
+                  )}
                   <Link
                     href={plan.ctaHref}
                     className={`btn ${plan.featured ? 'btn-primary' : 'btn-ghost'} ${styles.planCta}`}
                   >
                     {plan.cta}
                   </Link>
+                  {plan.featured && (
+                    <p className={styles.guarantee}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                      30-day money-back guarantee
+                    </p>
+                  )}
                   <ul className={styles.featureList}>
                     {plan.features.map((f) => (
                       <li key={f} className={styles.featureItem}>

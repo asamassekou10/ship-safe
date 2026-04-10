@@ -42,7 +42,12 @@
   font-family: var(--font-sans);
 }
 .methodTab:hover { color: var(--text); background: var(--bg-elevated); }
-.methodTab.active { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.methodTab.active {
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
 
 /* Form */
 .form { display: flex; flex-direction: column; gap: 1.25rem; }
@@ -129,10 +134,28 @@
   transition: border-color 0.15s;
 }
 .optionCard:hover { border-color: var(--border-hover); }
+.optionCard:has(input:checked) {
+  border-color: var(--cyan-dim);
+  background: var(--cyan-glow);
+}
 .optionCard input { margin-top: 2px; accent-color: var(--cyan); flex-shrink: 0; }
 
 .optionName { font-size: 0.82rem; font-weight: 600; display: block; margin-bottom: 0.15rem; }
 .optionDesc { font-size: 0.75rem; color: var(--text-dim); line-height: 1.4; }
+
+.recommendedBadge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  background: var(--cyan-glow);
+  border: 1px solid var(--cyan-dim);
+  padding: 0.1em 0.45em;
+  border-radius: 4px;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
 
 /* Submit */
 .submitBtn {

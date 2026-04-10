@@ -115,6 +115,8 @@
   background: var(--border);
 }
 
+@keyframes spin { to { transform: rotate(360deg); } }
+
 .oauthBtns { display: flex; gap: 0.75rem; }
 
 .oauthBtn {

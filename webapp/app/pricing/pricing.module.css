@@ -78,6 +78,31 @@
   justify-content: center;
 }
 
+.oneTimeBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--green);
+  background: rgba(22,163,74,0.08);
+  border: 1px solid rgba(22,163,74,0.2);
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  margin-top: -0.25rem;
+}
+
+.guarantee {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin: 0;
+}
+.guarantee svg { flex-shrink: 0; color: var(--text-dim); }
+
 .featureList {
   list-style: none;
   display: flex;
@@ -147,8 +172,8 @@
   gap: 1rem;
   padding: 1.2rem 1.5rem;
   cursor: pointer;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 700;
   color: var(--text);
   list-style: none;
   transition: background 0.15s;

@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import styles from './app.layout.module.css';
 import type { Metadata } from 'next';
 import SignOutButton from './SignOutButton';
+import MobileNav from './MobileNav';
 
 export const metadata: Metadata = {
   title: 'Dashboard — Ship Safe',
@@ -25,6 +26,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className={styles.shell}>
+      <MobileNav
+        userName={session.user.name || session.user.email || ''}
+        userImage={session.user.image}
+        plan={plan}
+        isAdmin={isAdmin}
+      />
       <aside className={styles.sidebar}>
         <div className={styles.sidebarTop}>
           <Link href="/" className={styles.logo}>
