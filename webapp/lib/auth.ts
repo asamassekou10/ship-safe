@@ -21,6 +21,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: {
     signIn: '/login',
   },
+  events: {
+    async signIn({ user, account, isNewUser }) {
+      if (!user.id) return;
+      await prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          action: isNewUser ? 'auth.signup' : 'auth.signin',
+          meta: { provider: account?.provider ?? 'unknown' },
+        },
+      }).catch(() => {}); // non-blocking — never fail auth due to logging
+    },
+  },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
