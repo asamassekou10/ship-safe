@@ -21,10 +21,14 @@ export async function POST(req: NextRequest) {
   const plan = (session.user as Record<string, unknown>).plan as string;
 
   if (plan !== 'pro' && plan !== 'team' && plan !== 'enterprise') {
-    return NextResponse.json(
-      { error: 'Cloud scans require a Pro plan. Try the free demo scanner on the homepage.' },
-      { status: 403 },
-    );
+    const limit = parseInt(process.env.FREE_SCAN_LIMIT ?? '1', 10);
+    const used = await prisma.scan.count({ where: { userId } });
+    if (used >= limit) {
+      return NextResponse.json(
+        { error: '__TRIAL_EXHAUSTED__' },
+        { status: 403 },
+      );
+    }
   }
 
   const body = await req.json();

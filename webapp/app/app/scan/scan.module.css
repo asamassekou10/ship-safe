@@ -16,6 +16,39 @@
 
 .subtitle { color: var(--text-dim); font-size: 0.875rem; }
 
+/* Free trial banners */
+.trialBanner,
+.trialBannerExhausted {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  border: 1px solid;
+}
+
+.trialBanner {
+  background: rgba(8,145,178,0.05);
+  border-color: rgba(8,145,178,0.25);
+  color: var(--text-muted);
+}
+
+.trialBannerExhausted {
+  background: rgba(234,179,8,0.06);
+  border-color: rgba(234,179,8,0.3);
+  color: var(--text-muted);
+}
+
+.trialUpgradeLink {
+  color: var(--cyan);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.trialUpgradeLink:hover { text-decoration: underline; }
+
 /* Method tabs */
 .methodTabs {
   display: flex;
