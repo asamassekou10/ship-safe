@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import s from './settings.module.css';
+import { useToast } from '@/app/app/Toast';
 
 interface Settings {
   emailOnComplete: boolean;
@@ -14,7 +15,7 @@ interface Settings {
 export default function NotificationSettings() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetch('/api/notifications').then(r => r.json()).then(setSettings);
@@ -22,17 +23,16 @@ export default function NotificationSettings() {
 
   async function save(updates: Partial<Settings>) {
     setSaving(true);
-    setSaved(false);
     const res = await fetch('/api/notifications', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
     });
     const data = await res.json();
-    setSettings(data);
     setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    if (!res.ok) { toast(data.error || 'Failed to save', 'error'); return; }
+    setSettings(data);
+    toast('Notifications saved', 'success');
   }
 
   if (!settings) return <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>Loading...</p>;
@@ -81,11 +81,7 @@ export default function NotificationSettings() {
         </div>
       </div>
 
-      {(saving || saved) && (
-        <span className={s.savedMsg} style={{ color: saved ? 'var(--green)' : 'var(--text-dim)' }}>
-          {saving ? 'Saving...' : 'Saved'}
-        </span>
-      )}
+      {saving && <span className={s.savedMsg}>Saving…</span>}
     </div>
   );
 }

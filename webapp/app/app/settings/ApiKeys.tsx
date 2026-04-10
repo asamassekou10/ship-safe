@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import s from './settings.module.css';
+import { useToast } from '@/app/app/Toast';
 
 interface ApiKeyInfo {
   id: string;
@@ -15,6 +16,7 @@ export default function ApiKeys() {
   const [newKeyName, setNewKeyName] = useState('');
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const { toast } = useToast();
 
   useEffect(() => {
     fetch('/api/v1/key').then(r => r.json()).then(d => setKeys(d.keys || []));
@@ -29,7 +31,7 @@ export default function ApiKeys() {
       body: JSON.stringify({ name: newKeyName || 'Default' }),
     });
     const data = await res.json();
-    if (!res.ok) { setError(data.error); return; }
+    if (!res.ok) { setError(data.error); toast(data.error || 'Failed to create key', 'error'); return; }
 
     setRevealedKey(data.key);
     setNewKeyName('');
@@ -45,6 +47,7 @@ export default function ApiKeys() {
       body: JSON.stringify({ id }),
     });
     setKeys(prev => prev.filter(k => k.id !== id));
+    toast('API key revoked', 'info');
   }
 
   return (
@@ -75,7 +78,7 @@ export default function ApiKeys() {
           </div>
           <div
             className={s.keyRevealCode}
-            onClick={() => navigator.clipboard.writeText(revealedKey)}
+            onClick={() => { navigator.clipboard.writeText(revealedKey); toast('Key copied to clipboard', 'success'); }}
             title="Click to copy"
           >
             {revealedKey}

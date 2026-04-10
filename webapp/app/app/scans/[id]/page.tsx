@@ -1,7 +1,8 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useToast } from '@/app/app/Toast';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -82,6 +83,7 @@ interface ScanData {
   cves: number;
   duration: number | null;
   report: Report | null;
+  options: Record<string, boolean> | null;
   createdAt: string;
 }
 
@@ -387,6 +389,32 @@ export default function ScanDetail() {
   const [catFilter, setCatFilter] = useState<string | null>(null);
   const [expandedFindings, setExpandedFindings] = useState<Set<number>>(new Set());
   const [showRaw, setShowRaw] = useState(false);
+  const [rescanning, setRescanning] = useState(false);
+  const { toast } = useToast();
+  const router = useRouter();
+
+  async function handleRescan() {
+    if (!scan) return;
+    setRescanning(true);
+    try {
+      const res = await fetch('/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repo: scan.repo, branch: scan.branch, method: 'github', options: scan.options ?? {} }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.error || 'Failed to start scan', 'error');
+        setRescanning(false);
+        return;
+      }
+      toast('New scan started', 'success');
+      router.push(`/app/scans/${data.id}`);
+    } catch {
+      toast('Network error. Please try again.', 'error');
+      setRescanning(false);
+    }
+  }
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
@@ -471,16 +499,32 @@ export default function ScanDetail() {
             )}
           </div>
         </div>
-        {scan.status === 'done' && (
-          <div className={s.actionRow}>
-            <a href={`/api/reports?scanId=${scan.id}&format=pdf`} className={`btn btn-ghost ${s.actionBtn}`} download>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              PDF
-            </a>
-            <a href={`/api/reports?scanId=${scan.id}&format=csv`} className={`btn btn-ghost ${s.actionBtn}`} download>CSV</a>
-            <a href={`/api/reports?scanId=${scan.id}&format=markdown`} className={`btn btn-ghost ${s.actionBtn}`} download>MD</a>
-          </div>
-        )}
+        <div className={s.actionRow}>
+          {(scan.status === 'done' || scan.status === 'failed') && (
+            <button
+              className={`btn btn-ghost ${s.actionBtn}`}
+              onClick={handleRescan}
+              disabled={rescanning}
+            >
+              {rescanning ? (
+                <span style={{ display:'inline-block', width:12, height:12, border:'2px solid currentColor', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.7s linear infinite' }} />
+              ) : (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5"/></svg>
+              )}
+              {rescanning ? 'Starting…' : 'Scan again'}
+            </button>
+          )}
+          {scan.status === 'done' && (
+            <>
+              <a href={`/api/reports?scanId=${scan.id}&format=pdf`} className={`btn btn-ghost ${s.actionBtn}`} download>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                PDF
+              </a>
+              <a href={`/api/reports?scanId=${scan.id}&format=csv`} className={`btn btn-ghost ${s.actionBtn}`} download>CSV</a>
+              <a href={`/api/reports?scanId=${scan.id}&format=markdown`} className={`btn btn-ghost ${s.actionBtn}`} download>MD</a>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Running */}

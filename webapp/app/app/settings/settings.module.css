@@ -86,7 +86,10 @@
   color: var(--text);
   font-size: 0.82rem;
   font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.15s;
 }
+.settingsSelect:focus { border-color: var(--cyan); }
 
 .settingsInput {
   flex: 1;
@@ -98,7 +101,9 @@
   font-size: 0.85rem;
   font-family: var(--font-sans);
   outline: none;
+  transition: border-color 0.15s;
 }
+.settingsInput:focus { border-color: var(--cyan); }
 
 .settingsInputRow {
   display: flex;
