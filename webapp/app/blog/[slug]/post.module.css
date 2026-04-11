@@ -14,13 +14,13 @@
   align-items: center;
   gap: 6px;
   font-size: 0.85rem;
-  color: var(--text-muted, rgba(255, 255, 255, 0.5));
+  color: var(--text-muted);
   text-decoration: none;
   margin-bottom: 2rem;
 }
 
 .backLink:hover {
-  color: var(--accent, #38bdf8);
+  color: var(--accent);
 }
 
 .header {
@@ -42,7 +42,7 @@
   padding: 3px 8px;
   border-radius: 4px;
   background: rgba(56, 189, 248, 0.1);
-  color: var(--accent, #38bdf8);
+  color: var(--accent);
 }
 
 .title {
@@ -56,7 +56,7 @@
   display: flex;
   gap: 1.5rem;
   font-size: 0.85rem;
-  color: var(--text-muted, rgba(255, 255, 255, 0.45));
+  color: var(--text-muted);
 }
 
 
@@ -84,8 +84,8 @@
 }
 
 .codeBlock {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  background: var(--code-bg);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 1.25rem 1.5rem;
   overflow-x: auto;
@@ -97,7 +97,7 @@
 
 .inlineCode {
   background: rgba(56, 189, 248, 0.1);
-  color: var(--accent, #38bdf8);
+  color: var(--accent);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.88em;
@@ -105,7 +105,7 @@
 }
 
 .link {
-  color: var(--accent, #38bdf8);
+  color: var(--accent);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -138,7 +138,7 @@
 .table td {
   padding: 0.6rem 1rem;
   text-align: left;
-  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--border);
 }
 
 .table th {
@@ -146,7 +146,7 @@
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text-muted, rgba(255, 255, 255, 0.5));
+  color: var(--text-muted);
 }
 
 /* CTA Footer */
@@ -154,7 +154,7 @@
 .footer {
   margin-top: 4rem;
   padding-top: 3rem;
-  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-top: 1px solid var(--border);
 }
 
 .cta {
@@ -169,8 +169,8 @@
 
 .ctaCode {
   display: inline-block;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  background: var(--code-bg);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
@@ -179,7 +179,7 @@
 }
 
 .cta p {
-  color: var(--text-muted, rgba(255, 255, 255, 0.5));
+  color: var(--text-muted);
   margin-bottom: 1.5rem;
 }
 
@@ -194,7 +194,7 @@
 .morePosts {
   margin-top: 3rem;
   padding-top: 2.5rem;
-  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-top: 1px solid var(--border);
 }
 
 .morePosts h3 {
@@ -202,7 +202,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text-muted, rgba(255, 255, 255, 0.5));
+  color: var(--text-muted);
   margin-bottom: 1.25rem;
 }
 
@@ -223,13 +223,13 @@
   text-decoration: none;
   padding: 0.75rem 1rem;
   border-radius: 8px;
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--border);
   transition: border-color 0.15s, background 0.15s;
 }
 
 .moreLink:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: var(--bg-elevated);
+  border-color: var(--border-hover);
 }
 
 .moreLinkTitle {
@@ -240,14 +240,14 @@
 
 .moreLinkDate {
   font-size: 0.78rem;
-  color: var(--text-muted, rgba(255, 255, 255, 0.4));
+  color: var(--text-muted);
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 .allPostsLink {
   font-size: 0.85rem;
-  color: var(--accent, #38bdf8);
+  color: var(--accent);
   text-decoration: none;
 }
 

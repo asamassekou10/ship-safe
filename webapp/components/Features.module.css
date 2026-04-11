@@ -26,9 +26,7 @@
 .card:first-child { grid-column: span 2; }
 
 .card {
-  background: rgba(255,255,255,0.8);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   padding: 1.85rem;
@@ -78,7 +76,7 @@
 /* ── Mini terminal ─────────────────────────────────────── */
 .miniTerminal {
   border-radius: 10px; overflow: hidden;
-  border: 1px solid var(--border); background: #f3f4f6;
+  border: 1px solid var(--border); background: var(--bg-elevated);
   margin-top: auto;
 }
 .miniHeader {
@@ -105,7 +103,7 @@
 .miniTag[data-level="low"]    { color: var(--green);  background: rgba(22,163,74,0.08);  border: 1px solid rgba(22,163,74,0.2);  }
 
 /* ── Diff block ────────────────────────────────────────── */
-.diffBlock { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); background: #f3f4f6; margin-top: auto; }
+.diffBlock { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); background: var(--bg-elevated); margin-top: auto; }
 .diffFile { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.75rem; background: var(--bg-card2); border-bottom: 1px solid var(--border); }
 .diffBadge { font-family: var(--font-mono); font-size: 0.55rem; font-weight: 700; letter-spacing: 0.06em; padding: 0.1em 0.4em; border-radius: 3px; }
 .diffBadge[data-type="before"] { color: var(--red);   background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.2); }
@@ -117,7 +115,7 @@
 .diffAdd { color: var(--green); }
 
 /* ── YAML block ────────────────────────────────────────── */
-.yamlBlock { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); background: #f3f4f6; margin-top: auto; }
+.yamlBlock { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); background: var(--bg-elevated); margin-top: auto; }
 .yamlHeader { padding: 0.5rem 0.75rem; background: var(--bg-card2); border-bottom: 1px solid var(--border); }
 .yamlFile { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); }
 .yamlCode { padding: 0.65rem 0.75rem; margin: 0; overflow-x: auto; }

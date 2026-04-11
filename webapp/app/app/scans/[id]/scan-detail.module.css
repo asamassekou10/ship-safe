@@ -640,7 +640,7 @@
 .rawJson {
   padding: 1.25rem;
   border-radius: var(--radius-lg);
-  background: #f8f9fa;
+  background: var(--bg-card2);
   border: 1px solid var(--border);
   overflow: auto;
   max-height: 500px;

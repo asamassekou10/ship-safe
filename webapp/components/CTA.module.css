@@ -3,7 +3,7 @@
   overflow: hidden;
   border-top: 1px solid var(--border);
   text-align: center;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 50%, #f0f7ff 100%);
+  background: var(--bg);
 }
 
 /* Multiple layered glow effects */

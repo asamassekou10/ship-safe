@@ -2,7 +2,7 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--nav-bg);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid transparent;
   transition: border-color 0.2s, background 0.2s;
@@ -10,7 +10,7 @@
 
 .scrolled {
   border-bottom-color: var(--border);
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--nav-bg-scrolled);
 }
 
 .navInner {
@@ -86,6 +86,26 @@
   transform: translateY(-1px);
 }
 
+.themeToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.themeToggle:hover {
+  border-color: var(--border-hover);
+  color: var(--text);
+  background: var(--bg-elevated);
+}
+
 .navGithub {
   display: flex;
   align-items: center;
@@ -143,7 +163,7 @@
   flex-direction: column;
   padding: 0.5rem 1.5rem 1.25rem;
   border-top: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--nav-bg-mobile);
   backdrop-filter: blur(16px);
 
   /* Slide animation */

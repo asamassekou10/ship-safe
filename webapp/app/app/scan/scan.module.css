@@ -76,7 +76,7 @@
 }
 .methodTab:hover { color: var(--text); background: var(--bg-elevated); }
 .methodTab.active {
-  background: #fff;
+  background: var(--bg-card);
   color: var(--text);
   border: 1px solid var(--border);
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);

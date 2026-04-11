@@ -29,7 +29,7 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--muted);
+  color: var(--text-dim);
   margin-bottom: 0.5rem;
 }
 
@@ -44,7 +44,7 @@
 
 .tocNav a:hover {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--bg-elevated);
 }
 
 .content {
@@ -68,8 +68,8 @@
 
 .heroCode {
   display: inline-block;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-card2);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
@@ -78,7 +78,7 @@
 .content section {
   margin-bottom: 3rem;
   padding-bottom: 2rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border);
 }
 
 .content h2 {
@@ -100,8 +100,8 @@
 }
 
 .content pre {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--code-bg);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 1rem 1.25rem;
   overflow-x: auto;
@@ -118,7 +118,7 @@
 .content p code,
 .content li code,
 .content td code {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--cyan-glow);
   padding: 0.15em 0.4em;
   border-radius: 4px;
   color: var(--accent);
@@ -158,24 +158,24 @@
 .tableWrap th {
   text-align: left;
   padding: 0.6rem 0.75rem;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--bg-card2);
   color: var(--text-secondary);
   font-weight: 600;
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border);
 }
 
 .tableWrap td {
   padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--border);
   color: var(--text-secondary);
   vertical-align: top;
 }
 
 .tableWrap tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--bg-elevated);
 }
 
 .tableWrap td strong {

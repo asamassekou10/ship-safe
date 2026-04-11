@@ -50,7 +50,7 @@
   padding: 0.7rem 1rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--bg-card);
   backdrop-filter: blur(8px);
   color: var(--text);
   outline: none;
@@ -81,7 +81,7 @@
 .resultCard {
   max-width: 600px;
   margin: 0 auto;
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--bg-card);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);

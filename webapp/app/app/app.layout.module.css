@@ -148,7 +148,7 @@
   right: 0;
   z-index: 50;
   height: 56px;
-  background: rgba(255,255,255,0.92);
+  background: var(--nav-bg-scrolled);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);

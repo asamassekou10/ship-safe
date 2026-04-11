@@ -22,8 +22,8 @@
 }
 
 .postCard {
-  background: var(--card-bg, rgba(255, 255, 255, 0.04));
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  background: var(--card-bg);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 2rem;
   text-decoration: none;
@@ -35,7 +35,7 @@
 }
 
 .postCard:hover {
-  border-color: var(--accent, #38bdf8);
+  border-color: var(--accent);
   transform: translateY(-2px);
 }
 
@@ -53,7 +53,7 @@
   padding: 3px 8px;
   border-radius: 4px;
   background: rgba(56, 189, 248, 0.1);
-  color: var(--accent, #38bdf8);
+  color: var(--accent);
 }
 
 .postTitle {
@@ -64,7 +64,7 @@
 
 .postDesc {
   font-size: 0.9rem;
-  color: var(--text-muted, rgba(255, 255, 255, 0.6));
+  color: var(--text-muted);
   line-height: 1.5;
   flex: 1;
 }
@@ -73,9 +73,9 @@
   display: flex;
   justify-content: space-between;
   font-size: 0.8rem;
-  color: var(--text-muted, rgba(255, 255, 255, 0.45));
+  color: var(--text-muted);
   padding-top: 0.5rem;
-  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+  border-top: 1px solid var(--border);
 }
 
 @media (max-width: 640px) {

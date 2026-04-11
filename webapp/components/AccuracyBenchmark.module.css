@@ -2,7 +2,7 @@
   padding: 80px 0;
   position: relative;
   z-index: 1;
-  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+  background: var(--bg-elevated);
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }

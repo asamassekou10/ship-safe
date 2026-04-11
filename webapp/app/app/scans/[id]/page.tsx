@@ -159,7 +159,7 @@ function ScoreGauge({ score, grade }: { score: number; grade: string | null }) {
         {/* Track */}
         <path
           d={`M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`}
-          fill="none" stroke="#e5e7eb" strokeWidth="10" strokeLinecap="round"
+          fill="none" stroke="var(--border)" strokeWidth="10" strokeLinecap="round"
         />
         {/* Filled arc */}
         <path
@@ -175,7 +175,7 @@ function ScoreGauge({ score, grade }: { score: number; grade: string | null }) {
         />
         {/* Score number */}
         <text x={cx} y={cy - 10} textAnchor="middle" className={s.gaugeNum} fill={color}>{display}</text>
-        <text x={cx} y={cy + 8} textAnchor="middle" className={s.gaugeDen} fill="#9ca3af">/100</text>
+        <text x={cx} y={cy + 8} textAnchor="middle" className={s.gaugeDen} fill="var(--text-dim)">/100</text>
       </svg>
       <div className={s.gaugeFooter}>
         {grade && <span className={s.gaugeGrade} style={{ color }}>{grade}</span>}
@@ -269,10 +269,10 @@ function OWASPChart({ categories }: { categories: Record<string, CategoryInfo> }
           margin={{ top: 0, right: 40, bottom: 0, left: 0 }}
           barCategoryGap="30%"
         >
-          <CartesianGrid horizontal={false} stroke="#f3f4f6" />
+          <CartesianGrid horizontal={false} stroke="var(--border)" />
           <XAxis
             type="number"
-            tick={{ fontSize: 11, fontFamily: 'var(--font-mono)', fill: '#9ca3af' }}
+            tick={{ fontSize: 11, fontFamily: 'var(--font-mono)', fill: 'var(--text-dim)' }}
             axisLine={false} tickLine={false}
             allowDecimals={false}
           />
