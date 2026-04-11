@@ -2,7 +2,7 @@ import Nav from '@/components/Nav';
 import styles from './docs.module.css';
 import type { Metadata } from 'next';
 
-const ogImage = 'https://www.shipsafecli.com/api/og?title=Ship+Safe+Docs&description=Every+command%2C+agent%2C+and+flag.+LLM+vulnerability+CLI%2C+MCP+security+config%2C+RAG+poisoning+detection%2C+CI%2FCD+integration%2C+and+API+reference.&label=Documentation&badge=v7.0.0';
+const ogImage = 'https://www.shipsafecli.com/api/og?title=Ship+Safe+Docs&description=Every+command%2C+agent%2C+and+flag.+LLM+vulnerability+CLI%2C+MCP+security+config%2C+RAG+poisoning+detection%2C+CI%2FCD+integration%2C+and+API+reference.&label=Documentation&badge=v8.0.0';
 
 export const metadata: Metadata = {
   title: 'Documentation',
@@ -12,14 +12,14 @@ export const metadata: Metadata = {
     canonical: 'https://www.shipsafecli.com/docs',
   },
   openGraph: {
-    title: 'Ship Safe Documentation — v7.0.0',
+    title: 'Ship Safe Documentation — v8.0.0',
     description: 'Every command, agent, and flag. LLM vulnerability CLI, MCP security configuration, RAG poisoning detection, CI/CD integration, and API reference.',
     url: 'https://www.shipsafecli.com/docs',
     images: [{ url: ogImage, width: 1200, height: 630, alt: 'Ship Safe Documentation' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Ship Safe Documentation — v7.0.0',
+    title: 'Ship Safe Documentation — v8.0.0',
     description: 'Every command, agent, and flag. LLM vulnerability CLI, MCP security configuration, RAG poisoning detection, CI/CD integration, and API reference.',
     images: [ogImage],
   },
@@ -98,7 +98,7 @@ export GOOGLE_AI_API_KEY=AIza...`}</code></pre>
               <pre><code>{`# Full security audit with remediation plan + HTML report
 npx ship-safe audit .
 
-# Red team: 18 agents, 80+ attack classes
+# Red team: 22 agents, 80+ attack classes
 npx ship-safe red-team .
 
 # Quick secret scan
@@ -126,8 +126,8 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                 <table>
                   <thead><tr><th>Command</th><th>Description</th></tr></thead>
                   <tbody>
-                    <tr><td><code>audit .</code></td><td>Full audit: secrets + 18 agents + deps + remediation plan + HTML report</td></tr>
-                    <tr><td><code>red-team .</code></td><td>Run 18 agents with 80+ attack classes</td></tr>
+                    <tr><td><code>audit .</code></td><td>Full audit: secrets + 22 agents + deps + remediation plan + HTML report</td></tr>
+                    <tr><td><code>red-team .</code></td><td>Run 22 agents with 80+ attack classes</td></tr>
                     <tr><td><code>scan .</code></td><td>Secret scanner (pattern matching + entropy scoring)</td></tr>
                     <tr><td><code>score .</code></td><td>Security health score (0-100, A-F grade)</td></tr>
                     <tr><td><code>deps .</code></td><td>Dependency CVE audit with EPSS scores</td></tr>

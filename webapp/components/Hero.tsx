@@ -18,7 +18,7 @@ const FLOAT_CARDS = [
 
 export default function Hero({ stars, downloads }: HeroProps) {
   const stats = [
-    { num: '19',  label: 'Security agents' },
+    { num: '22',  label: 'Security agents' },
     { num: '80+', label: 'Attack classes' },
     { num: stars ? formatNumber(stars) : '1.2k+', label: 'GitHub stars' },
     { num: downloads ? formatNumber(downloads) : '8k+', label: 'Weekly downloads' },
@@ -67,17 +67,17 @@ export default function Hero({ stars, downloads }: HeroProps) {
         <div className={styles.heroLeft}>
           <div className={styles.badge}>
             <span className={styles.badgeDot} />
-            Open source · Free · No signup
+            v8.0 · MIT open source · No account required
           </div>
 
           <h1 className={styles.h1}>
-            Ship code,<br />
-            not <span className={styles.gradientText}>vulnerabilities.</span>
+            Find vulnerabilities<br />
+            before <span className={styles.gradientText}>attackers do.</span>
           </h1>
 
           <p className={styles.heroSub}>
-            One command. 19 AI agents. 80+ attack classes. Finds secrets, code vulns,
-            memory poisoning, and CVEs across your entire codebase with OWASP&nbsp;Agentic&nbsp;AI&nbsp;Top&nbsp;10 mapping.
+            22 security agents. One command. Catches secrets, injection, memory poisoning,
+            Hermes Agent misconfigs, and CVEs — with OWASP&nbsp;Agentic&nbsp;AI&nbsp;Top&nbsp;10 mapping built in.
           </p>
 
           <div className={`install-box ${styles.installBox}`}>
@@ -93,9 +93,10 @@ export default function Hero({ stars, downloads }: HeroProps) {
 
           <div className={styles.heroCtas}>
             <Link href="/signup" className="btn btn-primary"> {/* ship-safe-ignore */}
-              Start for free
+              Scan your code free
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </Link>
-            <a href="#demo" className="btn btn-ghost">See live demo</a>
+            <a href="#demo" className="btn btn-ghost">See it in action</a>
           </div>
 
           {/* Inline stats row */}
@@ -139,7 +140,7 @@ export default function Hero({ stars, downloads }: HeroProps) {
             <div className={styles.dashTerminal}>
               {[
                 { icon: '✔', text: 'Secrets: 4 found',      tag: 'CRITICAL', tagCls: styles.tagRed },
-                { icon: '✔', text: '18 agents: 23 findings', tag: 'HIGH',     tagCls: styles.tagYellow },
+                { icon: '✔', text: '22 agents: 23 findings', tag: 'HIGH',     tagCls: styles.tagYellow },
                 { icon: '✔', text: 'Dependencies: 3 CVEs',  tag: 'HIGH',     tagCls: styles.tagYellow },
                 { icon: '✔', text: 'Remediation plan ready', tag: null, dim: true },
               ].map((l, i) => (

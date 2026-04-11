@@ -17,7 +17,7 @@ import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
 import fg from 'fast-glob';
-import { buildOrchestrator } from '../agents/index.js';
+import { buildOrchestrator, buildOrchestratorAsync } from '../agents/index.js';
 import { LegalRiskAgent } from '../agents/legal-risk-agent.js';
 import { ScoringEngine } from '../agents/scoring-engine.js';
 import { PolicyEngine } from '../agents/policy-engine.js';
@@ -37,8 +37,11 @@ import {
 import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import { CacheManager } from '../utils/cache-manager.js';
 import { filterBaseline } from './baseline.js';
+import { SecurityMemory } from '../utils/security-memory.js';
+import { ScanPlaybook } from '../utils/scan-playbook.js';
 import { generatePDF, generatePrintHTML, isChromeAvailable } from '../utils/pdf-generator.js';
 import { SecretsVerifier } from '../utils/secrets-verifier.js';
+import { applyInlineAnnotations } from './autofix.js';
 
 // =============================================================================
 // CONSTANTS
@@ -186,7 +189,7 @@ export async function auditCommand(targetPath = '.', options = {}) {
   }
 
   // ── Phase 2: Agent Scan ───────────────────────────────────────────────────
-  const orchestrator = buildOrchestrator();
+  const orchestrator = await buildOrchestratorAsync(absolutePath, { quiet: true });
   const registeredAgentCount = orchestrator.agents?.length || 15;
   const agentSpinner = machineOutput ? null : ora({ text: chalk.white(`[Phase 2/4] Running ${registeredAgentCount} security agents...`), color: 'cyan' }).start();
   let agentFindings = [];
@@ -276,6 +279,30 @@ export async function auditCommand(targetPath = '.', options = {}) {
     if (!machineOutput && beforeCount !== filteredFindings.length) {
       console.log(chalk.gray(`  Baseline: ${beforeCount - filteredFindings.length} known finding(s) filtered, ${filteredFindings.length} new`));
     }
+  }
+
+  // ── Scan Playbook — update with latest recon + findings ─────────────────
+  try {
+    const playbook = new ScanPlaybook(absolutePath);
+    const suppressedRules = new SecurityMemory(absolutePath).list().map(e => e.rule).filter(Boolean);
+    playbook.update(recon, { score: scoreResult.score, grade: scoreResult.grade?.letter || scoreResult.grade, totalFindings: filteredFindings.length }, filteredFindings, suppressedRules);
+  } catch { /* non-fatal */ }
+
+  // ── Security Memory Filter ──────────────────────────────────────────────
+  // Auto-learn false positives from deep analysis results, then suppress
+  // any finding that memory recognises from a previous scan.
+  const secMemory = new SecurityMemory(absolutePath);
+  if (options.deep) {
+    // After deep analysis ran, learn any new false positives
+    const newFPs = secMemory.learnFromAnalysis(filteredFindings);
+    if (newFPs > 0 && !machineOutput) {
+      console.log(chalk.gray(`  Memory: ${newFPs} new false positive(s) learned and will be suppressed in future scans`));
+    }
+  }
+  const { kept: memFiltered, suppressedCount: memSuppressed } = secMemory.filter(filteredFindings);
+  filteredFindings = memFiltered;
+  if (memSuppressed > 0 && !machineOutput) {
+    console.log(chalk.gray(`  Memory: ${memSuppressed} previously-confirmed false positive(s) suppressed`));
   }
 
   // Count suppressions (ship-safe-ignore comments)
@@ -395,6 +422,11 @@ export async function auditCommand(targetPath = '.', options = {}) {
   // ── Build Remediation Plan ────────────────────────────────────────────────
   const remediationPlan = buildRemediationPlan(filteredFindings, depVulns, absolutePath);
 
+  // Skip all output and file generation for inner agentic re-scans
+  if (options._agenticInner) {
+    return { score: scoreResult.score, findings: filteredFindings };
+  }
+
   // ── Output ────────────────────────────────────────────────────────────────
   console.log();
 
@@ -465,7 +497,89 @@ export async function auditCommand(targetPath = '.', options = {}) {
     console.log();
   }
 
+  // ── Agentic Loop (--agentic) ────────────────────────────────────────────
+  // Scan → annotate fixes → re-scan cycle until score >= target or maxIter.
+  // NOTE: process.exit() is deferred until after the loop so all iterations
+  // can run. The inner re-scans use _agenticInner: true to skip process.exit.
+  if (options.agentic && !options._agenticInner) {
+    const maxIter = typeof options.agentic === 'number' ? options.agentic : 3;
+    const targetScore = options.agenticTarget ?? 75;
+    let iteration = 1;
+    let currentScore = scoreResult.score;
+    let currentFindings = filteredFindings;
+
+    if (!machineOutput) {
+      console.log();
+      console.log(chalk.cyan.bold(`  Agentic mode: scan→fix→verify loop (max ${maxIter} iterations, target score: ${targetScore})`));
+    }
+
+    while (currentScore < targetScore && iteration <= maxIter) {
+      if (!machineOutput) {
+        console.log(chalk.cyan(`\n  ─── Agentic iteration ${iteration}/${maxIter} (current score: ${currentScore}) ───`));
+      }
+
+      const actionable = currentFindings.filter(f => f.fix && f.severity !== 'low');
+      if (actionable.length === 0) {
+        if (!machineOutput) console.log(chalk.gray('  No auto-fixable findings — stopping agentic loop.'));
+        break;
+      }
+
+      // Delegate annotation to autofix module (handles comment style, idempotency, NEVER_EDIT list)
+      const fixCount = applyInlineAnnotations(actionable);
+      if (!machineOutput) {
+        console.log(chalk.yellow(`  Annotated ${fixCount} finding(s). Re-scanning...`));
+      }
+      if (fixCount === 0) break;
+
+      // Re-scan without recursing into the agentic loop or calling process.exit
+      const innerResult = await runAuditInner(targetPath, {
+        ...options,
+        agentic: false,
+        _agenticInner: true,
+        json: false,
+        sarif: false,
+        csv: false,
+        md: false,
+        html: false,
+        pdf: false,
+        quiet: true,
+      });
+
+      const prevScore = currentScore;
+      currentScore = innerResult?.score ?? currentScore;
+      currentFindings = innerResult?.findings ?? currentFindings;
+
+      if (!machineOutput) {
+        const diff = currentScore - prevScore;
+        const arrow = diff > 0 ? chalk.green(`↑ +${diff.toFixed(1)}`) : diff < 0 ? chalk.red(`↓ ${diff.toFixed(1)}`) : chalk.gray('→ 0');
+        console.log(chalk.cyan(`  Re-scan score: ${currentScore} ${arrow}`));
+      }
+
+      iteration++;
+    }
+
+    if (!machineOutput) {
+      if (currentScore >= targetScore) {
+        console.log(chalk.green.bold(`\n  Agentic loop complete — target score ${targetScore} reached (${currentScore}).`));
+      } else {
+        console.log(chalk.yellow(`\n  Agentic loop stopped after ${iteration - 1} iteration(s). Final score: ${currentScore}`));
+      }
+    }
+  }
+
   process.exit(scoreResult.score >= 75 ? 0 : 1);
+}
+
+/**
+ * Run a lightweight inner audit that returns { score, findings } without
+ * calling process.exit(). Used exclusively by the --agentic loop.
+ */
+async function runAuditInner(targetPath, options) {
+  try {
+    return await auditCommand(targetPath, options);
+  } catch {
+    return null;
+  }
 }
 
 // =============================================================================

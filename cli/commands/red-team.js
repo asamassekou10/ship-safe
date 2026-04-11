@@ -17,7 +17,7 @@ import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
-import { buildOrchestrator } from '../agents/index.js';
+import { buildOrchestratorAsync } from '../agents/index.js';
 import { ScoringEngine } from '../agents/scoring-engine.js';
 import { PolicyEngine } from '../agents/policy-engine.js';
 import { HTMLReporter } from '../agents/html-reporter.js';
@@ -39,7 +39,7 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
   console.log();
 
   // ── 1. Run orchestrator ─────────────────────────────────────────────────────
-  const orchestrator = buildOrchestrator();
+  const orchestrator = await buildOrchestratorAsync(absolutePath, { quiet: true });
 
   const agentFilter = options.agents
     ? options.agents.split(',').map(a => a.trim())

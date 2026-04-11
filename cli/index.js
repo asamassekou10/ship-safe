@@ -71,3 +71,8 @@ export { CacheManager } from './utils/cache-manager.js';
 
 // ── LLM Providers ─────────────────────────────────────────────────────────────
 export { createProvider, autoDetectProvider } from './providers/llm-provider.js';
+
+// ── v8.0.0 — Ship Safe × Hermes Agent ────────────────────────────────────────
+export { HermesSecurityAgent } from './agents/hermes-security-agent.js';
+export { AgentAttestationAgent } from './agents/agent-attestation-agent.js';
+export { HERMES_TOOLS, registerWithHermes, verifyIntegrity } from './utils/hermes-tool-registry.js';

@@ -1,7 +1,7 @@
 {
   "name": "ship-safe",
-  "version": "7.1.0",
-  "description": "AI-powered multi-agent security platform. 20 agents scan 80+ attack classes with LLM-powered deep analysis, OWASP Agentic AI Top 10 mapping, memory poisoning detection, and live advisory feeds. Red team your code before attackers do.",
+  "version": "8.0.0",
+  "description": "AI-powered multi-agent security platform. 22 agents scan 80+ attack classes including Hermes Agent deployments (ASI-01–ASI-10), tool registry poisoning, function-call injection, skill permission drift, and agent attestation. Ship Safe × Hermes Agent.",
   "main": "cli/index.js",
   "bin": {
     "ship-safe": "cli/bin/ship-safe.js"

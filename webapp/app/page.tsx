@@ -38,10 +38,10 @@ const jsonLd = {
         price: '0',
         priceCurrency: 'USD',
       },
-      description: '20 AI security agents scan your codebase for secrets, vulnerabilities, memory poisoning, Claude Managed Agent misconfigurations, and dependency CVEs in one command.',
+      description: '22 AI security agents scan your codebase for secrets, vulnerabilities, memory poisoning, Hermes Agent misconfigurations, and dependency CVEs in one command.',
       url: 'https://www.shipsafecli.com',
       downloadUrl: 'https://www.npmjs.com/package/ship-safe',
-      softwareVersion: '7.1.0',
+      softwareVersion: '8.0.0',
       author: {
         '@type': 'Organization',
         name: 'Ship Safe',

@@ -20,6 +20,59 @@ import * as output from '../utils/output.js';
 import { ThreatIntel } from '../utils/threat-intel.js';
 
 // =============================================================================
+// HERMES SKILL FRONTMATTER PATTERNS (Track D — cross-skill/tool binding)
+// =============================================================================
+
+// Built-in tool registries that skills may reference.
+// Ship Safe tools are added lazily in checkHermesFrontmatter() to avoid
+// loading hermes-tool-registry.js (and its crypto import) on every invocation.
+const KNOWN_TOOL_REGISTRIES = {
+  // Common Hermes community tools (names only — no handler)
+  'web_search': 'hermes-community',
+  'web_browser': 'hermes-community',
+  'file_read': 'hermes-community',
+  'file_write': 'hermes-community',
+  'code_execute': 'hermes-community',
+  'github_api': 'hermes-community',
+  'memory_store': 'hermes-community',
+  'memory_retrieve': 'hermes-community',
+};
+
+// Hermes-specific patterns to check in skill markdown/frontmatter
+const HERMES_SKILL_PATTERNS = [
+  {
+    name: 'Hermes: XML tool_call injection',
+    regex: /<tool_call>[\s\S]{0,300}<\/tool_call>/gi,
+    severity: 'critical',
+    note: 'Skill body contains a <tool_call> block — will be executed by Hermes agents that load this skill.',
+  },
+  {
+    name: 'Hermes: function_calls injection',
+    regex: /<function_calls>[\s\S]{0,300}<\/function_calls>/gi,
+    severity: 'critical',
+    note: 'Skill body contains a <function_calls> block — classic Hermes function-call injection.',
+  },
+  {
+    name: 'Hermes: Forced tool invocation instruction',
+    regex: /(?:you\s+must\s+(?:call|invoke|use)\s+(?:the\s+)?tool|always\s+(?:call|invoke|run)\s+(?:the\s+)?(?:tool|function)|tool\s+MUST\s+be\s+(?:called|invoked|used))/gi,
+    severity: 'high',
+    note: 'Skill instructs agent to call a specific tool unconditionally — bypasses agent autonomy.',
+  },
+  {
+    name: 'Hermes: Plan/goal hijacking',
+    regex: /(?:update\s+(?:your\s+)?(?:goal|plan|objective)\s+to|change\s+(?:your\s+)?(?:goal|plan|objective)|your\s+(?:new\s+)?(?:goal|plan|primary\s+objective)\s+(?:is|should\s+be))/gi,
+    severity: 'critical',
+    note: 'Skill attempts to overwrite the agent\'s goal or plan state — ASI-01 Goal Hijacking.',
+  },
+  {
+    name: 'Hermes: Memory layer write instruction',
+    regex: /(?:write\s+(?:this|the\s+following)\s+to\s+(?:memory|episodic|semantic|working)\s+memory|store\s+(?:this|the\s+following)\s+in\s+(?:memory|episodic|semantic))/gi,
+    severity: 'high',
+    note: 'Skill instructs agent to write attacker-controlled data to memory — ASI-06 Memory Poisoning.',
+  },
+];
+
+// =============================================================================
 // POPULAR SKILL NAMES (for typosquatting detection)
 // =============================================================================
 
@@ -113,7 +166,7 @@ export async function scanSkillCommand(target, options = {}) {
   console.log(chalk.gray(`  Size: ${content.length} bytes`));
   console.log();
 
-  const findings = analyzeSkill(content, skillName, source);
+  const findings = await analyzeSkill(content, skillName, source);
 
   if (options.json) {
     console.log(JSON.stringify({ skill: skillName, source, findings, summary: getSummary(findings) }, null, 2));
@@ -127,7 +180,7 @@ export async function scanSkillCommand(target, options = {}) {
 // SKILL ANALYSIS
 // =============================================================================
 
-function analyzeSkill(content, skillName, source) {
+async function analyzeSkill(content, skillName, source) {
   const findings = [];
 
   // 1. Static pattern analysis
@@ -152,10 +205,12 @@ function analyzeSkill(content, skillName, source) {
   try {
     const manifest = JSON.parse(content);
     if (manifest.permissions) {
-      const dangerous = ['shell', 'exec', 'system', 'network', 'filesystem', 'admin', 'root'];
+      const dangerousPerm = [/\bshell\b/i, /\bexec\b/i, /\bsystem\b/i, /\badmin\b/i, /\broot\b/i,
+        /filesystem\s*:\s*(write|read-write)/i, /network\s*:\s*(unrestricted|all)/i,
+        /^filesystem$/i, /^network$/i];
       for (const perm of (Array.isArray(manifest.permissions) ? manifest.permissions : [])) {
         const permStr = typeof perm === 'string' ? perm : perm.name || '';
-        if (dangerous.some(d => permStr.toLowerCase().includes(d))) {
+        if (dangerousPerm.some(p => p.test(permStr))) {
           findings.push({
             check: 'permission-audit',
             name: `Dangerous permission: ${permStr}`,
@@ -214,6 +269,194 @@ function analyzeSkill(content, skillName, source) {
       line: 0,
       matched: `Pattern: ${sig.pattern}`,
     });
+  }
+
+  // 6. Hermes-specific: frontmatter tool binding + permission drift validation
+  findings.push(...(await checkHermesFrontmatter(content)));
+
+  // 7. Hermes-specific: function-call injection and goal hijacking in body
+  findings.push(...checkHermesBodyPatterns(content, lines));
+
+  return findings;
+}
+
+// =============================================================================
+// HERMES FRONTMATTER VALIDATION (Track D)
+// =============================================================================
+
+/**
+ * Parse YAML frontmatter block (between --- delimiters) from markdown skill.
+ * Returns a plain object with string/array values; null if no frontmatter.
+ */
+function parseFrontmatter(content) {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!match) return null;
+
+  const fm = {};
+  const yamlBlock = match[1];
+
+  for (const line of yamlBlock.split('\n')) {
+    const kv = line.match(/^(\w[\w-]*):\s*(.*)$/);
+    if (!kv) continue;
+    const [, key, rawVal] = kv;
+    const val = rawVal.trim();
+
+    if (val.startsWith('[') && val.endsWith(']')) {
+      // Inline array: [a, b, c]
+      fm[key] = val.slice(1, -1).split(',').map(s => s.trim().replace(/['"]/g, '')).filter(Boolean);
+    } else {
+      fm[key] = val.replace(/^['"]|['"]$/g, '');
+    }
+  }
+
+  // Collect multi-line list values (indented - items)
+  const listRe = /^(\w[\w-]*):\s*\n((?:\s+-\s+.+\n?)+)/gm;
+  let m;
+  while ((m = listRe.exec(yamlBlock)) !== null) {
+    const [, key, block] = m;
+    fm[key] = block.match(/-\s+(.+)/g)?.map(s => s.replace(/^-\s+/, '').replace(/['"]/g, '').trim()) ?? [];
+  }
+
+  return fm;
+}
+
+let _hermesToolsLoaded = false;
+async function ensureHermesToolsLoaded() {
+  if (_hermesToolsLoaded) return;
+  try {
+    const { HERMES_TOOLS } = await import('../utils/hermes-tool-registry.js');
+    for (const t of HERMES_TOOLS) KNOWN_TOOL_REGISTRIES[t.name] = 'ship-safe';
+  } catch { /* non-fatal — registry unavailable */ }
+  _hermesToolsLoaded = true;
+}
+
+async function checkHermesFrontmatter(content) {
+  await ensureHermesToolsLoaded();
+  const findings = [];
+  const fm = parseFrontmatter(content);
+
+  // Not a markdown skill with frontmatter — skip
+  if (!fm) return findings;
+
+  // ── Check: missing permissions field ──────────────────────────────────────
+  if (!fm.permissions) {
+    findings.push({
+      check: 'hermes-frontmatter',
+      name: 'Hermes: Skill missing permissions field (ASI-02 Excessive Agency)',
+      severity: 'medium',
+      line: 0,
+      matched: 'No permissions: field in frontmatter — skill may be granted more access than intended',
+    });
+  } else {
+    // ── Check: wildcard permissions ──────────────────────────────────────────
+    const perms = Array.isArray(fm.permissions) ? fm.permissions : [fm.permissions];
+    const wildcards = perms.filter(p => /^\*$|^all$|^any$/i.test(String(p)));
+    if (wildcards.length > 0) {
+      findings.push({
+        check: 'hermes-frontmatter',
+        name: 'Hermes: Wildcard permissions (* / all) — excessive agency (ASI-02)',
+        severity: 'high',
+        line: 0,
+        matched: `permissions: [${wildcards.join(', ')}]`,
+      });
+    }
+
+    // ── Check: dangerous explicit permissions ────────────────────────────────
+    // Match whole-word or exact qualified values — don't fire on "filesystem: read-only"
+    const dangerousPatterns = [
+      /\bshell\b/i, /\bexec\b/i, /\bsystem\b/i, /\badmin\b/i, /\broot\b/i, /\bsudo\b/i,
+      /filesystem\s*:\s*write/i, /filesystem\s*:\s*read-write/i,
+      /network\s*:\s*unrestricted/i, /network\s*:\s*all/i,
+      /^filesystem$/i, /^network$/i,  // bare "filesystem" or "network" without qualifier is ambiguous → flag
+    ];
+    for (const perm of perms) {
+      if (dangerousPatterns.some(p => p.test(String(perm)))) {
+        findings.push({
+          check: 'hermes-frontmatter',
+          name: `Hermes: Dangerous permission declared: ${perm}`,
+          severity: 'high',
+          line: 0,
+          matched: `permissions: [${perm}]`,
+        });
+      }
+    }
+  }
+
+  // ── Check: missing version pin ────────────────────────────────────────────
+  if (!fm.version) {
+    findings.push({
+      check: 'hermes-frontmatter',
+      name: 'Hermes: Skill missing version field — unpinned skill (ASI-10 Supply Chain)',
+      severity: 'medium',
+      line: 0,
+      matched: 'No version: field in frontmatter — skill version drift cannot be detected',
+    });
+  }
+
+  // ── Check: cross-skill tool binding validation ────────────────────────────
+  const tools = Array.isArray(fm.tools) ? fm.tools : fm.tools ? [fm.tools] : [];
+  for (const toolName of tools) {
+    if (!KNOWN_TOOL_REGISTRIES[toolName]) {
+      findings.push({
+        check: 'hermes-tool-binding',
+        name: `Hermes: Unresolvable tool reference: "${toolName}"`,
+        severity: 'high',
+        line: 0,
+        matched: `tools: [${toolName}] — not found in any known tool registry. May cause silent failures or late-binding substitution.`,
+      });
+    }
+  }
+
+  // ── Check: tools declared but no permissions field ────────────────────────
+  if (tools.length > 0 && !fm.permissions) {
+    findings.push({
+      check: 'hermes-tool-binding',
+      name: 'Hermes: Skill declares tools without permissions (permission drift)',
+      severity: 'high',
+      line: 0,
+      matched: `tools: [${tools.join(', ')}] declared but no permissions: field — skill runs with ambient agent permissions`,
+    });
+  }
+
+  return findings;
+}
+
+function checkHermesBodyPatterns(content, lines) {
+  const findings = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    for (const pattern of HERMES_SKILL_PATTERNS) {
+      pattern.regex.lastIndex = 0;
+      if (pattern.regex.test(line)) {
+        findings.push({
+          check: 'hermes-injection',
+          name: pattern.name,
+          severity: pattern.severity,
+          line: i + 1,
+          matched: line.trim().slice(0, 100),
+        });
+      }
+    }
+  }
+
+  // Multi-line checks for <tool_call> blocks that span lines
+  for (const pattern of HERMES_SKILL_PATTERNS) {
+    pattern.regex.lastIndex = 0;
+    const match = pattern.regex.exec(content);
+    if (match) {
+      // Avoid duplicate if already caught line-by-line
+      const alreadyFound = findings.some(f => f.name === pattern.name);
+      if (!alreadyFound) {
+        findings.push({
+          check: 'hermes-injection',
+          name: pattern.name,
+          severity: pattern.severity,
+          line: 0,
+          matched: match[0].slice(0, 100),
+        });
+      }
+    }
   }
 
   return findings;
@@ -281,7 +524,7 @@ async function scanAllSkills(rootPath) {
           const response = await fetch(url);
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const content = await response.text();
-          const findings = analyzeSkill(content, name, url);
+          const findings = await analyzeSkill(content, name, url);
           if (findings.length > 0) {
             printSkillFindings(findings, name);
           } else {

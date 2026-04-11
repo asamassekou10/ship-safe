@@ -49,6 +49,10 @@ import { hooksCommand } from '../commands/hooks.js';
 import { legalCommand } from '../commands/legal.js';
 import { runLiveAdvisories } from '../commands/live-advisories.js';
 import { envAuditCommand } from '../commands/env-audit.js';
+import { autofixCommand } from '../commands/autofix.js';
+import { memoryCommand } from '../utils/security-memory.js';
+import { playbookCommand } from '../utils/scan-playbook.js';
+import { listPluginFiles, scaffoldPlugin } from '../utils/plugin-loader.js';
 import { ABOMGenerator } from '../agents/abom-generator.js';
 import { PolicyEngine } from '../agents/policy-engine.js';
 import { SBOMGenerator } from '../agents/sbom-generator.js';
@@ -204,7 +208,7 @@ program
 // -----------------------------------------------------------------------------
 program
   .command('audit [path]')
-  .description('Full security audit: secrets + 18 agents + deps + score + deep analysis + remediation plan')
+  .description('Full security audit: secrets + 22 agents + deps + score + deep analysis + remediation plan')
   .option('--json', 'Output results as JSON')
   .option('--sarif', 'Output results in SARIF format')
   .option('--csv', 'Output results as CSV')
@@ -225,6 +229,8 @@ program
   .option('--budget <cents>', 'Max spend in cents for deep analysis (default: 50)', parseInt)
   .option('--verify', 'Check if leaked secrets are still active (probes provider APIs)')
   .option('--include-legal', 'Also run the legal risk scan (DMCA, leaked source, IP disputes)')
+  .option('--agentic [iterations]', 'Agentic scan→fix→verify loop (default: 3 iterations, target score: 75)', (v) => v ? parseInt(v) : true)
+  .option('--agentic-target <score>', 'Target security score for agentic loop (default: 75)', parseInt)
   .option('-v, --verbose', 'Verbose output')
   .action(auditCommand);
 
@@ -245,7 +251,7 @@ program
 // -----------------------------------------------------------------------------
 program
   .command('red-team [path]')
-  .description('Multi-agent security audit: 18 agents scan for 80+ attack classes')
+  .description('Multi-agent security audit: 22 agents scan for 80+ attack classes')
   .option('--agents <list>', 'Comma-separated list of agents to run')
   .option('--json', 'Output results as JSON')
   .option('--sarif', 'Output results in SARIF format')
@@ -274,6 +280,8 @@ program
   .option('--status', 'Show current watch status and exit')
   .option('--threshold <score>', 'Alert when score drops below threshold', parseInt)
   .option('--debounce <ms>', 'Debounce interval in ms (default: 1500)', parseInt)
+  .option('--slack [webhook]', 'Post findings to Slack webhook URL (or set SHIP_SAFE_SLACK_WEBHOOK env var)')
+  .option('--pr-comment', 'Post inline findings as GitHub PR review comments (requires gh CLI)')
   .action(watchCommand);
 
 // -----------------------------------------------------------------------------
@@ -494,6 +502,100 @@ program
   .action(doctorCommand);
 
 // -----------------------------------------------------------------------------
+// AUTOFIX COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('autofix [path]')
+  .description('Apply LLM-generated security fixes from a deep analysis report and open a GitHub PR')
+  .option('--report <file>', 'Path to ship-safe JSON report (default: ship-safe-report.json)')
+  .option('--severity <level>', 'Minimum severity to fix: critical, high, medium (default: high)')
+  .option('--dry-run', 'Preview fixes without applying them or creating a branch')
+  .option('--yes', 'Skip confirmation prompt')
+  .action((targetPath, options) => autofixCommand({ ...options, path: targetPath }));
+
+// -----------------------------------------------------------------------------
+// MEMORY COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('memory [subcommand]')
+  .description('Manage security memory: false-positive learning that auto-suppresses known safe findings')
+  .addHelpText('after', `
+Subcommands:
+  list           Show all suppressed findings in memory (default)
+  forget <key>   Remove a specific entry by key
+  clear          Wipe all memory entries
+
+How it works:
+  When --deep analysis confirms a finding is a false positive, it is added to
+  .ship-safe/memory.json and suppressed automatically on all future scans.
+`)
+  .argument('[args...]')
+  .action((subcommand, args, options) => memoryCommand(subcommand, args, options));
+
+// -----------------------------------------------------------------------------
+// PLAYBOOK COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('playbook [subcommand]')
+  .description('Manage scan playbooks: repo-specific context injected into every LLM analysis')
+  .addHelpText('after', `
+Subcommands:
+  show                Show the current playbook (default)
+  add-note "text"     Add a custom note to the playbook
+
+How it works:
+  After 2+ scans, a playbook is auto-generated in .ship-safe/playbook.md with
+  your repo's tech stack, auth patterns, and score history. This is injected
+  into the LLM system prompt so deep analysis is more accurate for your project.
+`)
+  .argument('[args...]')
+  .action((subcommand, args, options) => playbookCommand(subcommand, args, options));
+
+// -----------------------------------------------------------------------------
+// PLUGINS COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('plugins [action]')
+  .description('Manage custom security agent plugins from .ship-safe/agents/')
+  .addHelpText('after', `
+Actions:
+  list              List loaded plugins (default)
+  new <name>        Scaffold a new plugin in .ship-safe/agents/<name>.js
+
+How it works:
+  Drop any .js file into .ship-safe/agents/ that exports a default class
+  extending BaseAgent with an analyze() method. It will be loaded automatically
+  on every audit or watch --deep run.
+`)
+  .action((action, options) => {
+    const rootPath = path.resolve(process.cwd());
+    if (action === 'new') {
+      const pluginName = options.args?.[0] || options._name || 'my-rule';
+      try {
+        const filePath = scaffoldPlugin(rootPath, pluginName);
+        console.log(chalk.green(`  ✔ Plugin scaffolded: ${filePath}`));
+        console.log(chalk.gray('  Edit the file to implement your custom rule, then run ship-safe audit to activate it.'));
+      } catch (err) {
+        console.error(chalk.red(`  Error: ${err.message}`));
+        process.exit(1);
+      }
+    } else {
+      // list
+      const plugins = listPluginFiles(rootPath);
+      if (plugins.length === 0) {
+        console.log('\n  No custom plugins found in .ship-safe/agents/');
+        console.log(chalk.gray('  Create one with: npx ship-safe plugins new my-rule\n'));
+      } else {
+        console.log(`\n  ${chalk.cyan.bold('Custom Plugins')} — ${plugins.length} found\n`);
+        for (const p of plugins) {
+          console.log(`  ${chalk.white(p.name)}  ${chalk.gray(`(${(p.size / 1024).toFixed(1)} KB)  ${p.path}`)}`);
+        }
+        console.log();
+      }
+    }
+  });
+
+// -----------------------------------------------------------------------------
 // PARSE AND RUN
 // -----------------------------------------------------------------------------
 
@@ -501,10 +603,10 @@ program
 if (process.argv.length === 2) {
   console.log(banner);
   console.log(chalk.yellow('\nQuick start:\n'));
-  console.log(chalk.cyan.bold('  v6.0 — Full Security Audit'));
-  console.log(chalk.white('  npx ship-safe audit .       ') + chalk.gray('# Full audit: secrets + 18 agents + deps + remediation'));
+  console.log(chalk.cyan.bold('  v8.0 — Ship Safe × Hermes Agent'));
+  console.log(chalk.white('  npx ship-safe audit .       ') + chalk.gray('# Full audit: secrets + 22 agents + deps + remediation'));
   console.log(chalk.white('  npx ship-safe audit . --deep') + chalk.gray('# LLM-powered taint analysis (Anthropic/Ollama)'));
-  console.log(chalk.white('  npx ship-safe red-team .    ') + chalk.gray('# 18-agent red team scan (80+ attack classes)'));
+  console.log(chalk.white('  npx ship-safe red-team .    ') + chalk.gray('# 22-agent red team scan (80+ attack classes)'));
   console.log(chalk.white('  npx ship-safe vibe-check .  ') + chalk.gray('# Fun security check with emoji & shareable badge'));
   console.log(chalk.white('  npx ship-safe benchmark .   ') + chalk.gray('# Compare score against industry averages'));
   console.log(chalk.white('  npx ship-safe ci .          ') + chalk.gray('# CI/CD mode: scan, score, exit code'));
@@ -531,6 +633,13 @@ if (process.argv.length === 2) {
   console.log(chalk.white('  npx ship-safe hooks install ') + chalk.gray('# Real-time security gate inside Claude Code (PreToolUse/PostToolUse)'));
   console.log(chalk.white('  npx ship-safe guard         ') + chalk.gray('# Block git push if secrets found'));
   console.log(chalk.white('  npx ship-safe init          ') + chalk.gray('# Add security configs to your project'));
+  console.log();
+  console.log(chalk.gray('  Intelligence commands:'));
+  console.log(chalk.white('  npx ship-safe autofix .     ') + chalk.gray('# Apply LLM fixes from --deep report, open PR'));
+  console.log(chalk.white('  npx ship-safe memory list   ') + chalk.gray('# View / manage false-positive memory'));
+  console.log(chalk.white('  npx ship-safe playbook show ') + chalk.gray('# View repo-specific LLM context playbook'));
+  console.log(chalk.white('  npx ship-safe plugins list  ') + chalk.gray('# Manage custom agent plugins'));
+  console.log(chalk.white('  npx ship-safe watch . --deep --slack ') + chalk.gray('# Guardian mode with Slack alerts + PR comments'));
   console.log(chalk.white('\n  npx ship-safe --help        ') + chalk.gray('# Show all options'));
   console.log();
   process.exit(0);

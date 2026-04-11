@@ -109,6 +109,72 @@ const MCP_TOOL_PATTERNS = [
     severity: 'medium',
     target: 'any',
   },
+
+  // ── Hermes Agent: Function-Call Poisoning (ASI-03, ASI-05) ───────────────
+  {
+    name: 'Hermes: XML tool_call injection in description',
+    regex: /<tool_call>[\s\S]{0,300}<\/tool_call>/gi,
+    severity: 'critical',
+    target: 'description',
+    owasp: 'ASI-03',
+    note: 'Description embeds a Hermes-format <tool_call> block — will be parsed and executed by agents consuming this manifest.',
+  },
+  {
+    name: 'Hermes: Function-call format injection',
+    regex: /<function_calls>[\s\S]{0,300}<\/function_calls>/gi,
+    severity: 'critical',
+    target: 'description',
+    owasp: 'ASI-03',
+    note: 'Description embeds a <function_calls> block matching Hermes/Claude XML call format.',
+  },
+  {
+    name: 'Hermes: tool_choice manipulation',
+    regex: /tool_choice\s*[=:]\s*["']?(?:auto|any|none|required)["']?\s*(?:,|\}|$)/gi,
+    severity: 'high',
+    target: 'description',
+    owasp: 'ASI-03',
+    note: 'Description attempts to override tool_choice routing, steering agent to call attacker-controlled tools.',
+  },
+  {
+    name: 'Hermes: Forced tool invocation via description',
+    regex: /(?:you\s+must\s+(?:call|invoke|use)\s+(?:the\s+)?tool|always\s+(?:call|invoke|run)\s+(?:the\s+)?(?:tool|function)|tool\s+MUST\s+be\s+(?:called|invoked|used))/gi,
+    severity: 'high',
+    target: 'description',
+    owasp: 'ASI-03',
+    note: 'Instruction in tool description coerces the LLM agent into calling a specific tool, bypassing agent autonomy.',
+  },
+  {
+    name: 'Hermes: Schema bypass via additionalProperties',
+    regex: /"additionalProperties"\s*:\s*true/gi,
+    severity: 'high',
+    target: 'schema',
+    owasp: 'ASI-03',
+    note: 'Tool input schema allows arbitrary extra properties — attackers can inject undeclared parameters that bypass input validation.',
+  },
+  {
+    name: 'Hermes: Late binding via env-var registry URL',
+    regex: /(?:HERMES_REGISTRY_URL|AGENT_REGISTRY|TOOL_REGISTRY_URL|REGISTRY_ENDPOINT)\s*[=:]/gi,
+    severity: 'critical',
+    target: 'any',
+    owasp: 'ASI-05',
+    note: 'Tool definition references a runtime-resolved registry URL — attacker who controls the env var can swap the entire tool registry at execution time.',
+  },
+  {
+    name: 'Hermes: Namespace collision / tool shadowing',
+    regex: /(?:override\s+(?:existing\s+)?tool|shadow\s+tool|replace\s+(?:the\s+)?(?:existing\s+)?tool|re-register\s+tool)/gi,
+    severity: 'critical',
+    target: 'description',
+    owasp: 'ASI-05',
+    note: 'Description explicitly documents shadowing a previously registered tool — classic namespace collision attack.',
+  },
+  {
+    name: 'Hermes: Recursive sub-agent invocation in description',
+    regex: /(?:spawn\s+(?:a\s+)?(?:new\s+)?(?:sub[-\s]?agent|child[-\s]?agent|nested[-\s]?agent)|create\s+(?:a\s+)?(?:sub[-\s]?agent|child[-\s]?agent)|recursively\s+call\s+(?:agent|tool))/gi,
+    severity: 'high',
+    target: 'description',
+    owasp: 'ASI-02',
+    note: 'Description instructs the agent to spawn sub-agents — could lead to unbounded recursion or privilege escalation through child agents.',
+  },
 ];
 
 // Dangerous tool name keywords — flag tools whose names suggest shell/exec access
@@ -346,6 +412,18 @@ function analyzeToolDefinition(tool) {
       });
       break;
     }
+  }
+
+  // Check for additionalProperties: true at the top-level schema (schema bypass)
+  const topSchema = tool.inputSchema || tool.input_schema || {};
+  if (topSchema.additionalProperties === true) {
+    findings.push({
+      check: 'schema-analysis',
+      name: 'Hermes: Schema bypass — additionalProperties: true',
+      severity: 'high',
+      tool: name,
+      matched: 'Top-level inputSchema has additionalProperties: true — arbitrary params accepted',
+    });
   }
 
   // Check for excessive required parameters (information harvesting)

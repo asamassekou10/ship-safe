@@ -6,6 +6,64 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [8.0.0] — 2026-04-10 — Ship Safe × Hermes Agent
+
+### Added
+
+- **`HermesSecurityAgent`** — new agent purpose-built for Hermes Agent (NousResearch) deployments. Detects 17 attack patterns across the full OWASP Agentic AI Top 10 surface. Only runs when Hermes is detected in the project (via deps, frameworks, or config files — zero overhead otherwise).
+
+  Detection rules:
+
+  | Rule | Severity | OWASP |
+  |------|----------|-------|
+  | `HERMES_REGISTRY_REMOTE_URL` | critical | ASI-05 |
+  | `HERMES_REGISTRY_ENV_VAR_URL` | high | ASI-05 |
+  | `HERMES_FUNCTION_CALL_NO_ALLOWLIST` | critical | ASI-03 |
+  | `HERMES_XML_TOOL_CALL_UNSAFE_PARSE` | high | ASI-03 |
+  | `HERMES_TOOL_ARGS_UNVALIDATED` | critical | ASI-03 |
+  | `HERMES_ADDITIONAL_PROPERTIES_TRUE` | high | ASI-03 |
+  | `HERMES_PLAN_USER_INPUT` | critical | ASI-01 |
+  | `HERMES_GOAL_PROMPT_INJECTION` | critical | ASI-01 |
+  | `HERMES_MEMORY_UNVALIDATED_WRITE` | critical | ASI-06 |
+  | `HERMES_MEMORY_EXFIL_PATTERN` | critical | ASI-06 |
+  | `HERMES_SKILL_NO_PERMISSIONS_FIELD` | medium | ASI-02 |
+  | `HERMES_SKILL_WILDCARD_PERMISSIONS` | high | ASI-02 |
+  | `HERMES_SUB_AGENT_CREDENTIAL_FORWARD` | critical | ASI-07 |
+  | `HERMES_UNBOUNDED_AGENT_DEPTH` | high | ASI-02 |
+  | `HERMES_AGENT_OUTPUT_UNVALIDATED_ACTION` | high | ASI-03 |
+  | `HERMES_MANIFEST_NO_INTEGRITY` | high | ASI-10 |
+  | `HERMES_MANIFEST_NO_VERSION_PIN` | medium | ASI-10 |
+
+  Plus 4 structural checks: tool name collisions, tool context forwarding, skill frontmatter permission drift, memory file deserialization.
+
+- **`AgentAttestationAgent`** — new supply-chain agent detecting missing attestation in agent manifests. Checks unpinned versions (`latest`, `^`, `~`), missing integrity hashes on remote resources, manifest loaded without signature verification, `skipIntegrityCheck: true` bypass, dynamic `require()` of manifest from env vars, and missing provenance fields. Maps to ASI-10 and SLSA Level 0.
+
+- **Hermes function-call poisoning patterns in `scan-mcp`** — 8 new patterns added to the MCP manifest scanner: `<tool_call>` injection, `<function_calls>` injection, `tool_choice` manipulation, forced tool invocation, `additionalProperties: true` schema bypass, env-var late binding registry, namespace collision/shadowing, recursive sub-agent spawning.
+
+- **Cross-skill/tool binding validation in `scan-skill`** — frontmatter YAML parser validates `tools:`, `permissions:`, and `version:` fields in Hermes skill markdown. Flags unresolvable tool references, missing permissions field, tools declared without permissions (permission drift), wildcard permissions, and Hermes function-call injection in skill bodies.
+
+- **`skills/ship-safe-security.md`** — first-class Hermes skill definition making Ship Safe a Hermes Agent citizen. Declares 5 tools with proper `permissions:` and `version:` frontmatter fields.
+
+- **`hermes-tool-registry.js`** — 5 Ship Safe tools declared in Hermes tool-registry format with integrity hash verification. `registerWithHermes(toolRegistry)` integrates Ship Safe into any Hermes agent bootstrap. Throws on integrity mismatch (supply-chain protection).
+
+- **`--agentic [iterations]` flag for `audit`** — scan → annotate fixes → re-scan loop. Delegates annotation to the existing `autofix` module (correct comment style, idempotency, NEVER_EDIT list). Runs up to N iterations (default: 3) or until score reaches `--agentic-target` (default: 75).
+
+- **Exports** — `HermesSecurityAgent`, `AgentAttestationAgent`, `HERMES_TOOLS`, `registerWithHermes`, `verifyIntegrity` now exported from `cli/index.js`.
+
+### Changed
+
+- Agent pool bumped from 20 to 22 agents (`HermesSecurityAgent` + `AgentAttestationAgent`).
+- `HermesSecurityAgent.shouldRun()` now returns `false` for non-Hermes projects (checks deps, frameworks, and config file names) — zero overhead on standard codebases.
+- `scan-skill` imports `hermes-tool-registry` lazily (first Hermes frontmatter check only) — no startup cost for non-Hermes skill scans.
+
+### Fixed
+
+- `AgentAttestationAgent.analyze()` was receiving a `context` object instead of a files array — now correctly destructures `{ files, rootPath }` from context.
+- Integrity hashes in `hermes-tool-registry.js` corrected to match actual tool definition content.
+- Agentic loop no longer calls `process.exit()` on inner re-scan iterations — returns `{ score, findings }` instead and defers exit to the outermost call.
+
+---
+
 ## [7.1.0] — 2026-04-08
 
 ### Added
