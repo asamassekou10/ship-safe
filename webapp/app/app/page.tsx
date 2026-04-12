@@ -107,6 +107,21 @@ export default async function Dashboard() {
         ))}
       </div>
 
+      {/* Deploy Hermes Agents promo */}
+      <div className={styles.hermesCard}>
+        <div className={styles.hermesCardLeft}>
+          <div className={styles.hermesCardBadge}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            New
+          </div>
+          <h3>Deploy 22 Hermes security agents</h3>
+          <p>Answer 4 questions. Get a hardened config bundle — allowlists, integrity hashes, and CI workflow — dropped straight into your project. No code uploaded.</p>
+        </div>
+        <Link href="/app/deploy" className="btn btn-primary">
+          Deploy agents →
+        </Link>
+      </div>
+
       {/* Recent scans */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>

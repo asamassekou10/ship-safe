@@ -181,9 +181,69 @@
   font-weight: 600;
 }
 
+/* ── Hermes deploy promo card ─────────────────────────────── */
+.hermesCard {
+  background: var(--bg-card);
+  border: 1px solid rgba(8,145,178,0.2);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+.hermesCard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 70% 80% at 0% 50%, var(--cyan-glow) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hermesCardLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  position: relative;
+  z-index: 1;
+}
+.hermesCardBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  background: var(--cyan-glow);
+  border: 1px solid rgba(8,145,178,0.2);
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  width: fit-content;
+  margin-bottom: 0.15rem;
+}
+.hermesCardLeft h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+  text-align: left;
+}
+.hermesCardLeft p {
+  font-size: 0.83rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin: 0;
+  max-width: 480px;
+}
+
 @media (max-width: 700px) {
   .statsRow { grid-template-columns: repeat(2, 1fr); }
   .page { padding: 1.25rem; }
+  .hermesCard { flex-direction: column; align-items: flex-start; }
 }
 
 @media (max-width: 480px) {
