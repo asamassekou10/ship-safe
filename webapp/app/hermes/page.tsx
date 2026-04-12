@@ -68,29 +68,30 @@ export default function HermesPage() {
               <div className={styles.explainerText}>
                 <h2>New to Hermes?</h2>
                 <p>
-                  <strong>Hermes</strong> is an open-source agent orchestration framework built for production AI systems.
-                  It gives your LLM a structured tool registry, persistent memory layers (episodic, semantic, working),
-                  and support for multi-agent hierarchies where agents spawn sub-agents.
+                  <strong>Hermes</strong> is an open-source agent framework by <strong>Nous Research</strong> with 30+ toolsets
+                  (<code>web_search</code>, <code>terminal</code>, <code>browser_navigate</code>, <code>delegate_task</code>, and more),
+                  pluggable memory providers (built-in MEMORY.md/USER.md, Honcho, Mem0),
+                  and subagent delegation via <code>delegate_task</code>.
                 </p>
                 <p>
-                  That power comes with risk. Every tool call, every memory read, every sub-agent delegation
-                  is an entry point. Ship Safe&apos;s Hermes security agents audit all three — automatically,
-                  on every PR.
+                  Every tool dispatch through <code>registry.dispatch()</code>, every memory write to
+                  MEMORY.md, and every subagent spawn is an attack surface. Ship Safe audits all three —
+                  automatically, on every PR.
                 </p>
               </div>
               <div className={styles.explainerCode}>
-                <div className={styles.codeFile}>agent-manifest.json</div>
+                <div className={styles.codeFile}>agent-manifest.json (Ship Safe security manifest)</div>
                 <pre className={styles.codePre}>{`{
   "tools": [
     { "name": "web_search",
       "integrity": "sha256-abc..." },
-    { "name": "code_executor",
+    { "name": "terminal",
       "integrity": "sha256-xyz..." }
   ],
   "security": {
-    "allowlist": ["web_search", "code_executor"],
+    "allowlist": ["web_search", "terminal"],
     "requireIntegrity": true,
-    "maxRecursionDepth": 3
+    "maxRecursionDepth": 2
   }
 }`}</pre>
               </div>
@@ -112,8 +113,8 @@ export default function HermesPage() {
                 </div>
                 <h3>Tool registry poisoning</h3>
                 <p>
-                  An attacker swaps a legitimate tool in your registry for a malicious one with the same name.
-                  Your agent calls it without question — no integrity check, no allowlist.
+                  Hermes loads tools via <code>registry.register()</code> at import time. A compromised dependency or
+                  malicious MCP tool can register under a trusted name. Without integrity checks, your agent calls it without question.
                 </p>
                 <div className={styles.threatRule}>
                   <span className={styles.ruleTag}>HERMES_TOOL_NO_INTEGRITY</span>
@@ -127,8 +128,8 @@ export default function HermesPage() {
                 </div>
                 <h3>Function-call injection</h3>
                 <p>
-                  A prompt tricks your agent into calling a tool it shouldn&apos;t — by embedding a tool name
-                  inside user content that your orchestrator reads as an instruction.
+                  A prompt injection tricks your agent into calling <code>registry.dispatch()</code> with an attacker-chosen tool name.
+                  Hermes has 30+ registered tools — without an allowlist check, any of them can be invoked.
                 </p>
                 <div className={styles.threatRule}>
                   <span className={styles.ruleTag}>HERMES_FUNCTION_CALL_NO_ALLOWLIST</span>
@@ -140,13 +141,13 @@ export default function HermesPage() {
                 <div className={`${styles.threatIcon} ${styles.cyan}`}>
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
                 </div>
-                <h3>Memory layer attacks</h3>
+                <h3>Memory poisoning</h3>
                 <p>
-                  Poisoned data in episodic or semantic memory corrupts your agent&apos;s future decisions.
-                  Deserialized without schema validation, it can inject arbitrary values across sessions.
+                  Hermes injects MEMORY.md and USER.md into the system prompt at session start.
+                  Poisoned entries — via prompt injection patterns or invisible unicode — can hijack the agent&apos;s behavior across all future sessions.
                 </p>
                 <div className={styles.threatRule}>
-                  <span className={styles.ruleTag}>HERMES_MEMORY_UNSAFE_DESERIALIZE</span>
+                  <span className={styles.ruleTag}>HERMES_MEMORY_INJECTION</span>
                   Detected by Ship Safe
                 </div>
               </div>
@@ -166,7 +167,7 @@ export default function HermesPage() {
                 {
                   n: '1',
                   title: 'Answer 4 questions',
-                  desc: 'Project name, your tool registry, which memory layers you use, and whether you have sub-agents. Takes under a minute.',
+                  desc: 'Project name, your registered tools (from tools/registry.py), which memory provider you use, and whether you use delegate_task. Takes under a minute.',
                 },
                 {
                   n: '2',
@@ -205,7 +206,7 @@ export default function HermesPage() {
               {[
                 {
                   path: 'agent-manifest.json',
-                  desc: 'Hardened manifest with tool allowlist, integrity hash placeholders, and max recursion depth.',
+                  desc: 'Ship Safe security manifest — tool allowlist, integrity hashes, MAX_DEPTH enforcement. Complements your ~/.hermes/config.yaml.',
                   color: 'cyan',
                 },
                 {

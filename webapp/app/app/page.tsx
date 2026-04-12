@@ -114,8 +114,8 @@ export default async function Dashboard() {
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             New
           </div>
-          <h3>Deploy 22 Hermes security agents</h3>
-          <p>Answer 4 questions. Get a hardened config bundle — allowlists, integrity hashes, and CI workflow — dropped straight into your project. No code uploaded.</p>
+          <h3>Harden your Hermes agent in one command</h3>
+          <p>Answer 4 questions about your tool registry, memory provider, and delegation setup. Get a security config — allowlists, integrity hashes, and CI — dropped into your project.</p>
         </div>
         <Link href="/app/deploy" className="btn btn-primary">
           Deploy agents →

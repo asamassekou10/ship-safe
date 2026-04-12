@@ -8,7 +8,7 @@ export interface HermesConfig {
   projectName: string;
   repoUrl: string;
   tools: Array<{ name: string; sourceUrl?: string }>;
-  memoryLayers: ('episodic' | 'semantic' | 'working')[];
+  memoryProvider: 'builtin' | 'honcho' | 'hindsight' | 'mem0' | 'none';
   hasSubAgents: boolean;
   hasManifest: boolean;
   manifestPath: string;
@@ -34,9 +34,9 @@ function generateAgentManifest(config: HermesConfig): string {
       tools,
       security: {
         allowlist: config.tools.map(t => t.name),
-        maxRecursionDepth: config.hasSubAgents ? 3 : 1,
+        maxRecursionDepth: config.hasSubAgents ? 2 : 1,
         requireIntegrity: true,
-        memoryValidation: config.memoryLayers.length > 0,
+        memoryProvider: config.memoryProvider || 'builtin',
       },
     },
     null,
@@ -46,11 +46,13 @@ function generateAgentManifest(config: HermesConfig): string {
 
 function generateHermesPolicy(config: HermesConfig): string {
   const allowlist = config.tools.map(t => `'${t.name}'`).join(', ');
-  const memoryChecks = config.memoryLayers.length > 0 ? `
-    // Memory layer validation
+  const memoryChecks = config.memoryProvider !== 'none' ? `
+    // Memory provider validation
     const MEMORY_PATTERNS = [
-      /\\.hermes\\/memory/,
-      /episodic\\/|semantic\\/|working\\//,
+      /\\.hermes[\\/\\\\]memories/,
+      /MEMORY\\.md$/,
+      /USER\\.md$/,
+      /plugins[\\/\\\\]memory[\\/\\\\]/,
     ];
     for (const file of files) {
       if (!MEMORY_PATTERNS.some(p => p.test(file))) continue;
@@ -275,7 +277,7 @@ function generateBaseline(config: HermesConfig): string {
       findings: 0,
       note: 'Run `npx ship-safe audit .` to populate this baseline. CI will compare against it.',
       tools: config.tools.map(t => t.name),
-      memoryLayers: config.memoryLayers,
+      memoryProvider: config.memoryProvider,
       hasSubAgents: config.hasSubAgents,
     },
     null,
@@ -285,9 +287,11 @@ function generateBaseline(config: HermesConfig): string {
 
 function generateSetupGuide(config: HermesConfig): string {
   const toolList = config.tools.map(t => `- \`${t.name}\`${t.sourceUrl ? ` — ${t.sourceUrl}` : ' (local)'}`).join('\n');
-  const memList = config.memoryLayers.length > 0
-    ? config.memoryLayers.map(m => `- ${m}`).join('\n')
-    : '- None configured';
+  const memNote = config.memoryProvider === 'none'
+    ? '- None configured'
+    : config.memoryProvider === 'builtin'
+    ? '- Built-in (MEMORY.md / USER.md)'
+    : `- External: ${config.memoryProvider}`;
 
   return `# Ship Safe × Hermes Agent — Security Setup
 
@@ -307,9 +311,9 @@ ${config.ciProvider === 'gitlab' ? '| `.gitlab-ci.yml` (append) | CI job — run
 
 ${toolList}
 
-## Memory layers monitored
+## Memory provider
 
-${memList}
+${memNote}
 
 ## Next steps
 

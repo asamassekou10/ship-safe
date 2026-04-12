@@ -29,6 +29,8 @@ interface Tool {
   sourceUrl: string;
 }
 
+type MemoryProvider = 'builtin' | 'honcho' | 'hindsight' | 'mem0' | 'none';
+
 interface WizardState {
   // Step 1 — Project
   projectName: string;
@@ -36,7 +38,7 @@ interface WizardState {
   framework: string;
   // Step 2 — Hermes config
   tools: Tool[];
-  memoryLayers: ('episodic' | 'semantic' | 'working')[];
+  memoryProvider: MemoryProvider;
   hasSubAgents: boolean;
   hasManifest: boolean;
   manifestPath: string;
@@ -110,15 +112,6 @@ function Step2({ state, set }: { state: WizardState; set: (s: Partial<WizardStat
     set({ tools: state.tools.filter((_, idx) => idx !== i) });
   }
 
-  function toggleMemory(layer: 'episodic' | 'semantic' | 'working') {
-    const has = state.memoryLayers.includes(layer);
-    set({
-      memoryLayers: has
-        ? state.memoryLayers.filter(l => l !== layer)
-        : [...state.memoryLayers, layer],
-    });
-  }
-
   return (
     <div className={styles.fieldGroup}>
       {/* Tool registry */}
@@ -128,8 +121,8 @@ function Step2({ state, set }: { state: WizardState; set: (s: Partial<WizardStat
           <span className={styles.labelHint}>from your Hermes tool registry</span>
         </label>
         <p className={styles.fieldHelp}>
-          The tools your agent can call — e.g. <code>web_search</code>, <code>code_executor</code>, <code>file_reader</code>.
-          Copy names from your tool registry config. Add a source URL for remote tools so Ship Safe can generate integrity hashes.
+          The tools your agent can call — e.g. <code>web_search</code>, <code>terminal</code>, <code>read_file</code>, <code>delegate_task</code>.
+          These match the names in Hermes&apos;s <code>tools/registry.py</code>. Add a source URL for remote/MCP tools so Ship Safe can generate integrity hashes.
         </p>
         <div className={styles.toolList}>
           {state.tools.map((tool, i) => (
@@ -162,35 +155,34 @@ function Step2({ state, set }: { state: WizardState; set: (s: Partial<WizardStat
         </div>
       </div>
 
-      {/* Memory layers */}
+      {/* Memory provider */}
       <div className={styles.field}>
-        <label className={styles.label}>Memory layers used</label>
+        <label className={styles.label}>Memory provider</label>
         <p className={styles.fieldHelp}>
-          Which Hermes memory types your agent uses. <strong>Episodic</strong> = past interactions,{' '}
-          <strong>Semantic</strong> = long-term knowledge, <strong>Working</strong> = current task state.
-          Check all that apply — Ship Safe validates each layer for schema injection attacks.
+          Hermes uses a pluggable memory system. <strong>Built-in</strong> stores notes in <code>MEMORY.md</code> and user preferences in <code>USER.md</code> under <code>~/.hermes/memories/</code>.
+          External providers (Honcho, Mem0, Hindsight) add vector-backed recall. Ship Safe scans memory files for injection and exfiltration patterns.
         </p>
-        <div className={styles.checkGrid}>
-          {(['episodic', 'semantic', 'working'] as const).map(layer => {
-            const checked = state.memoryLayers.includes(layer);
-            return (
-              <label key={layer} className={styles.checkItem}>
-                <input type="checkbox" checked={checked} onChange={() => toggleMemory(layer)} />
-                <div className={`${styles.checkBox} ${checked ? styles.checked : ''}`}>
-                  {checked && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
-                </div>
-                <span className={styles.checkLabel}>{layer.charAt(0).toUpperCase() + layer.slice(1)}</span>
-              </label>
-            );
-          })}
+        <div className={styles.selectWrap}>
+          <select
+            className={styles.select}
+            value={state.memoryProvider}
+            onChange={e => set({ memoryProvider: e.target.value as MemoryProvider })}
+          >
+            <option value="builtin">Built-in (MEMORY.md / USER.md)</option>
+            <option value="honcho">Honcho</option>
+            <option value="mem0">Mem0</option>
+            <option value="hindsight">Hindsight</option>
+            <option value="none">None / Memory disabled</option>
+          </select>
+          <svg className={styles.selectChevron} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
       </div>
 
       {/* Sub-agents */}
       <div className={styles.toggleRow}>
         <div>
-          <div className={styles.toggleLabel}>Uses sub-agents</div>
-          <div className={styles.toggleSub}>Does your agent spawn child agents? Enables multi-agent trust boundary checks and sets a max recursion depth to prevent runaway chains.</div>
+          <div className={styles.toggleLabel}>Uses delegate_task</div>
+          <div className={styles.toggleSub}>Does your agent use <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85em' }}>delegate_task</code> to spawn subagents? Hermes limits delegation to MAX_DEPTH = 2. Ship Safe validates trust boundaries at each level.</div>
         </div>
         <button
           className={`${styles.toggle} ${state.hasSubAgents ? styles.on : ''}`}
@@ -255,12 +247,12 @@ function Step3({ state }: { state: WizardState }) {
           <div className={styles.reviewVal}>{state.tools.filter(t => t.name).length}</div>
         </div>
         <div className={styles.reviewItem}>
-          <div className={styles.reviewKey}>Memory layers</div>
-          <div className={styles.reviewVal}>{state.memoryLayers.length > 0 ? state.memoryLayers.join(', ') : 'None'}</div>
+          <div className={styles.reviewKey}>Memory provider</div>
+          <div className={styles.reviewVal}>{state.memoryProvider === 'none' ? 'Disabled' : state.memoryProvider === 'builtin' ? 'Built-in (MEMORY.md)' : state.memoryProvider}</div>
         </div>
         <div className={styles.reviewItem}>
           <div className={styles.reviewKey}>Sub-agents</div>
-          <div className={styles.reviewVal}>{state.hasSubAgents ? 'Yes — depth limit: 3' : 'No'}</div>
+          <div className={styles.reviewVal}>{state.hasSubAgents ? 'Yes — MAX_DEPTH: 2' : 'No'}</div>
         </div>
         <div className={styles.reviewItem}>
           <div className={styles.reviewKey}>CI provider</div>
@@ -286,7 +278,7 @@ function Step3({ state }: { state: WizardState }) {
       </div>
 
       <div style={{ padding: '0.85rem 1rem', background: 'var(--cyan-glow)', border: '1px solid rgba(8,145,178,0.15)', borderRadius: 'var(--radius)', fontSize: '0.83rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-        <strong style={{ color: 'var(--cyan)' }}>Everything stays local.</strong> No code is uploaded to Ship Safe servers. The bundle is generated from your configuration answers and downloaded directly to your machine.
+        <strong style={{ color: 'var(--cyan)' }}>Everything stays local.</strong> No code is uploaded to Ship Safe servers. The config is encoded directly in the setup URL — no database, no storage. Your Hermes <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85em' }}>~/.hermes/config.yaml</code> is never touched.
       </div>
     </div>
   );
@@ -354,7 +346,7 @@ const DEFAULT: WizardState = {
   repoUrl: '',
   framework: '',
   tools: [{ name: '', sourceUrl: '' }],
-  memoryLayers: [],
+  memoryProvider: 'builtin',
   hasSubAgents: false,
   hasManifest: false,
   manifestPath: 'agent-manifest.json',
