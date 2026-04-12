@@ -24,6 +24,9 @@
  *   scan_secrets    - Scan a directory for leaked secrets
  *   get_checklist   - Return the launch-day security checklist
  *   analyze_file    - Analyze a single file for security issues
+ *   scan_repo       - Run a full multi-agent security scan on a repo
+ *   get_findings    - Read findings from a saved ship-safe report file
+ *   suppress_finding - Add a ship-safe-ignore comment to suppress a finding
  *
  * PROTOCOL:
  *   JSON-RPC 2.0 over stdio (MCP spec: https://modelcontextprotocol.io)
@@ -34,6 +37,10 @@ import path from 'path';
 import fg from 'fast-glob';
 import { SECRET_PATTERNS, SKIP_DIRS, SKIP_EXTENSIONS, SKIP_FILENAMES, TEST_FILE_PATTERNS, MAX_FILE_SIZE } from '../utils/patterns.js';
 import { isHighEntropyMatch } from '../utils/entropy.js';
+import { buildOrchestrator } from '../agents/index.js';
+import { ScoringEngine } from '../agents/scoring-engine.js';
+import { autoDetectProvider } from '../providers/llm-provider.js';
+import { DeepAnalyzer } from '../agents/deep-analyzer.js';
 
 // =============================================================================
 // MCP TOOL DEFINITIONS
@@ -78,6 +85,74 @@ const TOOLS = [
         },
       },
       required: ['path'],
+    },
+  },
+  {
+    name: 'scan_repo',
+    description: 'Run a full multi-agent security scan on a repository or directory. Runs all 20+ ship-safe security agents (injection, auth bypass, secrets, supply chain, LLM security, etc.) and returns a structured findings report with severity ratings and remediation advice. Use this when the user asks to audit, scan, or check the security of their project.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+          description: 'The directory path to scan. Use "." for current directory.',
+        },
+        agents: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Specific agent names to run (optional). Omit to run all agents.',
+        },
+        llm: {
+          type: 'boolean',
+          description: 'Enable LLM-powered deep analysis for critical/high findings (default: false). Requires ANTHROPIC_API_KEY or similar env var.',
+        },
+        outputFile: {
+          type: 'string',
+          description: 'Optional path to save the JSON report for later retrieval with get_findings.',
+        },
+      },
+      required: ['path'],
+    },
+  },
+  {
+    name: 'get_findings',
+    description: 'Read and return findings from a ship-safe JSON report file previously saved by scan_repo or the ship-safe CLI (npx ship-safe audit --json). Useful for reviewing or referencing a prior scan without re-running it.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        reportPath: {
+          type: 'string',
+          description: 'Path to the ship-safe JSON report file (e.g. ship-safe-report.json).',
+        },
+        severity: {
+          type: 'string',
+          enum: ['critical', 'high', 'medium', 'low'],
+          description: 'Filter findings by minimum severity (optional).',
+        },
+      },
+      required: ['reportPath'],
+    },
+  },
+  {
+    name: 'suppress_finding',
+    description: 'Add a ship-safe-ignore comment to a specific line in a file to suppress a false-positive security finding. The comment tells ship-safe\'s scanner to skip that line in future scans. Always explain why the suppression is safe.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          description: 'Path to the file containing the false-positive finding.',
+        },
+        line: {
+          type: 'number',
+          description: 'Line number of the finding to suppress (1-indexed).',
+        },
+        reason: {
+          type: 'string',
+          description: 'Brief explanation of why this finding is a false positive (appended to the ignore comment).',
+        },
+      },
+      required: ['file', 'line', 'reason'],
     },
   },
 ];
@@ -160,6 +235,192 @@ async function analyzeFile({ path: filePath }) {
     summary: findings.length === 0
       ? `No secrets detected in ${path.basename(filePath)}.`
       : `Found ${findings.length} potential secret(s) in ${path.basename(filePath)}.`,
+  };
+}
+
+async function scanRepo({ path: targetPath, agents: agentFilter, llm = false, outputFile }) {
+  const rootPath = path.resolve(targetPath);
+
+  if (!fs.existsSync(rootPath)) {
+    return { error: `Path does not exist: ${rootPath}` };
+  }
+
+  // MCP communicates over stdout as JSON-RPC. Suppress all console output during
+  // the scan so spinner text and log lines don't pollute the transport stream.
+  const noop = () => {};
+  const savedLog   = console.log;
+  const savedWarn  = console.warn;
+  const savedError = console.error;
+  const savedInfo  = console.info;
+  console.log = console.warn = console.error = console.info = noop;
+
+  try {
+    const orchestrator = buildOrchestrator();
+    const context = { rootPath };
+
+    // Run all agents (quiet:true suppresses ora spinners; console is already nulled)
+    const { findings, recon } = await orchestrator.runAll(rootPath, {
+      agents: agentFilter,
+      timeout: 30000,
+      concurrency: 6,
+      quiet: true,
+    });
+
+    // Optional: LLM deep analysis
+    let deepStats = null;
+    if (llm) {
+      const provider = autoDetectProvider(rootPath, {});
+      if (provider) {
+        const analyzer = new DeepAnalyzer({ provider, budgetCents: 50, verbose: false });
+        await analyzer.analyze(findings, { rootPath, recon });
+        deepStats = analyzer.getStats();
+      }
+    }
+
+    // Score
+    const scorer = new ScoringEngine();
+    const { score, grade } = scorer.score(findings);
+
+    const SEV_ORDER = ['critical', 'high', 'medium', 'low'];
+    const bySeverity = {};
+    for (const sev of SEV_ORDER) {
+      bySeverity[sev] = findings.filter(f => f.severity === sev).length;
+    }
+
+    const report = {
+      scannedAt: new Date().toISOString(),
+      rootPath,
+      score,
+      grade,
+      totalFindings: findings.length,
+      bySeverity,
+      findings: findings.map(f => ({
+        title:         f.title,
+        severity:      f.severity,
+        category:      f.category,
+        rule:          f.rule,
+        file:          f.file ? path.relative(rootPath, f.file) : null,
+        line:          f.line,
+        description:   f.description,
+        remediation:   f.remediation,
+        confidence:    f.confidence,
+        ...(f.deepAnalysis ? { deepAnalysis: f.deepAnalysis } : {}),
+      })),
+      ...(deepStats ? { deepAnalysis: deepStats } : {}),
+      summary: `Score: ${score}/100 (${grade}) — ${findings.length} finding(s): ${bySeverity.critical} critical, ${bySeverity.high} high, ${bySeverity.medium} medium, ${bySeverity.low} low.`,
+    };
+
+    if (outputFile) {
+      const outPath = path.resolve(outputFile);
+      fs.writeFileSync(outPath, JSON.stringify(report, null, 2), 'utf-8');
+      report.savedTo = outPath;
+    }
+
+    return report;
+  } catch (err) {
+    return { error: `Scan failed: ${err.message}` };
+  } finally {
+    // Always restore console so other tool calls are not affected
+    console.log   = savedLog;
+    console.warn  = savedWarn;
+    console.error = savedError;
+    console.info  = savedInfo;
+  }
+}
+
+function getFindings({ reportPath, severity }) {
+  const absPath = path.resolve(reportPath);
+
+  if (!fs.existsSync(absPath)) {
+    return { error: `Report file not found: ${absPath}` };
+  }
+
+  let report;
+  try {
+    report = JSON.parse(fs.readFileSync(absPath, 'utf-8'));
+  } catch (err) {
+    return { error: `Failed to parse report: ${err.message}` };
+  }
+
+  const findings = report.findings ?? [];
+  const SEV_RANK = { critical: 4, high: 3, medium: 2, low: 1 };
+  const filtered = severity
+    ? findings.filter(f => (SEV_RANK[f.severity] ?? 0) >= (SEV_RANK[severity] ?? 0))
+    : findings;
+
+  return {
+    reportPath:    absPath,
+    scannedAt:     report.scannedAt,
+    score:         report.score,
+    grade:         report.grade,
+    totalFindings: filtered.length,
+    bySeverity:    report.bySeverity,
+    findings:      filtered,
+    summary:       report.summary,
+    ...(severity ? { filter: `severity >= ${severity}` } : {}),
+  };
+}
+
+function suppressFinding({ file, line, reason }) {
+  const absPath = path.resolve(file);
+
+  if (!fs.existsSync(absPath)) {
+    return { error: `File not found: ${absPath}` };
+  }
+
+  let content;
+  try {
+    content = fs.readFileSync(absPath, 'utf-8');
+  } catch (err) {
+    return { error: `Cannot read file: ${err.message}` };
+  }
+
+  const lines = content.split('\n');
+  const lineIdx = line - 1; // Convert to 0-indexed
+
+  if (lineIdx < 0 || lineIdx >= lines.length) {
+    return { error: `Line ${line} is out of range (file has ${lines.length} lines)` };
+  }
+
+  const targetLine = lines[lineIdx];
+
+  // Already suppressed?
+  if (/ship-safe-ignore/i.test(targetLine)) {
+    return { alreadySuppressed: true, file: absPath, line, message: 'Line already has a ship-safe-ignore comment.' };
+  }
+
+  // Detect indentation and comment style
+  const indent = targetLine.match(/^(\s*)/)?.[1] ?? '';
+  const isJs   = /\.(js|ts|jsx|tsx|mjs|cjs|java|c|cpp|cs|go|rs|swift|kt)$/.test(file);
+  const isPy   = /\.py$/.test(file);
+  const isRb   = /\.rb$/.test(file);
+  const isHtml = /\.(html?|vue|svelte)$/.test(file);
+
+  let ignoreComment;
+  if (isHtml) {
+    ignoreComment = `${indent}<!-- ship-safe-ignore — ${reason} -->`;
+  } else if (isPy || isRb) {
+    ignoreComment = `${indent}# ship-safe-ignore — ${reason}`;
+  } else {
+    ignoreComment = `${indent}// ship-safe-ignore — ${reason}`;
+  }
+
+  // Insert ignore comment on the line BEFORE the finding
+  lines.splice(lineIdx, 0, ignoreComment);
+
+  try {
+    fs.writeFileSync(absPath, lines.join('\n'), 'utf-8');
+  } catch (err) {
+    return { error: `Cannot write file: ${err.message}` };
+  }
+
+  return {
+    suppressed:    true,
+    file:          absPath,
+    originalLine:  line,
+    insertedLine:  line, // The ignore comment is now on this line, original moved to line+1
+    comment:       ignoreComment,
+    message:       `Added ship-safe-ignore comment before line ${line} in ${path.basename(file)}.`,
   };
 }
 
@@ -282,6 +543,15 @@ async function handleRequest(request) {
             break;
           case 'analyze_file':
             result = await analyzeFile(args);
+            break;
+          case 'scan_repo':
+            result = await scanRepo(args);
+            break;
+          case 'get_findings':
+            result = getFindings(args);
+            break;
+          case 'suppress_finding':
+            result = suppressFinding(args);
             break;
           default:
             return respondError(-32601, `Unknown tool: ${name}`);

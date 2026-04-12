@@ -125,6 +125,8 @@ program
   .option('--headers', 'Only copy security headers config')
   .option('--agents', 'Only add security rules to AI agent instruction files (CLAUDE.md, .cursor/rules/, .windsurfrules, copilot-instructions.md)')
   .option('--openclaw', 'Generate a hardened openclaw.json template')
+  .option('--hermes', 'Bootstrap Hermes Agent security config (allowlist, integrity hashes, CI)')
+  .option('--from <url>', 'Fetch a pre-built Hermes config bundle from a setup URL (used with --hermes)')
   .action(initCommand);
 
 // -----------------------------------------------------------------------------

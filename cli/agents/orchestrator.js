@@ -234,9 +234,19 @@ export class Orchestrator {
           allFindings = await analyzer.analyze(allFindings, { rootPath: absolutePath, recon });
           const stats = analyzer.getStats();
           if (deepSpinner) {
-            deepSpinner.succeed(chalk.green(
-              `Deep analysis: ${stats.analyzedCount} findings analyzed (${stats.spentCents}c spent)`
-            ));
+            if (stats.multiTier) {
+              const tierNote = stats.tier3Count > 0
+                ? `, ${stats.tier3Count} escalated to Opus`
+                : stats.tier2Count > 0 ? `, ${stats.tier2Count} via Sonnet` : '';
+              const skipNote = stats.skippedCount > 0 ? `, ${stats.skippedCount} triaged away` : '';
+              deepSpinner.succeed(chalk.green(
+                `Deep analysis (Haiku→Sonnet→Opus): ${stats.analyzedCount} analyzed${tierNote}${skipNote} (${stats.spentCents}¢)`
+              ));
+            } else {
+              deepSpinner.succeed(chalk.green(
+                `Deep analysis: ${stats.analyzedCount} findings analyzed (${stats.spentCents}¢)`
+              ));
+            }
           }
         } catch (err) {
           if (deepSpinner) deepSpinner.fail(chalk.yellow(`Deep analysis failed: ${err.message}`));

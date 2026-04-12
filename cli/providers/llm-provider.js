@@ -92,6 +92,9 @@ class AnthropicProvider extends BaseLLMProvider {
     this.baseUrl = options.baseUrl || 'https://api.anthropic.com/v1/messages';
   }
 
+  /** Whether this provider supports guaranteed-JSON tool-use output */
+  get supportsStructuredOutput() { return true; }
+
   async complete(systemPrompt, userPrompt, options = {}) {
     const response = await fetch(this.baseUrl, {
       method: 'POST',
@@ -101,7 +104,7 @@ class AnthropicProvider extends BaseLLMProvider {
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: this.model,
+        model: options.model || this.model,
         max_tokens: options.maxTokens || 2048,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
@@ -109,11 +112,56 @@ class AnthropicProvider extends BaseLLMProvider {
     });
 
     if (!response.ok) {
-      throw new Error(`Anthropic API error: HTTP ${response.status}`);
+      const body = await response.text().catch(() => '');
+      throw new Error(`Anthropic API error: HTTP ${response.status} ${body.slice(0, 200)}`);
     }
 
     const data = await response.json();
     return data.content?.[0]?.text || '';
+  }
+
+  /**
+   * Complete with guaranteed-JSON output via Anthropic tool-use API.
+   * The LLM is forced to call the named tool, so the response always matches
+   * the provided JSON Schema — no regex cleanup needed.
+   *
+   * @param {string} systemPrompt
+   * @param {string} userPrompt
+   * @param {string} toolName       — Name of the forced tool call
+   * @param {object} inputSchema    — JSON Schema for the tool's input
+   * @param {object} options        — { maxTokens, model }
+   * @returns {Promise<object|null>} — Parsed tool input object, or null on failure
+   */
+  async completeWithTools(systemPrompt, userPrompt, toolName, inputSchema, options = {}) {
+    const response = await fetch(this.baseUrl, {
+      method: 'POST',
+      headers: {
+        'x-api-key': this.apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: options.model || this.model,
+        max_tokens: options.maxTokens || 2048,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+        tools: [{
+          name: toolName,
+          description: `Report ${toolName} results`,
+          input_schema: inputSchema,
+        }],
+        tool_choice: { type: 'tool', name: toolName },
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`Anthropic API error: HTTP ${response.status} ${body.slice(0, 200)}`);
+    }
+
+    const data = await response.json();
+    const toolUse = data.content?.find(b => b.type === 'tool_use');
+    return toolUse?.input ?? null;
   }
 }
 

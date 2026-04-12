@@ -218,8 +218,8 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const score = '${{ steps.audit.outputs.score }}';
-            const findings = '${{ steps.audit.outputs.findings }}';
+            const score = '\${{ steps.audit.outputs.score }}';
+            const findings = '\${{ steps.audit.outputs.findings }}';
             const grade = score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : score >= 60 ? 'D' : 'F';
             const emoji = score >= 80 ? '✅' : score >= 60 ? '⚠️' : '❌';
             const body = [
@@ -419,7 +419,7 @@ export async function POST(req: NextRequest) {
     .replace(/^-|-$/g, '')
     .slice(0, 40);
 
-  return new NextResponse(zipBuffer, {
+  return new NextResponse(zipBuffer as unknown as BodyInit, {
     status: 200,
     headers: {
       'Content-Type': 'application/zip',

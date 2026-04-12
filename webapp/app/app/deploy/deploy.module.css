@@ -374,6 +374,44 @@
   color: var(--text-muted);
   max-width: 420px;
 }
+/* ── Command box ─────────────────────────────────────────── */
+.commandBox {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  background: var(--bg-card2, #111);
+  border: 1px solid rgba(8,145,178,0.3);
+  border-radius: var(--radius-lg);
+  padding: 0.85rem 1rem;
+  box-shadow: 0 0 0 4px var(--cyan-glow);
+}
+.commandText {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--cyan);
+  flex: 1;
+  word-break: break-all;
+  text-align: left;
+}
+.copyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  background: var(--cyan-glow);
+  border: 1px solid rgba(8,145,178,0.25);
+  border-radius: 6px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--cyan);
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.copyBtn:hover { background: rgba(8,145,178,0.15); }
+
 .nextSteps {
   width: 100%;
   text-align: left;

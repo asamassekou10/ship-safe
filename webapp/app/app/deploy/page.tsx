@@ -2,6 +2,26 @@
 import { useState } from 'react';
 import styles from './deploy.module.css';
 
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+  return (
+    <button className={styles.copyBtn} onClick={copy} aria-label="Copy command">
+      {copied ? (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      ) : (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      )}
+      {copied ? 'Copied!' : 'Copy'}
+    </button>
+  );
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface Tool {
@@ -265,51 +285,51 @@ function Step3({ state }: { state: WizardState }) {
 
 // ── Step 4 — Deploy (success) ──────────────────────────────────────────────
 
-function Step4({ projectName, ciProvider }: { projectName: string; ciProvider: string }) {
+function Step4({ projectName, ciProvider, command }: { projectName: string; ciProvider: string; command: string }) {
   return (
     <div className={styles.successCard}>
       <div className={styles.successIcon}>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
       </div>
-      <div className={styles.successTitle}>Bundle downloaded!</div>
+      <div className={styles.successTitle}>Your setup command is ready</div>
       <div className={styles.successSub}>
-        Extract the zip into your project root and follow the steps below to activate your Hermes security agents.
+        Run this one command from your project root. It writes all files, runs your first audit, and gets you to green in under a minute.
       </div>
+
+      <div className={styles.commandBox}>
+        <code className={styles.commandText}>{command}</code>
+        <CopyButton text={command} />
+      </div>
+
       <div className={styles.nextSteps}>
-        <h3>Next steps</h3>
+        <h3>What happens when you run it</h3>
         <div className={styles.stepsList}>
           <div className={styles.stepsListItem}>
             <div className={styles.stepsListNum}>1</div>
             <div className={styles.stepsListText}>
-              Extract the zip into your project root — all files go to their correct paths automatically.
+              Ship Safe writes your hardened config — allowlist, integrity hashes, and CI workflow — directly into your project.
             </div>
           </div>
           <div className={styles.stepsListItem}>
             <div className={styles.stepsListNum}>2</div>
             <div className={styles.stepsListText}>
-              For remote tools, generate integrity hashes: <code>npx ship-safe hash &lt;source-url&gt;</code> and add them to your manifest.
+              For remote tools, it auto-generates integrity hashes. Add them to <code>agent-manifest.json</code> to lock tool versions.
             </div>
           </div>
           <div className={styles.stepsListItem}>
             <div className={styles.stepsListNum}>3</div>
             <div className={styles.stepsListText}>
-              Run your first audit to populate the baseline: <code>npx ship-safe audit .</code>
+              Your first audit runs automatically and populates the baseline. CI will fail any PR that drops below it.
             </div>
           </div>
           <div className={styles.stepsListItem}>
             <div className={styles.stepsListNum}>4</div>
             <div className={styles.stepsListText}>
               {ciProvider === 'github'
-                ? 'Commit all files and push — CI will run on your next PR and post a security score comment.'
+                ? 'Commit and push — CI picks up the workflow and posts a security score on every PR.'
                 : ciProvider === 'gitlab'
-                ? 'Append ship-safe-hermes-ci.yml to your .gitlab-ci.yml and push.'
-                : 'Commit all files. Run ship-safe audit . locally before each deploy.'}
-            </div>
-          </div>
-          <div className={styles.stepsListItem}>
-            <div className={styles.stepsListNum}>5</div>
-            <div className={styles.stepsListText}>
-              Auto-fix findings: <code>npx ship-safe audit . --agentic 3 --agentic-target 80</code>
+                ? 'Commit and push — the GitLab CI job runs on every merge request automatically.'
+                : 'Commit all files. Run npx ship-safe audit . before each deploy.'}
             </div>
           </div>
         </div>
@@ -336,7 +356,7 @@ export default function DeployPage() {
   const [step, setStep] = useState(0);
   const [state, setState] = useState<WizardState>(DEFAULT);
   const [loading, setLoading] = useState(false);
-  const [deployed, setDeployed] = useState(false);
+  const [command, setCommand] = useState('');
   const [error, setError] = useState('');
 
   function set(partial: Partial<WizardState>) {
@@ -350,34 +370,23 @@ export default function DeployPage() {
     return true;
   }
 
-  async function handleDownload() {
+  async function handleDeploy() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/generate-hermes-config', {
+      const res = await fetch('/api/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...state,
-          tools: validTools,
-        }),
+        body: JSON.stringify({ ...state, tools: validTools }),
       });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to generate config');
+        throw new Error(err.error || 'Failed to generate setup URL');
       }
 
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const slug = (state.projectName || 'hermes-project').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40);
-      a.download = `ship-safe-hermes-${slug}.zip`;
-      a.click();
-      URL.revokeObjectURL(url);
-
-      setDeployed(true);
+      const data = await res.json();
+      setCommand(data.command);
       setStep(3);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
@@ -422,8 +431,8 @@ export default function DeployPage() {
       </div>
 
       {/* Step content */}
-      {deployed ? (
-        <Step4 projectName={state.projectName} ciProvider={state.ciProvider} />
+      {command ? (
+        <Step4 projectName={state.projectName} ciProvider={state.ciProvider} command={command} />
       ) : (
         <div className={styles.card}>
           <div className={styles.cardTitle}>
@@ -466,11 +475,11 @@ export default function DeployPage() {
                 </button>
               )}
               {step === 2 && (
-                <button className={styles.btnDownload} onClick={handleDownload} disabled={loading}>
+                <button className={styles.btnDownload} onClick={handleDeploy} disabled={loading}>
                   {loading ? (
                     <><span className={styles.loadingSpinner} /> Generating…</>
                   ) : (
-                    <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download bundle</>
+                    <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Generate setup command</>
                   )}
                 </button>
               )}

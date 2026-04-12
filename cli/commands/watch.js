@@ -13,6 +13,7 @@
 import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
+import { execFileSync } from 'child_process';
 import { SKIP_DIRS, SKIP_EXTENSIONS, SKIP_FILENAMES, SECRET_PATTERNS, SECURITY_PATTERNS } from '../utils/patterns.js';
 import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import * as output from '../utils/output.js';
@@ -289,11 +290,13 @@ function showWatchStatus(rootPath) {
 // =============================================================================
 
 async function watchDeep(absolutePath, options = {}) {
-  const { buildOrchestrator } = await import('../agents/index.js');
+  const { buildOrchestratorAsync } = await import('../agents/index.js');
   const { ReconAgent } = await import('../agents/recon-agent.js');
 
-  const debounceMs = options.debounce || 1500;
-  const threshold = options.threshold || null;
+  const debounceMs    = options.debounce   || 1500;
+  const threshold     = options.threshold  || null;
+  const slackWebhook  = options.slack      || process.env.SHIP_SAFE_SLACK_WEBHOOK || null;
+  const prComments    = options.prComment  || false;
   const scoringEngine = new ScoringEngine();
 
   console.log();
@@ -301,7 +304,9 @@ async function watchDeep(absolutePath, options = {}) {
   console.log();
   console.log(chalk.cyan('  Running full agent scans on file changes'));
   console.log(chalk.gray(`  Debounce: ${debounceMs}ms`));
-  if (threshold) console.log(chalk.gray(`  Threshold: ${threshold}/100`));
+  if (threshold)   console.log(chalk.gray(`  Threshold: ${threshold}/100`));
+  if (slackWebhook) console.log(chalk.gray('  Slack:     notifications enabled'));
+  if (prComments)  console.log(chalk.gray('  PR:        inline comments enabled (requires gh CLI)'));
   console.log(chalk.gray('  Press Ctrl+C to stop'));
   console.log();
 
@@ -332,7 +337,7 @@ async function watchDeep(absolutePath, options = {}) {
     console.log(chalk.gray(`  [${timestamp}] ${files.length} file(s) changed — deep scanning...`));
 
     try {
-      const orchestrator = buildOrchestrator();
+      const orchestrator = await buildOrchestratorAsync(absolutePath, { quiet: true });
       const context = {
         rootPath: absolutePath,
         files,
@@ -391,6 +396,16 @@ async function watchDeep(absolutePath, options = {}) {
       if (threshold && scoreResult.score < threshold) {
         console.log(chalk.red.bold(`  ⚠ Score ${scoreResult.score} below threshold ${threshold}\n`));
       }
+
+      // ── Slack Notification ──────────────────────────────────────────────
+      if (slackWebhook && findings.length > 0) {
+        await postSlackAlert(slackWebhook, findings, scoreResult, absolutePath).catch(() => {});
+      }
+
+      // ── GitHub PR Inline Comments ────────────────────────────────────────
+      if (prComments && findings.length > 0) {
+        await postPRComments(findings, absolutePath).catch(() => {});
+      }
     } catch (err) {
       console.log(chalk.red(`  [${timestamp}] Scan error: ${err.message}\n`));
     }
@@ -428,6 +443,128 @@ async function watchDeep(absolutePath, options = {}) {
   } catch (err) {
     output.error(`Watch failed: ${err.message}`);
     process.exit(1);
+  }
+}
+
+// =============================================================================
+// SLACK NOTIFICATIONS
+// =============================================================================
+
+/**
+ * Post a security alert to a Slack webhook.
+ * Webhook URL can be set via --slack or SHIP_SAFE_SLACK_WEBHOOK env var.
+ */
+async function postSlackAlert(webhookUrl, findings, scoreResult, rootPath) {
+  const repoName  = path.basename(rootPath);
+  const criticals = findings.filter(f => f.severity === 'critical').length;
+  const highs     = findings.filter(f => f.severity === 'high').length;
+
+  const color = criticals > 0 ? 'danger' : highs > 0 ? 'warning' : 'good';
+  const emoji = criticals > 0 ? ':rotating_light:' : highs > 0 ? ':warning:' : ':shield:';
+
+  const topFindings = findings
+    .filter(f => f.severity === 'critical' || f.severity === 'high')
+    .slice(0, 5)
+    .map(f => `• *${f.severity.toUpperCase()}* ${f.title} — \`${f.file ? path.basename(f.file) : '?'}${f.line ? `:${f.line}` : ''}\``)
+    .join('\n');
+
+  const payload = {
+    attachments: [{
+      color,
+      fallback: `Ship Safe: ${findings.length} security finding(s) in ${repoName}`,
+      title:    `${emoji} Ship Safe — Security Alert`,
+      text:     `*${repoName}* — Score: *${scoreResult.score ?? '?'}/100* — ${findings.length} finding(s) (${criticals} critical, ${highs} high)`,
+      fields:   topFindings ? [{ title: 'Top Findings', value: topFindings, short: false }] : [],
+      footer:   'ship-safe watch --deep',
+      ts:       Math.floor(Date.now() / 1000),
+    }],
+  };
+
+  const res = await fetch(webhookUrl, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(payload),
+    signal:  AbortSignal.timeout(10000),
+  });
+
+  if (!res.ok) {
+    console.log(chalk.yellow(`  [Slack] Notification failed: HTTP ${res.status}`));
+  }
+}
+
+// =============================================================================
+// GITHUB PR INLINE COMMENTS
+// =============================================================================
+
+/**
+ * Post inline security comments to the currently open PR (if any).
+ * Requires `gh` CLI to be installed and authenticated.
+ *
+ * Posts a review comment for each critical/high finding in a changed file.
+ */
+async function postPRComments(findings, rootPath) {
+  // Check if gh is available
+  try {
+    execFileSync('gh', ['--version'], { stdio: 'pipe' });
+  } catch {
+    console.log(chalk.gray('  [PR] gh CLI not found — skipping PR comments'));
+    return;
+  }
+
+  // Get current PR number
+  let prNumber;
+  try {
+    const prJson = execFileSync('gh', ['pr', 'view', '--json', 'number'], {
+      cwd: rootPath, encoding: 'utf-8', stdio: 'pipe',
+    });
+    prNumber = JSON.parse(prJson).number;
+  } catch {
+    return; // No open PR on this branch
+  }
+
+  // Get current commit SHA
+  let sha;
+  try {
+    sha = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: rootPath, encoding: 'utf-8', stdio: 'pipe',
+    }).trim();
+  } catch {
+    return;
+  }
+
+  const criticalOrHigh = findings.filter(f =>
+    (f.severity === 'critical' || f.severity === 'high') && f.file && f.line
+  ).slice(0, 10); // Max 10 comments per scan
+
+  for (const f of criticalOrHigh) {
+    const relFile = path.relative(rootPath, f.file).replace(/\\/g, '/');
+    const body = [
+      `**Ship Safe — ${f.severity.toUpperCase()} finding**`,
+      '',
+      `**${f.title}**`,
+      f.description || '',
+      '',
+      f.remediation ? `**Fix:** ${f.remediation}` : '',
+      '',
+      `_[${f.rule}] — detected by ship-safe watch_`,
+    ].filter(l => l !== undefined).join('\n');
+
+    try {
+      execFileSync('gh', [
+        'api',
+        `repos/{owner}/{repo}/pulls/${prNumber}/comments`,
+        '--method', 'POST',
+        '--field', `body=${body}`,
+        '--field', `commit_id=${sha}`,
+        '--field', `path=${relFile}`,
+        '--field', `line=${f.line}`,
+        '--field', 'side=RIGHT',
+      ], { cwd: rootPath, stdio: 'pipe' });
+    } catch { /* individual comment failure is non-fatal */ }
+  }
+
+  if (criticalOrHigh.length > 0) {
+    console.log(chalk.gray(`  [PR #${prNumber}] Posted ${criticalOrHigh.length} inline comment(s)`));
   }
 }
 
