@@ -1,11 +1,7 @@
 /**
  * Nginx site config manager.
- * Each deployed agent gets its own config file under /etc/nginx/sites-enabled/.
- *
- * Requires:
- *   - /etc/nginx/sites-enabled/ directory (created by setup.sh)
- *   - nginx service running with `nginx -s reload` capability
- *   - Wildcard SSL cert at /etc/letsencrypt/live/shipsafecli.com/
+ * Each deployed agent gets its own nginx config + individual Let's Encrypt cert.
+ * Certbot runs automatically on deploy — no wildcard cert needed.
  *
  * Subdomain format: {slug}.agents.shipsafecli.com
  */
@@ -19,14 +15,14 @@ const exec = promisify(execFile);
 
 const SITES_DIR   = process.env.NGINX_SITES_DIR || '/etc/nginx/sites-enabled';
 const DOMAIN_BASE = process.env.VPS_SUBDOMAIN_BASE || 'agents.shipsafecli.com';
-const SSL_CERT    = process.env.SSL_CERT || '/etc/letsencrypt/live/shipsafecli.com/fullchain.pem';
-const SSL_KEY     = process.env.SSL_KEY  || '/etc/letsencrypt/live/shipsafecli.com/privkey.pem';
+const CERTBOT_EMAIL = process.env.CERTBOT_EMAIL || 'alhassane.samassekou@gmail.com';
 
 function siteFile(slug) {
   return path.join(SITES_DIR, `hermes-${slug}.conf`);
 }
 
-function siteConfig(slug, port) {
+/** HTTP-only config written first — certbot upgrades it to HTTPS */
+function httpConfig(slug, port) {
   const host = `${slug}.${DOMAIN_BASE}`;
   return `# Ship Safe — agent: ${slug}
 # Auto-generated. Do not edit manually.
@@ -34,23 +30,6 @@ function siteConfig(slug, port) {
 server {
     listen 80;
     server_name ${host};
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name ${host};
-
-    ssl_certificate     ${SSL_CERT};
-    ssl_certificate_key ${SSL_KEY};
-    ssl_protocols       TLSv1.2 TLSv1.3;
-    ssl_ciphers         HIGH:!aNULL:!MD5;
-
-    # Security headers
-    add_header X-Frame-Options DENY;
-    add_header X-Content-Type-Options nosniff;
-    add_header X-XSS-Protection "1; mode=block";
-    add_header Strict-Transport-Security "max-age=31536000" always;
 
     location / {
         proxy_pass         http://127.0.0.1:${port};
@@ -69,16 +48,40 @@ server {
 }
 
 async function addSite(slug, port) {
+  const host = `${slug}.${DOMAIN_BASE}`;
   const file = siteFile(slug);
-  fs.writeFileSync(file, siteConfig(slug, port), 'utf8');
-  await exec('nginx', ['-t']);      // test config before reload
+
+  // 1. Write HTTP-only config
+  fs.writeFileSync(file, httpConfig(slug, port), 'utf8');
+  await exec('nginx', ['-t']);
   await exec('nginx', ['-s', 'reload']);
+
+  // 2. Run certbot to get cert + auto-upgrade config to HTTPS
+  try {
+    await exec('certbot', [
+      '--nginx',
+      '-d', host,
+      '--email', CERTBOT_EMAIL,
+      '--agree-tos',
+      '--no-eff-email',
+      '--non-interactive',
+      '--redirect',           // force HTTP→HTTPS redirect
+    ]);
+  } catch (e) {
+    // Cert failed — agent still reachable over HTTP, log and continue
+    console.error(`[nginx] certbot failed for ${host}:`, e.message);
+  }
 }
 
 async function removeSite(slug) {
+  const host = `${slug}.${DOMAIN_BASE}`;
   const file = siteFile(slug);
   if (fs.existsSync(file)) {
     fs.unlinkSync(file);
+    // Also remove the certbot cert
+    try {
+      await exec('certbot', ['delete', '--cert-name', host, '--non-interactive']);
+    } catch {}
     await exec('nginx', ['-s', 'reload']);
   }
 }
