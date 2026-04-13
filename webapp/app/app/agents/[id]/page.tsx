@@ -116,7 +116,7 @@ export default function AgentDetailPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
-      setAgent(data.agent);
+      await load(); // reload full agent (including deployments) to avoid missing fields
       setSaveOk(true);
       setTimeout(() => setSaveOk(false), 2500);
     } catch (e) {
