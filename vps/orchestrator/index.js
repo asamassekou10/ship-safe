@@ -258,6 +258,6 @@ const server = http.createServer(async (req, res) => {
   send(res, 404, { error: 'Not found' });
 });
 
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`[orchestrator] listening on 127.0.0.1:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`[orchestrator] listening on 0.0.0.0:${PORT}`);
 });
