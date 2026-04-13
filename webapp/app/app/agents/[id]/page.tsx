@@ -73,7 +73,14 @@ export default function AgentDetailPage() {
   const [deploying, setDeploying] = useState(false);
   const [stopping, setStopping]   = useState(false);
   const [deleting, setDeleting]   = useState(false);
+  const [saving, setSaving]       = useState(false);
+  const [saveOk, setSaveOk]       = useState(false);
   const [error, setError]         = useState('');
+
+  // Edit form state (synced from agent on load)
+  const [editName, setEditName]       = useState('');
+  const [editDesc, setEditDesc]       = useState('');
+  const [editEnvVars, setEditEnvVars] = useState<Array<{ key: string; value: string }>>([]);
   const [logLines, setLogLines]   = useState<string[]>([]);
   const [logsOpen, setLogsOpen]   = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
@@ -84,8 +91,40 @@ export default function AgentDetailPage() {
     if (!res.ok) { setError('Agent not found'); setLoading(false); return; }
     const data = await res.json();
     setAgent(data.agent);
+    setEditName(data.agent.name);
+    setEditDesc(data.agent.description ?? '');
+    setEditEnvVars(
+      Object.entries((data.agent.envVars as Record<string, string>) ?? {}).map(
+        ([key, value]) => ({ key, value })
+      )
+    );
     setLoading(false);
   }, [id]);
+
+  async function handleSave() {
+    setSaving(true);
+    setSaveOk(false);
+    setError('');
+    try {
+      const envVarsObj = Object.fromEntries(
+        editEnvVars.filter(e => e.key.trim()).map(e => [e.key.trim(), e.value])
+      );
+      const res = await fetch(`/api/agents/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editName.trim(), description: editDesc.trim(), envVars: envVarsObj }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+      setAgent(data.agent);
+      setSaveOk(true);
+      setTimeout(() => setSaveOk(false), 2500);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   useEffect(() => { load(); }, [load]);
 
@@ -422,6 +461,88 @@ export default function AgentDetailPage() {
       {/* ── Settings ───────────────────────────────────────── */}
       {tab === 'settings' && (
         <div className={styles.tabContent}>
+
+          {/* ── Edit form ── */}
+          <div className={styles.section}>
+            <div className={styles.sectionTitle}>Edit agent</div>
+
+            <div className={styles.editField}>
+              <label className={styles.editLabel}>Name</label>
+              <input
+                className={styles.editInput}
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                placeholder="Agent name"
+              />
+            </div>
+
+            <div className={styles.editField}>
+              <label className={styles.editLabel}>Description</label>
+              <input
+                className={styles.editInput}
+                value={editDesc}
+                onChange={e => setEditDesc(e.target.value)}
+                placeholder="What does this agent do?"
+              />
+            </div>
+
+            <div className={styles.editField}>
+              <label className={styles.editLabel}>Environment variables</label>
+              <div className={styles.editHint}>
+                Use <code>ANTHROPIC_API_KEY</code> or <code>OPENROUTER_API_KEY</code>.
+                Plain <code>OPENAI_API_KEY</code> is not supported by Hermes — use{' '}
+                <a href="https://openrouter.ai" target="_blank" rel="noopener">OpenRouter</a> instead.
+              </div>
+              <div className={styles.envRows}>
+                {editEnvVars.map((ev, i) => (
+                  <div key={i} className={styles.envRow}>
+                    <input
+                      className={`${styles.editInput} ${styles.envKey}`}
+                      value={ev.key}
+                      onChange={e => {
+                        const next = [...editEnvVars];
+                        next[i] = { ...next[i], key: e.target.value };
+                        setEditEnvVars(next);
+                      }}
+                      placeholder="KEY"
+                    />
+                    <input
+                      className={`${styles.editInput} ${styles.envVal}`}
+                      value={ev.value}
+                      onChange={e => {
+                        const next = [...editEnvVars];
+                        next[i] = { ...next[i], value: e.target.value };
+                        setEditEnvVars(next);
+                      }}
+                      placeholder="value"
+                      type={ev.key.toLowerCase().includes('key') || ev.key.toLowerCase().includes('secret') ? 'password' : 'text'}
+                    />
+                    <button
+                      className={styles.envRemove}
+                      onClick={() => setEditEnvVars(editEnvVars.filter((_, j) => j !== i))}
+                      title="Remove"
+                    >×</button>
+                  </div>
+                ))}
+                <button
+                  className={styles.envAdd}
+                  onClick={() => setEditEnvVars([...editEnvVars, { key: '', value: '' }])}
+                >+ Add variable</button>
+              </div>
+            </div>
+
+            <div className={styles.editActions}>
+              <button
+                className={styles.saveBtn}
+                onClick={handleSave}
+                disabled={saving || !editName.trim()}
+              >
+                {saving ? 'Saving…' : saveOk ? 'Saved!' : 'Save changes'}
+              </button>
+            </div>
+          </div>
+
+          {/* ── Agent info ── */}
           <div className={styles.section}>
             <div className={styles.sectionTitle}>Agent info</div>
             <div className={styles.configCard}>
