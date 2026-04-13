@@ -1,8 +1,17 @@
 'use client';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import AnsiToHtml from 'ansi-to-html';
 import styles from './console.module.css';
+
+const ansiConverter = new AnsiToHtml({
+  fg: '#e2e8f0',
+  bg: '#0f1117',
+  newline: true,
+  escapeXML: true,
+  stream: false,
+});
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -45,15 +54,9 @@ function timeAgo(date: string) {
   return `${Math.floor(s / 3600)}h ago`;
 }
 
-/** Minimal markdown → HTML: bold, italic, code, code blocks, links */
-function renderMarkdown(text: string) {
-  return text
-    .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-    .replace(/\n/g, '<br/>');
+/** Convert ANSI-escaped terminal output to safe HTML with colors. */
+function renderTerminal(text: string): string {
+  try { return ansiConverter.toHtml(text); } catch { return text.replace(/\n/g, '<br/>'); }
 }
 
 // ── Tool call card ─────────────────────────────────────────────────────────────
@@ -94,6 +97,11 @@ function ToolCard({ tc }: { tc: ToolCall }) {
 
 function MessageBubble({ msg }: { msg: Message }) {
   const isUser = msg.role === 'user';
+  // Memoize ANSI conversion — can be expensive for long responses
+  const terminalHtml = useMemo(
+    () => (!isUser && !msg.error) ? renderTerminal(msg.content) : '',
+    [isUser, msg.error, msg.content]
+  );
   return (
     <div className={`${styles.msg} ${isUser ? styles.msgUser : styles.msgAssistant}`}>
       <div className={styles.msgAvatar}>
@@ -107,10 +115,12 @@ function MessageBubble({ msg }: { msg: Message }) {
         {msg.toolCalls.map((tc, i) => <ToolCard key={i} tc={tc} />)}
         {msg.error ? (
           <div className={styles.msgError}>{msg.content}</div>
+        ) : isUser ? (
+          <div className={styles.msgText}>{msg.content}</div>
         ) : (
-          <div
-            className={styles.msgText}
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} // ship-safe-ignore
+          <pre
+            className={styles.terminalOutput}
+            dangerouslySetInnerHTML={{ __html: terminalHtml }} // ship-safe-ignore
           />
         )}
         {msg.streaming && <span className={styles.cursor} aria-hidden="true" />}

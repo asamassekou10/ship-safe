@@ -321,6 +321,26 @@
   padding: 0.1em 0.3em;
 }
 
+/* Terminal output for assistant messages */
+.terminalOutput {
+  font-family: 'Menlo', 'Monaco', 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  background: #0f1117;
+  color: #e2e8f0;
+  border: 1px solid #2d3748;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+  max-width: 680px;
+}
+
+/* Colors hermes emits via ANSI */
+.terminalOutput a { color: #63b3ed; }
+
 .msgError {
   font-size: 0.85rem;
   color: #ef4444;

@@ -134,6 +134,8 @@ def run_hermes_streaming(message: str, session_id: str, queue: Queue):
             return
 
         env  = os.environ.copy()
+        env["FORCE_COLOR"] = "1"   # make hermes output ANSI colors even in a pipe
+        env["TERM"] = "xterm-256color"
         args = _build_hermes_args(message, session_id)
 
         proc = subprocess.Popen(
@@ -146,41 +148,10 @@ def run_hermes_streaming(message: str, session_id: str, queue: Queue):
             env=env,
         )
 
-        # Characters used only in hermes box-drawing UI chrome
-        _BOX_CHARS = set("╭╰╮╯│─━┄┊ \t")
-
-        def _is_ui_chrome(line: str) -> bool:
-            """Return True for hermes decoration lines that should not be emitted."""
-            s = line.strip()
-            if not s:
-                return True
-            # Box borders and dividers
-            if s[0] in "╭╰╮╯│":
-                return True
-            if all(c in _BOX_CHARS for c in s):
-                return True
-            # Session metadata footer
-            if s.startswith("session_id:") or s.startswith("Resume this session"):
-                return True
-            if s.startswith("Session:") or s.startswith("Duration:") or s.startswith("Messages:"):
-                return True
-            # Hermes status / warning lines
-            if s.startswith("⚠") or s.startswith("┊") or s.startswith("❌") or s.startswith("✓"):
-                return True
-            if "─── ⚕ Hermes" in s or "⚕ Hermes" in s:
-                return True
-            # Spinner / progress lines
-            if s.startswith("Initializing") or s.startswith("Query:"):
-                return True
-            return False
-
-        # Stream stdout line-by-line, filter chrome, emit word-by-word
+        # Stream stdout line-by-line, emit each full line as one token so that
+        # ANSI escape sequences (colors, box-drawing) are never split mid-sequence.
         for line in iter(proc.stdout.readline, ""):
             line = line.rstrip("\n")
-
-            if _is_ui_chrome(line):
-                continue
-
             # Detect tool call lines
             if line.startswith("Calling tool:") or "→ tool:" in line.lower():
                 parts = line.split(":", 1)
@@ -189,11 +160,8 @@ def run_hermes_streaming(message: str, session_id: str, queue: Queue):
             elif line.startswith("Tool result:") or "← result:" in line.lower():
                 queue.put(_sse("tool_result", {"tool": "unknown", "result": line.split(":", 1)[-1].strip()[:500]}))
             else:
-                # Emit word-by-word for streaming UX
-                for word in line.split(" "):
-                    queue.put(_sse("token", word + " "))
-                    tokens_used += 1
-                queue.put(_sse("token", "\n"))
+                queue.put(_sse("token", line + "\n"))
+                tokens_used += 1
 
         proc.wait()
 
