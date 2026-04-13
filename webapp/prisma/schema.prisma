@@ -308,17 +308,29 @@ model Deployment {
 }
 
 model AgentRun {
-  id           String     @id @default(cuid())
+  id           String        @id @default(cuid())
   deploymentId String
-  input        String     @db.Text
-  output       String?    @db.Text
   tokensUsed   Int?
-  status       String     @default("running") // running | completed | error
-  deployment   Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
-  startedAt    DateTime   @default(now())
+  status       String        @default("running") // running | completed | error
+  deployment   Deployment    @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  messages     ChatMessage[]
+  startedAt    DateTime      @default(now())
   completedAt  DateTime?
 
   @@index([deploymentId, startedAt(sort: Desc)])
+}
+
+model ChatMessage {
+  id         String   @id @default(cuid())
+  runId      String
+  role       String   // user | assistant
+  content    String   @db.Text
+  toolCalls  Json?    // [{ tool, args, result }] — tool calls made during this message
+  tokensUsed Int?
+  run        AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@index([runId, createdAt])
 }
 
 // ── Payments ────────────────────────────────────────────

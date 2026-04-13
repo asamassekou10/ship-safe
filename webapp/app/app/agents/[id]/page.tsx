@@ -208,6 +208,10 @@ export default function AgentDetailPage() {
           <div className={styles.headerActions}>
             {isLive ? (
               <>
+                <Link href={`/app/agents/${id}/console`} className={styles.consoleBtn}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  Console
+                </Link>
                 <button className={styles.logsBtn} onClick={() => tab === 'logs' ? setTab('overview') : openLogs()}>
                   {tab === 'logs' ? 'Hide logs' : 'Logs'}
                 </button>

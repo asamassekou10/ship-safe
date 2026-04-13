@@ -87,6 +87,23 @@
 .stopBtn:hover:not(:disabled) { background: rgba(220,38,38,0.06); }
 .stopBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.consoleBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.83rem;
+  font-family: var(--font-sans);
+  text-decoration: none;
+  font-weight: 500;
+  transition: opacity 0.15s;
+}
+.consoleBtn:hover { opacity: 0.85; }
+
 .logsBtn {
   background: var(--bg-card);
   border: 1px solid var(--border);
