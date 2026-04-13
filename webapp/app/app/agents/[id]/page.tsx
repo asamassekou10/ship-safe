@@ -186,6 +186,8 @@ export default function AgentDetailPage() {
   const lastDeploy     = agent.deployments[0];
   const isLive         = agent.status === 'deployed' || agent.status === 'running';
   const isDeploying    = agent.status === 'deploying' || deploying;
+  const LLM_KEYS       = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY'];
+  const hasLLMKey      = LLM_KEYS.some(k => (agent.envVars as Record<string,string>)[k]?.trim());
 
   return (
     <div className={styles.page}>
@@ -214,15 +216,23 @@ export default function AgentDetailPage() {
                 </button>
               </>
             ) : (
-              <button
-                className={styles.deployBtn}
-                onClick={handleDeploy}
-                disabled={isDeploying}
-              >
-                {isDeploying ? (
-                  <><span className={styles.spinner} aria-hidden="true" />Deploying…</>
-                ) : 'Deploy'}
-              </button>
+              <div className={styles.deployWrap}>
+                <button
+                  className={styles.deployBtn}
+                  onClick={handleDeploy}
+                  disabled={isDeploying || !hasLLMKey}
+                  title={!hasLLMKey ? 'Add an LLM API key first (edit the agent)' : undefined}
+                >
+                  {isDeploying ? (
+                    <><span className={styles.spinner} aria-hidden="true" />Deploying…</>
+                  ) : 'Deploy'}
+                </button>
+                {!hasLLMKey && (
+                  <span className={styles.noKeyHint}>
+                    <Link href={`/app/agents/${id}/edit`}>Add API key</Link> to enable deploy
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>

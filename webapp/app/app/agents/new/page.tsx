@@ -22,6 +22,8 @@ const MEMORY_OPTIONS = [
   { value: 'none',      label: 'None',      desc: 'Stateless — no memory' },
 ];
 
+const LLM_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY'];
+
 type Step = 1 | 2 | 3;
 
 interface EnvVar { key: string; value: string }
@@ -40,8 +42,10 @@ export default function NewAgentPage() {
   const [memoryProvider, setMem]  = useState('builtin');
   const [maxDepth, setDepth]      = useState(2);
 
-  // Step 3 — Env vars
-  const [envVars, setEnvVars] = useState<EnvVar[]>([{ key: '', value: '' }]);
+  // Step 3 — Env vars (pre-filled with required LLM key)
+  const [envVars, setEnvVars] = useState<EnvVar[]>([
+    { key: 'ANTHROPIC_API_KEY', value: '' },
+  ]);
 
   const [step, setStep]       = useState<Step>(1);
   const [saving, setSaving]   = useState(false);
@@ -92,6 +96,9 @@ export default function NewAgentPage() {
   }
 
   const canStep1 = name.trim().length >= 2;
+  const hasLLMKey = envVars.some(
+    e => LLM_KEYS.includes(e.key.trim().toUpperCase()) && e.value.trim().length > 0
+  );
 
   return (
     <div className={styles.page}>
@@ -233,9 +240,17 @@ export default function NewAgentPage() {
         {/* ── Step 3: Env vars + review ───────────────────────── */}
         {step === 3 && (
           <div className={styles.stepBody}>
+            <div className={styles.llmBanner}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div>
+                <strong>LLM API key required</strong> — Hermes needs at least one to run.
+                Enter your <code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code>, or <code>OPENROUTER_API_KEY</code> below.
+              </div>
+            </div>
+
             <div className={styles.field}>
               <label className={styles.label}>Environment variables</label>
-              <span className={styles.hint}>API keys and secrets your tools need. Stored in your agent config.</span>
+              <span className={styles.hint}>API keys and secrets your tools need. Stored securely in your agent config.</span>
               <div className={styles.envList}>
                 {envVars.map((e, i) => (
                   <div key={i} className={styles.envRow}>
@@ -275,11 +290,18 @@ export default function NewAgentPage() {
               </div>
             </div>
 
+            {!hasLLMKey && (
+              <div className={styles.keyWarning}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Add an LLM API key above before creating the agent.
+              </div>
+            )}
+
             {error && <div className={styles.error}>{error}</div>}
 
             <div className={styles.actions}>
               <button className={styles.ghostBtn} onClick={() => setStep(2)} type="button">← Back</button>
-              <button className={styles.primaryBtn} onClick={save} disabled={saving} type="button">
+              <button className={styles.primaryBtn} onClick={save} disabled={saving || !hasLLMKey} type="button">
                 {saving ? 'Saving…' : 'Create Agent'}
               </button>
             </div>

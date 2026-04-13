@@ -17,11 +17,22 @@ export async function POST(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Deployment not configured on this server' }, { status: 503 });
   }
 
+  const LLM_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY'];
+
   const { id } = await params;
   const agent = await prisma.agent.findFirst({
     where: { id, userId: session.user.id },
   });
   if (!agent) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  // Block deploy if no LLM key — agent won't function without one
+  const envVars = agent.envVars as Record<string, string>;
+  const hasLLMKey = LLM_KEYS.some(k => envVars[k]?.trim());
+  if (!hasLLMKey) {
+    return NextResponse.json({
+      error: 'Add an LLM API key before deploying. Go to Edit and add ANTHROPIC_API_KEY, OPENAI_API_KEY, or OPENROUTER_API_KEY.',
+    }, { status: 400 });
+  }
 
   // Determine next deployment version
   const lastDeploy = await prisma.deployment.findFirst({

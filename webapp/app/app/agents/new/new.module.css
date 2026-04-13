@@ -264,6 +264,35 @@
 }
 .ghostBtn:hover { border-color: var(--border-hover); color: var(--text); }
 
+.llmBanner {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  background: rgba(8,145,178,0.06);
+  border: 1px solid rgba(8,145,178,0.2);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+.llmBanner svg { color: var(--cyan); margin-top: 2px; flex-shrink: 0; }
+.llmBanner code { font-family: var(--font-mono); font-size: 0.78rem; color: var(--cyan); }
+
+.keyWarning {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(217,119,6,0.06);
+  border: 1px solid rgba(217,119,6,0.2);
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.8rem;
+  color: var(--yellow);
+}
+.keyWarning svg { flex-shrink: 0; }
+
 .error {
   background: rgba(220,38,38,0.06);
   border: 1px solid rgba(220,38,38,0.2);

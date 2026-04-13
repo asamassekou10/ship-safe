@@ -33,7 +33,15 @@
   margin-top: 0.4rem;
 }
 
-.headerActions { display: flex; gap: 0.5rem; align-items: center; }
+.headerActions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+
+.deployWrap { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; }
+.noKeyHint {
+  font-size: 0.72rem;
+  color: var(--yellow);
+  white-space: nowrap;
+}
+.noKeyHint a { color: var(--yellow); text-decoration: underline; }
 
 .editBtn {
   background: var(--bg-card);
