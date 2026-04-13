@@ -4,8 +4,13 @@ import { prisma } from '@/lib/prisma';
 
 type Params = { params: Promise<{ id: string }> };
 
-const SUBDOMAIN_BASE      = process.env.VPS_SUBDOMAIN_BASE || 'agents.shipsafecli.com';
 const ORCHESTRATOR_SECRET = process.env.ORCHESTRATOR_SECRET;
+
+// Extract VPS host from ORCHESTRATOR_URL so server→agent calls go direct via IP:port,
+// not through the public subdomain (which requires nginx + SSL per agent).
+const VPS_HOST = (process.env.ORCHESTRATOR_URL || 'http://localhost:4099')
+  .replace(/^https?:\/\//, '')
+  .split(':')[0];
 
 /**
  * POST /api/agents/[id]/chat
@@ -62,10 +67,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     data: { runId: run.id, role: 'user', content: message },
   });
 
-  // Build agent URL — use subdomain if available, else container direct
-  const agentUrl = deployment.subdomain
-    ? `https://${deployment.subdomain}.${SUBDOMAIN_BASE}/chat`
-    : `http://127.0.0.1:${deployment.port}/chat`;
+  // Always reach the agent container directly via VPS IP:port.
+  // The subdomain is for end-user browser access; server→agent calls use the internal port.
+  const agentUrl = `http://${VPS_HOST}:${deployment.port}/chat`;
 
   // Fetch from agent container
   let agentRes: Response;
