@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import styles from './agent.module.css';
@@ -35,7 +35,7 @@ interface Agent {
   deployments: Deployment[];
 }
 
-type Tab = 'overview' | 'deployments' | 'settings';
+type Tab = 'overview' | 'deployments' | 'logs' | 'settings';
 
 function timeAgo(date: string) {
   const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -45,12 +45,13 @@ function timeAgo(date: string) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-function statusLabel(status: string) {
-  if (status === 'deployed') return { label: 'Live',    cls: 'statusLive' };
-  if (status === 'running')  return { label: 'Running', cls: 'statusLive' };
-  if (status === 'stopped')  return { label: 'Stopped', cls: 'statusStopped' };
-  if (status === 'failed')   return { label: 'Failed',  cls: 'statusFailed' };
-  if (status === 'pending')  return { label: 'Pending', cls: 'statusPending' };
+function statusMeta(status: string): { label: string; cls: string } {
+  if (status === 'deployed')  return { label: 'Live',      cls: 'statusLive' };
+  if (status === 'deploying') return { label: 'Deploying', cls: 'statusPending' };
+  if (status === 'running')   return { label: 'Running',   cls: 'statusLive' };
+  if (status === 'stopped')   return { label: 'Stopped',   cls: 'statusStopped' };
+  if (status === 'failed')    return { label: 'Failed',    cls: 'statusFailed' };
+  if (status === 'pending')   return { label: 'Pending',   cls: 'statusPending' };
   return { label: 'Draft', cls: 'statusDraft' };
 }
 
@@ -60,15 +61,23 @@ function scoreColor(n: number) {
   return 'var(--red)';
 }
 
+const SUBDOMAIN_BASE = process.env.NEXT_PUBLIC_SUBDOMAIN_BASE || 'agents.shipsafecli.com';
+
 export default function AgentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router  = useRouter();
 
-  const [agent, setAgent]       = useState<Agent | null>(null);
-  const [loading, setLoading]   = useState(true);
-  const [tab, setTab]           = useState<Tab>('overview');
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError]       = useState('');
+  const [agent, setAgent]         = useState<Agent | null>(null);
+  const [loading, setLoading]     = useState(true);
+  const [tab, setTab]             = useState<Tab>('overview');
+  const [deploying, setDeploying] = useState(false);
+  const [stopping, setStopping]   = useState(false);
+  const [deleting, setDeleting]   = useState(false);
+  const [error, setError]         = useState('');
+  const [logLines, setLogLines]   = useState<string[]>([]);
+  const [logsOpen, setLogsOpen]   = useState(false);
+  const logRef = useRef<HTMLDivElement>(null);
+  const esRef  = useRef<EventSource | null>(null);
 
   const load = useCallback(async () => {
     const res  = await fetch(`/api/agents/${id}`);
@@ -80,6 +89,84 @@ export default function AgentDetailPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Auto-poll while deploying
+  useEffect(() => {
+    if (!agent) return;
+    const isTransient = agent.status === 'deploying' || agent.status === 'pending';
+    if (!isTransient) return;
+    const t = setInterval(() => {
+      fetch(`/api/agents/${id}/status`)
+        .then(r => r.json())
+        .then(d => {
+          if (d.agentStatus && d.agentStatus !== agent.status) {
+            load();
+          }
+        })
+        .catch(() => {});
+    }, 3000);
+    return () => clearInterval(t);
+  }, [agent, id, load]);
+
+  // Scroll logs to bottom
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [logLines]);
+
+  function openLogs() {
+    if (esRef.current) { esRef.current.close(); esRef.current = null; }
+    setLogLines([]);
+    setLogsOpen(true);
+    setTab('logs');
+    const es = new EventSource(`/api/agents/${id}/logs`);
+    es.onmessage = e => {
+      try {
+        const line = JSON.parse(e.data);
+        if (typeof line === 'string') setLogLines(prev => [...prev.slice(-500), line]);
+      } catch {}
+    };
+    es.addEventListener('close', () => es.close());
+    es.onerror = () => { es.close(); esRef.current = null; };
+    esRef.current = es;
+  }
+
+  function closeLogs() {
+    if (esRef.current) { esRef.current.close(); esRef.current = null; }
+    setLogsOpen(false);
+  }
+
+  useEffect(() => () => { esRef.current?.close(); }, []);
+
+  async function handleDeploy() {
+    setError('');
+    setDeploying(true);
+    try {
+      const res = await fetch(`/api/agents/${id}/deploy`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Deploy failed');
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Deploy failed');
+    } finally {
+      setDeploying(false);
+    }
+  }
+
+  async function handleStop() {
+    setError('');
+    setStopping(true);
+    try {
+      const res = await fetch(`/api/agents/${id}/stop`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok && res.status !== 207) throw new Error(data.error || 'Stop failed');
+      closeLogs();
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Stop failed');
+    } finally {
+      setStopping(false);
+    }
+  }
+
   async function handleDelete() {
     if (!confirm(`Delete "${agent?.name}"? This cannot be undone.`)) return;
     setDeleting(true);
@@ -88,19 +175,17 @@ export default function AgentDetailPage() {
   }
 
   if (loading) return (
-    <div className={styles.page}>
-      <div className={styles.skeleton} />
-    </div>
+    <div className={styles.page}><div className={styles.skeleton} /></div>
   );
-
-  if (error || !agent) return (
-    <div className={styles.page}>
-      <div className={styles.errorState}>{error || 'Something went wrong'}</div>
-    </div>
+  if (error && !agent) return (
+    <div className={styles.page}><div className={styles.errorState}>{error}</div></div>
   );
+  if (!agent) return null;
 
-  const { label, cls } = statusLabel(agent.status);
-  const lastDeploy = agent.deployments[0];
+  const { label, cls } = statusMeta(agent.status);
+  const lastDeploy     = agent.deployments[0];
+  const isLive         = agent.status === 'deployed' || agent.status === 'running';
+  const isDeploying    = agent.status === 'deploying' || deploying;
 
   return (
     <div className={styles.page}>
@@ -113,35 +198,60 @@ export default function AgentDetailPage() {
         <div className={styles.titleRow}>
           <div className={styles.titleLeft}>
             <h1 className={styles.title}>{agent.name}</h1>
-            <span className={`${styles.statusBadge} ${styles[cls]}`}>{label}</span>
+            <span className={`${styles.statusBadge} ${styles[cls]}`}>
+              {isDeploying && <span className={styles.spinner} aria-hidden="true" />}
+              {label}
+            </span>
           </div>
           <div className={styles.headerActions}>
-            <Link href={`/app/agents/${id}/edit`} className={styles.editBtn}>Edit</Link>
-            <button
-              className={styles.deployBtn}
-              title="Deploy coming in Phase 2"
-              disabled
-            >
-              Deploy
-            </button>
+            {isLive ? (
+              <>
+                <button className={styles.logsBtn} onClick={() => tab === 'logs' ? setTab('overview') : openLogs()}>
+                  {tab === 'logs' ? 'Hide logs' : 'Logs'}
+                </button>
+                <button className={styles.stopBtn} onClick={handleStop} disabled={stopping}>
+                  {stopping ? 'Stopping…' : 'Stop'}
+                </button>
+              </>
+            ) : (
+              <button
+                className={styles.deployBtn}
+                onClick={handleDeploy}
+                disabled={isDeploying}
+              >
+                {isDeploying ? (
+                  <><span className={styles.spinner} aria-hidden="true" />Deploying…</>
+                ) : 'Deploy'}
+              </button>
+            )}
           </div>
         </div>
         {agent.description && <p className={styles.desc}>{agent.description}</p>}
-        {lastDeploy?.subdomain && (
-          <div className={styles.liveUrl}>
+        {lastDeploy?.subdomain && isLive && (
+          <a
+            href={`https://${lastDeploy.subdomain}.${SUBDOMAIN_BASE}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.liveUrl}
+          >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-            {lastDeploy.subdomain}.shipsafecli.com
-          </div>
+            {lastDeploy.subdomain}.{SUBDOMAIN_BASE} ↗
+          </a>
         )}
+        {error && <div className={styles.errorBanner}>{error}</div>}
       </div>
 
       {/* ── Tabs ───────────────────────────────────────────── */}
       <div className={styles.tabs}>
-        {(['overview', 'deployments', 'settings'] as Tab[]).map(t => (
+        {(['overview', 'deployments', 'logs', 'settings'] as Tab[]).map(t => (
           <button
             key={t}
             className={`${styles.tab} ${tab === t ? styles.tabActive : ''}`}
-            onClick={() => setTab(t)}
+            onClick={() => {
+              setTab(t);
+              if (t === 'logs' && isLive && !logsOpen) openLogs();
+              if (t !== 'logs') closeLogs();
+            }}
           >
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
@@ -202,22 +312,27 @@ export default function AgentDetailPage() {
               {agent.tools.map(t => (
                 <span key={t.name} className={styles.toolTag}>{t.name}</span>
               ))}
-              {agent.tools.length === 0 && <span className={styles.empty}>No tools configured</span>}
+              {agent.tools.length === 0 && <span className={styles.dimText}>No tools configured</span>}
             </div>
           </div>
 
-          <div className={styles.section}>
-            <div className={styles.sectionTitle}>Next step</div>
-            <div className={styles.nextCard}>
-              <div className={styles.nextIcon}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              </div>
-              <div>
-                <div className={styles.nextTitle}>Ready to deploy</div>
-                <div className={styles.nextDesc}>VPS deployment is coming in Phase 2. Your agent config is saved — one-click deploy will be available soon.</div>
+          {!isLive && (
+            <div className={styles.section}>
+              <div className={styles.sectionTitle}>Ready to deploy</div>
+              <div className={styles.nextCard}>
+                <div className={styles.nextIcon}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                </div>
+                <div>
+                  <div className={styles.nextTitle}>Deploy to VPS</div>
+                  <div className={styles.nextDesc}>
+                    Click <strong>Deploy</strong> to start your agent on a Ship Safe-managed VPS.
+                    It will get its own subdomain at <code>{agent.slug}.{SUBDOMAIN_BASE}</code>.
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -227,28 +342,64 @@ export default function AgentDetailPage() {
           {agent.deployments.length === 0 ? (
             <div className={styles.emptyState}>
               <div className={styles.emptyTitle}>No deployments yet</div>
-              <div className={styles.emptyDesc}>VPS deployment launches in Phase 2. Your agent config is ready.</div>
+              <div className={styles.emptyDesc}>Click Deploy to start your first deployment.</div>
             </div>
           ) : (
             <div className={styles.deployList}>
               {agent.deployments.map(d => {
-                const { label: dl, cls: dc } = statusLabel(d.status);
+                const dm = statusMeta(d.status);
                 return (
                   <div key={d.id} className={styles.deployCard}>
                     <div className={styles.deployTop}>
                       <span className={styles.deployVersion}>v{d.version}</span>
-                      <span className={`${styles.statusBadge} ${styles[dc]}`}>{dl}</span>
+                      <span className={`${styles.statusBadge} ${styles[dm.cls]}`}>{dm.label}</span>
                       {d.securityScore != null && (
                         <span className={styles.deployScore} style={{ color: scoreColor(d.securityScore) }}>
                           {d.securityScore}/100
                         </span>
                       )}
+                      <span className={styles.deployTime}>{timeAgo(d.createdAt)}</span>
                     </div>
-                    {d.subdomain && <div className={styles.deployUrl}>{d.subdomain}.shipsafecli.com</div>}
-                    <div className={styles.deployMeta}>{timeAgo(d.createdAt)}</div>
+                    {d.subdomain && (
+                      <div className={styles.deployUrl}>{d.subdomain}.{SUBDOMAIN_BASE}</div>
+                    )}
+                    {d.deployLog && (
+                      <pre className={styles.deployLog}>{d.deployLog}</pre>
+                    )}
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Logs ───────────────────────────────────────────── */}
+      {tab === 'logs' && (
+        <div className={styles.tabContent}>
+          {!isLive ? (
+            <div className={styles.emptyState}>
+              <div className={styles.emptyTitle}>Agent is not running</div>
+              <div className={styles.emptyDesc}>Deploy the agent first to view live logs.</div>
+            </div>
+          ) : (
+            <div className={styles.logsCard}>
+              <div className={styles.logsHeader}>
+                <span className={styles.logsBadge}>
+                  <span className={styles.logsDot} />
+                  Live
+                </span>
+                <span className={styles.logsNote}>{logLines.length} lines</span>
+              </div>
+              <div className={styles.logsList} ref={logRef}>
+                {logLines.length === 0 ? (
+                  <span className={styles.logsEmpty}>Waiting for output…</span>
+                ) : (
+                  logLines.map((line, i) => (
+                    <div key={i} className={styles.logLine}>{line}</div>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </div>

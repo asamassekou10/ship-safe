@@ -48,6 +48,9 @@
 .editBtn:hover { border-color: var(--border-hover); }
 
 .deployBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   background: var(--cyan);
   color: #fff;
   border: none;
@@ -57,10 +60,60 @@
   font-weight: 600;
   font-family: var(--font-sans);
   cursor: pointer;
-  opacity: 0.45;
+  transition: opacity 0.15s;
 }
-.deployBtn:not(:disabled) { opacity: 1; }
-.deployBtn:not(:disabled):hover { opacity: 0.88; }
+.deployBtn:hover:not(:disabled) { opacity: 0.88; }
+.deployBtn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.stopBtn {
+  background: var(--bg-card);
+  border: 1px solid rgba(220,38,38,0.35);
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.83rem;
+  color: var(--red);
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.stopBtn:hover:not(:disabled) { background: rgba(220,38,38,0.06); }
+.stopBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.logsBtn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.83rem;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.logsBtn:hover { border-color: var(--border-hover); color: var(--text); }
+
+/* ── Spinner ─────────────────────────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ── Error banner ────────────────────────────────────────── */
+.errorBanner {
+  margin-top: 0.6rem;
+  background: rgba(220,38,38,0.06);
+  border: 1px solid rgba(220,38,38,0.2);
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.8rem;
+  color: var(--red);
+}
 
 /* ── Status badges ───────────────────────────────────────── */
 .statusBadge {
@@ -161,7 +214,53 @@
   padding: 0.25rem 0.65rem;
   border-radius: 20px;
 }
-.empty { font-size: 0.82rem; color: var(--text-dim); }
+.dimText { font-size: 0.82rem; color: var(--text-dim); }
+
+/* ── Logs ────────────────────────────────────────────────── */
+.logsCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.logsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+.logsBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--green);
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.logsDot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+.logsNote { font-size: 0.72rem; color: var(--text-dim); }
+.logsList {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  padding: 0.75rem 1rem;
+  max-height: 480px;
+  overflow-y: auto;
+  background: var(--bg);
+  color: var(--text-muted);
+}
+.logLine { white-space: pre-wrap; word-break: break-all; }
+.logsEmpty { color: var(--text-dim); font-size: 0.78rem; }
 
 /* ── Next step card ──────────────────────────────────────── */
 .nextCard {
