@@ -255,6 +255,50 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // POST /chat/:port  — proxy SSE stream to agent container on 127.0.0.1:port
+  const chatMatch = url.match(/^\/chat\/(\d+)$/);
+  if (method === 'POST' && chatMatch) {
+    const port = parseInt(chatMatch[1], 10);
+    if (port < PORT_START || port > PORT_END) return send(res, 400, { error: 'Invalid port' });
+
+    let body = '';
+    req.on('data', c => { body += c; });
+    req.on('end', async () => {
+      try {
+        const agentRes = await fetch(`http://127.0.0.1:${port}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+        });
+
+        if (!agentRes.ok || !agentRes.body) {
+          return send(res, 502, { error: 'Agent error' });
+        }
+
+        res.writeHead(200, {
+          'Content-Type':      'text/event-stream',
+          'Cache-Control':     'no-cache',
+          'Connection':        'keep-alive',
+          'X-Accel-Buffering': 'no',
+        });
+
+        const reader = agentRes.body.getReader();
+        const pump = async () => {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) { res.end(); break; }
+            res.write(value);
+          }
+        };
+        pump().catch(() => res.end());
+        req.on('close', () => reader.cancel());
+      } catch (e) {
+        send(res, 502, { error: e.message });
+      }
+    });
+    return;
+  }
+
   send(res, 404, { error: 'Not found' });
 });
 

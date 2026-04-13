@@ -1,11 +1,11 @@
 """
 Ship Safe — Hermes Agent HTTP Wrapper
-Phase 3: Full streaming chat with structured SSE events.
 
-SSE event types:
+Uses the `hermes chat -q MESSAGE -Q` CLI under the hood.
+SSE event types emitted:
   event: token       data: "partial text..."
-  event: tool_call   data: {"tool": "web_search", "args": {...}}
-  event: tool_result data: {"tool": "web_search", "result": "..."}
+  event: tool_call   data: {"tool": "...", "args": {}}
+  event: tool_result data: {"tool": "...", "result": "..."}
   event: error       data: {"message": "..."}
   event: done        data: {"tokensUsed": N}
 
@@ -14,13 +14,13 @@ Config injected via HERMES_CONFIG env var (JSON string).
 
 import json
 import os
+import subprocess
 import sys
 import threading
-import time
-import traceback
-import yaml
 from pathlib import Path
 from queue import Queue, Empty
+
+import yaml
 from flask import Flask, Response, jsonify, request, stream_with_context
 
 app = Flask(__name__)
@@ -33,108 +33,115 @@ try:
 except json.JSONDecodeError:
     AGENT_CONFIG = {}
 
-HERMES_CONFIG_PATH = Path.home() / ".hermes" / "config.yaml"
-MEMORY_PATH        = Path.home() / ".hermes" / "memories"
+HERMES_HOME   = Path.home() / ".hermes"
+CONFIG_PATH   = HERMES_HOME / "config.yaml"
+MEMORY_PATH   = HERMES_HOME / "memories"
+
+
+def _detect_provider_and_model():
+    """Return (provider, model, base_url) based on available env keys."""
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return "anthropic", "claude-sonnet-4-6", "https://api.anthropic.com"
+    if os.environ.get("OPENROUTER_API_KEY"):
+        return "openrouter", "openai/gpt-4o", ""
+    if os.environ.get("OPENAI_API_KEY"):
+        # Hermes v0.8 forces the Responses API when base_url is api.openai.com,
+        # which requires special encrypted content not supported by gpt-4o.
+        # Signal this so the wrapper can emit a helpful error instead of silently failing.
+        os.environ["_HERMES_OPENAI_UNSUPPORTED"] = "1"
+        return "auto", "", ""
+    return "auto", "", ""
+
 
 def bootstrap_hermes_config():
-    HERMES_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    HERMES_HOME.mkdir(parents=True, exist_ok=True)
     MEMORY_PATH.mkdir(parents=True, exist_ok=True)
 
-    memory_provider = AGENT_CONFIG.get("memoryProvider", "builtin")
-    tools           = [t["name"] for t in AGENT_CONFIG.get("tools", [])]
-    max_depth       = AGENT_CONFIG.get("maxDepth", 2)
+    provider, model, base_url = _detect_provider_and_model()
+    memory_provider            = AGENT_CONFIG.get("memoryProvider", "builtin")
+    max_depth                  = AGENT_CONFIG.get("maxDepth", 2)
 
-    config = {
+    config: dict = {
         "memory_provider": memory_provider,
         "max_delegation_depth": max_depth,
-        "allowed_tools": tools,
     }
+    if provider != "auto":
+        config["model"] = {"provider": provider, "default": model}
+        if base_url:
+            config["model"]["base_url"] = base_url
 
-    if memory_provider == "honcho":
-        config["honcho"] = {"api_key": os.environ.get("HONCHO_API_KEY", "")}
-    elif memory_provider == "mem0":
-        config["mem0"] = {"api_key": os.environ.get("MEM0_API_KEY", "")}
-    elif memory_provider == "hindsight":
-        config["hindsight"] = {"api_key": os.environ.get("HINDSIGHT_API_KEY", "")}
-
-    with open(HERMES_CONFIG_PATH, "w") as f:
+    # Write hermes config.yaml
+    with open(CONFIG_PATH, "w") as f:
         yaml.dump(config, f, default_flow_style=False)
 
-    memory_md = MEMORY_PATH / "MEMORY.md"
-    if not memory_md.exists():
-        memory_md.write_text("# Agent Memory\n\nThis file is managed by the Hermes agent.\n")
+    # Write ~/.hermes/.env so hermes's own credential resolver finds the keys.
+    # This must happen AFTER _detect_provider_and_model() sets the bridged vars.
+    env_path = HERMES_HOME / ".env"
+    env_lines = []
+    for key in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY",
+                "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL"):
+        val = os.environ.get(key)
+        if val:
+            env_lines.append(f"{key}={val}")
+    env_path.write_text("\n".join(env_lines) + "\n")
 
-    user_md = MEMORY_PATH / "USER.md"
-    if not user_md.exists():
-        user_md.write_text("# User Profile\n\nThis file is managed by the Hermes agent.\n")
+    # Seed memory files
+    for fname, heading in [("MEMORY.md", "# Agent Memory"), ("USER.md", "# User Profile")]:
+        p = MEMORY_PATH / fname
+        if not p.exists():
+            p.write_text(f"{heading}\n\nThis file is managed by the Hermes agent.\n")
+
 
 bootstrap_hermes_config()
 
-# ── Hermes integration ────────────────────────────────────────────────────────
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _sse(event: str, data) -> str:
     payload = data if isinstance(data, str) else json.dumps(data)
     return f"event: {event}\ndata: {payload}\n\n"
 
-def run_hermes_streaming(message: str, queue: Queue):
-    """
-    Run Hermes agent and push structured SSE events onto the queue.
-    Tries direct Python API first; falls back to subprocess streaming.
-    """
+
+def _build_hermes_args(message: str, session_id: str) -> list:
+    """Build the hermes CLI argument list."""
+    # Provider was already resolved during bootstrap — use 'auto' here and
+    # let hermes pick it up from config.yaml / .env.
+    args = ["hermes", "chat", "-q", message, "-Q", "--source", "tool"]
+
+    # Resume or continue the session so conversation history is preserved
+    if session_id:
+        args += ["--continue", session_id]
+
+    max_depth = AGENT_CONFIG.get("maxDepth", 2)
+    if max_depth:
+        args += ["--max-turns", str(max_depth * 10)]
+
+    return args
+
+
+# ── Streaming runner ──────────────────────────────────────────────────────────
+
+def run_hermes_streaming(message: str, session_id: str, queue: Queue):
     tokens_used = 0
 
     try:
-        # ── Attempt 1: Direct Python API ────────────────────────────────────
-        from hermes.agent import create_agent
-        from hermes.config import HermesConfig
+        # Check for unsupported key configuration before running hermes
+        if os.environ.get("_HERMES_OPENAI_UNSUPPORTED"):
+            queue.put(_sse("error", {
+                "message": (
+                    "OPENAI_API_KEY is not directly supported by Hermes v0.8. "
+                    "Please use ANTHROPIC_API_KEY or OPENROUTER_API_KEY instead. "
+                    "Get an OpenRouter key at openrouter.ai (it supports OpenAI models too)."
+                )
+            }))
+            queue.put(_sse("done", {"tokensUsed": 0}))
+            return
 
-        cfg = HermesConfig.from_file(str(HERMES_CONFIG_PATH))
+        env  = os.environ.copy()
+        args = _build_hermes_args(message, session_id)
 
-        # Inject LLM API keys from environment
-        for key in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY"):
-            val = os.environ.get(key)
-            if val:
-                os.environ[key] = val  # ensure it's set for sub-processes too
-
-        agent = create_agent(cfg)
-
-        # Patch tool registry to intercept tool calls
-        original_dispatch = None
-        try:
-            from hermes.tools.registry import registry
-
-            original_dispatch = registry.dispatch
-
-            def patched_dispatch(tool_name, **kwargs):
-                queue.put(_sse("tool_call", {"tool": tool_name, "args": kwargs}))
-                result = original_dispatch(tool_name, **kwargs)
-                queue.put(_sse("tool_result", {"tool": tool_name, "result": str(result)[:500]}))
-                return result
-
-            registry.dispatch = patched_dispatch
-        except Exception:
-            pass  # Tool interception optional
-
-        # Stream tokens
-        response_text = ""
-        for chunk in agent.stream(message):
-            if isinstance(chunk, str):
-                queue.put(_sse("token", chunk))
-                response_text += chunk
-                tokens_used += len(chunk.split())
-
-        if original_dispatch:
-            registry.dispatch = original_dispatch
-
-        queue.put(_sse("done", {"tokensUsed": tokens_used, "response": response_text}))
-
-    except (ImportError, AttributeError):
-        # ── Fallback: subprocess streaming ──────────────────────────────────
-        import subprocess
-
-        env = os.environ.copy()
         proc = subprocess.Popen(
-            [sys.executable, "-m", "hermes.run", "--message", message],
+            args,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -143,38 +150,45 @@ def run_hermes_streaming(message: str, queue: Queue):
             env=env,
         )
 
+        # Stream stdout word-by-word for a real-time feel
         for line in iter(proc.stdout.readline, ""):
             line = line.rstrip("\n")
             if not line:
                 continue
 
-            # Try to detect tool call lines (e.g. "Calling tool: web_search(query=...)")
-            if line.startswith("Calling tool:") or "registry.dispatch" in line:
+            # Detect tool call lines in verbose output
+            if line.startswith("Calling tool:") or "→ tool:" in line.lower():
                 parts = line.split(":", 1)
                 tool_info = parts[1].strip() if len(parts) > 1 else line
                 queue.put(_sse("tool_call", {"tool": tool_info, "args": {}}))
-            elif line.startswith("Tool result:"):
-                queue.put(_sse("tool_result", {"tool": "unknown", "result": line[12:].strip()[:500]}))
+            elif line.startswith("Tool result:") or "← result:" in line.lower():
+                queue.put(_sse("tool_result", {"tool": "unknown", "result": line.split(":", 1)[-1].strip()[:500]}))
             else:
-                # Regular token output — emit word by word for better streaming feel
-                for word in line.split(" "):
+                # Emit word-by-word for streaming UX
+                words = line.split(" ")
+                for word in words:
                     queue.put(_sse("token", word + " "))
                     tokens_used += 1
                 queue.put(_sse("token", "\n"))
 
         proc.wait()
 
-        if proc.returncode != 0:
-            err = proc.stderr.read()
-            queue.put(_sse("error", {"message": err[:300]}))
+        stderr_out = proc.stderr.read()
+        if proc.returncode != 0 and tokens_used == 0:
+            # Only surface stderr as error if we got no output at all
+            queue.put(_sse("error", {"message": stderr_out[:400] if stderr_out else "Agent returned no output"}))
 
         queue.put(_sse("done", {"tokensUsed": tokens_used}))
 
+    except FileNotFoundError:
+        queue.put(_sse("error", {"message": "hermes CLI not found. Is hermes-agent installed?"}))
+        queue.put(_sse("done", {"tokensUsed": 0}))
     except Exception as e:
         queue.put(_sse("error", {"message": str(e)}))
         queue.put(_sse("done", {"tokensUsed": 0}))
     finally:
         queue.put(None)  # sentinel
+
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
@@ -195,18 +209,23 @@ def info():
 @app.route("/chat", methods=["POST"])
 def chat():
     """
-    POST /chat  body: {"message": "...", "sessionId": "optional"}
+    POST /chat  body: {"message": "...", "sessionId": "optional-run-id"}
     Streams SSE: token | tool_call | tool_result | error | done
     """
-    body    = request.get_json(silent=True) or {}
-    message = (body.get("message") or "").strip()
+    body       = request.get_json(silent=True) or {}
+    message    = (body.get("message") or "").strip()
+    session_id = (body.get("sessionId") or "").strip()
+
     if not message:
         return jsonify({"error": "message is required"}), 400
 
     queue = Queue()
 
-    # Run Hermes in a background thread so we can stream
-    t = threading.Thread(target=run_hermes_streaming, args=(message, queue), daemon=True)
+    t = threading.Thread(
+        target=run_hermes_streaming,
+        args=(message, session_id, queue),
+        daemon=True,
+    )
     t.start()
 
     def generate():
@@ -217,7 +236,7 @@ def chat():
                     break
                 yield item
             except Empty:
-                yield _sse("error", {"message": "Agent timed out"})
+                yield _sse("error", {"message": "Agent timed out after 2 minutes"})
                 break
 
     return Response(

@@ -4,13 +4,8 @@ import { prisma } from '@/lib/prisma';
 
 type Params = { params: Promise<{ id: string }> };
 
+const ORCHESTRATOR_URL    = process.env.ORCHESTRATOR_URL || 'http://localhost:4099';
 const ORCHESTRATOR_SECRET = process.env.ORCHESTRATOR_SECRET;
-
-// Extract VPS host from ORCHESTRATOR_URL so server→agent calls go direct via IP:port,
-// not through the public subdomain (which requires nginx + SSL per agent).
-const VPS_HOST = (process.env.ORCHESTRATOR_URL || 'http://localhost:4099')
-  .replace(/^https?:\/\//, '')
-  .split(':')[0];
 
 /**
  * POST /api/agents/[id]/chat
@@ -67,9 +62,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     data: { runId: run.id, role: 'user', content: message },
   });
 
-  // Always reach the agent container directly via VPS IP:port.
-  // The subdomain is for end-user browser access; server→agent calls use the internal port.
-  const agentUrl = `http://${VPS_HOST}:${deployment.port}/chat`;
+  // Route through the orchestrator proxy (port 4099, already open in firewall).
+  // Agent containers bind to 127.0.0.1 so they're only reachable from the VPS itself.
+  const agentUrl = `${ORCHESTRATOR_URL}/chat/${deployment.port}`;
 
   // Fetch from agent container
   let agentRes: Response;
