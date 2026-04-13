@@ -108,10 +108,6 @@ def _build_hermes_args(message: str, session_id: str) -> list:
     # let hermes pick it up from config.yaml / .env.
     args = ["hermes", "chat", "-q", message, "-Q", "--source", "tool"]
 
-    # Resume or continue the session so conversation history is preserved
-    if session_id:
-        args += ["--continue", session_id]
-
     max_depth = AGENT_CONFIG.get("maxDepth", 2)
     if max_depth:
         args += ["--max-turns", str(max_depth * 10)]
