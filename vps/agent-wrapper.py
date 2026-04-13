@@ -99,7 +99,9 @@ bootstrap_hermes_config()
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _sse(event: str, data) -> str:
-    payload = data if isinstance(data, str) else json.dumps(data)
+    # Always JSON-encode so newlines in string payloads survive SSE framing.
+    # The client already does JSON.parse() on all data fields.
+    payload = json.dumps(data)
     return f"event: {event}\ndata: {payload}\n\n"
 
 
