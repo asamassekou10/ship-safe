@@ -43,7 +43,7 @@ def _detect_provider_and_model():
     if os.environ.get("ANTHROPIC_API_KEY"):
         return "anthropic", "claude-sonnet-4-6", "https://api.anthropic.com"
     if os.environ.get("OPENROUTER_API_KEY"):
-        return "openrouter", "openai/gpt-4o", ""
+        return "openrouter", "openai/gpt-4o-mini", ""
     if os.environ.get("OPENAI_API_KEY"):
         # Hermes v0.8 forces the Responses API when base_url is api.openai.com,
         # which requires special encrypted content not supported by gpt-4o.

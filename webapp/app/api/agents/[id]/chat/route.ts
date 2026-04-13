@@ -73,7 +73,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(ORCHESTRATOR_SECRET ? { 'X-Agent-Secret': ORCHESTRATOR_SECRET } : {}),
+        ...(ORCHESTRATOR_SECRET ? { 'Authorization': `Bearer ${ORCHESTRATOR_SECRET}` } : {}),
       },
       body: JSON.stringify({ message, sessionId: run.id }),
     });
