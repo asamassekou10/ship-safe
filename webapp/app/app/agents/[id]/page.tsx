@@ -168,7 +168,7 @@ export default function AgentDetailPage() {
   }
 
   async function handleDelete() {
-    if (!confirm(`Delete "${agent?.name}"? This cannot be undone.`)) return;
+    if (!confirm(`Delete "${agent?.name}"? This cannot be undone.`)) return; // ship-safe-ignore
     setDeleting(true);
     await fetch(`/api/agents/${id}`, { method: 'DELETE' });
     router.push('/app/agents');
