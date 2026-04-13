@@ -497,6 +497,223 @@
 .saveBtn:hover:not(:disabled) { opacity: 0.85; }
 .saveBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* ── Triggers tab ────────────────────────────────────────── */
+
+.triggerCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  margin-left: 5px;
+}
+
+.sectionHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.sectionDesc {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0 0 1.1rem;
+}
+
+.addTriggerBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, color 0.15s;
+}
+.addTriggerBtn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Create form */
+.triggerForm {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.trigTypeRow {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+
+.trigTypeBtn {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.83rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.13s, border-color 0.13s, color 0.13s;
+}
+.trigTypeBtn:hover { background: var(--bg); color: var(--text); }
+.trigTypeBtnActive {
+  background: var(--bg);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.trigPromptArea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: monospace;
+  font-size: 0.8rem !important;
+}
+
+.optional { color: var(--text-muted); font-weight: 400; }
+
+/* Trigger cards */
+.triggerCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.75rem;
+  transition: border-color 0.15s;
+}
+.triggerCard:hover { border-color: var(--accent); }
+.triggerDisabled { opacity: 0.55; }
+
+.triggerCardTop {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.65rem;
+}
+
+.triggerTypeChip {
+  font-size: 0.74rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.15rem 0.5rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.triggerLabel {
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.triggerActions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.triggerToggle {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.13s, color 0.13s;
+}
+.triggerToggleOn {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #22c55e;
+}
+
+.triggerDelete {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: background 0.13s, color 0.13s, border-color 0.13s;
+}
+.triggerDelete:hover { background: rgba(239,68,68,0.1); color: #ef4444; border-color: #ef4444; }
+
+.triggerRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.35rem;
+}
+
+.triggerRowLabel {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  width: 44px;
+  flex-shrink: 0;
+}
+
+.triggerUrl {
+  flex: 1;
+  font-size: 0.76rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--bg);
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+}
+
+.copyBtn {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.13s, color 0.13s;
+  white-space: nowrap;
+}
+.copyBtn:hover { background: var(--bg); color: var(--text); }
+
+.triggerMeta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.4rem;
+}
+
 @media (max-width: 700px) {
   .page       { padding: 1.25rem; }
   .statsRow   { grid-template-columns: repeat(2, 1fr); }

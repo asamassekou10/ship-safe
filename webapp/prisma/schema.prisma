@@ -281,11 +281,28 @@ model Agent {
   status         String       @default("draft") // draft | deployed | stopped | failed
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   deployments    Deployment[]
+  triggers       Trigger[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([orgId])
+}
+
+model Trigger {
+  id          String    @id @default(cuid())
+  agentId     String
+  agent       Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  type        String    // "webhook" | "cron"
+  label       String    @default("")
+  secret      String    // Bearer token for webhook auth
+  cronExpr    String?   // cron expression (cron type only)
+  promptTpl   String    @default("You have been triggered. Here is the event context:\n\n{payload}")
+  enabled     Boolean   @default(true)
+  lastFiredAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([agentId])
 }
 
 model Deployment {
@@ -310,6 +327,7 @@ model Deployment {
 model AgentRun {
   id           String        @id @default(cuid())
   deploymentId String
+  triggerId    String?       // set when fired by a Trigger
   tokensUsed   Int?
   status       String        @default("running") // running | completed | error
   deployment   Deployment    @relation(fields: [deploymentId], references: [id], onDelete: Cascade)

@@ -6,6 +6,18 @@ import styles from './agent.module.css';
 
 interface Tool { name: string; sourceUrl?: string }
 
+interface Trigger {
+  id:          string;
+  type:        'webhook' | 'cron';
+  label:       string;
+  secret:      string;
+  cronExpr:    string | null;
+  promptTpl:   string;
+  enabled:     boolean;
+  lastFiredAt: string | null;
+  createdAt:   string;
+}
+
 interface Deployment {
   id: string;
   version: number;
@@ -35,7 +47,7 @@ interface Agent {
   deployments: Deployment[];
 }
 
-type Tab = 'overview' | 'deployments' | 'logs' | 'settings';
+type Tab = 'overview' | 'deployments' | 'logs' | 'triggers' | 'settings';
 
 function timeAgo(date: string) {
   const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -86,6 +98,16 @@ export default function AgentDetailPage() {
   const logRef = useRef<HTMLDivElement>(null);
   const esRef  = useRef<EventSource | null>(null);
 
+  // Triggers
+  const [triggers,      setTriggers]      = useState<Trigger[]>([]);
+  const [showTrigForm,  setShowTrigForm]  = useState(false);
+  const [trigType,      setTrigType]      = useState<'webhook' | 'cron'>('webhook');
+  const [trigLabel,     setTrigLabel]     = useState('');
+  const [trigCron,      setTrigCron]      = useState('0 * * * *');
+  const [trigPrompt,    setTrigPrompt]    = useState('You have been triggered. Here is the event context:\n\n{payload}');
+  const [trigSaving,    setTrigSaving]    = useState(false);
+  const [copiedId,      setCopiedId]      = useState<string | null>(null);
+
   const load = useCallback(async () => {
     const res  = await fetch(`/api/agents/${id}`);
     if (!res.ok) { setError('Agent not found'); setLoading(false); return; }
@@ -127,6 +149,7 @@ export default function AgentDetailPage() {
   }
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (tab === 'triggers') loadTriggers(); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-poll while deploying
   useEffect(() => {
@@ -213,6 +236,58 @@ export default function AgentDetailPage() {
     router.push('/app/agents');
   }
 
+  async function loadTriggers() {
+    const res = await fetch(`/api/agents/${id}/triggers`);
+    if (res.ok) {
+      const { triggers: t } = await res.json();
+      setTriggers(t ?? []);
+    }
+  }
+
+  async function handleCreateTrigger() {
+    setTrigSaving(true);
+    try {
+      const res = await fetch(`/api/agents/${id}/triggers`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          type:      trigType,
+          label:     trigLabel,
+          cronExpr:  trigType === 'cron' ? trigCron : undefined,
+          promptTpl: trigPrompt,
+        }),
+      });
+      if (res.ok) {
+        setShowTrigForm(false);
+        setTrigLabel('');
+        await loadTriggers();
+      }
+    } finally {
+      setTrigSaving(false);
+    }
+  }
+
+  async function handleDeleteTrigger(triggerId: string) {
+    await fetch(`/api/agents/${id}/triggers/${triggerId}`, { method: 'DELETE' });
+    setTriggers(prev => prev.filter(t => t.id !== triggerId));
+  }
+
+  async function handleToggleTrigger(triggerId: string, enabled: boolean) {
+    await fetch(`/api/agents/${id}/triggers/${triggerId}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ enabled }),
+    });
+    setTriggers(prev => prev.map(t => t.id === triggerId ? { ...t, enabled } : t));
+  }
+
+  function copyToClipboard(text: string, id: string) {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 1800);
+    }).catch(() => {});
+  }
+
   if (loading) return (
     <div className={styles.page}><div className={styles.skeleton} /></div>
   );
@@ -296,7 +371,7 @@ export default function AgentDetailPage() {
 
       {/* ── Tabs ───────────────────────────────────────────── */}
       <div className={styles.tabs}>
-        {(['overview', 'deployments', 'logs', 'settings'] as Tab[]).map(t => (
+        {(['overview', 'deployments', 'logs', 'triggers', 'settings'] as Tab[]).map(t => (
           <button
             key={t}
             className={`${styles.tab} ${tab === t ? styles.tabActive : ''}`}
@@ -307,6 +382,9 @@ export default function AgentDetailPage() {
             }}
           >
             {t.charAt(0).toUpperCase() + t.slice(1)}
+            {t === 'triggers' && triggers.length > 0 && (
+              <span className={styles.triggerCount}>{triggers.length}</span>
+            )}
           </button>
         ))}
       </div>
@@ -455,6 +533,158 @@ export default function AgentDetailPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Triggers ───────────────────────────────────────── */}
+      {tab === 'triggers' && (
+        <div className={styles.tabContent}>
+          <div className={styles.section}>
+            <div className={styles.sectionHeaderRow}>
+              <div className={styles.sectionTitle}>Triggers</div>
+              <button className={styles.addTriggerBtn} onClick={() => setShowTrigForm(v => !v)}>
+                {showTrigForm ? 'Cancel' : '+ Add trigger'}
+              </button>
+            </div>
+            <p className={styles.sectionDesc}>
+              Triggers let your agent act automatically — on a schedule or when an external system sends a webhook.
+            </p>
+
+            {/* Create form */}
+            {showTrigForm && (
+              <div className={styles.triggerForm}>
+                <div className={styles.trigTypeRow}>
+                  {(['webhook', 'cron'] as const).map(t => (
+                    <button
+                      key={t}
+                      className={`${styles.trigTypeBtn} ${trigType === t ? styles.trigTypeBtnActive : ''}`}
+                      onClick={() => setTrigType(t)}
+                    >
+                      {t === 'webhook' ? '🔗 Webhook' : '⏰ Schedule'}
+                    </button>
+                  ))}
+                </div>
+
+                <div className={styles.editField}>
+                  <label className={styles.editLabel}>Label <span className={styles.optional}>(optional)</span></label>
+                  <input
+                    className={styles.editInput}
+                    value={trigLabel}
+                    onChange={e => setTrigLabel(e.target.value)}
+                    placeholder={trigType === 'webhook' ? 'e.g. GitHub push' : 'e.g. Nightly scan'}
+                  />
+                </div>
+
+                {trigType === 'cron' && (
+                  <div className={styles.editField}>
+                    <label className={styles.editLabel}>Cron expression</label>
+                    <input
+                      className={`${styles.editInput} ${styles.mono}`}
+                      value={trigCron}
+                      onChange={e => setTrigCron(e.target.value)}
+                      placeholder="0 * * * *"
+                    />
+                    <span className={styles.editHint}>
+                      Standard 5-field cron (UTC). <code>0 * * * *</code> = every hour.
+                    </span>
+                  </div>
+                )}
+
+                <div className={styles.editField}>
+                  <label className={styles.editLabel}>Agent prompt</label>
+                  <textarea
+                    className={`${styles.editInput} ${styles.trigPromptArea}`}
+                    value={trigPrompt}
+                    onChange={e => setTrigPrompt(e.target.value)}
+                    rows={4}
+                  />
+                  <span className={styles.editHint}><code>{'{payload}'}</code> is replaced with the webhook body (or schedule timestamp for cron).</span>
+                </div>
+
+                <div className={styles.editActions}>
+                  <button
+                    className={styles.saveBtn}
+                    onClick={handleCreateTrigger}
+                    disabled={trigSaving || (trigType === 'cron' && !trigCron.trim())}
+                  >
+                    {trigSaving ? 'Creating…' : 'Create trigger'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Trigger list */}
+            {triggers.length === 0 && !showTrigForm && (
+              <div className={styles.emptyState}>
+                <div className={styles.emptyTitle}>No triggers yet</div>
+                <div className={styles.emptyDesc}>Add a webhook or schedule to automate your agent.</div>
+              </div>
+            )}
+
+            {triggers.map(trig => {
+              const webhookUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/trigger/${trig.id}`;
+              return (
+                <div key={trig.id} className={`${styles.triggerCard} ${!trig.enabled ? styles.triggerDisabled : ''}`}>
+                  <div className={styles.triggerCardTop}>
+                    <span className={styles.triggerTypeChip}>
+                      {trig.type === 'webhook' ? '🔗 Webhook' : '⏰ Schedule'}
+                    </span>
+                    <span className={styles.triggerLabel}>{trig.label || (trig.type === 'cron' ? trig.cronExpr : 'Unnamed')}</span>
+                    <div className={styles.triggerActions}>
+                      <button
+                        className={`${styles.triggerToggle} ${trig.enabled ? styles.triggerToggleOn : ''}`}
+                        onClick={() => handleToggleTrigger(trig.id, !trig.enabled)}
+                        title={trig.enabled ? 'Disable' : 'Enable'}
+                      >
+                        {trig.enabled ? 'Enabled' : 'Disabled'}
+                      </button>
+                      <button
+                        className={styles.triggerDelete}
+                        onClick={() => handleDeleteTrigger(trig.id)}
+                        title="Delete trigger"
+                      >×</button>
+                    </div>
+                  </div>
+
+                  {trig.type === 'webhook' && (
+                    <>
+                      <div className={styles.triggerRow}>
+                        <span className={styles.triggerRowLabel}>URL</span>
+                        <code className={styles.triggerUrl}>{webhookUrl}</code>
+                        <button
+                          className={styles.copyBtn}
+                          onClick={() => copyToClipboard(webhookUrl, `url-${trig.id}`)}
+                        >
+                          {copiedId === `url-${trig.id}` ? 'Copied!' : 'Copy'}
+                        </button>
+                      </div>
+                      <div className={styles.triggerRow}>
+                        <span className={styles.triggerRowLabel}>Auth</span>
+                        <code className={styles.triggerUrl}>Bearer {trig.secret.slice(0, 8)}…</code>
+                        <button
+                          className={styles.copyBtn}
+                          onClick={() => copyToClipboard(`Bearer ${trig.secret}`, `secret-${trig.id}`)}
+                        >
+                          {copiedId === `secret-${trig.id}` ? 'Copied!' : 'Copy'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  {trig.type === 'cron' && (
+                    <div className={styles.triggerRow}>
+                      <span className={styles.triggerRowLabel}>Schedule</span>
+                      <code className={styles.triggerUrl}>{trig.cronExpr}</code>
+                    </div>
+                  )}
+
+                  <div className={styles.triggerMeta}>
+                    Last fired: {trig.lastFiredAt ? timeAgo(trig.lastFiredAt) : 'Never'}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
