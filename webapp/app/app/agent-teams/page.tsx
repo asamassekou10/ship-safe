@@ -80,6 +80,27 @@ export default function AgentTeamsPage() {
         </button>
       </div>
 
+      {/* How it works */}
+      <div style={{ marginBottom: '2rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
+          {[
+            { phase: 'Phase 1', label: 'Planning', color: 'var(--cyan)', bg: 'rgba(34,211,238,0.08)', border: 'rgba(34,211,238,0.2)', body: 'The Lead agent receives the target and team roster. It maps the attack surface and delegates a focused task to each specialist.' },
+            { phase: 'Phase 2', label: 'Delegating', color: '#f97316', bg: 'rgba(249,115,22,0.08)', border: 'rgba(249,115,22,0.2)', body: 'All sub-agents run in parallel — Pen Tester, Red Team, Secrets Scanner, CVE Analyst — each working their assigned task simultaneously.' },
+            { phase: 'Phase 3', label: 'Synthesizing', color: '#a78bfa', bg: 'rgba(167,139,250,0.08)', border: 'rgba(167,139,250,0.2)', body: 'The Lead reads every sub-agent\'s output, correlates findings, identifies attack chains, and writes an executive security report.' },
+            { phase: 'Phase 4', label: 'Done', color: 'var(--green)', bg: 'rgba(22,163,74,0.08)', border: 'rgba(22,163,74,0.2)', body: 'The final report is stored with a risk rating (Critical / High / Medium / Low) and a prioritised remediation roadmap.' },
+          ].map(({ phase, label, color, bg, border, body }) => (
+            <div key={phase} style={{ background: bg, border: `1px solid ${border}`, borderRadius: 'var(--radius-lg)', padding: '0.9rem 1rem' }}>
+              <div style={{ fontSize: '0.67rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color, marginBottom: '0.2rem' }}>{phase}</div>
+              <div style={{ fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>{label}</div>
+              <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)', lineHeight: 1.5 }}>{body}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)', padding: '0.6rem 0.85rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, lineHeight: 1.5 }}>
+          <strong style={{ color: 'var(--text-muted)' }}>Getting started:</strong> Create agents on the <a href="/app/agents" style={{ color: 'var(--cyan)', textDecoration: 'none' }}>Agents</a> page and deploy them first. Each team needs at least one <strong style={{ color: 'var(--cyan)' }}>Lead</strong> agent and any number of specialists. Then click <strong style={{ color: 'var(--text-muted)' }}>Run Team</strong> and enter a target.
+        </div>
+      </div>
+
       {loading ? (
         <div className={styles.empty}><p className={styles.emptyTitle}>Loading…</p></div>
       ) : teams.length === 0 ? (

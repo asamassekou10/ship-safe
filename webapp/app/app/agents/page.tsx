@@ -51,6 +51,23 @@ export default async function AgentsPage() {
         </Link>
       </div>
 
+      {/* How it works */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '2rem' }}>
+        {[
+          { step: '1', title: 'Create', body: 'Define your agent\'s name, system prompt, and tools. This sets its personality and capabilities — e.g. "Penetration Tester specialising in web APIs".' },
+          { step: '2', title: 'Deploy', body: 'Start the agent from the Deploy tab. The orchestrator spins up a Hermes container on your VPS and gives it a live port.' },
+          { step: '3', title: 'Run', body: 'Chat with it directly, fire it via webhook, or schedule it with a cron trigger. Every run is saved with full message history and any findings it surfaces.' },
+        ].map(({ step, title, body }) => (
+          <div key={step} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1rem 1.1rem', display: 'flex', gap: '0.75rem' }}>
+            <div style={{ flexShrink: 0, width: 24, height: 24, borderRadius: '50%', background: 'rgba(34,211,238,0.1)', border: '1px solid rgba(34,211,238,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, color: 'var(--cyan)', marginTop: '0.1rem' }}>{step}</div>
+            <div>
+              <div style={{ fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.25rem' }}>{title}</div>
+              <div style={{ fontSize: '0.77rem', color: 'var(--text-dim)', lineHeight: 1.5 }}>{body}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {agents.length === 0 ? (
         <div className={styles.empty}>
           <div className={styles.emptyIcon}>
