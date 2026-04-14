@@ -1042,7 +1042,7 @@ export default function AgentDetailPage() {
                 </div>
               ) : userOrgs.length === 0 ? (
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0 }}>
-                  You are not a member of any org. <a href="/app/orgs" className={styles.liveUrl}>Create or join an org</a> to share agents with teammates.
+                  You are not a member of any org. <a href="/app/team" className={styles.liveUrl}>Create or join an org</a> to share agents with teammates.
                 </p>
               ) : (
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>

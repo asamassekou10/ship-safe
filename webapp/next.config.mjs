@@ -25,6 +25,7 @@ const nextConfig = {
   // them automatically because we run ship-safe as a subprocess (no import).
   outputFileTracingIncludes: {
     '/api/scan': ['./node_modules/ship-safe/**/*'],
+    '/api/cron': ['./node_modules/ship-safe/**/*'],
     '/api/og': ['./public/og-shipsafe.jpg'],
   },
   // Prevent nft from including build-time artifacts in the Lambda bundle.
