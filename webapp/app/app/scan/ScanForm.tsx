@@ -10,7 +10,7 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
   const router = useRouter();
   const [method, setMethod] = useState<ScanMethod>('github');
   const [repo, setRepo] = useState('');
-  const [branch, setBranch] = useState('main');
+  const [branch, setBranch] = useState('');
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState('');
   const [file, setFile] = useState<File | null>(null);
