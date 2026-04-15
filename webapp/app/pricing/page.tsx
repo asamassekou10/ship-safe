@@ -9,7 +9,7 @@ const ogImage = 'https://www.shipsafecli.com/api/og?title=Simple%2C+transparent+
 
 export const metadata: Metadata = {
   title: 'Pricing',
-  description: 'Ship Safe pricing: free open-source CLI for everyone. Pro ($9 one-time) and Team ($19/seat one-time) plans for cloud dashboard, GitHub integration, and team collaboration.',
+  description: 'Ship Safe pricing: free open-source CLI for everyone. Pro ($9/month) and Team ($19/seat/month) plans for cloud dashboard, GitHub integration, and team collaboration.',
   keywords: ['Ship Safe pricing', 'AI agent security scanner pricing', 'LLM vulnerability CLI cost', 'free security tool', 'DevSecOps pricing', 'application security cost'],
   alternates: {
     canonical: 'https://www.shipsafecli.com/pricing',
@@ -112,12 +112,6 @@ export default function Pricing() {
                     </div>
                     <p className={styles.planDesc}>{plan.desc}</p>
                   </div>
-                  {plan.price !== 'Free' && (
-                    <div className={styles.oneTimeBadge}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                      Pay once, use forever
-                    </div>
-                  )}
                   <Link
                     href={plan.ctaHref}
                     className={`btn ${plan.featured ? 'btn-primary' : 'btn-ghost'} ${styles.planCta}`}
@@ -156,7 +150,7 @@ export default function Pricing() {
               </div>
               <div>
                 <h3>Always open source.</h3>
-                <p>The CLI and all 19 agents are MIT licensed. Self-host it, fork it, contribute to it. The SaaS layer funds development while the core stays free forever.</p>
+                <p>The CLI and all 22 agents are MIT licensed. Self-host it, fork it, contribute to it. The SaaS layer funds development while the core stays free forever.</p>
               </div>
               <a href="https://github.com/asamassekou10/ship-safe" target="_blank" rel="noopener noreferrer" className="btn btn-ghost">
                 View on GitHub →

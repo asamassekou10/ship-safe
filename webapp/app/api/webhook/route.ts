@@ -24,19 +24,34 @@ export async function POST(req: NextRequest) {
     const plan = session.metadata?.plan;
 
     if (userId && plan) {
-      // Upgrade user plan
       await prisma.user.update({
         where: { id: userId },
         data: { plan },
       });
 
-      // Mark payment as paid
       await prisma.payment.updateMany({
         where: { stripeSessionId: session.id },
         data: {
           status: 'paid',
-          stripePaymentId: session.payment_intent as string,
+          stripePaymentId: session.subscription as string,
         },
+      });
+    }
+  }
+
+  if (event.type === 'customer.subscription.deleted') {
+    const subscription = event.data.object;
+    const payment = await prisma.payment.findFirst({
+      where: { stripePaymentId: subscription.id },
+    });
+    if (payment) {
+      await prisma.user.update({
+        where: { id: payment.userId },
+        data: { plan: 'free' },
+      });
+      await prisma.payment.updateMany({
+        where: { stripePaymentId: subscription.id },
+        data: { status: 'refunded' },
       });
     }
   }

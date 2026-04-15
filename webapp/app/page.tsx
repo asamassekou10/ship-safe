@@ -18,7 +18,7 @@ import { getRepoStats } from '@/lib/stats';
 
 export const metadata: Metadata = {
   title: 'Ship Safe — AI Agent Security Scanner for Developers',
-  description: '20 AI security agents scan your codebase for LLM vulnerabilities, MCP configuration security issues, RAG poisoning, Claude Managed Agent misconfigs, secrets, and dependency CVEs. OWASP Agentic AI Top 10 mapping, live advisory feeds. Free CLI.',
+  description: '22 AI security agents scan your codebase for LLM vulnerabilities, MCP configuration security issues, RAG poisoning, Claude Managed Agent misconfigs, secrets, and dependency CVEs. OWASP Agentic AI Top 10 mapping, live advisory feeds. Free CLI.',
   keywords: ['AI agent security scanner', 'LLM vulnerability CLI', 'MCP configuration security', 'RAG poisoning prevention', 'prevent RAG poisoning', 'application security scanner', 'AI security agents', 'secret scanner', 'OWASP Agentic AI Top 10', 'memory poisoning detection', 'prompt injection scanner', 'DevSecOps tool', 'free security scanner', 'open source SAST'],
   alternates: {
     canonical: 'https://www.shipsafecli.com',
@@ -41,7 +41,7 @@ const jsonLd = {
       description: '22 AI security agents scan your codebase for secrets, vulnerabilities, memory poisoning, Hermes Agent misconfigurations, and dependency CVEs in one command.',
       url: 'https://www.shipsafecli.com',
       downloadUrl: 'https://www.npmjs.com/package/ship-safe',
-      softwareVersion: '8.0.0',
+      softwareVersion: '9.0.0',
       author: {
         '@type': 'Organization',
         name: 'Ship Safe',
