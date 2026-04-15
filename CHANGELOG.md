@@ -6,6 +6,49 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [9.0.0] — 2026-04-15 — Agent Studio, Teams, Findings & Monthly Billing
+
+### Added
+
+- **Agent Studio** — full CRUD UI for creating and managing Hermes agents. Wizard-based creation, settings editor, per-agent findings tab, and run history.
+- **VPS Deployment Infrastructure** — one-click deploy from the dashboard to the Hermes orchestrator on the VPS. Agents run in isolated Docker containers with memory/CPU limits. Port allocator, health checks, and nginx reverse proxy managed automatically.
+- **Agent Console** — live chat interface with SSE streaming, ANSI color rendering, tool-call display, and per-session run records saved to the database.
+- **Agent Triggers** — webhook and cron triggers per agent. Webhook triggers expose a public `POST /api/trigger/[id]` endpoint; cron triggers fire via the Vercel daily cron job.
+- **Agent Teams** — multi-agent team orchestration with a 4-phase pipeline: Planning → Delegating → Synthesizing → Done. Lead agent delegates tasks to specialists in parallel; results are synthesised into an executive report.
+- **Team Run Viewer** — live auto-polling UI showing phase progress, hierarchical run tree (parent/child runs), and the final synthesised report.
+- **Findings Dashboard** (`/app/findings`) — aggregated findings across all agents with severity chart, trend data, status filtering, and one-click GitHub issue creation.
+- **Scan Investigation** — fire an agent directly from a scan result to deep-dive a specific finding.
+- **Agent Sharing** — share an agent to an org so all org members can use it.
+- **How-it-works explainers** on the Agents and Agent Teams pages.
+- **Dark theme** with system preference detection (`prefers-color-scheme`).
+- **Hermes Setup wizard** (`/app/deploy`) — config generator for self-hosted Hermes deployments.
+- **Global error pages** — `not-found.tsx` (404) and `error.tsx` (500) for the full app.
+- **CLI flags** — `--hermes-only` and `--fail-below <score>` added to the `audit` command.
+- **Monthly subscription billing** — Pro ($9/month) and Team ($19/seat/month) plans replace the previous one-time payment model. Webhook handles `customer.subscription.deleted` to downgrade plans on cancellation.
+
+### Changed
+
+- Mobile nav fully synced with desktop nav (Agents, Agent Teams, Findings, Hermes Setup all added).
+- Scheduled repo scans now wired to `/api/cron` (previously unconnected).
+- Vercel cron schedule set to `"0 0 * * *"` (daily) for Hobby plan compatibility.
+- Scan branch defaults to `""` (maps to `HEAD`) so repos not using `main` are handled correctly.
+- Deploy Config renamed to Hermes Setup throughout the nav and UI.
+- Stripe checkout updated to `mode: 'subscription'` with new monthly price IDs.
+- Agent count corrected to 22 across pricing page, open-source section, and feature lists.
+
+### Fixed
+
+- SSE payloads JSON-encoded so newlines survive SSE framing.
+- Hermes UI chrome (box borders, session_id, warnings) filtered from the token stream.
+- `--continue` flag removed from Hermes CLI invocation (caused session-not-found errors).
+- Orchestrator bound to `0.0.0.0` so Vercel can reach the VPS.
+- VPS port allocator now scans live Docker ports instead of relying on a stale `ports.json`.
+- Agent settings reload full agent object after save to prevent missing-deployments crash.
+- Broken `/app/orgs` link fixed.
+- XSS false positive suppressed on agent console markdown renderer.
+
+---
+
 ## [8.0.0] — 2026-04-10 — Ship Safe × Hermes Agent
 
 ### Added

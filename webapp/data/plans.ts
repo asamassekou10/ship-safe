@@ -13,7 +13,7 @@ export const plans: Plan[] = [
   {
     name: 'Pro',
     price: '$9',
-    period: 'one-time',
+    period: '/month',
     desc: 'For developers who ship fast and need full coverage.',
     cta: 'Buy Pro',
     ctaHref: '/app/checkout?plan=pro',
@@ -21,7 +21,7 @@ export const plans: Plan[] = [
     features: [
       'Unlimited cloud scans',
       'Private repos (GitHub, GitLab, upload)',
-      'All 18 security agents',
+      'All 22 security agents',
       'AI deep analysis (bring your own API key)',
       'Scan history + score trends',
       'PDF reports (branded)',
@@ -33,7 +33,7 @@ export const plans: Plan[] = [
   {
     name: 'Team',
     price: '$19',
-    period: 'one-time per seat',
+    period: '/mo per seat',
     desc: 'For teams that need collaboration and shared visibility.',
     cta: 'Buy Team',
     ctaHref: '/app/checkout?plan=team',
@@ -78,8 +78,8 @@ export const pricingFaq = [
     a: 'A cloud scan is when you submit a repo through the web dashboard for scanning. Running the CLI locally never counts against any limit.',
   },
   {
-    q: 'Is it really one-time? No subscriptions?',
-    a: 'Yes. Pay once, use forever. No recurring charges, no surprise renewals. Future major version upgrades may be offered as optional paid upgrades at a discount.',
+    q: 'Can I cancel anytime?',
+    a: 'Yes. Pro and Team are month-to-month with no long-term commitment. Cancel anytime from your account settings and you will not be charged again.',
   },
   {
     q: 'Do you offer refunds?',

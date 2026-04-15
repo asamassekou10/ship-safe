@@ -21,7 +21,7 @@ export default function Features() {
             </div>
             <h3 className={styles.cardTitle}>Scan everything</h3>
             <p className={styles.cardDesc}>
-              19 specialized agents scan for secrets, injection, auth bypass, SSRF, supply chain attacks, LLM/MCP security, memory poisoning, vibe coding patterns, and more. 80+ attack classes across 6 OWASP standards including the Agentic AI Top 10.
+              22 specialized agents scan for secrets, injection, auth bypass, SSRF, supply chain attacks, LLM/MCP security, memory poisoning, vibe coding patterns, and more. 80+ attack classes across 6 OWASP standards including the Agentic AI Top 10.
             </p>
             <div className={styles.miniTerminal}>
               <div className={styles.miniHeader}>
@@ -214,6 +214,102 @@ export default function Features() {
                 <div className={styles.miniLine}>
                   <span className={styles.miniDim}>Top 25%: 78/100</span>
                 </div>
+              </div>
+            </div>
+          </div>
+          {/* Card 7: Agent Studio */}
+          <div className={`${styles.card} card`} data-animate data-delay="480">
+            <div className={styles.cardIcon}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                <path d="M4.93 4.93a10 10 0 0 0 0 14.14" />
+              </svg>
+            </div>
+            <h3 className={styles.cardTitle}>Agent Studio</h3>
+            <p className={styles.cardDesc}>
+              Build, deploy, and chat with custom Hermes security agents from the dashboard. Give each agent a role, tools, and memory — then deploy to a live container in one click.
+            </p>
+            <div className={styles.miniTerminal}>
+              <div className={styles.miniHeader}>
+                <span className={styles.miniDot} style={{ background: 'var(--red)' }} />
+                <span className={styles.miniDot} style={{ background: 'var(--yellow)' }} />
+                <span className={styles.miniDot} style={{ background: 'var(--green)' }} />
+                <span className={styles.miniTitle}>Agent Console — Atlas</span>
+              </div>
+              <div className={styles.miniBody}>
+                <div className={styles.miniLine}>
+                  <span className={styles.miniDim}>You: scan juice-shop for auth flaws</span>
+                </div>
+                <div className={styles.miniLine}>
+                  <span className={styles.miniOk}>▶</span>
+                  <span>Analysing authentication flows…</span>
+                </div>
+                <div className={styles.miniLine}>
+                  <span className={styles.miniTag} data-level="critical">CRITICAL</span>
+                  <span>Broken auth on /rest/user/login</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 8: Agent Teams */}
+          <div className={`${styles.card} card`} data-animate data-delay="560">
+            <div className={styles.cardIcon}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <h3 className={styles.cardTitle}>Agent Teams</h3>
+            <p className={styles.cardDesc}>
+              Orchestrate a team of specialist agents — pen tester, secrets scanner, CVE analyst — under a lead agent that delegates tasks, runs them in parallel, and synthesises an executive report.
+            </p>
+            <div className={styles.miniBody} style={{ marginTop: '1rem', gap: '0.4rem', display: 'flex', flexDirection: 'column' }}>
+              {[
+                { phase: 'Planning', done: true },
+                { phase: 'Delegating', done: true },
+                { phase: 'Synthesizing', done: true },
+                { phase: 'Done', done: true },
+              ].map(({ phase, done }) => (
+                <div key={phase} className={styles.miniLine}>
+                  <span className={done ? styles.miniOk : styles.miniDim}>{done ? '✔' : '○'}</span>
+                  <span className={done ? undefined : styles.miniDim}>{phase}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Card 9: Findings Dashboard */}
+          <div className={`${styles.card} card`} data-animate data-delay="640">
+            <div className={styles.cardIcon}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </div>
+            <h3 className={styles.cardTitle}>Findings dashboard</h3>
+            <p className={styles.cardDesc}>
+              All security findings from every agent run in one place. Filter by severity, track remediation status, and open GitHub issues directly from the dashboard.
+            </p>
+            <div className={styles.miniBody} style={{ marginTop: '1rem', gap: '0.4rem', display: 'flex', flexDirection: 'column' }}>
+              <div className={styles.miniLine}>
+                <span className={styles.miniTag} data-level="critical">CRITICAL</span>
+                <span>SQL injection — /api/users</span>
+              </div>
+              <div className={styles.miniLine}>
+                <span className={styles.miniTag} data-level="high">HIGH</span>
+                <span>Hardcoded JWT secret</span>
+              </div>
+              <div className={styles.miniLine}>
+                <span className={styles.miniTag} data-level="medium">MEDIUM</span>
+                <span>Missing rate limiting</span>
+              </div>
+              <div className={styles.miniLine}>
+                <span className={styles.miniDim}>3 of 9 findings resolved</span>
               </div>
             </div>
           </div>
