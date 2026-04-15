@@ -26,6 +26,10 @@ export default async function AgentsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
 
+  const plan = (session.user as Record<string, unknown>).plan as string ?? 'free';
+  const isPaid = plan === 'pro' || plan === 'team' || plan === 'enterprise';
+  const freeAgentLimit = 1;
+
   const agents = await prisma.agent.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: 'desc' },
@@ -38,6 +42,8 @@ export default async function AgentsPage() {
     },
   });
 
+  const atAgentLimit = !isPaid && agents.length >= freeAgentLimit;
+
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -45,11 +51,27 @@ export default async function AgentsPage() {
           <h1>Agents</h1>
           <p className={styles.subtitle}>Build, configure, and deploy Hermes agents from one place.</p>
         </div>
-        <Link href="/app/agents/new" className={styles.newBtn}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          New Agent
-        </Link>
+        {atAgentLimit ? (
+          <Link href="/pricing" className={styles.newBtn} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }} title="Upgrade to Pro for unlimited agents">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Upgrade for more
+          </Link>
+        ) : (
+          <Link href="/app/agents/new" className={styles.newBtn}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New Agent
+          </Link>
+        )}
       </div>
+
+      {!isPaid && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.6rem 0.9rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, marginBottom: '1rem', fontSize: '0.83rem', color: 'var(--text-muted)' }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Free plan: {agents.length}/{freeAgentLimit} agent used.{' '}
+          <Link href="/pricing" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>Upgrade to Pro</Link>
+          {' '}for unlimited agents.
+        </div>
+      )}
 
       {/* How it works */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '2rem' }}>

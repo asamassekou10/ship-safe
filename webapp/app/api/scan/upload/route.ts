@@ -21,8 +21,9 @@ export async function POST(req: NextRequest) {
   const plan = (session.user as Record<string, unknown>).plan as string;
 
   if (plan !== 'pro' && plan !== 'team' && plan !== 'enterprise') {
-    const limit = parseInt(process.env.FREE_SCAN_LIMIT ?? '1', 10);
-    const used = await prisma.scan.count({ where: { userId } });
+    const limit = parseInt(process.env.FREE_SCAN_LIMIT ?? '3', 10);
+    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const used = await prisma.scan.count({ where: { userId, createdAt: { gte: startOfMonth } } });
     if (used >= limit) {
       return NextResponse.json(
         { error: '__TRIAL_EXHAUSTED__' },

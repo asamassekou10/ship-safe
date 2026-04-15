@@ -41,6 +41,17 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const plan = (session.user as Record<string, unknown>).plan as string ?? 'free';
+  if (!plan || plan === 'free') {
+    const agentCount = await prisma.agent.count({ where: { userId: session.user.id } });
+    if (agentCount >= 1) {
+      return NextResponse.json(
+        { error: '__AGENT_LIMIT__', message: 'Free plan is limited to 1 agent. Upgrade to Pro for unlimited agents.' },
+        { status: 403 },
+      );
+    }
+  }
+
   const body = await req.json();
   const { name, description, tools, memoryProvider, maxDepth, skills, envVars, ciProvider } = body;
 

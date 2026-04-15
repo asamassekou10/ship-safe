@@ -30,13 +30,22 @@ export async function GET() {
     },
   });
 
-  return NextResponse.json({ teams });
+  const plan = (session.user as Record<string, unknown>).plan as string ?? 'free';
+  return NextResponse.json({ teams, plan });
 }
 
 /** POST /api/teams — create a new team */
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const plan = (session.user as Record<string, unknown>).plan as string ?? 'free';
+  if (!plan || plan === 'free') {
+    return NextResponse.json(
+      { error: '__TEAMS_LOCKED__', message: 'Agent Teams require a Pro or Team plan.' },
+      { status: 403 },
+    );
+  }
 
   const { name, description } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 });

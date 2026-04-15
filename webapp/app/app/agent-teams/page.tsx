@@ -40,6 +40,7 @@ const ROLE_LABELS: Record<string, string> = {
 export default function AgentTeamsPage() {
   const router = useRouter();
   const [teams,   setTeams]   = useState<Team[]>([]);
+  const [plan,    setPlan]    = useState<string>('free');
   const [loading, setLoading] = useState(true);
   const [modal,   setModal]   = useState(false);
   const [name,    setName]    = useState('');
@@ -47,9 +48,12 @@ export default function AgentTeamsPage() {
   const [saving,  setSaving]  = useState(false);
   const [err,     setErr]     = useState('');
 
+  const isPaid = plan === 'pro' || plan === 'team' || plan === 'enterprise';
+
   useEffect(() => {
     fetch('/api/teams').then(r => r.json()).then(d => {
       setTeams(d.teams ?? []);
+      if (d.plan) setPlan(d.plan);
       setLoading(false);
     });
   }, []);
@@ -75,10 +79,26 @@ export default function AgentTeamsPage() {
           <h1 className={styles.title}>Agent Teams</h1>
           <p className={styles.subtitle}>Hierarchical cybersecurity teams that collaborate on assessments.</p>
         </div>
-        <button className={styles.newBtn} onClick={() => { setModal(true); setName(''); setDesc(''); setErr(''); }}>
-          + New Team
-        </button>
+        {isPaid ? (
+          <button className={styles.newBtn} onClick={() => { setModal(true); setName(''); setDesc(''); setErr(''); }}>
+            + New Team
+          </button>
+        ) : (
+          <a href="/pricing" className={styles.newBtn} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)', textDecoration: 'none' }}>
+            🔒 Upgrade to unlock
+          </a>
+        )}
       </div>
+
+      {!isPaid && !loading && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', padding: '0.85rem 1rem', background: 'color-mix(in srgb, var(--accent) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)', borderRadius: 10, marginBottom: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.85rem', color: 'var(--text)' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span><strong>Agent Teams require a Pro or Team plan.</strong> Orchestrate specialist agents in parallel and get executive security reports.</span>
+          </div>
+          <a href="/pricing" style={{ flexShrink: 0, fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent)', textDecoration: 'none', whiteSpace: 'nowrap' }}>Upgrade → $9/month</a>
+        </div>
+      )}
 
       {/* How it works */}
       <div style={{ marginBottom: '2rem' }}>

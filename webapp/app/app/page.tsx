@@ -22,10 +22,11 @@ export default async function Dashboard() {
 
   const plan = (session.user as Record<string, unknown>).plan as string ?? 'free';
   const isPaid = plan === 'pro' || plan === 'team' || plan === 'enterprise';
-  const freeLimit = parseInt(process.env.FREE_SCAN_LIMIT ?? '1', 10);
+  const freeLimit = parseInt(process.env.FREE_SCAN_LIMIT ?? '3', 10);
+  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
   const [
-    recentScans, totalScans, aggFindings, monitoredRepoCount, notification, orgMembership,
+    recentScans, totalScans, scansThisMonth, aggFindings, monitoredRepoCount, notification, orgMembership,
     liveAgents, openFindingCounts, recentAgentFindings,
   ] = await Promise.all([
     prisma.scan.findMany({
@@ -38,6 +39,7 @@ export default async function Dashboard() {
       },
     }),
     prisma.scan.count({ where: { userId } }),
+    prisma.scan.count({ where: { userId, createdAt: { gte: startOfMonth } } }),
     prisma.scan.aggregate({
       where: { userId, status: 'done' },
       _avg: { score: true },
@@ -66,7 +68,8 @@ export default async function Dashboard() {
   const avgScore = Math.round(aggFindings._avg.score ?? 0);
   const totalFindings = aggFindings._sum.findings ?? 0;
   const uniqueRepos = new Set(recentScans.map(s => s.repo)).size;
-  const freeExhausted = !isPaid && totalScans >= freeLimit;
+  const freeExhausted = !isPaid && scansThisMonth >= freeLimit;
+  const freeScansLeft = Math.max(0, freeLimit - scansThisMonth);
 
   const findingSummary = { critical: 0, high: 0, medium: 0, low: 0, info: 0 } as Record<string, number>;
   for (const c of openFindingCounts) findingSummary[c.severity] = (findingSummary[c.severity] ?? 0) + c._count._all;
@@ -93,11 +96,20 @@ export default async function Dashboard() {
         hasTeam={orgMembership > 0}
       />
 
-      {freeExhausted && (
+      {!isPaid && (
         <div className={styles.upgradeCard}>
           <div className={styles.upgradeLeft}>
-            <h3>You&apos;ve used your free scan</h3>
-            <p>Upgrade to Pro for unlimited scans, private repos, AI analysis, and API access — $9/month, cancel anytime.</p>
+            {freeExhausted ? (
+              <>
+                <h3>You&apos;ve used all {freeLimit} free scans this month</h3>
+                <p>Resets on the 1st. Upgrade to Pro for unlimited scans, all agents, teams, and API access — $9/month, cancel anytime.</p>
+              </>
+            ) : (
+              <>
+                <h3>{freeScansLeft} free scan{freeScansLeft !== 1 ? 's' : ''} left this month</h3>
+                <p>Free plan includes {freeLimit} cloud scans/month and 1 agent. Upgrade to Pro for unlimited everything.</p>
+              </>
+            )}
           </div>
           <Link href="/pricing" className="btn btn-primary">Upgrade to Pro →</Link>
         </div>
