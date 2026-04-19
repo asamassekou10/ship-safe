@@ -45,7 +45,7 @@ const TOKEN_PATTERNS = [
     rule: 'MCP_THIRD_PARTY_AUTH',
     title: 'Third-party MCP server URL with auth material',
     // Handles JSON ("url": "https://...") and YAML (url: https://...) formats
-    regex: /["']?(?:url|baseUrl|endpoint|server)["']?\s*[:=]\s*["']?https?:\/\/(?!localhost|127\.|0\.0\.0\.0)([^"'\s,}]+)["']?[^}]{0,300}(?:Authorization|Bearer|api[_\-]?key|token)/gsi,
+    regex: /["']?(?:url|baseUrl|endpoint|server)["']?\s*[:=]\s*["']?https?:\/\/(?!localhost|127\.|0\.0\.0\.0)([^"'\s,}]+)["']?[^}]{0,300}(?:Authorization|Bearer|api[_\-]?key|token)/gi,
     severity: 'critical',
     fix: 'Audit this MCP server. Do not forward credentials to servers you do not control.',
   },
