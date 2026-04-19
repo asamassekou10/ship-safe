@@ -2,20 +2,20 @@ import Nav from '@/components/Nav';
 import styles from './docs.module.css';
 import type { Metadata } from 'next';
 
-const ogImage = 'https://www.shipsafecli.com/api/og?title=Ship+Safe+Docs&description=Every+command%2C+agent%2C+and+flag.+LLM+vulnerability+CLI%2C+MCP+security+config%2C+RAG+poisoning+detection%2C+CI%2FCD+integration%2C+and+API+reference.&label=Documentation&badge=v9.0.0';
+const ogImage = 'https://shipsafecli.com/api/og?title=Ship+Safe+Docs&description=Every+command%2C+agent%2C+and+flag.+LLM+vulnerability+CLI%2C+MCP+security+config%2C+RAG+poisoning+detection%2C+CI%2FCD+integration%2C+and+API+reference.&label=Documentation&badge=v9.0.0';
 
 export const metadata: Metadata = {
   title: 'Documentation',
   description: 'Complete Ship Safe documentation: LLM vulnerability CLI commands, MCP configuration security scanning, RAG poisoning detection, CI/CD integration, 23 agent reference, and API docs.',
   keywords: ['Ship Safe docs', 'LLM vulnerability CLI', 'MCP configuration security', 'RAG poisoning detection', 'AI agent security scanner', 'ship-safe commands', 'ship-safe agents', 'DevSecOps documentation', 'OWASP Agentic AI Top 10'],
   alternates: {
-    canonical: 'https://www.shipsafecli.com/docs',
+    canonical: 'https://shipsafecli.com/docs',
   },
   openGraph: {
     title: 'Ship Safe Documentation — v9.0.0',
     description: 'Every command, agent, and flag. LLM vulnerability CLI, MCP security configuration, RAG poisoning detection, CI/CD integration, and API reference.',
     type: 'website',
-    url: 'https://www.shipsafecli.com/docs',
+    url: 'https://shipsafecli.com/docs',
     siteName: 'Ship Safe',
     images: [{ url: ogImage, width: 1200, height: 630, alt: 'Ship Safe Documentation' }],
   },
@@ -32,8 +32,8 @@ const jsonLd = {
   '@type': 'TechArticle',
   headline: 'Ship Safe Documentation',
   description: 'Complete documentation for Ship Safe CLI security scanner.',
-  url: 'https://www.shipsafecli.com/docs',
-  author: { '@type': 'Organization', name: 'Ship Safe', url: 'https://www.shipsafecli.com' },
+  url: 'https://shipsafecli.com/docs',
+  author: { '@type': 'Organization', name: 'Ship Safe', url: 'https://shipsafecli.com' },
 };
 
 export default function Docs() {

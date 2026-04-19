@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/app/', '/api/'],
       },
     ],
-    sitemap: 'https://www.shipsafecli.com/sitemap.xml',
+    sitemap: 'https://shipsafecli.com/sitemap.xml',
   };
 }

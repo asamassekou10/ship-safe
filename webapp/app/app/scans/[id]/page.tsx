@@ -532,7 +532,7 @@ export default function ScanDetail() {
     .filter(f => f.severity === 'critical' || f.severity === 'high');
 
   const badgeMarkdown = scan.score !== null && scan.grade
-    ? `[![Ship Safe](https://www.shipsafecli.com/api/badge?score=${scan.score}&grade=${scan.grade})](https://www.shipsafecli.com)`
+    ? `[![Ship Safe](https://shipsafecli.com/api/badge?score=${scan.score}&grade=${scan.grade})](https://shipsafecli.com)`
     : null;
 
   function copyBadge() {

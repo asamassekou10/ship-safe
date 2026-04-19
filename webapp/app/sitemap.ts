@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 import { posts } from '@/data/blog';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://www.shipsafecli.com';
+  const baseUrl = 'https://shipsafecli.com';
 
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);

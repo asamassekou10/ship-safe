@@ -54,7 +54,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     finding.remediation ? `### Remediation\n${finding.remediation}` : null,
     '',
     `---`,
-    `*Automatically created from [Ship Safe Findings](${process.env.AUTH_URL || 'https://www.shipsafecli.com'}/app/findings)*`,
+    `*Automatically created from [Ship Safe Findings](${process.env.AUTH_URL || 'https://shipsafecli.com'}/app/findings)*`,
   ].filter(Boolean).join('\n');
 
   const ghRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {

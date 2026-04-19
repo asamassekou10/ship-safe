@@ -4,20 +4,20 @@ import { posts } from '@/data/blog';
 import styles from './blog.module.css';
 import type { Metadata } from 'next';
 
-const ogImage = 'https://www.shipsafecli.com/api/og?title=Security+Guides+for+Developers&description=Vulnerability+research%2C+supply+chain+deep-dives%2C+and+practical+security+advice+from+the+Ship+Safe+team.&label=Blog';
+const ogImage = 'https://shipsafecli.com/api/og?title=Security+Guides+for+Developers&description=Vulnerability+research%2C+supply+chain+deep-dives%2C+and+practical+security+advice+from+the+Ship+Safe+team.&label=Blog';
 
 export const metadata: Metadata = {
   title: 'Blog',
   description: 'Security guides, vulnerability research, and best practices for developers. Learn how to find and fix security issues in your codebase.',
   keywords: ['application security blog', 'LLM vulnerability research', 'RAG poisoning prevention', 'MCP configuration security', 'AI agent security', 'DevSecOps blog', 'security best practices', 'code security guides'],
   alternates: {
-    canonical: 'https://www.shipsafecli.com/blog',
+    canonical: 'https://shipsafecli.com/blog',
   },
   openGraph: {
     title: 'Security Guides for Developers — Ship Safe Blog',
     description: 'Vulnerability research, supply chain deep-dives, and practical security advice from the Ship Safe team.',
     type: 'website',
-    url: 'https://www.shipsafecli.com/blog',
+    url: 'https://shipsafecli.com/blog',
     siteName: 'Ship Safe',
     images: [{ url: ogImage, width: 1200, height: 630, alt: 'Ship Safe Blog' }],
   },

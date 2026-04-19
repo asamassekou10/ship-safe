@@ -61,7 +61,7 @@ function scanEmailHtml(scan: ScanResult): string {
           <tr><td style="padding: 8px 0; color: #71717a;">Code Vulns</td><td style="text-align: right; font-weight: 600;">${scan.vulns}</td></tr>
           <tr><td style="padding: 8px 0; color: #71717a;">CVEs</td><td style="text-align: right; font-weight: 600;">${scan.cves}</td></tr>
         </table>
-        <a href="${process.env.AUTH_URL || 'https://www.shipsafecli.com'}/app/scans/${scan.id}"
+        <a href="${process.env.AUTH_URL || 'https://shipsafecli.com'}/app/scans/${scan.id}"
            style="display: inline-block; margin-top: 20px; padding: 10px 24px; background: #22d3ee; color: #09090b; font-weight: 700; border-radius: 8px; text-decoration: none; font-size: 14px;">
           View Full Report
         </a>
@@ -101,7 +101,7 @@ async function sendSlack(webhookUrl: string, scan: ScanResult) {
           elements: [{
             type: 'button',
             text: { type: 'plain_text', text: 'View Report' },
-            url: `${process.env.AUTH_URL || 'https://www.shipsafecli.com'}/app/scans/${scan.id}`,
+            url: `${process.env.AUTH_URL || 'https://shipsafecli.com'}/app/scans/${scan.id}`,
           }],
         },
       ],
@@ -302,7 +302,7 @@ export async function notifyAgentFindings(opts: {
   });
   if (!settings) return;
 
-  const appUrl = process.env.AUTH_URL || 'https://www.shipsafecli.com';
+  const appUrl = process.env.AUTH_URL || 'https://shipsafecli.com';
   const findingsUrl = `${appUrl}/app/agents/${agentId}?tab=findings`;
 
   // ── Slack ───────────────────────────────────────────────

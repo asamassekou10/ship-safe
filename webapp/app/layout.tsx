@@ -10,24 +10,24 @@ export const metadata: Metadata = {
     template: '%s | Ship Safe',
   },
   description: 'AI agent security scanner that detects LLM vulnerabilities, MCP configuration security issues, RAG poisoning, secrets, and dependency CVEs. 23 agents, one command. Free CLI, no signup required.',
-  metadataBase: new URL('https://www.shipsafecli.com'),
+  metadataBase: new URL('https://shipsafecli.com'),
   keywords: ['AI agent security scanner', 'LLM vulnerability CLI', 'MCP configuration security', 'RAG poisoning prevention', 'security scanner', 'secret detection', 'LLM security', 'prompt injection scanner', 'OWASP Agentic AI Top 10', 'DevSecOps', 'application security', 'dependency CVE scanner', 'open source SAST'],
   alternates: {
-    canonical: 'https://www.shipsafecli.com',
+    canonical: 'https://shipsafecli.com',
   },
   openGraph: {
     title: 'Ship Safe — AI Agent Security Scanner for Developers',
     description: '23 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
     type: 'website',
-    url: 'https://www.shipsafecli.com',
+    url: 'https://shipsafecli.com',
     siteName: 'Ship Safe',
-    images: [{ url: 'https://www.shipsafecli.com/api/og?title=Ship+Safe&description=23+AI+security+agents+detect+LLM+vulnerabilities%2C+MCP+misconfigurations%2C+RAG+poisoning%2C+secrets%2C+and+CVEs.+One+command.+Free+and+open+source.&label=AI+Agent+Security+Scanner&badge=MIT+Open+Source', width: 1200, height: 630, alt: 'Ship Safe - AI Agent Security Scanner' }],
+    images: [{ url: 'https://shipsafecli.com/api/og?title=Ship+Safe&description=23+AI+security+agents+detect+LLM+vulnerabilities%2C+MCP+misconfigurations%2C+RAG+poisoning%2C+secrets%2C+and+CVEs.+One+command.+Free+and+open+source.&label=AI+Agent+Security+Scanner&badge=MIT+Open+Source', width: 1200, height: 630, alt: 'Ship Safe - AI Agent Security Scanner' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Ship Safe — AI Agent Security Scanner for Developers',
     description: '23 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
-    images: ['https://www.shipsafecli.com/api/og?title=Ship+Safe&description=23+AI+security+agents+detect+LLM+vulnerabilities%2C+MCP+misconfigurations%2C+RAG+poisoning%2C+secrets%2C+and+CVEs.+One+command.+Free+and+open+source.&label=AI+Agent+Security+Scanner&badge=MIT+Open+Source'],
+    images: ['https://shipsafecli.com/api/og?title=Ship+Safe&description=23+AI+security+agents+detect+LLM+vulnerabilities%2C+MCP+misconfigurations%2C+RAG+poisoning%2C+secrets%2C+and+CVEs.+One+command.+Free+and+open+source.&label=AI+Agent+Security+Scanner&badge=MIT+Open+Source'],
   },
 };
 

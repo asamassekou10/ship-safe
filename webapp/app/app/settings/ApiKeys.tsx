@@ -112,7 +112,7 @@ export default function ApiKeys() {
       <div className={s.apiTip}>
         Use API keys to trigger scans from CI/CD or external tools.<br />
         <code>
-          curl -X POST https://www.shipsafecli.com/api/v1/scans -H &quot;Authorization: Bearer sk_live_...&quot; -d &apos;{'{'}&#34;repo&#34;:&#34;owner/repo&#34;{'}'}&apos;
+          curl -X POST https://shipsafecli.com/api/v1/scans -H &quot;Authorization: Bearer sk_live_...&quot; -d &apos;{'{'}&#34;repo&#34;:&#34;owner/repo&#34;{'}'}&apos;
         </code>
       </div>
     </div>

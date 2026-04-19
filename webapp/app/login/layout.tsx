@@ -4,7 +4,7 @@ export const metadata: Metadata = {
   title: 'Log In',
   description: 'Log in to your Ship Safe dashboard. Access cloud scanning, scan history, team management, and security reports.',
   alternates: {
-    canonical: 'https://www.shipsafecli.com/login',
+    canonical: 'https://shipsafecli.com/login',
   },
   robots: {
     index: false,

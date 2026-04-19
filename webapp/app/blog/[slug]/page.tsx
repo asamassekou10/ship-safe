@@ -19,20 +19,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = getPostBySlug(slug);
   if (!post) return {};
 
-  const ogImageUrl = `https://www.shipsafecli.com/api/og/blog?slug=${post.slug}`;
+  const ogImageUrl = `https://shipsafecli.com/api/og/blog?slug=${post.slug}`;
 
   return {
     title: post.title,
     description: post.description,
     keywords: post.keywords,
     alternates: {
-      canonical: `https://www.shipsafecli.com/blog/${post.slug}`,
+      canonical: `https://shipsafecli.com/blog/${post.slug}`,
     },
     openGraph: {
       title: post.title,
       description: post.description,
       type: 'article',
-      url: `https://www.shipsafecli.com/blog/${post.slug}`,
+      url: `https://shipsafecli.com/blog/${post.slug}`,
       siteName: 'Ship Safe',
       publishedTime: post.date,
       authors: [post.author],
@@ -193,7 +193,7 @@ export default async function BlogPost({ params }: Props) {
   if (!post) notFound();
 
   const morePosts = posts.filter((p) => p.slug !== slug).slice(0, 3);
-  const postUrl = `https://www.shipsafecli.com/blog/${post.slug}`;
+  const postUrl = `https://shipsafecli.com/blog/${post.slug}`;
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -202,24 +202,24 @@ export default async function BlogPost({ params }: Props) {
     description: post.description,
     datePublished: post.date,
     dateModified: post.date,
-    image: `https://www.shipsafecli.com/api/og/blog?slug=${post.slug}`,
+    image: `https://shipsafecli.com/api/og/blog?slug=${post.slug}`,
     author: {
       '@type': 'Person',
       name: post.author,
-      url: 'https://www.shipsafecli.com',
+      url: 'https://shipsafecli.com',
     },
     publisher: {
       '@type': 'Organization',
       name: 'Ship Safe',
-      url: 'https://www.shipsafecli.com',
+      url: 'https://shipsafecli.com',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://www.shipsafecli.com/logo.png',
+        url: 'https://shipsafecli.com/logo.png',
       },
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `https://www.shipsafecli.com/blog/${post.slug}`,
+      '@id': `https://shipsafecli.com/blog/${post.slug}`,
     },
     keywords: post.keywords.join(', '),
   };

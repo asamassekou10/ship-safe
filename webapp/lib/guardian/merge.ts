@@ -106,7 +106,7 @@ async function postSummaryComment(
 ${timelineText}
 
 ---
-<sub>Auto-managed by [Ship Safe PR Guardian](https://www.shipsafecli.com)</sub>`;
+<sub>Auto-managed by [Ship Safe PR Guardian](https://shipsafecli.com)</sub>`;
 
   await gh.fetch(`/repos/${owner}/${repo}/issues/${run.prNumber}/comments`, {
     method: 'POST',

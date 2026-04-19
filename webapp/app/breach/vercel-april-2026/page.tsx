@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import BreachChecker from './BreachChecker';
 import styles from './breach.module.css';
 
-const ogImage = 'https://www.shipsafecli.com/api/og?title=Vercel+April+2026+Breach+Checker&description=Check+if+your+project+was+impacted+by+the+Vercel+April+2026+AI+integration+supply+chain+attack.&label=Breach+Impact+Check&badge=CVE-2026-VERCEL';
+const ogImage = 'https://shipsafecli.com/api/og?title=Vercel+April+2026+Breach+Checker&description=Check+if+your+project+was+impacted+by+the+Vercel+April+2026+AI+integration+supply+chain+attack.&label=Breach+Impact+Check&badge=CVE-2026-VERCEL';
 
 export const metadata: Metadata = {
   title: 'Vercel April 2026 Breach — Impact Checker | Ship Safe',
@@ -18,13 +18,13 @@ export const metadata: Metadata = {
     'GitHub Actions AI action pinning',
   ],
   alternates: {
-    canonical: 'https://www.shipsafecli.com/breach/vercel-april-2026',
+    canonical: 'https://shipsafecli.com/breach/vercel-april-2026',
   },
   openGraph: {
     title: 'Vercel April 2026 Breach — Impact Checker',
     description: 'Check if your project was impacted by the Vercel April 2026 AI integration supply chain attack.',
     type: 'website',
-    url: 'https://www.shipsafecli.com/breach/vercel-april-2026',
+    url: 'https://shipsafecli.com/breach/vercel-april-2026',
     siteName: 'Ship Safe',
     images: [{ url: ogImage, width: 1200, height: 630, alt: 'Vercel April 2026 Breach Impact Checker' }],
   },

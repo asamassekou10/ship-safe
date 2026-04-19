@@ -3,20 +3,20 @@ import Link from 'next/link';
 import styles from './hermes.module.css';
 import type { Metadata } from 'next';
 
-const ogImage = 'https://www.shipsafecli.com/api/og?title=Hermes+Agent+Security&description=Harden+your+Hermes+agent+against+tool+poisoning%2C+function-call+injection%2C+and+memory+attacks+in+one+command.&label=Hermes+Security&badge=22+security+agents';
+const ogImage = 'https://shipsafecli.com/api/og?title=Hermes+Agent+Security&description=Harden+your+Hermes+agent+against+tool+poisoning%2C+function-call+injection%2C+and+memory+attacks+in+one+command.&label=Hermes+Security&badge=22+security+agents';
 
 export const metadata: Metadata = {
   title: 'Hermes Agent Security — Ship Safe',
   description: 'Harden your Hermes agent against tool poisoning, function-call injection, and memory attacks. Answer 4 questions, get one setup command, deploy 23 security agents.',
   keywords: ['Hermes agent security', 'Hermes tool poisoning', 'function-call injection', 'LLM agent security', 'Hermes framework hardening', 'agentic security', 'AI agent security'],
   alternates: {
-    canonical: 'https://www.shipsafecli.com/hermes',
+    canonical: 'https://shipsafecli.com/hermes',
   },
   openGraph: {
     title: 'Hermes Agent Security — Ship Safe',
     description: 'Harden your Hermes agent against tool poisoning, function-call injection, and memory attacks in one command.',
     type: 'website',
-    url: 'https://www.shipsafecli.com/hermes',
+    url: 'https://shipsafecli.com/hermes',
     siteName: 'Ship Safe',
     images: [{ url: ogImage, width: 1200, height: 630, alt: 'Hermes Agent Security' }],
   },
