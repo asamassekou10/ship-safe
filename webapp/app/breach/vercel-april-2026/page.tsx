@@ -1,6 +1,7 @@
 import Nav from '@/components/Nav';
 import type { Metadata } from 'next';
 import BreachChecker from './BreachChecker';
+import BreachShare from './BreachShare';
 import styles from './breach.module.css';
 
 const ogImage = 'https://www.shipsafecli.com/og-shipsafe.jpg';
@@ -85,6 +86,8 @@ export default function BreachPage() {
 
         {/* ── Checker ── */}
         <BreachChecker />
+
+        <BreachShare />
 
         {/* ── What the checks cover ── */}
         <section style={{ maxWidth: 820, margin: '3rem auto 0', padding: '0 1rem' }}>
