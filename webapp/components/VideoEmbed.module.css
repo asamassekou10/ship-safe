@@ -1,0 +1,37 @@
+.figure {
+  margin: 0;
+}
+
+.frameWrap {
+  position: relative;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.landscape .frameWrap {
+  aspect-ratio: 16 / 9;
+}
+
+.short .frameWrap {
+  aspect-ratio: 9 / 16;
+  max-width: 340px;
+  margin: 0 auto;
+}
+
+.frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.caption {
+  margin-top: 0.65rem;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  text-align: center;
+}

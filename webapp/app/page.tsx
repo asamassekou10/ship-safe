@@ -12,6 +12,7 @@ import FAQ from '@/components/FAQ';
 import CTA from '@/components/CTA';
 import ScrollAnimator from '@/components/ScrollAnimator';
 import DemoScanner from '@/components/DemoScanner';
+import DemoVideos from '@/components/DemoVideos';
 import ThreatMarquee from '@/components/ThreatMarquee';
 import RecentPosts from '@/components/RecentPosts';
 import { getRepoStats } from '@/lib/stats';
@@ -169,6 +170,7 @@ export default async function Home() {
         <Hero stars={stars} downloads={downloads} />
         <TrustBar stars={stars} downloads={downloads} />
         <DemoScanner />
+        <DemoVideos />
         <HowItWorks />
         <Features />
         <AgentDirectory />

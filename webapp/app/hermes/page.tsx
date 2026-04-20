@@ -1,5 +1,6 @@
 import Nav from '@/components/Nav';
 import Link from 'next/link';
+import VideoEmbed from '@/components/VideoEmbed';
 import styles from './hermes.module.css';
 import type { Metadata } from 'next';
 
@@ -61,6 +62,18 @@ export default function HermesPage() {
               </Link>
             </div>
           </>
+        </section>
+
+        {/* ── Deploy video ── */}
+        <section className={styles.section} style={{ paddingTop: '2rem' }}>
+          <div style={{ maxWidth: 720, margin: '0 auto' }}>
+            <VideoEmbed
+              videoId="nGH1chUHzKQ"
+              title="Deploy Hermes agents in a few seconds - Ship Safe"
+              format="landscape"
+              caption="Deploy a hardened Hermes agent in seconds"
+            />
+          </div>
         </section>
 
         {/* ── What is Hermes? ── */}

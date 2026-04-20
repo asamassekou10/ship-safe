@@ -1,0 +1,49 @@
+.section {
+  padding: 5rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.title {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.sub {
+  color: var(--text-muted);
+  font-size: 1rem;
+  margin: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.main {
+  min-width: 0;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .side {
+    max-width: 280px;
+    margin: 0 auto;
+  }
+}
