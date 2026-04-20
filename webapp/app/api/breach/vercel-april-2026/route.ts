@@ -101,8 +101,9 @@ function vercelHeaders(token: string) {
 }
 
 async function getVercelIntegrations(token: string, teamId?: string) {
-  const qs = teamId ? `?teamId=${encodeURIComponent(teamId)}` : '';
-  const r = await fetch(`https://api.vercel.com/v1/integrations/configurations${qs}`, {
+  const params = new URLSearchParams({ view: teamId ? 'team' : 'account' });
+  if (teamId) params.set('teamId', teamId);
+  const r = await fetch(`https://api.vercel.com/v1/integrations/configurations?${params}`, {
     headers: vercelHeaders(token),
   });
   if (!r.ok) {
