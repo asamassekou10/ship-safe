@@ -101,9 +101,8 @@ function vercelHeaders(token: string) {
 }
 
 async function getVercelIntegrations(token: string, teamId?: string) {
-  const params = new URLSearchParams({ limit: '50' });
-  if (teamId) params.set('teamId', teamId);
-  const r = await fetch(`https://api.vercel.com/v1/integrations/configurations?${params}`, {
+  const qs = teamId ? `?teamId=${encodeURIComponent(teamId)}` : '';
+  const r = await fetch(`https://api.vercel.com/v1/integrations/configurations${qs}`, {
     headers: vercelHeaders(token),
   });
   if (r.status === 400) throw new Error('400');
