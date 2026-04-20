@@ -334,16 +334,16 @@ export class DeepAnalyzer {
   async _analyzeTiered(findings, context) {
     const results = new Map();
 
-    // Model selection: use Anthropic tiers or provider's own model for non-Anthropic
-    const tier1Model = this._isAnthropic ? TIER1_MODEL : undefined;
-    const tier2Model = this._isAnthropic ? TIER2_MODEL : undefined;
-    const tier3Model = this._isAnthropic ? TIER3_MODEL : undefined;
+    // Model selection: Anthropic uses tier-specific models; others use provider's default
+    const tier1Model = this._isAnthropic ? TIER1_MODEL : null;
+    const tier2Model = this._isAnthropic ? TIER2_MODEL : null;
+    const tier3Model = this._isAnthropic ? TIER3_MODEL : null;
     const providerLabel = this._isAnthropic ? 'Haiku' : this.provider.name;
 
     // ── Tier 1: Haiku triage ────────────────────────────────────────────────
     if (this.verbose) console.log(`  [Tier 1] Triaging ${findings.length} findings with ${providerLabel}...`);
 
-    const triageMap = await this._runTriage(findings, context);
+    const triageMap = await this._runTriage(findings, context, tier1Model);
 
     const toReview   = findings.filter(f => triageMap.get(this._findingId(f)) === 'review');
     const toEscalate = findings.filter(f => triageMap.get(this._findingId(f)) === 'escalate');
@@ -378,7 +378,7 @@ export class DeepAnalyzer {
   }
 
   /** Tier 1: quick triage — returns Map<findingId, 'skip'|'review'|'escalate'> */
-  async _runTriage(findings, context) {
+  async _runTriage(findings, context, model = null) {
     const triageMap = new Map();
     // Default everything to 'review' so nothing is silently dropped on error
     for (const f of findings) triageMap.set(this._findingId(f), 'review');
@@ -408,7 +408,7 @@ export class DeepAnalyzer {
           prompt,
           'triage_findings',
           TRIAGE_SCHEMA,
-          { maxTokens: 1024, ...(tier1Model ? { model: tier1Model } : {}) }
+          { maxTokens: 1024, ...(model ? { model } : {}) }
         );
 
         this._trackCost(prompt.length, JSON.stringify(result || '').length);
@@ -427,7 +427,7 @@ export class DeepAnalyzer {
   }
 
   /** Tier 2: deep taint analysis — returns Map<findingId, analysis> */
-  async _runDeepAnalysis(findings, context, model = TIER2_MODEL) {
+  async _runDeepAnalysis(findings, context, model = null) {
     const results = new Map();
 
     for (let i = 0; i < findings.length; i += this.batchSize) {
@@ -454,7 +454,7 @@ export class DeepAnalyzer {
           prompt,
           'report_analysis',
           DEEP_ANALYSIS_SCHEMA,
-          { maxTokens: 1500, model }
+          { maxTokens: 1500, ...(model ? { model } : {}) }
         );
 
         this._trackCost(prompt.length, JSON.stringify(result || '').length);
@@ -476,7 +476,7 @@ export class DeepAnalyzer {
   }
 
   /** Tier 3: exploit-chain analysis — returns Map<findingId, analysis> */
-  async _runExploitChain(findings, context, model = TIER3_MODEL) {
+  async _runExploitChain(findings, context, model = null) {
     const results = new Map();
 
     // Single findings per call for maximum depth
@@ -515,7 +515,7 @@ export class DeepAnalyzer {
         if (this.verbose) console.log(`  [Tier 3] Failed for ${item.findingId}: ${err.message}`);
         // Fallback to Tier 2 analysis on error
         try {
-          const fallback = await this._runDeepAnalysis([finding], context, TIER2_MODEL);
+          const fallback = await this._runDeepAnalysis([finding], context, this._isAnthropic ? TIER2_MODEL : null);
           for (const [id, analysis] of fallback) results.set(id, analysis);
         } catch { /* ignore */ }
       }

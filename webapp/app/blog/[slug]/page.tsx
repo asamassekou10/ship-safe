@@ -1,5 +1,6 @@
 import Nav from '@/components/Nav';
 import Link from 'next/link';
+import Image from 'next/image';
 import { posts, getPostBySlug, getAllSlugs } from '@/data/blog';
 import styles from './post.module.css';
 import ShareButtons from './ShareButtons';
@@ -252,6 +253,19 @@ export default async function BlogPost({ params }: Props) {
             </div>
             <ShareButtons title={post.title} url={postUrl} />
           </header>
+
+          {post.coverImage && (
+            <div className={styles.coverImageWrap}>
+              <Image
+                src={post.coverImage}
+                alt={post.title}
+                width={1200}
+                height={630}
+                className={styles.coverImage}
+                priority
+              />
+            </div>
+          )}
 
           <div className={styles.content}>
             {renderContent(post.content)}

@@ -24,7 +24,20 @@
 }
 
 .header {
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
+}
+
+.coverImageWrap {
+  margin-bottom: 2.5rem;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.coverImage {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 .postTags {

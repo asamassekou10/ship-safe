@@ -7,6 +7,7 @@ export interface BlogPost {
   tags: string[];
   keywords: string[];
   content: string;
+  coverImage?: string;
 }
 
 export const posts: BlogPost[] = [
@@ -2057,6 +2058,7 @@ Ship fast. Ship safe.
   },
   {
     slug: 'kimi-k2-6-ship-safe-provider',
+    coverImage: '/KimiK2-6.jpeg',
     title: 'Run Ship Safe with Kimi K2.6 — Moonshot\'s Agentic Model Is Now a Supported Provider',
     description: 'Kimi K2.6 from Moonshot AI is now a supported LLM provider in Ship Safe. With 96.6% tool invocation accuracy, 300 parallel sub-agents, and pricing at $0.95/MTok input, it\'s the most cost-effective way to run deep security analysis on large codebases.',
     date: '2026-04-20',

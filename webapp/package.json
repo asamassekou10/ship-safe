@@ -1,6 +1,6 @@
 {
   "name": "ship-safe-webapp",
-  "version": "9.0.0",
+  "version": "9.1.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
