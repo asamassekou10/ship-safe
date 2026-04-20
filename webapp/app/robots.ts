@@ -4,8 +4,12 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
       {
+        userAgent: ['Twitterbot', 'facebookexternalhit', 'LinkedInBot', 'Slackbot', 'WhatsApp', 'Discordbot', 'iMessageBot'],
+        allow: '/',
+      },
+      {
         userAgent: '*',
-        allow: ['/', '/api/og/'],
+        allow: '/',
         disallow: ['/app/', '/api/'],
       },
     ],
