@@ -2046,7 +2046,7 @@ Use our [Lovable self-audit checklist](/breach/lovable-2025) to assess your spec
 
 There is a structural issue here that goes beyond Lovable specifically. AI coding tools lower the floor for building - which is genuinely valuable. But the security model that developers carry into those tools was built for a different workflow.
 
-In traditional development, credentials live in `.env` files that git-ignore by default. They are never typed into a chat interface. There is no concept of a "public project" that includes the conversation that generated it.
+In traditional development, credentials live in \`.env\` files that git-ignore by default. They are never typed into a chat interface. There is no concept of a "public project" that includes the conversation that generated it.
 
 Vibe coding collapses that distinction. The tool, the prompts, the credentials, and the generated code exist in the same session. When the session is public, all of it is public.
 
