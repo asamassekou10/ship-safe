@@ -131,6 +131,16 @@
 .roadmapLabel { font-size: 0.75rem; font-weight: 700; margin-bottom: 0.3rem; }
 .roadmapText  { font-size: 0.82rem; color: var(--text-muted); line-height: 1.55; }
 
+/* ── Cancel button ─────────────────────────────────────── */
+.cancelBtn {
+  font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.7rem;
+  border-radius: 4px; border: 1px solid rgba(239,68,68,0.4);
+  background: rgba(239,68,68,0.08); color: #ef4444;
+  cursor: pointer; transition: background 0.15s;
+}
+.cancelBtn:hover:not(:disabled) { background: rgba(239,68,68,0.18); }
+.cancelBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* ── Meta bar ──────────────────────────────────────────── */
 .metaBar { display: flex; gap: 1rem; font-size: 0.75rem; color: var(--text-dim); margin-top: 0.6rem; flex-wrap: wrap; }
 

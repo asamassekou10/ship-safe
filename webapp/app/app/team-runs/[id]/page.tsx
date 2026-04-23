@@ -291,9 +291,10 @@ function phaseIndex(phase: string): number {
 
 export default function TeamRunPage() {
   const { id } = useParams<{ id: string }>();
-  const [run,     setRun]     = useState<TeamRunData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState('');
+  const [run,        setRun]        = useState<TeamRunData | null>(null);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState('');
+  const [cancelling, setCancelling] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
@@ -318,6 +319,14 @@ export default function TeamRunPage() {
     });
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [load]);
+
+  async function cancelRun() {
+    if (!run || cancelling) return;
+    setCancelling(true);
+    await fetch(`/api/team-runs/${id}`, { method: 'DELETE' });
+    await load();
+    setCancelling(false);
+  }
 
   if (loading) return <div className={styles.page} style={{ color: 'var(--text-muted)' }}>Loading…</div>;
   if (error)   return <div className={styles.page} style={{ color: 'var(--red)' }}>{error}</div>;
@@ -355,6 +364,15 @@ export default function TeamRunPage() {
           }`}>
             {run.status === 'running' ? <><span className={styles.spinner} /> {run.phase}</> : run.status}
           </span>
+          {run.status === 'running' && (
+            <button
+              onClick={cancelRun}
+              disabled={cancelling}
+              className={styles.cancelBtn}
+            >
+              {cancelling ? 'Cancelling…' : 'Cancel'}
+            </button>
+          )}
         </div>
         <p className={styles.teamName}>{run.team.name}</p>
         <div className={styles.target}>{run.target}</div>

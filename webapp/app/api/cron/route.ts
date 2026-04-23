@@ -141,7 +141,28 @@ export async function GET(req: NextRequest) {
     scannedRepos.push(repo.repo);
   }
 
-  return NextResponse.json({ fired, count: fired.length, scannedRepos, at: now.toISOString() });
+  // ── Stuck team-run cleanup ───────────────────────────────────────────────────
+  // Any TeamRun still in 'running' after 12 minutes is stuck (Vercel killed it).
+  // Mark it as error so the UI doesn't spin forever.
+  const STUCK_AFTER_MS = 12 * 60 * 1000;
+  const stuckCutoff = new Date(now.getTime() - STUCK_AFTER_MS);
+  const stuckResult = await prisma.teamRun.updateMany({
+    where: { status: 'running', startedAt: { lt: stuckCutoff } },
+    data:  {
+      status:      'error',
+      phase:       'done',
+      completedAt: now,
+      report:      'Run timed out — the server did not complete within the allowed window. Try again with a smaller target or fewer agents.',
+    },
+  });
+
+  // Same cleanup for individual AgentRuns stuck in 'running'
+  await prisma.agentRun.updateMany({
+    where: { status: 'running', startedAt: { lt: stuckCutoff } },
+    data:  { status: 'error', completedAt: now },
+  });
+
+  return NextResponse.json({ fired, count: fired.length, scannedRepos, stuckTeamRunsCleaned: stuckResult.count, at: now.toISOString() });
 }
 
 // ── Scheduled repo scan runner ────────────────────────────────────────────────

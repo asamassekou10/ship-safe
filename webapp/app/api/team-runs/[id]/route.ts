@@ -44,3 +44,28 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (!teamRun) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json({ teamRun });
 }
+
+/**
+ * DELETE /api/team-runs/[id]
+ * Cancel a running team run.
+ */
+export async function DELETE(_req: NextRequest, { params }: Params) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { id } = await params;
+
+  const updated = await prisma.teamRun.updateMany({
+    where: { id, userId: session.user.id, status: 'running' },
+    data:  { status: 'error', phase: 'done', completedAt: new Date(), report: 'Cancelled by user.' },
+  });
+
+  if (updated.count === 0) return NextResponse.json({ error: 'Run not found or already complete' }, { status: 404 });
+
+  await prisma.agentRun.updateMany({
+    where: { teamRunId: id, status: 'running' },
+    data:  { status: 'error', completedAt: new Date() },
+  });
+
+  return NextResponse.json({ ok: true });
+}

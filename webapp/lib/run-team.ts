@@ -126,16 +126,19 @@ const ROLE_STRATEGY: Record<string, string> = {
     'If the target is a remote repo URL, clone it first. Investigate all areas relevant to your assigned role.',
 };
 
-// Per-role timeouts. Cloning large repos + grepping takes time. Pen testers need
-// more iterations for probing. These override the global AGENT_TIMEOUT_MS.
+// Per-role timeouts. Kept tight so the full team run completes within Vercel's
+// serverless max execution window. Lead runs twice (plan + synthesis).
 const ROLE_TIMEOUT_MS: Record<string, number> = {
-  pen_tester:  600_000, // 10 min
-  red_team:    480_000, // 8 min
-  secrets:     480_000, // 8 min — clone + grep can be slow on large repos
-  cve_analyst: 360_000, // 6 min
-  custom:      300_000, // 5 min
-  lead:        300_000, // 5 min per phase
+  pen_tester:  120_000, // 2 min
+  red_team:    120_000, // 2 min
+  secrets:     120_000, // 2 min
+  cve_analyst:  90_000, // 1.5 min
+  custom:       90_000, // 1.5 min
+  lead:         90_000, // 1.5 min per phase
 };
+
+// Total wall-clock budget for the entire team run. If exceeded, mark as error.
+const TEAM_RUN_TIMEOUT_MS = parseInt(process.env.TEAM_RUN_TIMEOUT_MS ?? '600000', 10); // 10 min
 
 function roleLabel(role: string): string {
   return ROLE_LABELS[role] ?? role;
@@ -333,6 +336,21 @@ async function runAgent(opts: {
 // ── Main orchestrator ─────────────────────────────────────────────────────────
 
 export async function fireTeamRun(teamRunId: string): Promise<void> {
+  const deadline = setTimeout(async () => {
+    await prisma.teamRun.updateMany({
+      where: { id: teamRunId, status: 'running' },
+      data:  { status: 'error', phase: 'done', completedAt: new Date(), report: 'Team run exceeded the maximum allowed time and was cancelled.' },
+    });
+  }, TEAM_RUN_TIMEOUT_MS);
+
+  try {
+    await _fireTeamRun(teamRunId);
+  } finally {
+    clearTimeout(deadline);
+  }
+}
+
+async function _fireTeamRun(teamRunId: string): Promise<void> {
   const teamRun = await prisma.teamRun.findUnique({
     where:   { id: teamRunId },
     include: {
