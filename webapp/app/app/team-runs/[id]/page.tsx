@@ -4,6 +4,231 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import styles from './run.module.css';
 
+// ── Report parser ─────────────────────────────────────────────────────────────
+
+function stripAnsi(s: string) {
+  return s
+    .replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '')
+    .replace(/\x1b\][^\x07]*\x07/g, '')
+    .replace(/\x9b[0-9;]*[A-Za-z]/g, '');
+}
+
+interface ParsedFinding {
+  severity: string;
+  title: string;
+  location?: string;
+  cve?: string;
+  remediation?: string;
+}
+
+interface ParsedAgent {
+  name: string;
+  role: string;
+  count: number;
+}
+
+interface ParsedReport {
+  target: string | null;
+  riskPosture: string | null;
+  findings: ParsedFinding[];
+  agents: ParsedAgent[];
+  roadmap: { immediate?: string; shortTerm?: string; longTerm?: string };
+}
+
+function parseReport(raw: string): ParsedReport {
+  const s = stripAnsi(raw)
+    // strip Hermes box-drawing chrome
+    .split('\n')
+    .filter(l => !l.trim().startsWith('╭') && !l.trim().startsWith('╰') && !l.trim().startsWith('│'))
+    .filter(l => !l.trim().startsWith('EXACTLY this format'))
+    .filter(l => !l.trim().startsWith('FINDING: {"severity"'))
+    .filter(l => !l.trim().match(/^─{6,}$/))
+    .filter(l => !l.trim().startsWith('[2J') && !l.trim().startsWith('[H'))
+    .join('\n');
+
+  // Structured FINDING: lines
+  const findings: ParsedFinding[] = [];
+  const findingRe = /^FINDING:\s*(\{.+\})\s*$/gm;
+  let m: RegExpExecArray | null;
+  while ((m = findingRe.exec(s)) !== null) {
+    try { const f = JSON.parse(m[1]); if (f.severity && f.title) findings.push(f); } catch { /* skip */ }
+  }
+
+  // Bullet fallback: [HIGH] Title — location
+  if (findings.length === 0) {
+    const bulletRe = /\[(CRITICAL|HIGH|MEDIUM|LOW|INFO)\]\s+(.+?)\s*[—–-]+\s*(.+)/gi;
+    while ((m = bulletRe.exec(s)) !== null) {
+      findings.push({ severity: m[1].toLowerCase(), title: m[2].trim(), location: m[3].trim() });
+    }
+  }
+
+  // Agent sections
+  const agents: ParsedAgent[] = [];
+  const agentRe = /###\s+(.+?)\s*(?:\(([^)]+)\))?\s*[—–-]+\s*(\d+)\s*finding/gi;
+  while ((m = agentRe.exec(s)) !== null) {
+    agents.push({ name: m[1].trim(), role: m[2]?.trim() ?? '', count: parseInt(m[3], 10) });
+  }
+
+  // Risk posture
+  const riskM = s.match(/Overall risk posture:\s*(.+)/i);
+
+  // Roadmap
+  const imm  = s.match(/\*\*Immediate[^*]*\*\*:?\s*([^\n]+(?:\n(?!\*\*)[^\n]+)*)/i);
+  const stm  = s.match(/\*\*Short-term[^*]*\*\*:?\s*([^\n]+(?:\n(?!\*\*)[^\n]+)*)/i);
+  const ltm  = s.match(/\*\*Long-term[^*]*\*\*:?\s*([^\n]+(?:\n(?!\*\*)[^\n]+)*)/i);
+
+  // Target
+  const targetM = raw.match(/assessments?\s+of\s+\*\*([^*]+)\*\*/i);
+
+  return {
+    target:      targetM?.[1]?.trim() ?? null,
+    riskPosture: riskM?.[1]?.trim() ?? null,
+    findings,
+    agents,
+    roadmap: {
+      immediate: imm?.[1]?.trim(),
+      shortTerm: stm?.[1]?.trim(),
+      longTerm:  ltm?.[1]?.trim(),
+    },
+  };
+}
+
+// ── Report renderer ───────────────────────────────────────────────────────────
+
+const SEV_COLORS: Record<string, string> = {
+  critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#3b82f6', info: '#94a3b8',
+};
+const SEV_BG: Record<string, string> = {
+  critical: 'rgba(239,68,68,0.1)', high: 'rgba(249,115,22,0.1)',
+  medium: 'rgba(234,179,8,0.1)',   low: 'rgba(59,130,246,0.1)', info: 'rgba(148,163,184,0.1)',
+};
+
+function riskColor(rp: string) {
+  const l = rp.toLowerCase();
+  if (l.includes('critical')) return '#ef4444';
+  if (l.includes('high'))     return '#f97316';
+  if (l.includes('medium'))   return '#eab308';
+  return '#22c55e';
+}
+
+function ReportRenderer({ raw }: { raw: string }) {
+  const r = parseReport(raw);
+  const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 } as Record<string, number>;
+  for (const f of r.findings) counts[f.severity] = (counts[f.severity] ?? 0) + 1;
+  const total = r.findings.length;
+
+  return (
+    <div className={styles.parsedReport}>
+
+      {/* Risk posture */}
+      {r.riskPosture && (
+        <div className={styles.riskBanner} style={{ borderColor: riskColor(r.riskPosture) + '44', background: riskColor(r.riskPosture) + '11' }}>
+          <span className={styles.riskLabel}>Overall Risk Posture</span>
+          <span className={styles.riskValue} style={{ color: riskColor(r.riskPosture) }}>
+            {r.riskPosture.split('—')[0].trim()}
+          </span>
+          {r.riskPosture.includes('—') && (
+            <span className={styles.riskDesc}>{r.riskPosture.split('—').slice(1).join('—').trim()}</span>
+          )}
+        </div>
+      )}
+
+      {/* Severity counts */}
+      {total > 0 && (
+        <div className={styles.sevRow}>
+          {(['critical','high','medium','low','info'] as const).map(s => (
+            <div key={s} className={styles.sevStat}>
+              <span className={styles.sevNum} style={{ color: SEV_COLORS[s] }}>{counts[s] ?? 0}</span>
+              <span className={styles.sevLabel}>{s}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Findings table */}
+      {r.findings.length > 0 && (
+        <div className={styles.section}>
+          <div className={styles.sectionTitle}>Findings ({total})</div>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Severity</th><th>Issue</th><th>Location</th><th>Remediation</th>
+              </tr>
+            </thead>
+            <tbody>
+              {r.findings.map((f, i) => (
+                <tr key={i}>
+                  <td>
+                    <span className={styles.sevBadge} style={{ color: SEV_COLORS[f.severity], background: SEV_BG[f.severity] }}>
+                      {f.severity.toUpperCase()}
+                    </span>
+                  </td>
+                  <td>
+                    <strong>{f.title}</strong>
+                    {f.cve && <div className={styles.cve}>{f.cve}</div>}
+                  </td>
+                  <td><code className={styles.loc}>{f.location ?? '—'}</code></td>
+                  <td className={styles.fix}>{f.remediation ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {total === 0 && (
+        <div className={styles.clean}>✓ No findings — clean!</div>
+      )}
+
+      {/* Agent summary */}
+      {r.agents.length > 0 && (
+        <div className={styles.section}>
+          <div className={styles.sectionTitle}>Agent Team</div>
+          <div className={styles.agentGrid}>
+            {r.agents.map((a, i) => (
+              <div key={i} className={styles.agentCard}>
+                <div className={styles.agentName}>{a.name}</div>
+                <div className={styles.agentRole}>{a.role}</div>
+                <div className={styles.agentCount} style={{ color: a.count > 0 ? '#f97316' : '#22c55e' }}>
+                  {a.count} finding{a.count !== 1 ? 's' : ''}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Remediation roadmap */}
+      {(r.roadmap.immediate || r.roadmap.shortTerm || r.roadmap.longTerm) && (
+        <div className={styles.section}>
+          <div className={styles.sectionTitle}>Remediation Roadmap</div>
+          <div className={styles.roadmap}>
+            {r.roadmap.immediate && (
+              <div className={styles.roadmapItem}>
+                <div className={styles.roadmapLabel} style={{ color: '#ef4444' }}>⚡ Immediate (24–48h)</div>
+                <div className={styles.roadmapText}>{r.roadmap.immediate}</div>
+              </div>
+            )}
+            {r.roadmap.shortTerm && (
+              <div className={styles.roadmapItem}>
+                <div className={styles.roadmapLabel} style={{ color: '#f97316' }}>📅 Short-term (1–2 weeks)</div>
+                <div className={styles.roadmapText}>{r.roadmap.shortTerm}</div>
+              </div>
+            )}
+            {r.roadmap.longTerm && (
+              <div className={styles.roadmapItem}>
+                <div className={styles.roadmapLabel} style={{ color: '#eab308' }}>🏗 Long-term (1–3 months)</div>
+                <div className={styles.roadmapText}>{r.roadmap.longTerm}</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface AgentRunNode {
@@ -202,13 +427,15 @@ export default function TeamRunPage() {
       {run.report && run.status !== 'error' && (
         <div className={styles.reportCard}>
           <div className={styles.reportTitle}>Final Security Report</div>
-          <div className={styles.reportText}>{run.report}</div>
+          <ReportRenderer raw={run.report} />
         </div>
       )}
       {run.status === 'error' && run.report && (
         <div className={styles.reportCard} style={{ borderColor: 'rgba(239,68,68,0.3)' }}>
           <div className={styles.reportTitle} style={{ color: '#ef4444' }}>Error</div>
-          <div className={styles.reportText} style={{ color: '#ef4444' }}>{run.report}</div>
+          <div className={styles.reportText} style={{ color: '#ef4444' }}>
+            {stripAnsi(run.report).replace(/\x1b\[[^m]*m/g, '').trim()}
+          </div>
         </div>
       )}
     </div>
