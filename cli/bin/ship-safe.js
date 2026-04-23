@@ -50,6 +50,7 @@ import { legalCommand } from '../commands/legal.js';
 import { runLiveAdvisories } from '../commands/live-advisories.js';
 import { envAuditCommand } from '../commands/env-audit.js';
 import { autofixCommand } from '../commands/autofix.js';
+import { teamReportCommand } from '../commands/team-report.js';
 import { memoryCommand } from '../utils/security-memory.js';
 import { playbookCommand } from '../utils/scan-playbook.js';
 import { listPluginFiles, scaffoldPlugin } from '../utils/plugin-loader.js';
@@ -273,6 +274,16 @@ program
   .option('--budget <cents>', 'Max spend in cents for deep analysis (default: 50)', parseInt)
   .option('-v, --verbose', 'Verbose output')
   .action(redTeamCommand);
+
+// -----------------------------------------------------------------------------
+// TEAM REPORT COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('team-report [file]')
+  .description('Convert Hermes Agent team output into a professional Ship Safe report')
+  .option('--html [path]', 'Save as HTML report (default: team-report.html)')
+  .option('--json', 'JSON output')
+  .action(teamReportCommand);
 
 // -----------------------------------------------------------------------------
 // WATCH COMMAND
