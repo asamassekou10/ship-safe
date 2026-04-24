@@ -43,21 +43,21 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
   let recon = {};
   let agentResults = [];
 
-  // ── 1a. Swarm mode (Kimi K2.6 native parallel execution) ─────────────────
+  // ── 1a. Swarm mode (parallel execution via best available provider) ────────
   if (options.swarm) {
     printBanner();
-    output.header('Kimi K2.6 Swarm Mode');
+    output.header('AI Swarm Mode');
     console.log();
 
     const swarm = SwarmOrchestrator.create(absolutePath, {
-      provider: options.provider || 'kimi',
+      provider: options.provider,
       model: options.model,
       verbose: options.verbose,
       budgetCents: options.budget || 200,
     });
 
     if (!swarm) {
-      output.error('Swarm mode requires MOONSHOT_API_KEY (Kimi K2.6). Set it and retry.');
+      output.error('Swarm mode requires DEEPSEEK_API_KEY or MOONSHOT_API_KEY. Set one and retry.');
       process.exit(1);
     }
 
@@ -68,7 +68,8 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
     const files = await reconAgent.discoverFiles(absolutePath);
     reconSpinner.succeed(chalk.green('Attack surface mapped'));
 
-    const swarmSpinner = ora({ text: `Deploying ${chalk.cyan('23 swarm agents')} via Kimi K2.6...`, color: 'cyan' }).start();
+    const providerLabel = swarm.provider?.name || 'AI';
+    const swarmSpinner = ora({ text: `Deploying ${chalk.cyan('23 swarm agents')} via ${providerLabel}...`, color: 'cyan' }).start();
     try {
       findings = await swarm.run(absolutePath, recon, files);
       swarmSpinner.succeed(chalk.green(`Swarm complete — ${findings.length} finding(s)`));
