@@ -299,6 +299,83 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // POST /update-image — pull new image and rolling-restart all hermes containers
+  if (method === 'POST' && url === '/update-image') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return send(res, 400, { error: e.message }); }
+
+    const image = (body && typeof body.image === 'string') ? body.image : HERMES_IMAGE;
+
+    // Pull the new image first
+    try {
+      await exec('docker', ['pull', image]);
+    } catch (e) {
+      return send(res, 500, { error: `docker pull failed: ${e.message}` });
+    }
+
+    // Find all running hermes containers
+    let containers = [];
+    try {
+      const { stdout } = await exec('docker', [
+        'ps', '--filter', 'name=hermes-', '--format', '{{.Names}}|{{.Ports}}',
+      ]);
+      containers = stdout.split('\n').filter(Boolean).map(line => {
+        const [name, ports] = line.split('|');
+        const m = ports && ports.match(/127\.0\.0\.1:(\d+)->/);
+        return { name, port: m ? parseInt(m[1], 10) : null };
+      });
+    } catch (e) {
+      return send(res, 500, { error: `docker ps failed: ${e.message}` });
+    }
+
+    const restarted = [];
+    for (const { name, port } of containers) {
+      if (!port) continue;
+      try {
+        // Inspect to recover config before stopping
+        const { stdout: inspectOut } = await exec('docker', [
+          'inspect', '--format',
+          '{{json .Config}}',
+          name,
+        ]);
+        const cfg = JSON.parse(inspectOut.trim());
+        const envMap = {};
+        for (const e of (cfg.Env || [])) {
+          const idx = e.indexOf('=');
+          if (idx > 0) envMap[e.slice(0, idx)] = e.slice(idx + 1);
+        }
+        const hermesConfig = envMap['HERMES_CONFIG'] || '{}';
+
+        // Stop old container
+        await exec('docker', ['stop', name]);
+        await exec('docker', ['rm', name]);
+
+        // Re-run with new image
+        const args = [
+          'run', '-d',
+          '--name', name,
+          '--restart', 'unless-stopped',
+          '--memory', `${MEMORY_MB}m`,
+          '--memory-swap', `${MEMORY_MB}m`,
+          '--cpu-quota', CPU_QUOTA,
+          '--network', 'bridge',
+          '--cap-drop', 'ALL',
+          '--security-opt', 'no-new-privileges',
+          '-p', `127.0.0.1:${port}:8080`,
+          '-e', `HERMES_CONFIG=${hermesConfig}`,
+          '-e', 'PORT=8080',
+          image,
+        ];
+        await exec('docker', args);
+        restarted.push(name);
+      } catch (e) {
+        console.error(`[update-image] failed to restart ${name}:`, e.message);
+      }
+    }
+
+    return send(res, 200, { ok: true, image, restarted });
+  }
+
   send(res, 404, { error: 'Not found' });
 });
 

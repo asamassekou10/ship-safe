@@ -1,0 +1,100 @@
+name: Update Hermes Agent Image
+
+on:
+  schedule:
+    - cron: '0 3 * * *'   # 03:00 UTC daily
+  workflow_dispatch:       # allow manual trigger
+
+permissions:
+  contents: read
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+
+    outputs:
+      rebuilt: ${{ steps.build.outputs.rebuilt }}
+      sha: ${{ steps.upstream.outputs.sha }}
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      # ── 1. Get latest commit SHA from NousResearch/hermes-agent ──────────────
+      - name: Get upstream Hermes SHA
+        id: upstream
+        run: |
+          SHA=$(curl -sf \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/NousResearch/hermes-agent/commits/main \
+            | jq -r '.sha')
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "Upstream SHA: ${SHA}"
+
+      # ── 2. Get SHA baked into the current latest image ────────────────────────
+      - name: Get current image SHA
+        id: current
+        run: |
+          CURRENT=$(docker run --rm --entrypoint="" \
+            ${{ secrets.DOCKERHUB_USERNAME }}/hermes-agent:latest \
+            sh -c 'echo $HERMES_UPSTREAM_SHA' 2>/dev/null || echo "none")
+          echo "sha=${CURRENT}" >> "$GITHUB_OUTPUT"
+          echo "Current image SHA: ${CURRENT}"
+        continue-on-error: true   # first build — image may not exist yet
+
+      # ── 3. Build + push only if SHA changed ──────────────────────────────────
+      - name: Log in to Docker Hub
+        if: steps.upstream.outputs.sha != steps.current.outputs.sha
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        if: steps.upstream.outputs.sha != steps.current.outputs.sha
+        uses: docker/setup-buildx-action@b5ca514318bd6e3cd04bddca23e54e0f8e2e9e2e # v3
+
+      - name: Build and push
+        id: build
+        if: steps.upstream.outputs.sha != steps.current.outputs.sha
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a9 # v6
+        with:
+          context: ./vps
+          file: ./vps/agent.Dockerfile
+          push: true
+          build-args: |
+            HERMES_SHA=${{ steps.upstream.outputs.sha }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/hermes-agent:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/hermes-agent:${{ steps.upstream.outputs.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ steps.upstream.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Set rebuilt output
+        id: set-rebuilt
+        run: |
+          if [[ "${{ steps.upstream.outputs.sha }}" != "${{ steps.current.outputs.sha }}" ]]; then
+            echo "rebuilt=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rebuilt=false" >> "$GITHUB_OUTPUT"
+            echo "Image is already up to date — skipping rollout."
+          fi
+
+  # ── 4. Rolling restart on the VPS ──────────────────────────────────────────
+  rollout:
+    needs: check-and-build
+    runs-on: ubuntu-latest
+    if: needs.check-and-build.outputs.rebuilt == 'true'
+
+    steps:
+      - name: Trigger rolling restart
+        run: |
+          curl -sf -X POST \
+            -H "Authorization: Bearer ${{ secrets.ORCHESTRATOR_SECRET }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.ORCHESTRATOR_URL }}/update-image" \
+            -d '{"image": "${{ secrets.DOCKERHUB_USERNAME }}/hermes-agent:latest"}' \
+          && echo "Rolling restart triggered." \
+          || echo "WARNING: orchestrator unreachable — containers will update on next redeploy."

@@ -16,9 +16,10 @@ RUN apt-get update -qq && \
       git curl build-essential && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Hermes agent from GitHub
+# Install Hermes agent from GitHub — pinned to HERMES_SHA when provided
+ARG HERMES_SHA=HEAD
 RUN pip install --no-cache-dir \
-    "git+https://github.com/NousResearch/hermes-agent.git" \
+    "git+https://github.com/NousResearch/hermes-agent.git@${HERMES_SHA}" \
     flask gunicorn
 
 WORKDIR /app
@@ -33,6 +34,9 @@ RUN useradd --no-create-home --shell /bin/bash hermes && \
 
 USER hermes
 ENV HOME=/home/hermes
+# Baked in at build time so the update workflow can compare versions
+ARG HERMES_SHA=HEAD
+ENV HERMES_UPSTREAM_SHA=${HERMES_SHA}
 
 EXPOSE 8080
 
