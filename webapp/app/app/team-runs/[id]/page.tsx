@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import styles from './run.module.css';
+import ProviderBadge from '@/components/ProviderBadge';
 
 // ── Report parser ─────────────────────────────────────────────────────────────
 
@@ -249,6 +250,7 @@ interface TeamRunData {
   status:      string;
   phase:       string;
   report:      string | null;
+  aiProvider:  string | null;
   startedAt:   string;
   completedAt: string | null;
   team:        { id: string; name: string };
@@ -381,6 +383,7 @@ export default function TeamRunPage() {
           {run.completedAt && <span>Duration: {duration(run.startedAt, run.completedAt)}</span>}
           <span>{run.agentRuns.length} agent run{run.agentRuns.length !== 1 ? 's' : ''}</span>
           {totalFindings > 0 && <span className={styles.findingsBadge}>{totalFindings} finding{totalFindings !== 1 ? 's' : ''}</span>}
+          <ProviderBadge provider={run.aiProvider} />
         </div>
       </div>
 

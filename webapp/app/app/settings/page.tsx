@@ -8,6 +8,7 @@ import UpgradeButton from './UpgradeButton';
 import NotificationSettings from './NotificationSettings';
 import AgentAlerts from './AgentAlerts';
 import ApiKeys from './ApiKeys';
+import LLMSettings from './LLMSettings';
 
 export const metadata: Metadata = {
   title: 'Settings — Ship Safe',
@@ -98,6 +99,14 @@ export default async function Settings() {
           </div>
         </div>
       )}
+      {/* AI Models */}
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h2>AI Models</h2>
+        </div>
+        <LLMSettings />
+      </div>
+
       {/* Notifications */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>

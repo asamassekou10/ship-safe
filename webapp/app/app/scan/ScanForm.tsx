@@ -24,6 +24,14 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
     sbom: false,
   });
 
+  const [aiOptions, setAiOptions] = useState({
+    provider: '',
+    model: '',
+    think: false,
+    swarm: false,
+  });
+  const [showAiOptions, setShowAiOptions] = useState(false);
+
   function toggleOption(key: keyof typeof options) {
     setOptions(prev => ({ ...prev, [key]: !prev[key] }));
   }
@@ -71,7 +79,7 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repo: repoValue, branch, method, options }),
+        body: JSON.stringify({ repo: repoValue, branch, method, options, aiOptions }),
       });
 
       const data = await res.json();
@@ -244,6 +252,63 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
             </div>
           </label>
         </div>
+
+        {/* AI Options */}
+        {options.deep && (
+          <div className={styles.aiOptionsWrap}>
+            <button
+              type="button"
+              className={styles.aiOptionsToggle}
+              onClick={() => setShowAiOptions(v => !v)}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+              AI options
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: showAiOptions ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+
+            {showAiOptions && (
+              <div className={styles.aiOptionsPanel}>
+                <div className={styles.aiRow}>
+                  <label className={styles.aiLabel}>Provider</label>
+                  <select
+                    className={styles.aiSelect}
+                    value={aiOptions.provider}
+                    onChange={e => setAiOptions(p => ({ ...p, provider: e.target.value, model: '' }))}
+                  >
+                    <option value="">Auto-detect (from Settings)</option>
+                    <option value="deepseek-flash">DeepSeek V4 Flash ⚡</option>
+                    <option value="deepseek">DeepSeek V4 Pro</option>
+                    <option value="openai">OpenAI GPT-5.5</option>
+                    <option value="kimi">Kimi K2.6</option>
+                    <option value="anthropic">Anthropic Claude</option>
+                  </select>
+                </div>
+
+                <div className={styles.aiRow}>
+                  <label className={styles.aiLabel}>Mode</label>
+                  <div className={styles.aiToggles}>
+                    <label className={styles.aiToggle}>
+                      <input
+                        type="checkbox"
+                        checked={aiOptions.swarm}
+                        onChange={e => setAiOptions(p => ({ ...p, swarm: e.target.checked }))}
+                      />
+                      <span><strong>Swarm</strong> — 23 parallel agents, ~30s</span>
+                    </label>
+                    <label className={styles.aiToggle}>
+                      <input
+                        type="checkbox"
+                        checked={aiOptions.think}
+                        onChange={e => setAiOptions(p => ({ ...p, think: e.target.checked }))}
+                      />
+                      <span><strong>Think mode</strong> — extended reasoning (GPT-5.5 / Claude)</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {(error === '__LIMIT__' || error === '__TRIAL_EXHAUSTED__') ? (
           <div className={styles.error}>

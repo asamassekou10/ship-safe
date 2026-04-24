@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import dashStyles from '../dashboard.module.css';
 import styles from './history.module.css';
 import type { Metadata } from 'next';
+import ProviderBadge from '@/components/ProviderBadge';
 
 export const metadata: Metadata = {
   title: 'Scan History — Ship Safe',
@@ -63,7 +64,7 @@ export default async function History({
       orderBy,
       take: PAGE_SIZE + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      select: { id: true, repo: true, branch: true, status: true, score: true, grade: true, findings: true, createdAt: true },
+      select: { id: true, repo: true, branch: true, status: true, score: true, grade: true, findings: true, createdAt: true, aiProvider: true },
     }),
     prisma.scan.count({ where: { userId: session.user.id } }),
   ]);
@@ -172,6 +173,7 @@ export default async function History({
                   ) : (
                     <>
                       <span className={dashStyles.findingCount}>{scan.findings} findings</span>
+                      <ProviderBadge provider={scan.aiProvider} />
                       {scan.score !== null && (
                         <div className={dashStyles.scoreChip} style={{ color: scoreColor(scan.score), borderColor: scoreColor(scan.score) + '40', background: scoreColor(scan.score) + '10' }}>
                           <span className={dashStyles.scoreGrade}>{scan.grade}</span>

@@ -25,6 +25,7 @@ model User {
   notifications NotificationSetting?
   agents        Agent[]
   agentTeams    AgentTeam[]
+  llmSettings   Json?     // { provider, model, think, apiKeys: { DEEPSEEK_API_KEY, OPENAI_API_KEY, ... } }
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -96,6 +97,7 @@ model Scan {
   duration    Float?          // seconds
   report      Json?           // full scan results
   options     Json?           // scan options
+  aiProvider  String?         // provider used for AI analysis (deepseek-flash, openai, kimi, etc.)
   prNumber    Int?            // GitHub PR number (if triggered by PR)
   prCommented Boolean   @default(false)
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -430,6 +432,7 @@ model TeamRun {
   status      String     @default("running") // running | completed | error
   phase       String     @default("planning") // planning | delegating | synthesizing | done
   report      String?    @db.Text
+  aiProvider  String?    // provider used (deepseek-flash, openai, kimi, etc.)
   agentRuns   AgentRun[]
   team        AgentTeam  @relation(fields: [teamId], references: [id], onDelete: Cascade)
   startedAt   DateTime   @default(now())

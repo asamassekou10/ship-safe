@@ -252,3 +252,36 @@
   .cliTip code { font-size: 0.72rem; }
   .dropZone { padding: 2rem 1rem; }
 }
+
+/* ── AI options ──────────────────────────────────────────── */
+.aiOptionsWrap { display: flex; flex-direction: column; gap: 0; }
+
+.aiOptionsToggle {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  font-size: 0.78rem; color: var(--text-muted); background: none; border: none;
+  cursor: pointer; padding: 0; font-family: var(--font-sans);
+}
+.aiOptionsToggle:hover { color: var(--cyan); }
+
+.aiOptionsPanel {
+  margin-top: 0.75rem;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.85rem;
+}
+
+.aiRow { display: flex; flex-direction: column; gap: 0.35rem; }
+.aiLabel { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); }
+
+.aiSelect {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.45rem 0.7rem; color: var(--text); font-size: 0.83rem;
+  font-family: var(--font-sans); outline: none; max-width: 320px;
+}
+.aiSelect:focus { border-color: var(--cyan); }
+
+.aiToggles { display: flex; flex-direction: column; gap: 0.5rem; }
+.aiToggle {
+  display: flex; align-items: center; gap: 0.5rem; font-size: 0.83rem;
+  cursor: pointer; color: var(--text);
+}
+.aiToggle input { accent-color: var(--cyan); }

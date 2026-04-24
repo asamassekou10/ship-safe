@@ -204,3 +204,92 @@
 .planOptionPrice { font-weight: 700; font-size: 1.1rem; color: var(--cyan); }
 .planOptionOnce { font-size: 0.72rem; font-weight: 400; color: var(--text-dim); }
 .planOptionDesc { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; }
+
+/* ── LLM Settings ─────────────────────────────────────────── */
+.llmLoading { font-size: 0.82rem; color: var(--text-dim); padding: 1rem 0; }
+
+.llmCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.llmRow {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 1.25rem;
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  align-items: start;
+}
+.llmRow:last-child { border-bottom: none; }
+
+.llmRowLabel { display: flex; flex-direction: column; gap: 0.2rem; padding-top: 0.15rem; }
+.llmLabel { font-size: 0.85rem; font-weight: 600; }
+.llmHint  { font-size: 0.72rem; color: var(--text-dim); line-height: 1.4; }
+
+.llmProviderGrid {
+  display: flex; flex-wrap: wrap; gap: 0.5rem;
+}
+
+.providerChip {
+  display: flex; flex-direction: column; align-items: flex-start;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.5rem 0.75rem; cursor: pointer; transition: border-color 0.15s;
+  text-align: left;
+}
+.providerChip:hover { border-color: var(--cyan); }
+.providerChipActive { border-color: var(--cyan); background: rgba(34,211,238,0.06); }
+.providerChipLabel { font-size: 0.8rem; font-weight: 600; }
+.providerChipDesc  { font-size: 0.68rem; color: var(--text-dim); margin-top: 0.1rem; }
+
+.llmSelect {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.5rem 0.75rem; color: var(--text); font-size: 0.85rem;
+  font-family: var(--font-sans); outline: none; transition: border-color 0.15s;
+  width: 100%; max-width: 280px;
+}
+.llmSelect:focus { border-color: var(--cyan); }
+
+.llmToggles { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.llmToggle {
+  display: flex; align-items: flex-start; gap: 0.6rem; cursor: pointer;
+  font-size: 0.85rem;
+}
+.llmToggle input { accent-color: var(--cyan); margin-top: 0.2rem; flex-shrink: 0; }
+.llmToggle span  { display: flex; flex-direction: column; gap: 0.15rem; }
+.llmToggleDisabled { opacity: 0.45; cursor: not-allowed; }
+
+.llmKeyList { display: flex; flex-direction: column; gap: 0.5rem; width: 100%; }
+
+.llmKeyRow { display: flex; align-items: center; gap: 0.75rem; }
+
+.llmKeyLabel {
+  font-size: 0.78rem; font-weight: 500; color: var(--text-muted);
+  width: 130px; flex-shrink: 0; display: flex; align-items: center; gap: 0.3rem;
+}
+.llmKeyRequired { color: var(--text); }
+.reqDot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); }
+
+.llmKeyInput {
+  flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.45rem 0.75rem; color: var(--text); font-size: 0.82rem;
+  font-family: var(--font-mono); outline: none; transition: border-color 0.15s;
+}
+.llmKeyInput:focus { border-color: var(--cyan); }
+
+.llmFooter { padding: 1rem 1.25rem; display: flex; justify-content: flex-end; }
+
+.llmSaveBtn {
+  background: var(--cyan); color: #000; font-weight: 700; font-size: 0.82rem;
+  border: none; border-radius: 8px; padding: 0.5rem 1.25rem; cursor: pointer;
+  transition: opacity 0.15s;
+}
+.llmSaveBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+.llmSaveBtn:hover:not(:disabled) { opacity: 0.88; }
+
+@media (max-width: 700px) {
+  .llmRow { grid-template-columns: 1fr; gap: 0.75rem; }
+}
