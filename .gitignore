@@ -262,3 +262,13 @@ docker-compose.override.yml
 
 .claude/
 CONTEXT.md
+
+# Local scratch files
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
+*.html
+!webapp/**/*.html
+!webapp/public/**
