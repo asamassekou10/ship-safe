@@ -25,6 +25,16 @@ function stripAnsi(text: string): string {
   return text.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, '');
 }
 
+function detectProviderFromEnvVars(envVars: Record<string, string>): string {
+  if (envVars['DEEPSEEK_API_KEY']) return 'deepseek-flash';
+  if (envVars['OPENAI_API_KEY'])   return 'openai';
+  if (envVars['ANTHROPIC_API_KEY']) return 'anthropic';
+  if (envVars['MOONSHOT_API_KEY']) return 'kimi';
+  if (envVars['XAI_API_KEY'])      return 'xai';
+  if (envVars['GOOGLE_API_KEY'])   return 'google';
+  return '';
+}
+
 // Parse FINDING: lines from agent output into structured objects.
 function parseFindings(text: string): FindingEntry[] {
   const findings: FindingEntry[] = [];
@@ -393,6 +403,13 @@ async function _fireTeamRun(teamRunId: string): Promise<void> {
 
   const leadDeployment = lead.agent.deployments[0];
   if (!leadDeployment?.port) { await failRun('Lead agent is not currently running. Deploy it first.'); return; }
+
+  // Detect and record which LLM provider the lead agent is configured with
+  const leadEnvVars = (lead.agent.envVars as Record<string, string>) ?? {};
+  const aiProvider  = detectProviderFromEnvVars(leadEnvVars);
+  if (aiProvider) {
+    await prisma.teamRun.update({ where: { id: teamRunId }, data: { aiProvider } });
+  }
 
   const subMembers = members.filter((m: Member) => m.role !== 'lead');
   const roster     = members.map((m: Member) => ({

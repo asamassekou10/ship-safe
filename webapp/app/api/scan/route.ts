@@ -33,7 +33,13 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { repo, branch = '', method = 'github', options = {} } = body;
+  const { repo, branch = '', method = 'github', options = {}, aiOptions = {} } = body;
+
+  // Merge per-scan aiOptions with the user's saved llmSettings (body takes precedence)
+  const savedUser = await prisma.user.findUnique({ where: { id: userId }, select: { llmSettings: true } });
+  const saved = (savedUser?.llmSettings as Record<string, unknown> | null) ?? {};
+  const effectiveProvider = ((aiOptions.provider || saved.provider) as string) || '';
+  const effectiveThink    = !!(aiOptions.think ?? saved.think);
 
   if (!repo) {
     return NextResponse.json({ error: 'repo is required' }, { status: 400 });
@@ -61,7 +67,7 @@ export async function POST(req: NextRequest) {
 
   await logAudit({ userId, action: 'scan.created', target: scan.id, meta: { repo: resolvedRepo, branch, method: resolvedMethod } });
 
-  runScan(scan.id, userId, resolvedRepo, branch, options).catch(console.error);
+  runScan(scan.id, userId, resolvedRepo, branch, options, { provider: effectiveProvider, think: effectiveThink }).catch(console.error);
 
   return NextResponse.json({ id: scan.id, status: 'running' });
 }
@@ -92,25 +98,30 @@ async function fetchRepoTarball(owner: string, repo: string, ref: string, destDi
 }
 
 /** Run auditCommand programmatically, capturing its JSON stdout output */
-async function runAuditCapture(scanDir: string, options: Record<string, boolean>): Promise<string> {
+async function runAuditCapture(
+  scanDir: string,
+  options: Record<string, boolean>,
+  aiOpts: { provider?: string; think?: boolean } = {},
+): Promise<string> {
   const lines: string[] = [];
   const origLog = console.log;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const origExit = (process as any).exit;
 
-  // Capture JSON output written via console.log
   console.log = (...args: unknown[]) => lines.push(args.join(' '));
-  // Suppress process.exit() called at end of auditCommand
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (process as any).exit = () => {};
 
   try {
-    await auditCommand(scanDir, {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (auditCommand as (path: string, opts: Record<string, unknown>) => Promise<void>)(scanDir, {
       json: true,
       deep: options.deep ?? true,
       deps: options.deps !== false,
       noAi: options.noAi ?? false,
-      cache: false, // disable cache for cloud scans
+      cache: false,
+      ...(aiOpts.provider ? { provider: aiOpts.provider } : {}),
+      think: aiOpts.think ?? false,
     });
   } finally {
     console.log = origLog;
@@ -121,12 +132,24 @@ async function runAuditCapture(scanDir: string, options: Record<string, boolean>
   return lines.join('\n');
 }
 
+/** Resolve the display name of the provider that will be used for a given key/name */
+function resolveProviderLabel(requested: string): string {
+  if (requested) return requested;
+  if (process.env.DEEPSEEK_API_KEY) return 'deepseek-flash';
+  if (process.env.OPENAI_API_KEY)   return 'openai';
+  if (process.env.ANTHROPIC_API_KEY) return 'anthropic';
+  if (process.env.MOONSHOT_API_KEY) return 'kimi';
+  if (process.env.XAI_API_KEY)      return 'xai';
+  return '';
+}
+
 async function runScan(
   scanId: string,
   userId: string,
   repo: string,
   branch: string,
   options: Record<string, boolean>,
+  aiOpts: { provider?: string; think?: boolean } = {},
 ) {
   const tmpDir = await mkdtemp(join(tmpdir(), 'shipsafe-'));
   const startTime = Date.now();
@@ -136,7 +159,7 @@ async function runScan(
     await fetchRepoTarball(owner, repoName, branch, join(tmpDir, 'repo'));
 
     const scanDir = join(tmpDir, 'repo');
-    const stdout = await runAuditCapture(scanDir, options);
+    const stdout = await runAuditCapture(scanDir, options, aiOpts);
 
     const duration = (Date.now() - startTime) / 1000;
     let report: Record<string, unknown> = {};
@@ -150,9 +173,11 @@ async function runScan(
     const vulns = (cats?.injection?.findingCount ?? 0) + (cats?.auth?.findingCount ?? 0);
     const cves = typeof report.totalDepVulns === 'number' ? report.totalDepVulns : 0;
 
+    const aiProvider = resolveProviderLabel(aiOpts.provider ?? '');
+
     const updated = await prisma.scan.update({
       where: { id: scanId },
-      data: { status: 'done', score, grade, findings, secrets, vulns, cves, duration, report: report as Prisma.InputJsonValue },
+      data: { status: 'done', score, grade, findings, secrets, vulns, cves, duration, report: report as Prisma.InputJsonValue, aiProvider: aiProvider || null },
     });
 
     await prisma.monitoredRepo.updateMany({
