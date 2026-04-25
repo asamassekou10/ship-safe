@@ -2,25 +2,30 @@
  * Ship Safe Security Agent — Interactive Fix Loop
  * ================================================
  *
- * Scans your codebase, then for each finding:
- *   1. Generates a precise fix plan via LLM
- *   2. Shows you exactly what it will change (unified diff)
+ * Scans your codebase, then for each affected file:
+ *   1. Generates a precise multi-edit fix plan via LLM (one plan per file,
+ *      addressing every finding in that file at once)
+ *   2. Shows you exactly what it will change (unified diff with line numbers)
  *   3. Asks you to accept, skip, or quit
- *   4. Applies the change atomically
- *   5. Re-scans the file to verify the finding is resolved
- *   6. Logs the change to .ship-safe/fixes.jsonl
+ *   4. Applies the changes atomically
+ *   5. Re-scans to verify the findings are resolved
+ *   6. Logs every change to .ship-safe/fixes.jsonl
  *
  * USAGE:
  *   ship-safe agent [path]              Interactive fix loop
  *   ship-safe agent . --plan-only       Generate plans, never write
  *   ship-safe agent . --severity high   Only fix high+ severity
+ *   ship-safe agent . --branch fixes    Create a branch, commit per file
+ *   ship-safe agent . --pr              After fixing, push and open a PR
  *   ship-safe agent . --provider deepseek-flash
  *
  * SAFETY:
  *   - Refuses to operate on a dirty git tree (use --allow-dirty to override)
  *   - Always shows a diff before any write
- *   - Re-scans after each edit to verify the fix
- *   - Every applied change is logged for audit & undo
+ *   - Re-scans after each batch to verify the fix
+ *   - Plans may create new files (e.g., .env.example) but cannot edit
+ *     .env, secrets, lockfiles, or build artifacts
+ *   - Every applied change is logged for audit & undo (`ship-safe undo`)
  */
 
 import fs from 'fs';
@@ -42,6 +47,12 @@ const NEVER_EDIT = [
   /(^|\/)dist\//,
   /(^|\/)build\//,
   /\.min\.(js|css)$/,
+];
+// Files the agent IS allowed to create or update freely (companions to fixes)
+const SAFE_NEW_FILES = [
+  /(^|\/)\.env\.example$/i,
+  /(^|\/)\.env\.sample$/i,
+  /(^|\/)\.gitignore$/i,
 ];
 
 const FIX_LOG_DIR  = '.ship-safe';
@@ -66,6 +77,7 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
   console.log();
 
   // ── Git safety check ─────────────────────────────────────────────────────
+  const initialBranch = getCurrentBranch(root);
   if (!options.allowDirty) {
     const state = checkGitState(root);
     if (state === 'not-a-repo') {
@@ -80,11 +92,32 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
     }
   }
 
+  // ── Optional branch isolation ────────────────────────────────────────────
+  let branchCreated = null;
+  if (options.branch) {
+    if (!initialBranch) {
+      console.log(chalk.yellow('  --branch requires a git repository. Skipping branch creation.'));
+    } else {
+      const stamp      = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
+      const branchName = options.branch === true
+        ? `ship-safe/fixes-${stamp}`
+        : String(options.branch);
+      try {
+        execFileSync('git', ['checkout', '-b', branchName], { cwd: root, stdio: 'pipe' });
+        branchCreated = branchName;
+        console.log(chalk.gray(`  Branch: ${chalk.cyan(branchName)}`));
+      } catch (err) {
+        output.error(`Could not create branch ${branchName}: ${err.message}`);
+        process.exit(1);
+      }
+    }
+  }
+
   // ── Load LLM provider ────────────────────────────────────────────────────
   const provider = autoDetectProvider(root, {
-    provider:   options.provider,
-    model:      options.model,
-    think:      options.think || false,
+    provider: options.provider,
+    model:    options.model,
+    think:    options.think || false,
   });
   if (!provider) {
     output.error('No LLM provider available.');
@@ -124,47 +157,57 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
     return;
   }
 
-  console.log(chalk.cyan(`  Found ${findings.length} fixable finding(s)`));
+  // ── Group by file ────────────────────────────────────────────────────────
+  const byFile = new Map();
+  for (const f of findings) {
+    const list = byFile.get(f.file) ?? [];
+    list.push(f);
+    byFile.set(f.file, list);
+  }
+
+  console.log(chalk.cyan(`  Found ${findings.length} fixable finding(s) across ${byFile.size} file(s)`));
   console.log();
 
   // ── Fix loop ─────────────────────────────────────────────────────────────
-  const applied = [];
-  const skipped = [];
+  const applied = []; // { file, plan, verified }
+  const skipped = []; // { file, findings, reason }
+  let stopped   = false;
+  let i         = 0;
 
-  for (let i = 0; i < findings.length; i++) {
-    const finding = findings[i];
-    const idx     = `[${i + 1}/${findings.length}]`;
+  for (const [filePath, fileFindings] of byFile) {
+    i++;
+    if (stopped) break;
 
+    const idx = `[${i}/${byFile.size}]`;
     console.log();
-    console.log(chalk.bold(`  ${idx} ${severityLabel(finding.severity)} ${finding.title}`));
-    console.log(chalk.gray(`      ${finding.file}${finding.line ? `:${finding.line}` : ''}`));
-    if (finding.description) {
-      console.log(chalk.gray(`      ${finding.description}`));
+    console.log(chalk.bold(`  ${idx} ${chalk.cyan(filePath)} ${chalk.gray(`— ${fileFindings.length} finding(s)`)}`));
+    for (const f of fileFindings) {
+      console.log(`      ${severityLabel(f.severity)} ${f.title}${f.line ? chalk.gray(` (line ${f.line})`) : ''}`);
     }
 
     // Generate plan
     const planSpinner = ora({ text: 'Generating fix plan...', color: 'cyan', indent: 6 }).start();
     let plan;
     try {
-      plan = await generateFixPlan(provider, root, finding);
+      plan = await generateBatchPlan(provider, root, filePath, fileFindings);
       planSpinner.stop();
     } catch (err) {
       planSpinner.fail(chalk.red(`Plan generation failed: ${err.message}`));
-      skipped.push({ finding, reason: 'plan-generation-failed' });
+      skipped.push({ file: filePath, findings: fileFindings, reason: 'plan-generation-failed' });
       continue;
     }
 
     if (!plan || !plan.files || plan.files.length === 0) {
       console.log(chalk.yellow('      No precise fix available — needs manual review.'));
-      skipped.push({ finding, reason: 'no-precise-fix' });
+      skipped.push({ file: filePath, findings: fileFindings, reason: 'no-precise-fix' });
       continue;
     }
 
-    // Validate the plan's `find` strings actually exist in the files
+    // Validate (allows new safe files like .env.example)
     const validation = validatePlan(root, plan);
     if (!validation.ok) {
       console.log(chalk.yellow(`      Plan invalid: ${validation.reason}`));
-      skipped.push({ finding, reason: `plan-invalid: ${validation.reason}` });
+      skipped.push({ file: filePath, findings: fileFindings, reason: `plan-invalid: ${validation.reason}` });
       continue;
     }
 
@@ -180,42 +223,67 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
     const decision = (await prompt(chalk.cyan('      [a]ccept  [s]kip  [q]uit > '))).trim().toLowerCase();
     if (decision === 'q' || decision === 'quit') {
       console.log(chalk.gray('      Stopping.'));
+      stopped = true;
       break;
     }
-    if (decision !== 'a' && decision !== 'accept' && decision !== 'y' && decision !== 'yes') {
-      skipped.push({ finding, reason: 'user-skipped' });
+    if (!['a', 'accept', 'y', 'yes'].includes(decision)) {
+      skipped.push({ file: filePath, findings: fileFindings, reason: 'user-skipped' });
       continue;
     }
 
     // Apply
+    let applyErr = null;
+    const written = [];
     try {
       for (const fileChange of plan.files) {
         applyEdit(root, fileChange);
+        written.push(path.resolve(root, fileChange.path));
       }
     } catch (err) {
-      console.log(chalk.red(`      Apply failed: ${err.message}`));
-      skipped.push({ finding, reason: `apply-failed: ${err.message}` });
+      applyErr = err.message;
+    }
+
+    if (applyErr) {
+      console.log(chalk.red(`      Apply failed: ${applyErr}`));
+      skipped.push({ file: filePath, findings: fileFindings, reason: `apply-failed: ${applyErr}` });
       continue;
     }
 
-    // Verify by re-scanning the file
+    // Verify by re-scanning
     const verifySpinner = ora({ text: 'Verifying...', color: 'cyan', indent: 6 }).start();
-    const verified = await verifyFinding(root, finding);
-    if (verified) {
-      verifySpinner.succeed(chalk.green('Fix verified — finding resolved'));
+    const verified = await verifyFile(root, filePath, fileFindings);
+    if (verified.allResolved) {
+      verifySpinner.succeed(chalk.green(`Fix verified — ${fileFindings.length} finding(s) resolved`));
+    } else if (verified.someResolved) {
+      verifySpinner.warn(chalk.yellow(`Partial: ${verified.resolvedCount}/${fileFindings.length} resolved`));
     } else {
-      verifySpinner.warn(chalk.yellow('Fix applied, but a related finding still appears'));
+      verifySpinner.warn(chalk.yellow('Fix applied, but findings still appear'));
+    }
+
+    // Per-fix commit (if branch isolation in use)
+    if (branchCreated) {
+      try {
+        execFileSync('git', ['add', '--', ...written], { cwd: root, stdio: 'pipe' });
+        const titles = fileFindings.slice(0, 3).map(f => f.title).join(', ');
+        const more   = fileFindings.length > 3 ? ` (+${fileFindings.length - 3} more)` : '';
+        const msg    = `fix(security): ${filePath} — ${titles}${more}`;
+        execFileSync('git', ['commit', '-m', msg], { cwd: root, stdio: 'pipe' });
+      } catch {
+        // commit failed — most likely nothing staged because edits were no-ops
+      }
     }
 
     // Log
     logFix(root, {
       timestamp: new Date().toISOString(),
-      finding:   { title: finding.title, file: finding.file, line: finding.line, severity: finding.severity, rule: finding.rule },
+      file:      filePath,
+      findings:  fileFindings.map(f => ({ title: f.title, line: f.line, severity: f.severity, rule: f.rule })),
       plan,
-      verified,
+      verified:  verified.allResolved,
+      branch:    branchCreated,
     });
 
-    applied.push({ finding, plan, verified });
+    applied.push({ file: filePath, plan, verified });
   }
 
   // ── Final report ─────────────────────────────────────────────────────────
@@ -223,26 +291,40 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
   console.log();
   output.header('Summary');
   console.log();
-  console.log(`  ${chalk.green('Applied:')} ${applied.length}`);
-  console.log(`  ${chalk.gray('Skipped:')} ${skipped.length}`);
+  console.log(`  ${chalk.green('Applied:')} ${applied.length} file(s)`);
+  console.log(`  ${chalk.gray('Skipped:')} ${skipped.length} file(s)`);
 
   if (applied.length > 0) {
     console.log();
-    console.log(chalk.gray('  Applied fixes:'));
+    console.log(chalk.gray('  Applied:'));
     for (const a of applied) {
-      const mark = a.verified ? chalk.green('✓') : chalk.yellow('?');
-      console.log(`    ${mark} ${a.finding.title} ${chalk.gray(`(${a.finding.file})`)}`);
+      const mark = a.verified.allResolved ? chalk.green('✓') : chalk.yellow('?');
+      console.log(`    ${mark} ${a.file}`);
     }
     console.log();
     console.log(chalk.gray(`  Audit log: ${path.join(FIX_LOG_DIR, FIX_LOG_FILE)}`));
-    console.log(chalk.gray('  Review changes:  git diff'));
-    console.log(chalk.gray('  Undo all:        git checkout .'));
+    if (branchCreated) {
+      console.log(chalk.gray(`  Branch:    ${chalk.cyan(branchCreated)}`));
+      console.log(chalk.gray(`  Switch back: git checkout ${initialBranch}`));
+    } else {
+      console.log(chalk.gray('  Review:    git diff'));
+      console.log(chalk.gray('  Undo last: ship-safe undo'));
+    }
+  }
+
+  // ── PR autopilot ─────────────────────────────────────────────────────────
+  if (options.pr && applied.length > 0 && branchCreated) {
+    console.log();
+    await openPullRequest(root, branchCreated, applied);
+  } else if (options.pr && !branchCreated) {
+    console.log();
+    console.log(chalk.yellow('  --pr requires --branch. Skipping PR creation.'));
   }
 
   if (skipped.length > 0 && applied.length === 0) {
     console.log();
-    console.log(chalk.gray('  Tip: try a different provider with --provider, or run with --plan-only to inspect'));
-    console.log(chalk.gray('  what would change before committing.'));
+    console.log(chalk.gray('  Tip: try a different provider with --provider, or run with --plan-only'));
+    console.log(chalk.gray('  to inspect what would change.'));
   }
 
   console.log();
@@ -252,66 +334,82 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
 // PLAN GENERATION
 // =============================================================================
 
-async function generateFixPlan(provider, root, finding) {
-  const filePath = path.resolve(root, finding.file);
-  let fileContent;
+async function generateBatchPlan(provider, root, filePath, fileFindings) {
+  const abs = path.resolve(root, filePath);
+  let content;
   try {
-    fileContent = fs.readFileSync(filePath, 'utf8');
+    content = fs.readFileSync(abs, 'utf8');
   } catch {
     return null;
   }
 
-  // Window to a region around the finding for big files
-  const fileForPrompt = windowFileContent(fileContent, finding.line);
+  const fileForPrompt = windowFileContent(content, fileFindings[0]?.line);
+
+  const findingsBlock = fileFindings.map((f, i) => `
+${i + 1}. [${f.severity.toUpperCase()}] ${f.title}${f.line ? ` (line ${f.line})` : ''}
+   Rule: ${f.rule ?? 'N/A'}
+   Description: ${f.description ?? 'N/A'}${f.fix ? `\n   Suggested fix: ${f.fix}` : ''}
+`).join('');
 
   const systemPrompt = 'You are a security engineer. Produce precise code edits as structured JSON only. Never include prose, markdown, or code fences. Output a single JSON object.';
 
-  const userPrompt = `Fix this security finding by producing a precise code edit.
+  const userPrompt = `Fix all of these security findings in a single file by producing one coordinated plan.
 
-FINDING:
-- Severity: ${finding.severity}
-- Title: ${finding.title}
-- File: ${finding.file}${finding.line ? ` (line ${finding.line})` : ''}
-- Description: ${finding.description ?? 'N/A'}
-- Rule: ${finding.rule ?? 'N/A'}
-${finding.fix ? `- Suggested fix: ${finding.fix}\n` : ''}
-FILE CONTENT:
+FILE: ${filePath}
+
+FINDINGS (${fileFindings.length}):
+${findingsBlock}
+
+CURRENT FILE CONTENT:
 \`\`\`
 ${fileForPrompt}
 \`\`\`
 
 OUTPUT this exact JSON shape:
 {
-  "summary": "one short sentence describing what you'll do",
+  "summary": "one short sentence describing what you'll do across all findings",
   "files": [
     {
-      "path": "${finding.file}",
+      "path": "${filePath}",
       "edits": [
-        { "find": "EXACT verbatim substring to find", "replace": "new string", "reason": "why this fix" }
+        { "find": "EXACT verbatim substring", "replace": "new string", "reason": "addresses finding N" }
       ]
     }
   ],
   "risk": "low"
 }
 
+You MAY also include companion file changes (only these are allowed):
+  - .env.example  — add placeholders for any secrets you moved to env vars
+  - .gitignore    — add patterns for files that should not be committed
+
+For companion files, use this shape (no "find" needed):
+  { "path": ".env.example", "create": true, "content": "FULL FILE CONTENT" }
+or to append:
+  { "path": ".gitignore", "append": "PATTERN_TO_ADD\\n" }
+
 RULES:
-- "find" must appear EXACTLY in the file content. Include enough context (3+ lines if needed) to be unique.
-- "replace" is the corrected code. For secrets, use process.env.NAME or the language equivalent.
-- Risk levels: "low" = mechanical change with no logic shift, "medium" = behavior change, "high" = architectural.
-- If you cannot produce a precise mechanical edit, return: {"summary":"requires manual review","files":[],"risk":"high"}
+- Each "find" string must appear EXACTLY ONCE in the file. Include enough context (3+ lines) for uniqueness.
+- "replace" must be the corrected code. Preserve indentation and surrounding style.
+- Address each finding listed above with at least one edit (or explain in summary why a finding can't be mechanically fixed).
+- Risk: "low" = mechanical, "medium" = behavior change, "high" = architectural. Use "high" sparingly.
+- If you cannot produce a precise mechanical plan, return {"summary":"requires manual review","files":[],"risk":"high"}
 - JSON only. No prose. No code fences.`;
 
   const response = await provider.complete(systemPrompt, userPrompt, {
-    maxTokens: 2000,
+    maxTokens: 3000,
     jsonMode:  true,
   });
 
-  // Parse — be lenient since some providers wrap in code fences despite instructions
+  return parseJsonLoose(response);
+}
+
+function parseJsonLoose(response) {
+  if (!response) return null;
   const cleaned = response.trim()
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/```\s*$/i, '')
     .trim();
-
   try {
     return JSON.parse(cleaned);
   } catch {
@@ -337,19 +435,44 @@ function windowFileContent(content, line) {
 // =============================================================================
 
 function validatePlan(root, plan) {
-  if (!Array.isArray(plan.files)) return { ok: false, reason: 'no files array' };
+  if (!Array.isArray(plan.files) || plan.files.length === 0) {
+    return { ok: false, reason: 'no files in plan' };
+  }
 
   for (const f of plan.files) {
-    if (!f.path || !Array.isArray(f.edits) || f.edits.length === 0) {
-      return { ok: false, reason: 'malformed file entry' };
-    }
-    const abs = path.resolve(root, f.path);
-    if (!fs.existsSync(abs)) {
-      return { ok: false, reason: `file not found: ${f.path}` };
-    }
-    if (NEVER_EDIT.some(p => p.test(f.path.replace(/\\/g, '/')))) {
+    if (!f.path) return { ok: false, reason: 'file entry missing path' };
+
+    const rel       = f.path.replace(/\\/g, '/');
+    const isSafeNew = SAFE_NEW_FILES.some(p => p.test(rel));
+
+    // Block protected paths unless this is a known-safe companion file
+    if (!isSafeNew && NEVER_EDIT.some(p => p.test(rel))) {
       return { ok: false, reason: `protected path: ${f.path}` };
     }
+
+    const abs    = path.resolve(root, f.path);
+    const exists = fs.existsSync(abs);
+
+    // Companion file forms (create / append)
+    if (f.create || f.append !== undefined) {
+      if (!exists && !isSafeNew) {
+        return { ok: false, reason: `cannot create new file at ${f.path}` };
+      }
+      if (f.create && typeof f.content !== 'string') {
+        return { ok: false, reason: 'create entry missing content' };
+      }
+      if (f.append && typeof f.append !== 'string') {
+        return { ok: false, reason: 'append must be a string' };
+      }
+      continue;
+    }
+
+    // Standard edit form
+    if (!exists) return { ok: false, reason: `file not found: ${f.path}` };
+    if (!Array.isArray(f.edits) || f.edits.length === 0) {
+      return { ok: false, reason: `no edits for ${f.path}` };
+    }
+
     const content = fs.readFileSync(abs, 'utf8');
     for (const e of f.edits) {
       if (typeof e.find !== 'string' || typeof e.replace !== 'string') {
@@ -358,16 +481,52 @@ function validatePlan(root, plan) {
       if (e.find === e.replace) {
         return { ok: false, reason: 'edit is a no-op' };
       }
-      const occurrences = countOccurrences(content, e.find);
-      if (occurrences === 0) {
+      const match = locateFindString(content, e.find);
+      if (match.kind === 'missing') {
         return { ok: false, reason: `find string not present in ${f.path}` };
       }
-      if (occurrences > 1) {
-        return { ok: false, reason: `find string is ambiguous (${occurrences} matches) in ${f.path}` };
+      if (match.kind === 'ambiguous') {
+        return { ok: false, reason: `find string is ambiguous (${match.count} matches) in ${f.path}` };
       }
+      // Annotate the edit with the resolved match for use during apply
+      e._resolvedFind = match.matched;
     }
   }
   return { ok: true };
+}
+
+// Try exact match first, then whitespace-normalized match if exact misses.
+// Returns { kind: 'unique'|'ambiguous'|'missing', matched, count }
+function locateFindString(haystack, needle) {
+  const exact = countOccurrences(haystack, needle);
+  if (exact === 1) return { kind: 'unique', matched: needle, count: 1 };
+  if (exact > 1)   return { kind: 'ambiguous', matched: needle, count: exact };
+
+  // Whitespace-tolerant fallback: collapse whitespace runs and try again
+  const norm = (s) => s.replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim();
+  const needleNorm = norm(needle);
+  if (!needleNorm) return { kind: 'missing', matched: null, count: 0 };
+
+  // Walk the haystack and check if any window normalizes to the same string
+  // To keep this cheap, only attempt when needle has at least one newline (likely a code block)
+  const lines = haystack.split('\n');
+  const needleLines = needleNorm.split('\n').length;
+  let foundIdx = -1;
+  let foundCount = 0;
+  for (let i = 0; i + needleLines <= lines.length; i++) {
+    const window = lines.slice(i, i + needleLines).join('\n');
+    if (norm(window) === needleNorm) {
+      foundIdx = i;
+      foundCount++;
+      if (foundCount > 1) break;
+    }
+  }
+  if (foundCount === 1) {
+    const matched = lines.slice(foundIdx, foundIdx + needleLines).join('\n');
+    return { kind: 'unique', matched, count: 1 };
+  }
+  if (foundCount > 1) return { kind: 'ambiguous', matched: null, count: foundCount };
+  return { kind: 'missing', matched: null, count: 0 };
 }
 
 function countOccurrences(haystack, needle) {
@@ -381,7 +540,7 @@ function countOccurrences(haystack, needle) {
 // PRINTING
 // =============================================================================
 
-function printPlan(plan, root) {
+function printPlan(plan, _root) {
   console.log();
   console.log(chalk.bold('      Plan:'));
   console.log(chalk.white(`        ${plan.summary || '(no summary)'}`));
@@ -392,13 +551,35 @@ function printPlan(plan, root) {
   console.log();
 
   for (const f of plan.files) {
+    if (f.create) {
+      console.log(chalk.bold(`      ${chalk.green('+ ')}${f.path} ${chalk.gray('(new file)')}`));
+      printNewFilePreview(f.content);
+      continue;
+    }
+    if (f.append !== undefined) {
+      console.log(chalk.bold(`      ${f.path} ${chalk.gray('(append)')}`));
+      for (const l of f.append.split('\n')) {
+        if (l) console.log(chalk.green(`        + ${l}`));
+      }
+      continue;
+    }
     console.log(chalk.bold(`      ${f.path}`));
     for (const e of f.edits) {
       console.log(chalk.gray(`        — ${e.reason || 'edit'}`));
-      printDiff(e.find, e.replace);
+      printDiff(e._resolvedFind || e.find, e.replace);
     }
   }
   console.log();
+}
+
+function printNewFilePreview(content) {
+  const lines = content.split('\n');
+  const max = 6;
+  const shown = lines.slice(0, max);
+  for (const l of shown) console.log(chalk.green(`        + ${l}`));
+  if (lines.length > max) {
+    console.log(chalk.gray(`        … +${lines.length - max} more line(s)`));
+  }
 }
 
 function printDiff(oldStr, newStr) {
@@ -424,15 +605,31 @@ function severityLabel(sev) {
 
 function applyEdit(root, fileChange) {
   const abs = path.resolve(root, fileChange.path);
-  let content = fs.readFileSync(abs, 'utf8');
 
-  for (const e of fileChange.edits) {
-    if (!content.includes(e.find)) {
-      throw new Error(`find string no longer present in ${fileChange.path} (file changed during planning)`);
-    }
-    content = content.replace(e.find, e.replace);
+  if (fileChange.create) {
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, fileChange.content, 'utf8');
+    return;
   }
 
+  if (fileChange.append !== undefined) {
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    const existing = fs.existsSync(abs) ? fs.readFileSync(abs, 'utf8') : '';
+    // Avoid duplicate appends
+    if (existing.includes(fileChange.append.trim())) return;
+    const sep = existing && !existing.endsWith('\n') ? '\n' : '';
+    fs.writeFileSync(abs, existing + sep + fileChange.append, 'utf8');
+    return;
+  }
+
+  let content = fs.readFileSync(abs, 'utf8');
+  for (const e of fileChange.edits) {
+    const find = e._resolvedFind || e.find;
+    if (!content.includes(find)) {
+      throw new Error(`find string drifted in ${fileChange.path} (file changed mid-plan)`);
+    }
+    content = content.replace(find, e.replace);
+  }
   fs.writeFileSync(abs, content, 'utf8');
 }
 
@@ -440,18 +637,27 @@ function applyEdit(root, fileChange) {
 // VERIFY
 // =============================================================================
 
-async function verifyFinding(root, originalFinding) {
-  // Re-run the scan and check whether a finding with the same rule+file+line still exists.
+async function verifyFile(root, filePath, originalFindings) {
   try {
     const result = await auditCommand(root, { _agenticInner: true, deep: false, deps: false, noAi: true });
-    const stillThere = (result.findings ?? []).some(f =>
-      f.file === originalFinding.file &&
-      f.rule === originalFinding.rule &&
-      Math.abs((f.line ?? 0) - (originalFinding.line ?? 0)) <= 2,
-    );
-    return !stillThere;
+    const remaining = (result.findings ?? []).filter(f => f.file === filePath);
+
+    let resolvedCount = 0;
+    for (const orig of originalFindings) {
+      const stillThere = remaining.some(f =>
+        f.rule === orig.rule &&
+        Math.abs((f.line ?? 0) - (orig.line ?? 0)) <= 2,
+      );
+      if (!stillThere) resolvedCount++;
+    }
+
+    return {
+      allResolved:  resolvedCount === originalFindings.length,
+      someResolved: resolvedCount > 0,
+      resolvedCount,
+    };
   } catch {
-    return false;
+    return { allResolved: false, someResolved: false, resolvedCount: 0 };
   }
 }
 
@@ -467,6 +673,61 @@ function logFix(root, entry) {
 }
 
 // =============================================================================
+// PR AUTOPILOT
+// =============================================================================
+
+async function openPullRequest(root, branch, applied) {
+  const ghAvailable = (() => {
+    try { execFileSync('gh', ['--version'], { stdio: 'pipe' }); return true; }
+    catch { return false; }
+  })();
+  if (!ghAvailable) {
+    console.log(chalk.yellow('  gh CLI not found. Install from https://cli.github.com to enable --pr.'));
+    return;
+  }
+
+  // Push branch
+  console.log(chalk.gray('  Pushing branch...'));
+  try {
+    execFileSync('git', ['push', '-u', 'origin', branch], { cwd: root, stdio: 'pipe' });
+  } catch (err) {
+    console.log(chalk.red(`  Push failed: ${err.message}`));
+    return;
+  }
+
+  // Build PR body
+  const totalFindings = applied.reduce((n, a) => n + (a.plan.files?.[0]?.edits?.length ?? 0), 0);
+  const body = [
+    '## Ship Safe — Security Fixes',
+    '',
+    `Applied ${applied.length} file(s) of fixes (${totalFindings} edit(s)) generated and verified by the Ship Safe agent.`,
+    '',
+    '### Files changed',
+    ...applied.map(a => {
+      const mark = a.verified.allResolved ? '✓' : '⚠';
+      return `- ${mark} \`${a.file}\` — ${a.plan.summary || 'security fix'}`;
+    }),
+    '',
+    '### Notes',
+    '- Each fix was generated by an LLM and verified by re-scanning the file.',
+    '- Files marked ⚠ have residual findings; review carefully before merging.',
+    '- Full audit log: `.ship-safe/fixes.jsonl`',
+    '',
+    'Generated by `ship-safe agent`.',
+  ].join('\n');
+
+  const title = `Security fixes: ${applied.length} file(s)`;
+
+  console.log(chalk.gray('  Opening PR...'));
+  try {
+    const out = execFileSync('gh', ['pr', 'create', '--title', title, '--body', body], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim();
+    console.log(chalk.green(`  PR opened: ${out}`));
+  } catch (err) {
+    console.log(chalk.red(`  PR creation failed: ${err.message}`));
+  }
+}
+
+// =============================================================================
 // GIT
 // =============================================================================
 
@@ -478,7 +739,6 @@ function checkGitState(root) {
   }
   try {
     const out = execFileSync('git', ['status', '--porcelain'], { cwd: root, stdio: 'pipe' }).toString();
-    // Ignore Ship Safe's own artifacts when assessing cleanliness
     const meaningful = out.split('\n').filter(line => {
       const path = line.slice(3).trim();
       if (!path) return false;
@@ -489,6 +749,14 @@ function checkGitState(root) {
     return meaningful.length === 0 ? 'clean' : 'dirty';
   } catch {
     return 'clean';
+  }
+}
+
+function getCurrentBranch(root) {
+  try {
+    return execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: root, stdio: 'pipe' }).toString().trim();
+  } catch {
+    return null;
   }
 }
 

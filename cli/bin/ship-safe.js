@@ -30,6 +30,8 @@ import { remediateCommand } from '../commands/remediate.js';
 import { rotateCommand } from '../commands/rotate.js';
 import { agentCommand } from '../commands/agent.js';
 import { agentFixCommand } from '../commands/agent-fix.js';
+import { undoCommand } from '../commands/undo.js';
+import { shellCommand } from '../commands/shell.js';
 import { depsCommand } from '../commands/deps.js';
 import { scoreCommand } from '../commands/score.js';
 import { redTeamCommand } from '../commands/red-team.js';
@@ -192,6 +194,8 @@ program
   .option('--model <model>', 'Specific model name to use')
   .option('--think', 'Enable extended thinking (GPT-5.5 reasoning_effort:high, Claude extended thinking)')
   .option('--allow-dirty', 'Allow running with uncommitted changes in the working tree')
+  .option('--branch [name]', 'Create a branch and commit one fix per file (default name: ship-safe/fixes-<timestamp>)')
+  .option('--pr', 'After fixing, push the branch and open a pull request via gh CLI (requires --branch)')
   .option('--legacy', 'Use the legacy non-interactive Claude-only agent')
   .action((targetPath, options) => {
     if (options.legacy) {
@@ -199,6 +203,27 @@ program
     }
     return agentFixCommand(targetPath, options);
   });
+
+// -----------------------------------------------------------------------------
+// UNDO COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('undo [path]')
+  .description('Revert the last fix applied by `ship-safe agent` (or all fixes with --all)')
+  .option('--all', 'Revert every fix in the log instead of just the last one')
+  .option('--dry-run', 'Show what would be reverted without writing anything')
+  .action(undoCommand);
+
+// -----------------------------------------------------------------------------
+// SHELL COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('shell [path]')
+  .description('Interactive REPL: scan, fix, ask questions — all in one session')
+  .option('--provider <name>', 'LLM provider: deepseek-flash | deepseek | openai | kimi | anthropic')
+  .option('--model <model>', 'Specific model name to use')
+  .option('--think', 'Enable extended thinking mode')
+  .action(shellCommand);
 
 // -----------------------------------------------------------------------------
 // DEPS COMMAND
