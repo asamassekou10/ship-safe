@@ -20,6 +20,25 @@ import chalk from 'chalk';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+
+// =============================================================================
+// GLOBAL ERROR HANDLERS — prevent silent crashes with actionable output
+// =============================================================================
+process.on('uncaughtException', (err) => {
+  console.error(chalk.red('\n✖ Uncaught exception:'), err.message);
+  console.error(chalk.gray(err.stack?.split('\n').slice(1, 4).join('\n') || ''));
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  console.error(chalk.red('\n✖ Unhandled rejection:'), msg);
+  process.exit(1);
+});
+import chalk from 'chalk';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { scanCommand } from '../commands/scan.js';
 import { checklistCommand } from '../commands/checklist.js';
 import { initCommand } from '../commands/init.js';
