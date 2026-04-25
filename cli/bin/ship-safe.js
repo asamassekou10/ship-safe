@@ -29,6 +29,7 @@ import { mcpCommand } from '../commands/mcp.js';
 import { remediateCommand } from '../commands/remediate.js';
 import { rotateCommand } from '../commands/rotate.js';
 import { agentCommand } from '../commands/agent.js';
+import { agentFixCommand } from '../commands/agent-fix.js';
 import { depsCommand } from '../commands/deps.js';
 import { scoreCommand } from '../commands/score.js';
 import { redTeamCommand } from '../commands/red-team.js';
@@ -184,10 +185,20 @@ program
 // -----------------------------------------------------------------------------
 program
   .command('agent [path]')
-  .description('AI-powered security audit: scan, classify with Claude, auto-remediate confirmed secrets')
-  .option('--dry-run', 'Show classification and plan without writing any files')
-  .option('--model <model>', `Claude model to use (default: ${DEFAULT_MODEL})`)
-  .action(agentCommand);
+  .description('Interactive security agent: scan, plan each fix, ask before changing, verify the fix worked')
+  .option('--plan-only', 'Generate plans for review but never write changes')
+  .option('--severity <level>', 'Minimum severity to fix (critical|high|medium|low)', 'low')
+  .option('--provider <name>', 'LLM provider: deepseek-flash | deepseek | openai | kimi | anthropic')
+  .option('--model <model>', 'Specific model name to use')
+  .option('--think', 'Enable extended thinking (GPT-5.5 reasoning_effort:high, Claude extended thinking)')
+  .option('--allow-dirty', 'Allow running with uncommitted changes in the working tree')
+  .option('--legacy', 'Use the legacy non-interactive Claude-only agent')
+  .action((targetPath, options) => {
+    if (options.legacy) {
+      return agentCommand(targetPath, options);
+    }
+    return agentFixCommand(targetPath, options);
+  });
 
 // -----------------------------------------------------------------------------
 // DEPS COMMAND
