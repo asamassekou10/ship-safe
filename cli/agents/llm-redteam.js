@@ -142,6 +142,11 @@ const PATTERNS = [
     confidence: 'medium',
     description: 'System prompt hardcoded in code. If client-side, users can extract it.',
     fix: 'Keep system prompts server-side only. Load from environment variables or config.',
+    // Skip clearly server-side files where defining a system prompt is correct.
+    // The rule is only meaningful for code that ships to a browser/client.
+    skipFile: (f) => /(?:^|\/)(?:cli|server|backend|api|lib|services|workers|jobs|scripts)\//.test(f.replace(/\\/g, '/'))
+                  || /\.(?:server|api)\.(?:js|ts|mjs|cjs|tsx)$/.test(f)
+                  || /\/api\//.test(f.replace(/\\/g, '/')),
   },
 
   // ── LLM10: Unbounded Consumption ───────────────────────────────────────────
@@ -219,12 +224,24 @@ const PATTERNS = [
   {
     rule: 'PROMPT_INJECTION_PATTERN',
     title: 'Known Prompt Injection Pattern',
-    regex: /(?:ignore\s+(?:all\s+)?previous\s+instructions|disregard\s+(?:all\s+)?(?:previous|prior)|you\s+are\s+now\s+DAN|system\s*prompt|jailbreak|bypass\s+(?:your|the)\s+(?:rules|instructions|guidelines))/gi,
+    // The phrase "system prompt" is *not* an injection attack — it's how every
+    // LLM developer talks about prompts. Match the actual jailbreak verbs instead.
+    regex: /(?:ignore\s+(?:all\s+)?previous\s+instructions|disregard\s+(?:all\s+)?(?:previous|prior)|you\s+are\s+now\s+DAN|jailbreak\s+(?:the|this)|bypass\s+(?:your|the)\s+(?:rules|instructions|guidelines)|reveal\s+your\s+system\s+prompt)/gi,
     severity: 'high',
     cwe: 'CWE-77',
     owasp: 'LLM01',
     description: 'Known prompt injection pattern detected in code. Ensure this is for testing only.',
     fix: 'If in test data, add # ship-safe-ignore. If in user-facing code, add input filtering.',
+    // Skip files where the pattern appears intentionally: tests, red-team rules,
+    // detection-rule definitions, and security tool source code.
+    skipFile: (f) => {
+      const p = f.replace(/\\/g, '/');
+      return /__tests__\//.test(p)
+          || /\.(?:test|spec)\.(?:js|ts|mjs|cjs|tsx|jsx)$/.test(p)
+          || /(?:^|\/)(?:red-?team|llm-?redteam|prompt-?injection|memory-?poisoning|jailbreak)/.test(p)
+          || /\/agents\/[^/]*(?:redteam|injection|llm)/i.test(p)
+          || /(?:scan-playbook|threat-intel|patterns)\.(?:js|ts)$/.test(p);
+    },
   },
 ];
 
@@ -242,7 +259,12 @@ export class LLMRedTeam extends BaseAgent {
 
     let findings = [];
     for (const file of codeFiles) {
-      findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS));
+      // Honor per-pattern skipFile predicates so rules that are clearly false
+      // positives in known contexts (server-side prompts, redteam test data)
+      // never get sent to the agent for "fixing".
+      const applicable = PATTERNS.filter(p => !p.skipFile || !p.skipFile(file));
+      if (applicable.length === 0) continue;
+      findings = findings.concat(this.scanFileWithPatterns(file, applicable));
     }
     return findings;
   }

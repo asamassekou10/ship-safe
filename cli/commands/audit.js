@@ -909,6 +909,20 @@ function outputSARIF(findings, rootPath) {
 // FILE SCANNING (inline from scan.js to avoid circular deps)
 // =============================================================================
 
+// Walk up from `start` looking for `name`. Returns the absolute path or null.
+// Bounded to 8 ancestors to avoid runaway loops on weird filesystems.
+function findUpwards(start, name) {
+  let dir = path.resolve(start);
+  for (let i = 0; i < 8; i++) {
+    const candidate = path.join(dir, name);
+    if (fs.existsSync(candidate)) return candidate;
+    const parent = path.dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+  return null;
+}
+
 async function findFiles(rootPath) {
   const globIgnore = Array.from(SKIP_DIRS).map(dir => `**/${dir}/**`);
 
@@ -916,9 +930,10 @@ async function findFiles(rootPath) {
   const gitignoreGlobs = loadGitignorePatterns(rootPath);
   globIgnore.push(...gitignoreGlobs);
 
-  // Load .ship-safeignore
-  const ignorePath = path.join(rootPath, '.ship-safeignore');
-  if (fs.existsSync(ignorePath)) {
+  // Load .ship-safeignore — walk up to the project root so subdirectory scans
+  // still honor the repo-level ignore file.
+  const ignorePath = findUpwards(rootPath, '.ship-safeignore');
+  if (ignorePath) {
     try {
       const patterns = fs.readFileSync(ignorePath, 'utf-8')
         .split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
