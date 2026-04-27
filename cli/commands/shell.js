@@ -42,25 +42,73 @@ const PKG_VERSION = (() => {
   } catch { return ''; }
 })();
 
-// Big block-letter wordmark — same one used by the help banner so brand stays
-// consistent. Falls back to a tighter compact version on narrow terminals.
-function shipSafeBanner() {
-  // Default to the big banner; only fall back to compact when we can confirm
-  // the terminal is genuinely narrow (<70 cols). Piped/non-TTY stdout still
-  // gets the big banner — recordings and screenshots want it.
+const BANNER_LINES = [
+  '  ███████╗██╗  ██╗██╗██████╗     ███████╗ █████╗ ███████╗███████╗',
+  '  ██╔════╝██║  ██║██║██╔══██╗    ██╔════╝██╔══██╗██╔════╝██╔════╝',
+  '  ███████╗███████║██║██████╔╝    ███████╗███████║█████╗  █████╗  ',
+  '  ╚════██║██╔══██║██║██╔═══╝     ╚════██║██╔══██║██╔══╝  ██╔══╝  ',
+  '  ███████║██║  ██║██║██║         ███████║██║  ██║██║     ███████╗',
+  '  ╚══════╝╚═╝  ╚═╝╚═╝╚═╝         ╚══════╝╚═╝  ╚═╝╚═╝     ╚══════╝',
+];
+
+// Characters drawn from the same box-drawing + block set the banner uses,
+// so random frames look plausibly related rather than pure noise.
+const GLITCH_CHARS = '█▓▒░╔╗╚╝╠╣╦╩╬═║┼┤├┬┴┐└┘┌─│╱╲╳';
+
+function glitchFrame(line, reveal) {
+  // `reveal` is 0.0..1.0 — characters left of the reveal frontier are real,
+  // everything to the right is randomised from the glitch set.
+  return line.split('').map((ch, i) => {
+    const pos = i / line.length;
+    if (pos < reveal || ch === ' ') return ch;
+    return GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)];
+  }).join('');
+}
+
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+async function shipSafeBannerAnimated() {
   const cols   = process.stdout.columns;
   const narrow = typeof cols === 'number' && cols > 0 && cols < 70;
   if (narrow) {
-    return chalk.cyan.bold('  S H I P   S A F E');
+    console.log(chalk.cyan.bold('  S H I P   S A F E'));
+    return;
   }
-  return [
-    chalk.cyan('  ███████╗██╗  ██╗██╗██████╗     ███████╗ █████╗ ███████╗███████╗'),
-    chalk.cyan('  ██╔════╝██║  ██║██║██╔══██╗    ██╔════╝██╔══██╗██╔════╝██╔════╝'),
-    chalk.cyan('  ███████╗███████║██║██████╔╝    ███████╗███████║█████╗  █████╗  '),
-    chalk.cyan('  ╚════██║██╔══██║██║██╔═══╝     ╚════██║██╔══██║██╔══╝  ██╔══╝  '),
-    chalk.cyan('  ███████║██║  ██║██║██║         ███████║██║  ██║██║     ███████╗'),
-    chalk.cyan('  ╚══════╝╚═╝  ╚═╝╚═╝╚═╝         ╚══════╝╚═╝  ╚═╝╚═╝     ╚══════╝'),
-  ].join('\n');
+
+  const lines = BANNER_LINES;
+  const FRAMES    = 8;   // glitch passes before the line locks in
+  const FRAME_MS  = 18;  // ms between frames within a line
+  const LINE_MS   = 28;  // ms between lines starting
+
+  // Print an empty placeholder so we know exactly where each line lives.
+  // We'll overwrite them in-place using cursor-up escape codes.
+  process.stdout.write('\n');
+  for (const line of lines) {
+    process.stdout.write(' '.repeat(line.length) + '\n');
+  }
+  process.stdout.write('\n');
+
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
+    // Move cursor up to this line's row (from the blank line after the banner).
+    const stepsUp = lines.length - li + 1;
+    process.stdout.write(`\x1B[${stepsUp}A`); // cursor up N
+
+    // Animate: reveal marches from 0 → 1 across FRAMES frames.
+    for (let f = 0; f <= FRAMES; f++) {
+      const reveal = f / FRAMES;
+      const scrambled = glitchFrame(line, reveal);
+      process.stdout.write('\r' + chalk.cyan(scrambled));
+      if (f < FRAMES) await sleep(FRAME_MS);
+    }
+
+    // Write the final clean line and move back down to the bottom blank line.
+    process.stdout.write('\r' + chalk.cyan(line));
+    process.stdout.write(`\x1B[${stepsUp}B`); // cursor down N
+    await sleep(LINE_MS);
+  }
 }
 
 export async function shellCommand(targetPath = '.', options = {}) {
@@ -85,8 +133,8 @@ export async function shellCommand(targetPath = '.', options = {}) {
   // Modeled on Claude Code / Gemini CLI / Aider — establish the tool's identity
   // in the first second, then get out of the way.
   console.log();
-  console.log(shipSafeBanner());
-  console.log();
+  await shipSafeBannerAnimated();
+  // trailing blank line is already written by the animation loop
   const ver  = PKG_VERSION ? `v${PKG_VERSION}` : '';
   const prov = state.provider ? chalk.cyan(state.provider.name) : chalk.yellow('no provider');
   const cwd  = chalk.gray(prettyCwd(root));
