@@ -663,7 +663,9 @@ How it works:
 // No command + interactive TTY → drop into the REPL.
 // Help banner is still available via `--help` and shown when stdin is piped.
 if (process.argv.length === 2 && process.stdin.isTTY) {
-  shellCommand('.', {});
+  // Await shell before exiting; do NOT fall through to program.parse() or it
+  // will print the help banner concurrently with the REPL banner.
+  shellCommand('.', {}).then(() => process.exit(0)).catch(() => process.exit(1));
 } else if (process.argv.length === 2) {
   console.log(banner);
   console.log(chalk.yellow('\nQuick start:\n'));
@@ -707,6 +709,6 @@ if (process.argv.length === 2 && process.stdin.isTTY) {
   console.log(chalk.white('\n  npx ship-safe --help        ') + chalk.gray('# Show all options'));
   console.log();
   process.exit(0);
+} else {
+  program.parse();
 }
-
-program.parse();
