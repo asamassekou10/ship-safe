@@ -16,7 +16,7 @@
 ---
 
 <p align="center">
-  <img src=".github/assets/demo-repl.svg" alt="Ship Safe REPL demo" width="800" />
+  <img src=".github/assets/demo-repl.gif" alt="Ship Safe REPL demo" width="800" />
 </p>
 
 Type `ship-safe` and you're in. 23 agents scan your codebase for secrets, injections, AI/LLM vulnerabilities, supply chain attacks, and 80+ other classes. The agent shows a diff for every proposed fix, asks before writing, and verifies the fix worked. Every change is logged and reversible.
