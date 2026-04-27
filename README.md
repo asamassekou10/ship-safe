@@ -18,11 +18,13 @@
 
 23 security agents. 80+ attack classes. One command.
 
-**Ship Safe v9.1.0** is an AI-powered security platform that runs 23 specialized agents in parallel against your codebase — covering secrets, injection vulnerabilities, auth bypass, SSRF, supply chain attacks, AI integration supply chain (Vercel-class attacks), memory poisoning, Hermes Agent security, Supabase RLS, Docker/Terraform/Kubernetes misconfigs, CI/CD pipeline poisoning, LLM/agentic AI security, MCP server misuse, RAG poisoning, PII compliance, vibe coding patterns, exception handling, Claude Managed Agent configs, and more. Full OWASP Agentic AI Top 10 mapping (ASI-01–ASI-10) enriches every finding. Live OSV.dev advisory feed surfaces actively exploited CVEs within hours of disclosure. OWASP 2025 scoring with EPSS exploit probability. LLM-powered deep analysis verifies exploitability of critical findings. Secrets verification probes provider APIs to check if leaked keys are still active.
+**Ship Safe v9.2.1** is an AI-powered security platform that runs 23 specialized agents in parallel against your codebase — covering secrets, injection vulnerabilities, auth bypass, SSRF, supply chain attacks, AI integration supply chain (Vercel-class attacks), memory poisoning, Hermes Agent security, Supabase RLS, Docker/Terraform/Kubernetes misconfigs, CI/CD pipeline poisoning, LLM/agentic AI security, MCP server misuse, RAG poisoning, PII compliance, vibe coding patterns, exception handling, Claude Managed Agent configs, and more. Full OWASP Agentic AI Top 10 mapping (ASI-01–ASI-10) enriches every finding. Live OSV.dev advisory feed surfaces actively exploited CVEs within hours of disclosure. OWASP 2025 scoring with EPSS exploit probability. LLM-powered deep analysis verifies exploitability of critical findings. Secrets verification probes provider APIs to check if leaked keys are still active.
 
-**v9.1.0 highlights:** **AgenticSupplyChainAgent & Vercel Breach Checker** — new 23rd agent detects AI integration supply chain attacks (Vercel-class): unpinned AI CI actions, OAuth scope abuse in platform integrations, unsigned webhook handlers, and MCP/Hermes cross-boundary token forwarding. New public breach impact checker at /breach/vercel-april-2026 lets any Vercel user self-serve all four checks without the CLI. Full incident analysis published.
+**v9.2.0:** **Ship Safe is now an agent.** Type `ship-safe` and you drop into an interactive REPL. Run `/agent` to scan, plan, and fix — the agent shows a diff for every proposed change, asks before writing, verifies the fix worked, and logs every edit to `.ship-safe/fixes.jsonl`. `/undo` reverses any fix. `--branch` isolates fixes on a git branch; `--pr` opens a pull request automatically. Multi-file plans coordinate source changes with `.env.example` and `.gitignore` updates in a single accept/skip decision. Exit with `/quit`, `Ctrl-D`, or `Ctrl-C`.
 
-**v9.0.0:** **Agent Studio, Teams & Findings** — the web dashboard is now a full AI security operations platform. **Agent Studio** lets you build, configure, and deploy custom Hermes security agents from the UI — give each agent a role, tools, and memory, then deploy to a live container in one click. **Agent Console** provides a live SSE chat interface with ANSI color rendering and per-session run history. **Agent Teams** orchestrate multiple specialist agents (pen tester, secrets scanner, CVE analyst) under a lead agent that plans, delegates tasks in parallel, and synthesises an executive security report. **Agent Triggers** add webhook and cron-based automation per agent. The new **Findings Dashboard** aggregates all security findings across every agent run with severity charts, trend data, and one-click GitHub issue creation. Billing has moved to monthly subscriptions (Pro at $9/month, Team at $19/seat/month) with automatic plan downgrade on cancellation.
+**v9.1.0:** **AgenticSupplyChainAgent & Vercel Breach Checker** — new 23rd agent detects AI integration supply chain attacks (Vercel-class): unpinned AI CI actions, OAuth scope abuse in platform integrations, unsigned webhook handlers, and MCP/Hermes cross-boundary token forwarding.
+
+**v9.0.0:** **Agent Studio, Teams & Findings** — the web dashboard is now a full AI security operations platform. **Agent Studio** lets you build, configure, and deploy custom Hermes security agents from the UI — give each agent a role, tools, and memory, then deploy to a live container in one click. **Agent Teams** orchestrate multiple specialist agents under a lead agent that plans, delegates tasks in parallel, and synthesises an executive security report.
 
 [Documentation](https://shipsafecli.com/docs) | [Blog](https://shipsafecli.com/blog) | [Pricing](https://shipsafecli.com/pricing)
 
@@ -31,6 +33,19 @@
 ## Quick Start
 
 ```bash
+# Drop into the interactive REPL — scan, fix, ask questions in one session
+npx ship-safe
+
+# Interactive agent: scan → plan → diff → accept → verify → undo if needed
+npx ship-safe agent .
+npx ship-safe agent . --severity critical   # only critical findings
+npx ship-safe agent . --branch --pr         # fix on a branch + open a PR
+npx ship-safe agent . --yolo                # unattended / CI mode
+
+# Undo the last fix (or all fixes)
+npx ship-safe undo
+npx ship-safe undo --all
+
 # Full security audit — secrets + 23 agents + deps + remediation plan
 npx ship-safe audit .
 
@@ -226,11 +241,39 @@ npx ship-safe deps .
 npx ship-safe deps . --fix           # Auto-fix vulnerabilities
 ```
 
-### AI-Powered Commands
+### Interactive Agent & REPL
 
 ```bash
-# AI audit: scan + classify with Claude + auto-fix secrets
+# Drop into the REPL (bare invocation on a TTY)
+npx ship-safe
+
+# Explicit shell command
+npx ship-safe shell .
+
+# Interactive fix agent: scan → plan → diff → [a]ccept/[s]kip/[e]dit/[q]uit → verify
 npx ship-safe agent .
+npx ship-safe agent . --plan-only           # preview plans, write nothing
+npx ship-safe agent . --severity critical   # only critical findings
+npx ship-safe agent . --branch              # commit fixes on a new git branch
+npx ship-safe agent . --branch --pr         # push branch + open a PR via gh
+npx ship-safe agent . --yolo --branch       # unattended CI mode
+npx ship-safe agent . --auto-low            # auto-accept low-risk plans only
+
+# Undo fixes
+npx ship-safe undo          # revert last fix
+npx ship-safe undo --all    # revert everything in fixes.jsonl
+npx ship-safe undo --dry-run
+
+# REPL slash commands
+#   /scan            Re-scan the project
+#   /agent           Run the fix loop
+#   /findings        List findings
+#   /show <n>        Detail on finding n
+#   /plan <n>        Preview fix plan for finding n
+#   /undo            Revert last fix
+#   /diff            Show git working-tree diff
+#   /provider <name> Switch LLM provider mid-session
+#   /quit            Exit  (also Ctrl-D or Ctrl-C)
 
 # Auto-fix hardcoded secrets: rewrite code + write .env
 npx ship-safe remediate .

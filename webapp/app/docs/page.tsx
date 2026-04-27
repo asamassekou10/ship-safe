@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     canonical: 'https://www.shipsafecli.com/docs',
   },
   openGraph: {
-    title: 'Ship Safe Documentation — v9.1.0',
+    title: 'Ship Safe Documentation — v9.2.1',
     description: 'Every command, agent, and flag. LLM vulnerability CLI, MCP security configuration, RAG poisoning detection, CI/CD integration, and API reference.',
     type: 'website',
     url: 'https://www.shipsafecli.com/docs',
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Ship Safe Documentation — v9.1.0',
+    title: 'Ship Safe Documentation — v9.2.1',
     description: 'Every command, agent, and flag. LLM vulnerability CLI, MCP security configuration, RAG poisoning detection, CI/CD integration, and API reference.',
     images: [ogImage],
   },
@@ -52,7 +52,7 @@ export default function Docs() {
               <a href="#installation">Installation</a>
               <a href="#quick-start">Quick Start</a>
               <a href="#commands">Commands</a>
-              <a href="#agents">22 Security Agents</a>
+              <a href="#agents">23 Security Agents</a>
               <a href="#scoring">Scoring System</a>
               <a href="#cicd">CI/CD Integration</a>
               <a href="#github-action">GitHub Action</a>
@@ -73,7 +73,7 @@ export default function Docs() {
               <span className="section-label">Documentation</span>
               <h1>Ship Safe CLI</h1>
               <p className={styles.subtitle}>
-                22 AI security agents. 80+ attack classes. One command.
+                23 AI security agents. 80+ attack classes. One command.
               </p>
               <pre className={styles.heroCode}><code>npx ship-safe audit .</code></pre>
             </header>
@@ -138,6 +138,46 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                 </table>
               </div>
 
+              <h3>Interactive Agent &amp; REPL</h3>
+              <div className={styles.tableWrap}>
+                <table>
+                  <thead><tr><th>Command</th><th>Description</th></tr></thead>
+                  <tbody>
+                    <tr><td><code>ship-safe</code></td><td>Drop into the interactive REPL (bare invocation on a TTY)</td></tr>
+                    <tr><td><code>shell .</code></td><td>Explicit REPL — slash commands, streaming LLM, persistent session</td></tr>
+                    <tr><td><code>agent .</code></td><td>Interactive fix loop: scan → plan → diff → accept/skip/edit/quit → verify</td></tr>
+                    <tr><td><code>agent . --plan-only</code></td><td>Preview fix plans without writing any files</td></tr>
+                    <tr><td><code>agent . --severity critical</code></td><td>Only plan/fix findings at the given severity or above</td></tr>
+                    <tr><td><code>agent . --branch --pr</code></td><td>Commit fixes on a new branch and open a PR via <code>gh</code></td></tr>
+                    <tr><td><code>agent . --yolo --branch</code></td><td>Unattended CI mode — auto-accept all plans</td></tr>
+                    <tr><td><code>undo</code></td><td>Revert the last fix applied by the agent</td></tr>
+                    <tr><td><code>undo --all</code></td><td>Revert every fix in <code>.ship-safe/fixes.jsonl</code></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>Exit the REPL with <code>/quit</code>, <code>Ctrl-D</code>, or <code>Ctrl-C</code>.</p>
+
+              <h3>REPL Slash Commands</h3>
+              <div className={styles.tableWrap}>
+                <table>
+                  <thead><tr><th>Command</th><th>Description</th></tr></thead>
+                  <tbody>
+                    <tr><td><code>/scan</code></td><td>Re-scan the project and show a summary</td></tr>
+                    <tr><td><code>/agent [--plan-only]</code></td><td>Run the interactive fix loop</td></tr>
+                    <tr><td><code>/findings</code></td><td>List findings from the last scan</td></tr>
+                    <tr><td><code>/show &lt;n&gt;</code></td><td>Full detail on finding n</td></tr>
+                    <tr><td><code>/plan &lt;n&gt;</code></td><td>Preview fix plan for finding n (no writes)</td></tr>
+                    <tr><td><code>/undo [--all]</code></td><td>Revert the last fix (or all fixes)</td></tr>
+                    <tr><td><code>/diff [path]</code></td><td>Show git working-tree diff</td></tr>
+                    <tr><td><code>/provider &lt;name&gt;</code></td><td>Switch LLM provider mid-session</td></tr>
+                    <tr><td><code>/clear</code></td><td>Clear the screen</td></tr>
+                    <tr><td><code>/help</code></td><td>List all commands</td></tr>
+                    <tr><td><code>/quit</code></td><td>Exit the REPL</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>Anything not starting with <code>/</code> is sent to the LLM as a free-form prompt with the latest scan results as context.</p>
+
               <h3>AI-Powered</h3>
               <div className={styles.tableWrap}>
                 <table>
@@ -146,7 +186,6 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                     <tr><td><code>hooks install</code></td><td>Install real-time Claude Code hooks — block secrets before they land on disk</td></tr>
                     <tr><td><code>hooks status</code></td><td>Check if Claude Code hooks are installed</td></tr>
                     <tr><td><code>hooks remove</code></td><td>Uninstall Claude Code hooks</td></tr>
-                    <tr><td><code>agent .</code></td><td>AI audit: scan + classify with LLM + auto-fix</td></tr>
                     <tr><td><code>remediate .</code></td><td>Auto-fix hardcoded secrets (rewrite code + write .env)</td></tr>
                     <tr><td><code>rotate .</code></td><td>Open provider dashboards to revoke exposed keys</td></tr>
                     <tr><td><code>audit . --deep</code></td><td>LLM-powered taint analysis for critical/high findings</td></tr>
@@ -217,7 +256,7 @@ npx ship-safe ci . --threshold 80`}</code></pre>
 
             {/* ── Agents ────────────────────────────────────────────── */}
             <section id="agents">
-              <h2>22 Security Agents</h2>
+              <h2>23 Security Agents</h2>
               <p>All agents run in parallel with per-agent timeouts. Each implements <code>shouldRun(recon)</code> to skip irrelevant projects automatically.</p>
               <div className={styles.tableWrap}>
                 <table>
@@ -233,6 +272,7 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                     <tr><td><strong>MCPSecurityAgent</strong></td><td>AI/LLM</td><td>MCP server misuse, tool poisoning, typosquatting, unvalidated inputs</td></tr>
                     <tr><td><strong>AgenticSecurityAgent</strong></td><td>AI/LLM</td><td>OWASP Agentic AI Top 10: agent hijacking, privilege escalation, memory poisoning</td></tr>
                     <tr><td><strong>RAGSecurityAgent</strong></td><td>AI/LLM</td><td>RAG pipeline security: context injection, document poisoning, vector DB access</td></tr>
+                    <tr><td><strong>MemoryPoisoningAgent</strong></td><td>AI/LLM</td><td>ASI-01/ASI-05: instruction injection in agent memory files, hidden Unicode payloads, persona hijacking</td></tr>
                     <tr><td><strong>PIIComplianceAgent</strong></td><td>Compliance</td><td>PII detection: SSNs, credit cards, emails, phone numbers in source code</td></tr>
                     <tr><td><strong>VibeCodingAgent</strong></td><td>Code Vulns</td><td>AI-generated code anti-patterns: no validation, empty catches, TODO-auth</td></tr>
                     <tr><td><strong>ExceptionHandlerAgent</strong></td><td>Code Vulns</td><td>OWASP A10:2025: empty catches, unhandled rejections, leaked stack traces</td></tr>
@@ -241,6 +281,10 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                     <tr><td><strong>GitHistoryScanner</strong></td><td>Secrets</td><td>Leaked secrets in git commit history</td></tr>
                     <tr><td><strong>CICDScanner</strong></td><td>CI/CD</td><td>OWASP CI/CD Top 10: pipeline poisoning, unpinned actions, secret logging</td></tr>
                     <tr><td><strong>APIFuzzer</strong></td><td>API</td><td>Routes without auth, mass assignment, GraphQL introspection, debug endpoints</td></tr>
+                    <tr><td><strong>ManagedAgentScanner</strong></td><td>AI/LLM</td><td>Claude Managed Agent misconfigs — always_allow policies, unrestricted networking, unpinned packages</td></tr>
+                    <tr><td><strong>HermesSecurityAgent</strong></td><td>AI/LLM</td><td>Hermes Agent deployments — tool registry poisoning, function-call injection, skill permission drift (ASI-01–ASI-10)</td></tr>
+                    <tr><td><strong>AgentAttestationAgent</strong></td><td>Supply Chain</td><td>Agent manifest supply chain — unpinned versions, missing integrity hashes, unsigned manifests (ASI-10, SLSA Level 0)</td></tr>
+                    <tr><td><strong>AgenticSupplyChainAgent</strong></td><td>Supply Chain</td><td>AI integration supply chain — over-privileged AI CI actions, OAuth scope creep, unsigned AI webhook receivers (ASI-02, ASI-06, CICD-SEC-8)</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -497,6 +541,8 @@ jobs:
                     <tr><td><code>.ship-safe/history.json</code></td><td>Score history for trend tracking</td></tr>
                     <tr><td><code>.ship-safe/baseline.json</code></td><td>Accepted findings baseline</td></tr>
                     <tr><td><code>.ship-safe/llm-cache.json</code></td><td>LLM response cache (7-day TTL)</td></tr>
+                    <tr><td><code>.ship-safe/fixes.jsonl</code></td><td>Log of every fix applied by <code>agent</code> (used by <code>undo</code>)</td></tr>
+                    <tr><td><code>.ship-safe/failures.jsonl</code></td><td>Plans that failed to apply — parse errors, declined plans, provider errors</td></tr>
                   </tbody>
                 </table>
               </div>
