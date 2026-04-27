@@ -114,8 +114,7 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
   }
 
   // ── Load LLM provider ────────────────────────────────────────────────────
-  // Accept a pre-built provider instance (e.g. from the REPL after /provider switch)
-  const provider = options.providerInstance ?? autoDetectProvider(root, {
+  const provider = autoDetectProvider(root, {
     provider: options.provider,
     model:    options.model,
     think:    options.think || false,

@@ -292,9 +292,9 @@ async function handleSlashCommand(line, state, options) {
     case 'agent':
     case 'fix': {
       // Hand off to agent command. Pass through caller options + any inline flags.
-      // Always forward the current session provider so /provider switches take effect.
+      // Forward the active provider key so /provider switches take effect.
       const opts = { ...options };
-      if (state.provider) opts.providerInstance = state.provider;
+      if (state.providerKey) opts.provider = state.providerKey;
       for (const a of args) {
         if (a === '--plan-only')   opts.planOnly = true;
         if (a === '--allow-dirty') opts.allowDirty = true;
@@ -331,7 +331,8 @@ async function handleSlashCommand(line, state, options) {
       if (!next) {
         console.log(chalk.yellow(`  Could not load provider "${name}" — is the API key set?`));
       } else {
-        state.provider = next;
+        state.provider    = next;
+        state.providerKey = name;   // keep the string so /agent can forward it
         console.log(chalk.green(`  Provider switched to ${next.name}.`));
       }
       return true;
