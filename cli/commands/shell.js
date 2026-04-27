@@ -292,13 +292,16 @@ async function handleSlashCommand(line, state, options) {
     case 'agent':
     case 'fix': {
       // Hand off to agent command. Pass through caller options + any inline flags.
+      // Always forward the current session provider so /provider switches take effect.
       const opts = { ...options };
+      if (state.provider) opts.providerInstance = state.provider;
       for (const a of args) {
         if (a === '--plan-only')   opts.planOnly = true;
         if (a === '--allow-dirty') opts.allowDirty = true;
         if (a === '--branch')      opts.branch = true;
         if (a === '--pr')          opts.pr = true;
         if (a.startsWith('--severity=')) opts.severity = a.slice('--severity='.length);
+        if (a.startsWith('--provider=')) opts.provider = a.slice('--provider='.length);
       }
       try {
         await agentFixCommand(state.root, opts);
