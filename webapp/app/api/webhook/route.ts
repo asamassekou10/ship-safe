@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe';
+import { stripe, PLANS } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
+
+const PRICE_TO_PLAN: Record<string, string> = Object.fromEntries(
+  Object.entries(PLANS).map(([plan, { priceId }]) => [priceId, plan])
+);
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -54,6 +58,40 @@ export async function POST(req: NextRequest) {
         data: { status: 'refunded' },
       });
     }
+  }
+
+  if (event.type === 'customer.subscription.updated') {
+    const subscription = event.data.object;
+    const priceId = subscription.items.data[0]?.price.id;
+    const newPlan = priceId ? PRICE_TO_PLAN[priceId] : undefined;
+    if (newPlan) {
+      const payment = await prisma.payment.findFirst({
+        where: { stripePaymentId: subscription.id },
+      });
+      if (payment) {
+        await prisma.user.update({
+          where: { id: payment.userId },
+          data: { plan: newPlan },
+        });
+        await prisma.payment.updateMany({
+          where: { stripePaymentId: subscription.id },
+          data: { plan: newPlan },
+        });
+      }
+    }
+  }
+
+  if (event.type === 'invoice.payment_failed') {
+    const invoice = event.data.object;
+    const subDetails = invoice.parent?.subscription_details?.subscription;
+    const subscriptionId = typeof subDetails === 'string' ? subDetails : subDetails?.id;
+    if (subscriptionId) {
+      await prisma.payment.updateMany({
+        where: { stripePaymentId: subscriptionId },
+        data: { status: 'failed' },
+      });
+    }
+    console.error(`Payment failed for invoice ${invoice.id}, customer ${invoice.customer}`);
   }
 
   return NextResponse.json({ received: true });
