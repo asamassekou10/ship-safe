@@ -241,10 +241,10 @@ function buildSARIF(findings, rootPath) {
         locations: [{
           physicalLocation: {
             artifactLocation: {
-              uri: path.relative(rootPath, f.file).replace(/\\/g, '/'),
+              uri: path.relative(rootPath, f.file).replace(/\\/g, '/').replace(/\[/g, '%5B').replace(/\]/g, '%5D'),
               uriBaseId: '%SRCROOT%',
             },
-            region: { startLine: f.line, startColumn: f.column || 1 },
+            region: { startLine: Math.max(1, f.line || 1), startColumn: f.column || 1 },
           },
         }],
       })),
