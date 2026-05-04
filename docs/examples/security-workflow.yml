@@ -1,4 +1,4 @@
-# Example: add this to YOUR repo at .github/workflows/security.yml
+# Example workflow — copy to YOUR repo at .github/workflows/security.yml
 # Full docs: https://shipsafecli.com/docs
 
 name: Security Scan

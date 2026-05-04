@@ -64,7 +64,7 @@ const PATTERNS = [
   {
     rule: 'MCP_STDIO_NO_SANDBOX',
     title: 'MCP: stdio Transport Without Sandbox',
-    regex: /(?:StdioServerTransport|stdio|transport.*stdio)/g,
+    regex: /(?:StdioServerTransport|new\s+StdioTransport|transport\s*[:=]\s*['"]stdio['"]|StdioClientTransport)/g,
     severity: 'medium',
     cwe: 'CWE-269',
     owasp: 'A04:2021',
