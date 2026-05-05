@@ -7,6 +7,16 @@ type Params = { params: Promise<{ id: string }> };
 const ORCHESTRATOR_URL    = process.env.ORCHESTRATOR_URL;
 const ORCHESTRATOR_SECRET = process.env.ORCHESTRATOR_SECRET;
 
+async function tryReadJson<T>(res: Response): Promise<T | null> {
+  const contentType = res.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) return null;
+  try {
+    return await res.json() as T;
+  } catch {
+    return null;
+  }
+}
+
 /** GET /api/agents/[id]/status — latest deployment status */
 export async function GET(_req: NextRequest, { params }: Params) {
   const session = await auth();
@@ -39,7 +49,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
     });
 
     if (orchRes.ok) {
-      const live = await orchRes.json() as { running: boolean; status: string };
+      const live = await tryReadJson<{ running: boolean; status: string }>(orchRes);
+      if (!live) return NextResponse.json({ agentStatus: agent.status, deployment: deploy });
 
       // Sync DB if container stopped unexpectedly
       if (!live.running && deploy.status === 'running') {

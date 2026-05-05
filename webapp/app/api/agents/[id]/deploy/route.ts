@@ -8,6 +8,22 @@ const ORCHESTRATOR_URL    = process.env.ORCHESTRATOR_URL;
 const ORCHESTRATOR_SECRET = process.env.ORCHESTRATOR_SECRET;
 const SUBDOMAIN_BASE      = process.env.VPS_SUBDOMAIN_BASE || 'agents.shipsafecli.com';
 
+async function readJsonOrThrow<T>(res: Response, label: string): Promise<T> {
+  const contentType = res.headers.get('content-type') ?? '';
+  const text = await res.text();
+
+  if (!contentType.includes('application/json')) {
+    const preview = text.replace(/\s+/g, ' ').slice(0, 220);
+    throw new Error(`${label} returned ${res.status} ${contentType || 'unknown content-type'} instead of JSON. Check ORCHESTRATOR_URL. Preview: ${preview}`);
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`${label} returned invalid JSON. Check ORCHESTRATOR_URL and orchestrator logs.`);
+  }
+}
+
 /** POST /api/agents/[id]/deploy */
 export async function POST(_req: NextRequest, { params }: Params) {
   const session = await auth();
@@ -17,7 +33,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Deployment not configured on this server' }, { status: 503 });
   }
 
-  const LLM_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY'];
+  const LLM_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'XAI_API_KEY'];
 
   const { id } = await params;
   const agent = await prisma.agent.findFirst({
@@ -30,7 +46,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
   const hasLLMKey = LLM_KEYS.some(k => envVars[k]?.trim());
   if (!hasLLMKey) {
     return NextResponse.json({
-      error: 'Add an LLM API key before deploying. Go to Edit and add ANTHROPIC_API_KEY, OPENAI_API_KEY, or OPENROUTER_API_KEY.',
+      error: 'Add an LLM API key before deploying. Go to Edit and add ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, DEEPSEEK_API_KEY, MOONSHOT_API_KEY, or XAI_API_KEY.',
     }, { status: 400 });
   }
 
@@ -75,7 +91,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
     });
 
     if (!orchRes.ok) {
-      const err = await orchRes.json().catch(() => ({ error: 'Orchestrator error' }));
+      const err = await readJsonOrThrow<{ error?: string }>(orchRes, 'Orchestrator deploy').catch((error) => ({ error: error instanceof Error ? error.message : 'Orchestrator error' }));
       await prisma.deployment.update({
         where: { id: deployment.id },
         data: { status: 'failed', deployLog: err.error ?? 'Deploy failed' },
@@ -84,12 +100,12 @@ export async function POST(_req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: err.error ?? 'Deploy failed' }, { status: 502 });
     }
 
-    const result = await orchRes.json() as {
+    const result = await readJsonOrThrow<{
       containerId: string;
       containerName: string;
       port: number;
       subdomain: string;
-    };
+    }>(orchRes, 'Orchestrator deploy');
 
     // Mark deployment as running
     await prisma.deployment.update({
