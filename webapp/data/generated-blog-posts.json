@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "slug": "over-40-000-servers-compromised-in-ongoing-cpanel-exploitation-a-ship-safe-security-brief",
+    "title": "Over 40,000 Servers Compromised in Ongoing cPanel Exploitation: A Ship Safe Security Brief",
+    "description": "A practical Ship Safe analysis of Over 40,000 Servers Compromised in Ongoing cPanel Exploitation, why it matters for developers and founders shipping AI-assisted SaaS products, and what teams should check next.",
+    "date": "2026-05-05",
+    "author": "Ship Safe Content Agent",
+    "tags": [
+      "AI security",
+      "security research",
+      "developer security"
+    ],
+    "keywords": [
+      "AI agent security",
+      "MCP security",
+      "LLM security",
+      "AI coding",
+      "supply chain security",
+      "leaked secret",
+      "prompt injection",
+      "vulnerability",
+      "breach"
+    ],
+    "content": "Over 40,000 Servers Compromised in Ongoing cPanel Exploitation is worth paying attention to because it sits close to a risk surface many software teams already have: fast-moving AI tooling, third-party integrations, CI automation, and production credentials.\n\nThis article is an agent-generated draft. It should be reviewed before publication if the topic involves an active incident, a named vendor, legal claims, or customer impact.\n\n## Why This Matters\n\nFor developers and founders shipping AI-assisted SaaS products, the practical question is not only what happened. The better question is what this changes about the way teams should build, deploy, and monitor software.\n\nThe signal from the source material is:\n\n- Partially matches primary topic: AI agent security\n- Partially matches primary topic: MCP security\n- Partially matches primary topic: LLM security\n- Partially matches primary topic: Vercel security\n- Partially matches primary topic: developer security\n\n## What Happened\n\nThe source material points to a fresh security-relevant story or discussion that intersects with AI-assisted software delivery. The important part is not only the headline. It is the operational pattern underneath it: new integrations, new automation paths, new package dependencies, or new ways credentials and trust boundaries can be exposed.\n\nTeams should verify the details against the linked sources before treating this as confirmed incident reporting. If the source is Reddit or Hacker News, treat it as an early signal that may deserve monitoring, not as final proof.\n\n## Why This Is Timely\n\nSecurity content performs best when it helps builders understand a risk while it is still current. This topic earned a spot because it is recent, relevant to AI or software supply-chain risk, and connected to the kinds of mistakes that spread quickly in SaaS teams: broad OAuth scopes, token reuse, automation with write permissions, unreviewed agent tools, and dependency trust.\n\n## What Teams Should Check\n\n- Review integrations that can read secrets, deployment metadata, source code, or customer data\n- Check whether automation tokens are scoped to the smallest permission set that still works\n- Confirm webhook receivers verify signatures before triggering downstream agent workflows\n- Audit CI jobs that run AI tools with write permissions\n- Rotate credentials when an upstream tool or identity provider may have been involved\n- Watch social channels and project issue trackers for follow-up reports, patches, or maintainer clarifications\n- Capture what changed in your own environment this week: new apps, new GitHub permissions, new MCP servers, new packages, and new deployment tokens\n\n## How Ship Safe Helps\n\nShip Safe scans codebases and AI-agent configurations for the classes of mistakes that make incidents spread: leaked secrets, unsafe webhook handlers, overbroad permissions, risky MCP/Hermes tool configs, unpinned actions, and agent workflows that cross trust boundaries.\n\nThe goal is simple: keep the speed of AI-assisted development without letting invisible integration risk accumulate in the background.\n\n## Sources\n\n- [Over 40,000 Servers Compromised in Ongoing cPanel Exploitation](https://www.securityweek.com/over-40000-servers-compromised-in-ongoing-cpanel-exploitation/)\n- [CISA Adds Actively Exploited Linux Root Access Bug CVE-2026-31431 to KEV](https://thehackernews.com/2026/05/cisa-adds-actively-exploited-linux-root.html)\n- [Trellix discloses data breach after source code repository hack](https://www.bleepingcomputer.com/news/security/trellix-discloses-data-breach-after-source-code-repository-hack/)\n- [CISA says ‘Copy Fail’ flaw now exploited to root Linux systems](https://www.bleepingcomputer.com/news/security/cisa-says-copy-fail-flaw-now-exploited-to-root-linux-systems/)\n- [Edtech Firm Instructure Discloses Data Breach Amid Hacker Leak Threats](https://www.securityweek.com/edtech-firm-instructure-discloses-data-breach/)"
+  }
+]
