@@ -1,7 +1,7 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.15rem;
   max-width: 1180px;
 }
 
@@ -50,12 +50,12 @@
 
 .primaryButton,
 .secondaryLink {
-  min-height: 38px;
+  min-height: 42px;
   border-radius: 7px;
   border: 1px solid var(--cyan-dim);
   background: var(--cyan);
   color: #001014;
-  padding: 0.6rem 0.9rem;
+  padding: 0.72rem 1.05rem;
   font-weight: 800;
   text-decoration: none;
   cursor: pointer;
@@ -82,7 +82,7 @@
 .statsRow {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.75rem;
+  gap: 0.9rem;
 }
 
 .stat,
@@ -96,7 +96,7 @@
 }
 
 .stat {
-  padding: 0.95rem 1rem;
+  padding: 1.15rem 1.2rem;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -120,9 +120,9 @@
 }
 
 .leadSignal {
-  padding: 1rem;
+  padding: 1.25rem 1.35rem;
   display: grid;
-  gap: 0.55rem;
+  gap: 0.7rem;
 }
 
 .leadMeta,
@@ -174,7 +174,7 @@
 .grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 310px;
-  gap: 1rem;
+  gap: 1.1rem;
   align-items: start;
 }
 
@@ -182,7 +182,7 @@
 .side {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.9rem;
 }
 
 .sectionHeader {
@@ -190,7 +190,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  min-height: 38px;
+  min-height: 42px;
 }
 
 .sectionHeader h2,
@@ -208,15 +208,15 @@
 }
 
 .item {
-  padding: 0.95rem 1rem;
+  padding: 1.2rem 1.3rem;
   display: grid;
-  gap: 0.55rem;
+  gap: 0.7rem;
 }
 
 .urgency {
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 0.16rem 0.48rem;
+  padding: 0.22rem 0.6rem;
 }
 
 .urgency_critical,
@@ -239,7 +239,7 @@
 
 .reasonLine {
   border-left: 2px solid var(--cyan-dim);
-  padding-left: 0.6rem;
+  padding-left: 0.75rem;
   color: var(--text-dim);
   font-size: 0.78rem;
 }
@@ -257,7 +257,7 @@
 .actions span {
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 0.24rem 0.5rem;
+  padding: 0.32rem 0.65rem;
   color: var(--text-muted);
   font-size: 0.73rem;
 }
@@ -268,9 +268,9 @@
 }
 
 .panel {
-  padding: 0.95rem;
+  padding: 1.15rem;
   display: grid;
-  gap: 0.75rem;
+  gap: 0.9rem;
 }
 
 .actionStack {
@@ -280,7 +280,7 @@
 .actionStack a {
   border: 1px solid var(--border);
   border-radius: 7px;
-  padding: 0.65rem 0.7rem;
+  padding: 0.82rem 0.9rem;
   color: var(--text);
   font-size: 0.82rem;
   font-weight: 750;
@@ -306,7 +306,7 @@
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0.35rem 0.75rem;
-  padding-bottom: 0.65rem;
+  padding: 0 0.1rem 0.8rem;
   border-bottom: 1px solid var(--border);
   color: var(--text-muted);
   font-size: 0.8rem;
@@ -321,7 +321,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  padding: 2.5rem 1rem;
+  padding: 3rem 1.4rem;
   color: var(--text-muted);
   text-align: center;
 }
