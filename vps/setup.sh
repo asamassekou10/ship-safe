@@ -92,6 +92,12 @@ systemctl enable shipsafe-orchestrator
 echo "[setup] Configuring nginx..."
 mkdir -p /etc/nginx/sites-enabled
 
+if grep -q '# server_names_hash_bucket_size 64;' /etc/nginx/nginx.conf; then
+  sed -i 's/# server_names_hash_bucket_size 64;/server_names_hash_bucket_size 128;\n\tserver_names_hash_max_size 4096;/' /etc/nginx/nginx.conf
+elif ! grep -q 'server_names_hash_bucket_size' /etc/nginx/nginx.conf; then
+  sed -i '/http {/a\\tserver_names_hash_bucket_size 128;\\n\\tserver_names_hash_max_size 4096;' /etc/nginx/nginx.conf
+fi
+
 cat > /etc/nginx/sites-enabled/default.conf <<'EOF'
 server {
     listen 80 default_server;

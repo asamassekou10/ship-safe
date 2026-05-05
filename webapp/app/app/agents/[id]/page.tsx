@@ -241,6 +241,10 @@ export default function AgentDetailPage() {
       fetch(`/api/agents/${id}/status`)
         .then(r => r.json())
         .then(d => {
+          if (d.agentStatus === 'failed' && d.deployment?.deployLog) {
+            setError(d.deployment.deployLog);
+            setTab('deployments');
+          }
           if (d.agentStatus && d.agentStatus !== agent.status) {
             load();
           }
@@ -478,6 +482,7 @@ export default function AgentDetailPage() {
   const isDeploying    = agent.status === 'deploying' || deploying;
   const LLM_KEYS       = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'XAI_API_KEY'];
   const hasLLMKey      = LLM_KEYS.some(k => (agent.envVars as Record<string,string>)[k]?.trim());
+  const latestDeployError = agent.status === 'failed' ? lastDeploy?.deployLog : null;
 
   return (
     <div className={styles.page}>
@@ -542,7 +547,9 @@ export default function AgentDetailPage() {
             {lastDeploy.subdomain}.{SUBDOMAIN_BASE} ↗
           </a>
         )}
-        {error && <div className={styles.errorBanner}>{error}</div>}
+        {(error || latestDeployError) && (
+          <div className={styles.errorBanner}>{error || latestDeployError}</div>
+        )}
       </div>
 
       {/* ── Tabs ───────────────────────────────────────────── */}

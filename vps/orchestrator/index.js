@@ -160,6 +160,7 @@ async function runDeployment({ agentId, slug, tools, memoryProvider, maxDepth, e
     await nginx.addSite(slug, port);
     return { containerId, containerName, port, subdomain: slug };
   } catch (e) {
+    try { await dockerStop(containerName); } catch {}
     releasePort(agentId);
     throw e;
   }
