@@ -55,7 +55,7 @@ export interface ContentAgentResult {
 }
 
 const DEFAULT_MAX_ITEMS = 8;
-const DEFAULT_MIN_SCORE = 42;
+const DEFAULT_MIN_SCORE = 24;
 
 export const defaultContentAgentConfig: ContentAgentConfig = {
   brandName: 'Ship Safe',
@@ -116,11 +116,10 @@ export const defaultContentAgentConfig: ContentAgentConfig = {
 export async function runContentAgent(config: Partial<ContentAgentConfig> = {}): Promise<ContentAgentResult> {
   const resolved = mergeConfig(config);
   const discovered = await discoverItems(resolved);
-  const scored = scoreItems(discovered, resolved)
-    .filter((item) => item.score >= (resolved.minScore ?? DEFAULT_MIN_SCORE))
-    .sort((a, b) => b.score - a.score);
+  const ranked = scoreItems(discovered, resolved).sort((a, b) => b.score - a.score);
+  const scored = ranked.filter((item) => item.score >= (resolved.minScore ?? DEFAULT_MIN_SCORE));
 
-  const selected = pickTopic(scored);
+  const selected = pickTopic(scored) ?? ranked[0];
 
   if (!selected) {
     return {
@@ -135,6 +134,7 @@ export async function runContentAgent(config: Partial<ContentAgentConfig> = {}):
   const supportingSources = scored
     .filter((item) => item.url !== selected.url)
     .slice(0, 4);
+  const selectedCount = Math.max(scored.length, 1);
 
   const post = await draftBlogPost(selected, supportingSources, resolved);
   const guardrails = validateDraft(post, [selected, ...supportingSources]);
@@ -146,7 +146,7 @@ export async function runContentAgent(config: Partial<ContentAgentConfig> = {}):
       post,
       sourceCount: resolved.sources.length,
       candidateCount: discovered.length,
-      selectedCount: scored.length,
+      selectedCount,
       guardrails,
     };
   }
@@ -159,7 +159,7 @@ export async function runContentAgent(config: Partial<ContentAgentConfig> = {}):
     post,
     sourceCount: resolved.sources.length,
     candidateCount: discovered.length,
-    selectedCount: scored.length,
+    selectedCount,
     guardrails,
     cms,
   };
@@ -294,16 +294,18 @@ function scoreItems(items: DiscoveredItem[], config: ContentAgentConfig): Scored
       let score = 0;
 
       for (const keyword of config.primaryKeywords) {
-        if (haystack.includes(keyword.toLowerCase())) {
-          score += 12;
-          reasons.push(`Matches primary topic: ${keyword}`);
+        const match = keywordMatch(keyword, haystack);
+        if (match > 0) {
+          score += match === 2 ? 12 : 7;
+          reasons.push(match === 2 ? `Matches primary topic: ${keyword}` : `Partially matches primary topic: ${keyword}`);
         }
       }
 
       for (const keyword of config.painPointKeywords) {
-        if (haystack.includes(keyword.toLowerCase())) {
-          score += 9;
-          reasons.push(`Matches customer pain point: ${keyword}`);
+        const match = keywordMatch(keyword, haystack);
+        if (match > 0) {
+          score += match === 2 ? 9 : 5;
+          reasons.push(match === 2 ? `Matches customer pain point: ${keyword}` : `Partially matches customer pain point: ${keyword}`);
         }
       }
 
@@ -333,6 +335,19 @@ function scoreItems(items: DiscoveredItem[], config: ContentAgentConfig): Scored
 
       return { ...item, score: Math.round(score), reasons: reasons.slice(0, 5) };
     });
+}
+
+function keywordMatch(keyword: string, haystack: string): 0 | 1 | 2 {
+  const normalized = keyword.toLowerCase();
+  if (haystack.includes(normalized)) return 2;
+
+  const words = normalized
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 2);
+
+  if (words.length < 2) return 0;
+  const hits = words.filter((word) => haystack.includes(word)).length;
+  return hits >= Math.ceil(words.length / 2) ? 1 : 0;
 }
 
 function pickTopic(items: ScoredItem[]): ScoredItem | undefined {

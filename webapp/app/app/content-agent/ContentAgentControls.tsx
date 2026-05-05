@@ -9,6 +9,7 @@ export default function ContentAgentControls() {
   const [running, setRunning] = useState(false);
   const [settingUp, setSettingUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [hermesAgent, setHermesAgent] = useState<{ id: string; status: string; deployments?: Array<{ status: string; port: number | null }> } | null>(null);
 
   useEffect(() => {
@@ -21,6 +22,7 @@ export default function ContentAgentControls() {
   async function runAgent() {
     setRunning(true);
     setError(null);
+    setNotice(null);
 
     try {
       const res = await fetch('/api/content-agent/runs', {
@@ -32,8 +34,16 @@ export default function ContentAgentControls() {
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json() as {
+        error?: string;
+        result?: { status?: string; candidateCount?: number; selectedCount?: number; guardrails?: string[]; post?: { title?: string } };
+      };
       if (!res.ok) throw new Error(data.error ?? 'Content agent failed');
+      if (data.result?.status === 'skipped') {
+        setNotice(data.result.guardrails?.[0] ?? `Scanned ${data.result.candidateCount ?? 0} candidates, but no draft passed guardrails.`);
+      } else {
+        setNotice(data.result?.post?.title ? `Draft created: ${data.result.post.title}` : 'Discovery run complete.');
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Content agent failed');
@@ -45,6 +55,7 @@ export default function ContentAgentControls() {
   async function setupHermesAgent() {
     setSettingUp(true);
     setError(null);
+    setNotice(null);
 
     try {
       const res = await fetch('/api/content-agent/hermes/setup', { method: 'POST' });
@@ -77,6 +88,7 @@ export default function ContentAgentControls() {
         </button>
       )}
       {error && <span className={styles.errorText}>{error}</span>}
+      {notice && <span className={styles.noticeText}>{notice}</span>}
     </div>
   );
 }

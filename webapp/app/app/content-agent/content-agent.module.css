@@ -101,6 +101,11 @@
   font-size: 0.8rem;
 }
 
+.noticeText {
+  color: var(--green);
+  font-size: 0.8rem;
+}
+
 .statsRow {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -239,6 +244,11 @@
 .status_error {
   color: var(--red);
   border-color: rgba(239, 68, 68, 0.35);
+}
+
+.status_skipped {
+  color: var(--yellow);
+  border-color: rgba(234, 179, 8, 0.35);
 }
 
 .tagRow {

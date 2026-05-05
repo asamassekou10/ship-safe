@@ -133,7 +133,7 @@ export default async function ContentAgentPage() {
                 <span className={styles.runTime}>{timeAgo(run.createdAt)}</span>
               </div>
               <div className={styles.runDetail}>
-                {run.draft?.title ?? `${run.candidateCount} candidates scanned`}
+                {run.draft?.title ?? asStringArray(run.guardrails)[0] ?? `${run.candidateCount} candidates scanned`}
               </div>
             </div>
           ))}
