@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 
 type Params = { params: Promise<{ id: string }> };
 
-export const maxDuration = 60;
+export const maxDuration = 15;
 
 const ORCHESTRATOR_URL    = process.env.ORCHESTRATOR_URL;
 const ORCHESTRATOR_SECRET = process.env.ORCHESTRATOR_SECRET;
@@ -73,15 +73,17 @@ export async function POST(_req: NextRequest, { params }: Params) {
   // Update agent status
   await prisma.agent.update({ where: { id }, data: { status: 'deploying' } });
 
-  // Call the VPS orchestrator
+  // Start the VPS deployment job. The status route polls the orchestrator and
+  // finalizes this pending deployment once Docker/nginx/certbot complete.
   try {
-    const orchRes = await fetch(`${ORCHESTRATOR_URL}/deploy`, {
+    const orchRes = await fetch(`${ORCHESTRATOR_URL}/deploy-async`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${ORCHESTRATOR_SECRET}`,
       },
       body: JSON.stringify({
+        deploymentId:   deployment.id,
         agentId:        id,
         slug:           agent.slug,
         tools:          agent.tools,
@@ -89,47 +91,32 @@ export async function POST(_req: NextRequest, { params }: Params) {
         maxDepth:       agent.maxDepth,
         envVars:        agent.envVars,
       }),
-      signal: AbortSignal.timeout(55_000),
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (!orchRes.ok) {
       const err = await readJsonOrThrow<{ error?: string }>(orchRes, 'Orchestrator deploy').catch((error) => ({ error: error instanceof Error ? error.message : 'Orchestrator error' }));
+      const message = orchRes.status === 404
+        ? 'The VPS orchestrator needs the latest async deploy update. Redeploy the orchestrator, then try again.'
+        : err.error ?? 'Deploy failed';
       await prisma.deployment.update({
         where: { id: deployment.id },
-        data: { status: 'failed', deployLog: err.error ?? 'Deploy failed' },
+        data: { status: 'failed', deployLog: message },
       });
       await prisma.agent.update({ where: { id }, data: { status: 'failed' } });
-      return NextResponse.json({ error: err.error ?? 'Deploy failed' }, { status: 502 });
+      return NextResponse.json({ error: message }, { status: 502 });
     }
 
-    const result = await readJsonOrThrow<{
-      containerId: string;
-      containerName: string;
-      port: number;
-      subdomain: string;
-    }>(orchRes, 'Orchestrator deploy');
-
-    // Mark deployment as running
-    await prisma.deployment.update({
-      where: { id: deployment.id },
-      data: {
-        status:      'running',
-        containerId: result.containerId,
-        port:        result.port,
-        subdomain:   result.subdomain,
-        startedAt:   new Date(),
-      },
-    });
-    await prisma.agent.update({ where: { id }, data: { status: 'deployed' } });
+    const result = await readJsonOrThrow<{ jobId: string; status: string }>(orchRes, 'Orchestrator deploy');
 
     return NextResponse.json({
       deployment: {
         id:          deployment.id,
         version,
-        status:      'running',
-        containerId: result.containerId,
-        subdomain:   result.subdomain,
-        url:         `https://${result.subdomain}.${SUBDOMAIN_BASE}`,
+        status:      'pending',
+        jobId:       result.jobId,
+        subdomain:   agent.slug,
+        url:         `https://${agent.slug}.${SUBDOMAIN_BASE}`,
       },
     });
   } catch (e) {

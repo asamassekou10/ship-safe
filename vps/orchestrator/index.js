@@ -7,6 +7,8 @@
  *
  * Routes:
  *   POST /deploy         — start a new agent container
+ *   POST /deploy-async   — queue deploy and return immediately
+ *   GET  /deploy-status/:jobId — async deploy job status
  *   POST /stop           — stop a running container
  *   GET  /status/:name   — container status
  *   GET  /logs/:name     — stream container logs
@@ -30,6 +32,7 @@ const PORTS_FILE  = path.join(__dirname, 'ports.json');
 const HERMES_IMAGE = process.env.HERMES_IMAGE || 'shipsafe/hermes-agent:latest';
 const MEMORY_MB   = parseInt(process.env.CONTAINER_MEMORY_MB || '512', 10);
 const CPU_QUOTA   = process.env.CONTAINER_CPU_QUOTA || '50000'; // 50% of one core
+const deployJobs  = new Map();
 
 if (!SECRET) {
   console.error('[orchestrator] ORCHESTRATOR_SECRET is required');
@@ -140,6 +143,55 @@ async function dockerStatus(containerName) {
   }
 }
 
+async function runDeployment({ agentId, slug, tools, memoryProvider, maxDepth, envVars }) {
+  if (!agentId || !slug) throw new Error('agentId and slug are required');
+
+  const containerName = sanitizeContainerName(`hermes-${agentId}`);
+
+  // Stop any existing container for this agent
+  try { await dockerStop(containerName); } catch {}
+  releasePort(agentId);
+
+  const port = await allocatePort(agentId);
+  const agentConfig = { tools, memoryProvider, maxDepth };
+
+  try {
+    const containerId = await dockerRun({ containerName, port, envVars, agentConfig });
+    await nginx.addSite(slug, port);
+    return { containerId, containerName, port, subdomain: slug };
+  } catch (e) {
+    releasePort(agentId);
+    throw e;
+  }
+}
+
+function startDeploymentJob(jobId, body) {
+  const now = new Date().toISOString();
+  deployJobs.set(jobId, { status: 'running', startedAt: now, finishedAt: null, result: null, error: null });
+
+  runDeployment(body)
+    .then((result) => {
+      deployJobs.set(jobId, {
+        status: 'completed',
+        startedAt: now,
+        finishedAt: new Date().toISOString(),
+        result,
+        error: null,
+      });
+    })
+    .catch((e) => {
+      const message = e && e.message ? e.message : String(e);
+      console.error('[deploy-async]', message);
+      deployJobs.set(jobId, {
+        status: 'failed',
+        startedAt: now,
+        finishedAt: new Date().toISOString(),
+        result: null,
+        error: message,
+      });
+    });
+}
+
 // ── HTTP server ───────────────────────────────────────────────────────────────
 
 function send(res, status, body) {
@@ -180,29 +232,34 @@ const server = http.createServer(async (req, res) => {
     let body;
     try { body = await readBody(req); } catch (e) { return send(res, 400, { error: e.message }); }
 
-    const { agentId, slug, tools, memoryProvider, maxDepth, envVars } = body;
-    if (!agentId || !slug) return send(res, 400, { error: 'agentId and slug are required' });
-
-    const containerName = sanitizeContainerName(`hermes-${agentId}`);
-
-    // Stop any existing container for this agent
-    try { await dockerStop(containerName); } catch {}
-    releasePort(agentId);
-
-    let port;
-    try { port = await allocatePort(agentId); } catch (e) { return send(res, 503, { error: e.message }); }
-
-    const agentConfig = { tools, memoryProvider, maxDepth };
-
     try {
-      const containerId = await dockerRun({ containerName, port, envVars, agentConfig });
-      await nginx.addSite(slug, port);
-      return send(res, 200, { containerId, containerName, port, subdomain: slug });
+      const result = await runDeployment(body);
+      return send(res, 200, result);
     } catch (e) {
-      releasePort(agentId);
       console.error('[deploy]', e.message);
       return send(res, 500, { error: e.message });
     }
+  }
+
+  // POST /deploy-async
+  if (method === 'POST' && url === '/deploy-async') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return send(res, 400, { error: e.message }); }
+
+    const { agentId, slug, deploymentId } = body;
+    if (!agentId || !slug) return send(res, 400, { error: 'agentId and slug are required' });
+
+    const jobId = deploymentId || agentId;
+    startDeploymentJob(jobId, body);
+    return send(res, 202, { ok: true, jobId, status: 'running' });
+  }
+
+  // GET /deploy-status/:jobId
+  const deployStatusMatch = url.match(/^\/deploy-status\/([a-zA-Z0-9_-]+)$/);
+  if (method === 'GET' && deployStatusMatch) {
+    const job = deployJobs.get(deployStatusMatch[1]);
+    if (!job) return send(res, 404, { error: 'Deploy job not found' });
+    return send(res, 200, job);
   }
 
   // POST /stop

@@ -32,12 +32,69 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const deploy = await prisma.deployment.findFirst({
     where: { agentId: id },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, status: true, containerId: true, subdomain: true, securityScore: true },
+    select: { id: true, status: true, containerId: true, port: true, subdomain: true, securityScore: true, deployLog: true },
   });
 
   // If no orchestrator or no running deployment, return DB state only
-  if (!ORCHESTRATOR_URL || !ORCHESTRATOR_SECRET || !deploy?.containerId) {
+  if (!ORCHESTRATOR_URL || !ORCHESTRATOR_SECRET || !deploy) {
     return NextResponse.json({ agentStatus: agent.status, deployment: deploy ?? null });
+  }
+
+  if (deploy.status === 'pending') {
+    try {
+      const jobRes = await fetch(`${ORCHESTRATOR_URL}/deploy-status/${deploy.id}`, {
+        headers: { 'Authorization': `Bearer ${ORCHESTRATOR_SECRET}` },
+        signal: AbortSignal.timeout(5_000),
+      });
+
+      if (jobRes.ok) {
+        const job = await tryReadJson<{
+          status: 'running' | 'completed' | 'failed';
+          error?: string | null;
+          result?: {
+            containerId: string;
+            containerName: string;
+            port: number;
+            subdomain: string;
+          } | null;
+        }>(jobRes);
+
+        if (job?.status === 'completed' && job.result) {
+          const updated = await prisma.deployment.update({
+            where: { id: deploy.id },
+            data: {
+              status:      'running',
+              containerId: job.result.containerId,
+              port:        job.result.port,
+              subdomain:   job.result.subdomain,
+              startedAt:   new Date(),
+            },
+            select: { id: true, status: true, containerId: true, port: true, subdomain: true, securityScore: true, deployLog: true },
+          });
+          await prisma.agent.update({ where: { id }, data: { status: 'deployed' } });
+          return NextResponse.json({ agentStatus: 'deployed', deployment: updated, live: { running: true, status: 'running' } });
+        }
+
+        if (job?.status === 'failed') {
+          const message = job.error || 'Deploy failed';
+          const updated = await prisma.deployment.update({
+            where: { id: deploy.id },
+            data: { status: 'failed', deployLog: message },
+            select: { id: true, status: true, containerId: true, port: true, subdomain: true, securityScore: true, deployLog: true },
+          });
+          await prisma.agent.update({ where: { id }, data: { status: 'failed' } });
+          return NextResponse.json({ agentStatus: 'failed', deployment: updated, live: { running: false, status: 'failed' } });
+        }
+      }
+    } catch {
+      // Orchestrator unreachable or old orchestrator without job status.
+    }
+
+    return NextResponse.json({ agentStatus: agent.status, deployment: deploy, live: { running: false, status: 'deploying' } });
+  }
+
+  if (!deploy.containerId) {
+    return NextResponse.json({ agentStatus: agent.status, deployment: deploy });
   }
 
   // Check live container status from orchestrator
