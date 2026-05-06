@@ -1,20 +1,7 @@
 import type { Metadata } from 'next';
 import Nav from '@/components/Nav';
-import Hero from '@/components/Hero';
-import TrustBar from '@/components/TrustBar';
-import HowItWorks from '@/components/HowItWorks';
-import Features from '@/components/Features';
-import AgentDirectory from '@/components/AgentDirectory';
-import AccuracyBenchmark from '@/components/AccuracyBenchmark';
-import ComparisonTable from '@/components/ComparisonTable';
-import PricingTeaser from '@/components/PricingTeaser';
-import FAQ from '@/components/FAQ';
-import CTA from '@/components/CTA';
 import ScrollAnimator from '@/components/ScrollAnimator';
-import DemoScanner from '@/components/DemoScanner';
-import DemoVideos from '@/components/DemoVideos';
-import ThreatMarquee from '@/components/ThreatMarquee';
-import RecentPosts from '@/components/RecentPosts';
+import HomeRedesign from '@/components/HomeRedesign';
 import { getRepoStats } from '@/lib/stats';
 
 const ogImage = 'https://www.shipsafecli.com/og1.png';
@@ -166,22 +153,7 @@ export default async function Home() {
       />
       <ScrollAnimator />
       <Nav />
-      <main>
-        <Hero stars={stars} downloads={downloads} />
-        <TrustBar stars={stars} downloads={downloads} />
-        <DemoScanner />
-        <DemoVideos />
-        <HowItWorks />
-        <Features />
-        <AgentDirectory />
-        <ThreatMarquee />
-        <AccuracyBenchmark />
-        <ComparisonTable />
-        <PricingTeaser />
-        <RecentPosts />
-        <FAQ />
-      </main>
-      <CTA />
+      <HomeRedesign stars={stars} downloads={downloads} />
     </>
   );
 }

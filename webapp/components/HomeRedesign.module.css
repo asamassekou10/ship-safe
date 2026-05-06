@@ -1,0 +1,686 @@
+.page {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.hero {
+  padding: 5rem 0 2rem;
+}
+
+.heroInner,
+.section,
+.demoSection,
+.spotlightInner,
+.pricingSection,
+.finalCta {
+  width: min(1180px, calc(100% - 3rem));
+  margin: 0 auto;
+}
+
+.heroInner {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(460px, 1.1fr);
+  gap: 3rem;
+  align-items: center;
+}
+
+.heroCopy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.15rem;
+}
+
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(8, 145, 178, 0.22);
+  border-radius: 999px;
+  background: rgba(8, 145, 178, 0.07);
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  padding: 0.48rem 0.75rem;
+  text-transform: uppercase;
+}
+
+.hero h1,
+.section h2,
+.demoCopy h2,
+.intelligenceSpotlight h2,
+.pricingCopy h2,
+.finalCta h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(2.4rem, 6vw, 5rem);
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 0.98;
+  text-align: left;
+}
+
+.heroCopy p,
+.sectionHeader p,
+.demoCopy p,
+.intelligenceSpotlight p,
+.pricingCopy p {
+  margin: 0;
+  max-width: 650px;
+  color: var(--text-muted);
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.primaryCta,
+.secondaryCta {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 0.75rem 1.1rem;
+  font-size: 0.93rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.primaryCta {
+  border: 1px solid var(--cyan);
+  background: var(--cyan);
+  color: #001014;
+}
+
+.secondaryCta {
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+}
+
+.primaryCta:hover,
+.secondaryCta:hover {
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.installBox {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card2);
+  color: var(--text);
+  padding: 0.85rem 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.installBox span {
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  font-weight: 900;
+}
+
+.installBox code {
+  color: var(--text);
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.productPreview {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(8, 145, 178, 0.06), transparent 34%),
+    var(--bg-card);
+  box-shadow: var(--shadow-lg);
+  padding: 1rem;
+}
+
+.previewTop,
+.findingRow,
+.consoleHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.previewTop {
+  border-bottom: 1px solid var(--border);
+  padding: 0.25rem 0.15rem 0.9rem;
+}
+
+.previewTop div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.previewTop span,
+.panelLabel,
+.metricCard span,
+.intelCard span,
+.findingRow strong,
+.workflowLabel,
+.consoleHeader span,
+.consoleLine span,
+.signalStack span,
+.proofBand span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.previewTop strong {
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.livePill {
+  border: 1px solid rgba(22, 163, 74, 0.25);
+  border-radius: 999px;
+  background: rgba(22, 163, 74, 0.08);
+  color: var(--green) !important;
+  padding: 0.32rem 0.6rem;
+}
+
+.scorePanel {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  padding: 1.1rem;
+}
+
+.scorePanel div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.scorePanel strong {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.scoreRing {
+  display: grid;
+  width: 82px;
+  height: 82px;
+  place-items: center;
+  border-radius: 999px;
+  background: conic-gradient(var(--cyan) 0 82%, var(--border) 82% 100%);
+}
+
+.scoreRing span {
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  background: var(--bg-card);
+}
+
+.previewGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.metricCard,
+.intelCard,
+.workflowCard,
+.compareCard,
+.priceCard,
+.consoleMock {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+}
+
+.metricCard {
+  padding: 0.9rem;
+}
+
+.metricCard strong {
+  display: block;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 1.4rem;
+  line-height: 1.2;
+  margin-top: 0.2rem;
+}
+
+.findingList {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.findingRow {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  padding: 0.72rem 0.8rem;
+}
+
+.findingRow span:nth-child(2) {
+  flex: 1;
+  color: var(--text);
+  font-size: 0.87rem;
+}
+
+.severityDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.critical { background: var(--red); }
+.high { background: var(--orange); }
+.medium { background: var(--yellow); }
+
+.intelCard {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+  padding: 1rem;
+  border-color: rgba(8, 145, 178, 0.25);
+  background: rgba(8, 145, 178, 0.06);
+}
+
+.intelCard strong {
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.intelCard p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.coverageStrip {
+  display: flex;
+  width: min(1180px, calc(100% - 3rem));
+  margin: 0 auto;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  padding: 1.5rem 0 4.5rem;
+}
+
+.coverageStrip span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 0.45rem 0.75rem;
+}
+
+.section {
+  padding: 4.5rem 0;
+}
+
+.sectionHeader,
+.pricingCopy {
+  display: grid;
+  justify-items: start;
+  gap: 0.85rem;
+  margin-bottom: 1.4rem;
+}
+
+.section h2,
+.demoCopy h2,
+.intelligenceSpotlight h2,
+.pricingCopy h2,
+.finalCta h2 {
+  font-size: clamp(2rem, 4vw, 3.4rem);
+}
+
+.workflowGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.workflowCard,
+.compareCard,
+.priceCard {
+  padding: 1.25rem;
+}
+
+.workflowCard {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.workflowCard h3,
+.compareCard h3,
+.priceCard h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.15rem;
+}
+
+.workflowCard p,
+.compareCard p,
+.priceCard p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.workflowCard div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.workflowCard div span,
+.compareCard span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 750;
+  padding: 0.32rem 0.55rem;
+}
+
+.demoSection {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1fr);
+  gap: 1rem;
+  align-items: stretch;
+  padding: 4.5rem 0;
+}
+
+.demoCopy,
+.consoleMock {
+  display: grid;
+  align-content: center;
+  gap: 1rem;
+}
+
+.demoCopy ul {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--text-muted);
+}
+
+.demoCopy li {
+  padding-left: 0.2rem;
+}
+
+.consoleMock {
+  background: #05070a;
+  color: #dbeafe;
+  overflow: hidden;
+}
+
+.consoleHeader {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1rem 1.15rem;
+}
+
+.consoleHeader strong {
+  color: #22d3ee;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.consoleBody {
+  display: grid;
+  gap: 0.7rem;
+  padding: 1.15rem;
+}
+
+.consoleLine {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.consoleLine code {
+  color: #dbeafe;
+  font-size: 0.84rem;
+  white-space: normal;
+}
+
+.consoleResult {
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  border-radius: 8px;
+  background: rgba(34, 211, 238, 0.08);
+  padding: 1rem;
+}
+
+.consoleResult strong {
+  color: #fff;
+}
+
+.consoleResult p {
+  margin: 0.25rem 0 0;
+  color: #94a3b8;
+  font-size: 0.88rem;
+}
+
+.intelligenceSpotlight {
+  padding: 4.5rem 0;
+  background: var(--bg-elevated);
+  border-block: 1px solid var(--border);
+}
+
+.spotlightInner {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(360px, 1fr);
+  gap: 1.25rem;
+  align-items: center;
+}
+
+.spotlightInner > div:first-child {
+  display: grid;
+  gap: 0.9rem;
+  justify-items: start;
+}
+
+.signalStack {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.signalStack div {
+  display: grid;
+  gap: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  padding: 1rem;
+}
+
+.signalStack strong {
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.compareGrid,
+.priceCards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.compareCard {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.comparePrimary {
+  border-color: rgba(8, 145, 178, 0.25);
+  background: rgba(8, 145, 178, 0.06);
+}
+
+.proofBand {
+  display: grid;
+  width: min(1180px, calc(100% - 3rem));
+  margin: 1.5rem auto 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.proofBand div {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  padding: 1rem;
+}
+
+.proofBand strong {
+  display: block;
+  color: var(--text);
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.pricingSection {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1fr);
+  gap: 1rem;
+  align-items: start;
+  padding: 5rem 0 3rem;
+}
+
+.priceCard {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.priceCard strong {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.priceFeatured {
+  border-color: rgba(8, 145, 178, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(8, 145, 178, 0.12);
+}
+
+.finalCta {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  padding: 5rem 0 6rem;
+  text-align: center;
+}
+
+.finalCta h2 {
+  text-align: center;
+}
+
+@media (max-width: 980px) {
+  .heroInner,
+  .demoSection,
+  .spotlightInner,
+  .pricingSection {
+    grid-template-columns: 1fr;
+  }
+
+  .heroInner {
+    gap: 2rem;
+  }
+
+  .productPreview,
+  .consoleMock {
+    min-width: 0;
+  }
+
+  .workflowGrid,
+  .proofBand {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .hero {
+    padding-top: 3rem;
+  }
+
+  .heroInner,
+  .section,
+  .demoSection,
+  .spotlightInner,
+  .pricingSection,
+  .finalCta,
+  .coverageStrip,
+  .proofBand {
+    width: min(100% - 2rem, 1180px);
+  }
+
+  .hero h1 {
+    font-size: 2.6rem;
+  }
+
+  .heroCopy p,
+  .sectionHeader p,
+  .demoCopy p,
+  .intelligenceSpotlight p,
+  .pricingCopy p {
+    font-size: 0.96rem;
+  }
+
+  .heroActions,
+  .primaryCta,
+  .secondaryCta {
+    width: 100%;
+  }
+
+  .previewGrid,
+  .workflowGrid,
+  .compareGrid,
+  .priceCards,
+  .proofBand {
+    grid-template-columns: 1fr;
+  }
+
+  .productPreview {
+    padding: 0.75rem;
+  }
+
+  .scorePanel {
+    grid-template-columns: 1fr;
+  }
+
+  .scoreRing {
+    display: none;
+  }
+
+  .consoleLine {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+}
