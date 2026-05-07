@@ -80,7 +80,8 @@
 .splitCopy h2,
 .pricingTeaserInner h2,
 .faqHead h2,
-.finalInner h2 {
+.finalInner h2,
+.outputHead h2 {
   margin: 0;
   color: var(--text);
   font-size: clamp(2rem, 4.4vw, 3.4rem);
@@ -1106,15 +1107,27 @@
 @media (max-width: 1024px) {
   .outputInner {
     grid-template-columns: 1fr;
-    gap: 2.5rem;
+    gap: 2.25rem;
     width: min(100% - 2rem, 1200px);
   }
-  .outputHead { position: static; }
+  .outputHead { position: static; gap: 1.1rem; }
+}
+
+@media (max-width: 768px) {
+  .outputSection { padding: 4.5rem 0 4rem; }
+  .serifPull {
+    font-size: clamp(1.55rem, 5.6vw, 2rem);
+    line-height: 1.18;
+  }
+  .outputBlurb { font-size: 0.92rem; }
+  .outputBlurb code { font-size: 0.78rem; }
 }
 
 @media (max-width: 640px) {
-  .outputSection { padding: 4.5rem 0 4rem; }
-  .serifPull { font-size: clamp(1.65rem, 7vw, 2.2rem); }
+  .outputSection { padding: 3.5rem 0 3rem; }
+  .outputInner { gap: 1.75rem; width: min(100% - 1.5rem, 1200px); }
+  .serifPull { font-size: clamp(1.35rem, 6.5vw, 1.75rem); }
+  .serifQuote { font-size: 1.25em; vertical-align: -0.1em; }
 }
 
 /* ─────────────────────────────────────────────

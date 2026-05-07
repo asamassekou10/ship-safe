@@ -1,19 +1,15 @@
 .window {
   position: relative;
   border-radius: 14px;
-  background: #050507;
+  background:
+    linear-gradient(180deg, rgba(34, 211, 238, 0.05), transparent 35%),
+    #050507;
   overflow: hidden;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.06),
-    0 30px 60px -28px rgba(0, 0, 0, 0.55),
-    rgba(92, 88, 85, 0.18) 0 0 18px;
+    0 30px 60px -28px rgba(0, 0, 0, 0.55);
   isolation: isolate;
-  /* Faint grid texture */
-  background-image:
-    linear-gradient(rgba(61, 58, 57, 0.4) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(61, 58, 57, 0.4) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(34, 211, 238, 0.04), transparent 60%);
-  background-size: 40px 40px, 40px 40px, 100% 100%;
+  contain: layout paint;
 }
 
 /* ── Chrome (traffic lights + tabs) ──────── */
@@ -247,15 +243,15 @@
   50%, 100% { opacity: 0; }
 }
 
-@media (max-width: 640px) {
-  .body { font-size: 0.78rem; padding: 0.85rem; min-height: 320px; }
+@media (max-width: 768px) {
+  .body { font-size: 0.78rem; padding: 0.85rem; min-height: 280px; gap: 0.35rem; }
   .lineSev {
     grid-template-columns: 64px auto;
     grid-template-rows: auto auto;
     gap: 0.2rem 0.7rem;
   }
-  .sevFile { grid-column: 2; }
-  .sevMsg { grid-column: 2; }
+  .sevFile { grid-column: 2; min-width: 0; }
+  .sevMsg { grid-column: 2; min-width: 0; }
   .sevTag { display: none; }
   .summary { gap: 0.5rem 0.9rem; }
   .body code, .lineCmd code { font-size: 0.76rem; }
