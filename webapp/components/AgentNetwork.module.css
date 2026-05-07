@@ -1,0 +1,86 @@
+.wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5 / 4;
+  overflow: hidden;
+  border-radius: 14px;
+  /* VoltAgent two-shade dark + warm charcoal containment */
+  background:
+    radial-gradient(70% 50% at 50% 50%, rgba(34, 211, 238, 0.06), transparent 70%),
+    #050507;
+  border: 1px solid #3d3a39;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 30px 60px -28px rgba(34, 211, 238, 0.32),
+    0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+/* Core brand mark sits dead-centre over the pinned core node */
+.coreMark {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.coreMark svg {
+  width: 28px;
+  height: 28px;
+  color: #22d3ee;
+  filter: drop-shadow(0 0 2px #22d3ee);
+  animation: boltGlow 2.4s ease-in-out infinite;
+}
+
+.skeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(60% 40% at 50% 50%, rgba(34, 211, 238, 0.08), transparent 70%);
+  animation: skel 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes boltGlow {
+  0%, 100% { filter: drop-shadow(0 0 2px #22d3ee); transform: scale(1); }
+  50%      { filter: drop-shadow(0 0 8px #22d3ee) drop-shadow(0 0 14px rgba(34, 211, 238, 0.45)); transform: scale(1.05); }
+}
+
+@keyframes skel {
+  from { opacity: 0.4; }
+  to   { opacity: 1; }
+}
+
+/* ── Responsive ──────────────────────────── */
+
+/* Tablet & below: shorter aspect so the network doesn't dominate */
+@media (max-width: 1024px) {
+  .wrap { aspect-ratio: 16 / 9; }
+}
+
+@media (max-width: 768px) {
+  .wrap { aspect-ratio: 16 / 11; border-radius: 12px; }
+  .coreMark svg { width: 24px; height: 24px; }
+}
+
+@media (max-width: 480px) {
+  .wrap { aspect-ratio: 4 / 3; }
+  .coreMark svg { width: 20px; height: 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coreMark svg,
+  .skeleton {
+    animation: none;
+    filter: drop-shadow(0 0 4px #22d3ee);
+  }
+}

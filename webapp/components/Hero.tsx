@@ -1,213 +1,301 @@
 'use client';
-import { useEffect } from 'react';
+
 import Link from 'next/link';
-import styles from './Hero.module.css';
+import { useEffect, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
+import NumberFlow from '@number-flow/react';
+import { MeshGradient } from '@paper-design/shaders-react';
+import AgentNetwork, { type Finding, type NetworkEvent } from './AgentNetwork';
+import AgentTimeline from './AgentTimeline';
+import MagneticButton from './MagneticButton';
 import { formatNumber } from '@/lib/stats';
+import styles from './Hero.module.css';
 
-interface HeroProps {
-  stars?: number;
-  downloads?: number;
-}
+type Props = {
+  stars: number;
+  downloads: number;
+};
 
-const FLOAT_CARDS = [
-  { sev: 'critical', title: 'AWS key in .env.example', file: 'config/.env.example', sevColor: '#dc2626' },
-  { sev: 'high',     title: 'SQL injection in query endpoint', file: 'api/users.ts:42', sevColor: '#ea580c' },
-  { sev: 'critical', title: 'JWT secret hardcoded', file: 'auth/middleware.ts:18', sevColor: '#dc2626' },
-  { sev: 'medium',   title: 'Missing rate limiting on login', file: 'routes/auth.ts:91', sevColor: '#d97706' },
-];
+const initialFinding: Finding = {
+  node: 'r1',
+  label: 'Hardcoded sk_live_ in api-gateway/upload.ts',
+  tag: 'SECRET-001',
+  file: 'api-gateway/upload.ts',
+  line: 14,
+  snippet: 'const stripe = new Stripe("sk_live_4eC3XHa0…");',
+  column: 28,
+  hint: 'rotate via stripe.dashboard',
+};
 
-export default function Hero({ stars, downloads }: HeroProps) {
-  const stats = [
-    { num: '23',  label: 'Security agents' },
-    { num: '80+', label: 'Attack classes' },
-    { num: stars ? formatNumber(stars) : '1.2k+', label: 'GitHub stars' },
-    { num: downloads ? formatNumber(downloads) : '8k+', label: 'Weekly downloads' },
-  ];
+const fmtTime = (ms: number) => {
+  const d = new Date(ms);
+  return `${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+};
+
+const labelForEvent = (e: NetworkEvent): string => {
+  switch (e.kind) {
+    case 'pulse': return `scan  ${e.from} → ${e.to}`;
+    case 'flash': return `flag  ${e.node}  ${e.tag}`;
+    case 'tick':  return e.label;
+  }
+};
+
+const colorClassForEvent = (e: NetworkEvent): string => {
+  switch (e.kind) {
+    case 'pulse': return 'evCyan';
+    case 'flash': return 'evRed';
+    case 'tick':  return 'evGreen';
+  }
+};
+
+type LogEntry = { id: number; ts: number; kind: NetworkEvent['kind']; text: string };
+
+export default function Hero({ stars, downloads }: Props) {
+  const reduceMotion = useReducedMotion();
+  const [finding, setFinding] = useState<Finding>(initialFinding);
+  const [log, setLog] = useState<LogEntry[]>([]);
+  const [latestEvent, setLatestEvent] = useState<NetworkEvent | null>(null);
+  const [statsOn, setStatsOn] = useState(false);
+  const heroRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    const scoreEl = document.getElementById('score-val');
-    const arcEl = document.getElementById('score-arc') as SVGCircleElement | null;
-    if (!scoreEl || !arcEl) return;
-    function easeOut(t: number) { return 1 - Math.pow(1 - t, 3); }
-    const target = 100;
-    const fullDash = 251.3;
-    const duration = 1800;
-    const start = performance.now();
-    function tick(now: number) {
-      const p = Math.min((now - start) / duration, 1);
-      const ep = easeOut(p);
-      (scoreEl as HTMLElement).textContent = String(Math.round(ep * target));
-      arcEl!.style.strokeDashoffset = String(fullDash * (1 - ep));
-      if (p < 1) requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
+    const t = setTimeout(() => setStatsOn(true), 350);
+    return () => clearTimeout(t);
   }, []);
 
-  function handleCopy() {
-    navigator.clipboard.writeText('npx ship-safe audit .').then(() => {
-      const btn = document.getElementById('hero-copy');
-      if (btn) { btn.style.color = 'var(--green)'; setTimeout(() => { btn.style.color = ''; }, 1500); }
-    });
-  }
+  // Cursor-followed spotlight on the hero — sets --sx/--sy, used by ::after radial gradient
+  useEffect(() => {
+    const el = heroRef.current;
+    if (!el) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let raf = 0;
+    let pending: { x: number; y: number } | null = null;
+    const flush = () => {
+      raf = 0;
+      if (pending) {
+        el.style.setProperty('--sx', `${pending.x}%`);
+        el.style.setProperty('--sy', `${pending.y}%`);
+        pending = null;
+      }
+    };
+    const onMove = (e: MouseEvent) => {
+      const rect = el.getBoundingClientRect();
+      pending = {
+        x: ((e.clientX - rect.left) / rect.width) * 100,
+        y: ((e.clientY - rect.top) / rect.height) * 100,
+      };
+      if (!raf) raf = requestAnimationFrame(flush);
+    };
+    el.addEventListener('mousemove', onMove);
+    return () => {
+      el.removeEventListener('mousemove', onMove);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  const handleEvent = (e: NetworkEvent) => {
+    const entry: LogEntry = { id: e.t, ts: e.t, kind: e.kind, text: labelForEvent(e) };
+    setLog((prev) => [entry, ...prev].slice(0, 5));
+    setLatestEvent(e);
+  };
+
+  // Caret position under the offending column for the snippet line
+  const caretPad = ' '.repeat(Math.max(0, finding.column - 1));
+  const caretLen = '^'.repeat(Math.min(18, Math.max(3, finding.snippet.length - finding.column + 1)));
 
   return (
-    <section className={styles.hero}>
-      {/* Mesh gradient background */}
-      <div className={styles.meshBg} aria-hidden="true" />
+    <section className={styles.hero} ref={heroRef}>
+      <div className={styles.bg} aria-hidden="true">
+        <MeshGradient
+          className={styles.shader}
+          colors={['#050507', '#08161d', '#0b3a4a', '#22d3ee', '#050507']}
+          distortion={0.78}
+          swirl={0.28}
+          grainMixer={0.22}
+          grainOverlay={0.06}
+          speed={reduceMotion ? 0 : 0.16}
+        />
+        <div className={styles.bgFade} />
+        <div className={styles.bgGrid} />
+      </div>
 
-      {/* Animated orbs */}
-      <div className={`${styles.orb} ${styles.orb1}`} aria-hidden="true" />
-      <div className={`${styles.orb} ${styles.orb2}`} aria-hidden="true" />
-      <div className={`${styles.orb} ${styles.orb3}`} aria-hidden="true" />
-      <div className={styles.heroHorizon} aria-hidden="true" />
+      <div className={styles.inner}>
+        <div className={styles.copy}>
+          <motion.span
+            className={styles.statusPill}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+          >
+            <i /> Live <span className={styles.pillSep}>•</span>{' '}
+            <code>npx ship-safe scan</code>
+          </motion.span>
 
-      <div className={`container ${styles.heroLayout}`}>
-
-        {/* ── Left ─────────────────────────────────── */}
-        <div className={styles.heroLeft}>
-          <div className={styles.badge}>
-            <span className={styles.badgeDot} />
-            v9.0 · MIT open source · No account required
-          </div>
-
-          <h1 className={styles.h1}>
-            Find vulnerabilities<br />
-            before <span className={styles.gradientText}>attackers do.</span>
-          </h1>
-
-          <p className={styles.heroSub}>
-            23 security agents. One command. Catches secrets, injection, memory poisoning,
-            Hermes Agent misconfigs, and CVEs — with OWASP&nbsp;Agentic&nbsp;AI&nbsp;Top&nbsp;10 mapping built in.
-          </p>
-
-          <div className={`install-box ${styles.installBox}`}>
-            <span className="install-prompt">$</span>
-            <span className={styles.installCmd}>npx ship-safe audit .</span>
-            <button className="copy-btn" id="hero-copy" onClick={handleCopy} title="Copy command" aria-label="Copy install command">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-              </svg>
-            </button>
-          </div>
-
-          <div className={styles.heroCtas}>
-            <Link href="/signup" className="btn btn-primary"> {/* ship-safe-ignore */}
-              Scan your code free
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </Link>
-            <a href="#demo" className="btn btn-ghost">See it in action</a>
-          </div>
-
-          {/* Inline stats row */}
-          <div className={styles.statsRow}>
-            {stats.map((s, i) => (
-              <div key={s.label} className={styles.statItem}>
-                {i > 0 && <span className={styles.statSep} aria-hidden="true" />}
-                <span className={styles.statNum}>{s.num}</span>
-                <span className={styles.statLabel}>{s.label}</span>
-              </div>
+          <motion.h1
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: {},
+              visible: { transition: { staggerChildren: 0.045, delayChildren: 0.15 } },
+            }}
+          >
+            {['Catch', 'the', 'breach'].map((word, i) => (
+              <motion.span
+                key={i}
+                className={styles.word}
+                variants={{
+                  hidden: { opacity: 0, y: 18 },
+                  visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.22, 0.8, 0.36, 1] } },
+                }}
+              >
+                {word}
+              </motion.span>
             ))}
-          </div>
-        </div>
+            <motion.span
+              className={`${styles.word} ${styles.gradientText}`}
+              variants={{
+                hidden: { opacity: 0, y: 18 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 0.8, 0.36, 1] } },
+              }}
+            >
+              before you push.
+            </motion.span>
+          </motion.h1>
 
-        {/* ── Right: stacked scan UI ────────────────── */}
-        <div className={styles.heroRight} aria-hidden="true">
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.5, ease: 'easeOut' }}
+          >
+            One command, 23 agents. Ship Safe scans your code, dependencies, configs, MCP
+            servers, and AI prompts — flagging the leaked secrets, prompt injections, and CVEs
+            every traditional scanner misses.
+          </motion.p>
 
-          {/* Floating threat cards */}
-          {FLOAT_CARDS.map((card, i) => (
-            <div key={i} className={`${styles.floatCard} ${styles[`float${i}`]}`}>
-              <span className={styles.floatSev} style={{ color: card.sevColor, background: `${card.sevColor}12`, borderColor: `${card.sevColor}25` }}>
-                {card.sev}
-              </span>
-              <span className={styles.floatTitle}>{card.title}</span>
-              <span className={styles.floatFile}>{card.file}</span>
-            </div>
-          ))}
+          <motion.div
+            className={styles.actions}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.7 }}
+          >
+            <MagneticButton>
+              <Link href="/signup" className={styles.primaryCta}>
+                Start free scan <span aria-hidden="true">→</span>
+              </Link>
+            </MagneticButton>
+            <Link href="/docs" className={styles.secondaryCta}>View docs</Link>
+          </motion.div>
 
-          {/* Main dashboard card */}
-          <div className={styles.dashCard}>
-            <div className={styles.dashHeader}>
-              <div className={styles.dashDots}>
-                <span className={`${styles.dot} ${styles.dotR}`} />
-                <span className={`${styles.dot} ${styles.dotY}`} />
-                <span className={`${styles.dot} ${styles.dotG}`} />
-              </div>
-              <span className={styles.dashTitle}>ship-safe audit .</span>
-              <span className={styles.dashBadge}>LIVE</span>
-            </div>
+          <motion.div
+            className={styles.proof}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.9 }}
+          >
+            <span className={styles.tabular}>
+              <strong>
+                <NumberFlow value={statsOn ? stars : 0} format={{ notation: 'compact' }} />
+              </strong>{' '}
+              GitHub stars
+            </span>
+            <span className={styles.proofDivider} />
+            <span className={styles.tabular}>
+              <strong>
+                <NumberFlow value={statsOn ? downloads : 0} format={{ notation: 'compact' }} />
+              </strong>{' '}
+              npm downloads
+            </span>
+            <span className={styles.proofDivider} />
+            <span><strong>MIT</strong> open-source</span>
+            <span className={styles.proofDivider} />
+            <span
+              className={styles.tabular}
+              title={`${formatNumber(stars)} stars · ${formatNumber(downloads)} downloads`}
+            >
+              23 agents
+            </span>
+          </motion.div>
 
-            <div className={styles.dashTerminal}>
-              {[
-                { icon: '✔', text: 'Secrets: 4 found',      tag: 'CRITICAL', tagCls: styles.tagRed },
-                { icon: '✔', text: '23 agents: 23 findings', tag: 'HIGH',     tagCls: styles.tagYellow },
-                { icon: '✔', text: 'Dependencies: 3 CVEs',  tag: 'HIGH',     tagCls: styles.tagYellow },
-                { icon: '✔', text: 'Remediation plan ready', tag: null, dim: true },
-              ].map((l, i) => (
-                <div key={i} className={styles.termLine} style={{ animationDelay: `${0.3 + i * 0.22}s` }}>
-                  <span className={`${styles.termPrompt} ${styles.green}`}>{l.icon}</span>
-                  <span className={`${styles.termText} ${l.dim ? styles.dim : ''}`}>{l.text}</span>
-                  {l.tag && <span className={`${styles.termTag} ${l.tagCls}`}>{l.tag}</span>}
-                </div>
+          <motion.div
+            className={styles.trust}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 1.1 }}
+          >
+            <span className={styles.trustLabel}>Catches misconfigs in</span>
+            <span className={styles.trustList}>
+              {['Anthropic', 'OpenAI', 'Stripe', 'Vercel', 'Cursor', 'Supabase', 'MCP'].map((name) => (
+                <span key={name} className={styles.trustItem}>{name}</span>
               ))}
+            </span>
+          </motion.div>
+        </div>
+
+        <motion.div
+          className={styles.networkSlot}
+          initial={{ opacity: 0, scale: 0.97, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 0.8, 0.36, 1] }}
+        >
+          <div className={styles.networkFrame}>
+            <AgentNetwork onFinding={setFinding} onEvent={handleEvent} />
+
+            {/* Code-shaped callout — looks like real CLI scan output */}
+          <motion.div
+            className={styles.codeCallout}
+            key={finding.tag}
+            initial={{ opacity: 0, y: 12, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.5, ease: [0.22, 0.8, 0.36, 1] }}
+          >
+            <div className={styles.codeHead}>
+              <span className={styles.sevDot} />
+              <span className={styles.codeFile}>{finding.file}:{finding.line}</span>
+              <span className={styles.codeTag}>{finding.tag}</span>
             </div>
-
-            <div className={styles.dashScore}>
-              <div className={styles.scoreLeft}>
-                <div className={styles.ringWrap}>
-                  <svg viewBox="0 0 96 96" width="96" height="96" className={styles.scoreRing}>
-                    <circle cx="48" cy="48" r="40" fill="none" stroke="var(--border)" strokeWidth="6" />
-                    <circle
-                      cx="48" cy="48" r="40"
-                      fill="none" stroke="url(#scoreGrad)" strokeWidth="6"
-                      strokeLinecap="round" strokeDasharray="251.3" strokeDashoffset="218"
-                      transform="rotate(-90 48 48)" className={styles.scoreArc} id="score-arc"
-                    />
-                    <defs>
-                      <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#0891b2" />
-                        <stop offset="100%" stopColor="#2563eb" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                  <div className={styles.ringLabel}>
-                    <span className={styles.scoreNum} id="score-val">0</span>
-                    <span className={styles.scoreSub}>/100</span>
-                  </div>
-                </div>
-                <div className={styles.gradeRow}>
-                  <span className={styles.gradeLetter}>A</span>
-                  <span className={styles.gradeText}>Ship it!</span>
-                </div>
-              </div>
-
-              <div className={styles.scoreRight}>
-                {[
-                  { label: 'Secrets', val: '0' },
-                  { label: 'Code vulns', val: '0' },
-                  { label: 'CVEs', val: '0' },
-                ].map((m) => (
-                  <div key={m.label} className={styles.metric}>
-                    <div className={styles.metricTop}>
-                      <span className={styles.metricLabel}>{m.label}</span>
-                      <span className={`${styles.metricVal} ${styles.ok}`}>{m.val}</span>
-                    </div>
-                    <div className={styles.metricBar}>
-                      <div className={styles.metricFill} style={{ background: 'var(--green)', width: '100%' }} />
-                    </div>
-                  </div>
-                ))}
-                <div className={styles.metricFiles}>847 files · 3.2s</div>
-              </div>
+            <pre className={styles.codeBody}>
+              <code>
+                <span className={styles.codeGutter}>{String(finding.line).padStart(3, ' ')} │ </span>
+                <span className={styles.codeLine}>{finding.snippet}</span>
+                {'\n'}
+                <span className={styles.codeGutter}>{'    │ '}</span>
+                <span className={styles.codeCaret}>{caretPad}{caretLen}</span>
+              </code>
+            </pre>
+            <div className={styles.codeFoot}>
+              <span className={styles.codeArrow}>↳</span>
+              <span className={styles.codeHint}>{finding.hint}</span>
             </div>
+          </motion.div>
 
-            <div className={styles.dashFooter}>
-              <span className={styles.statusDot} />
-              <span>All checks passed — ready to push</span>
+            {/* Live signal log */}
+            <div className={styles.signalLog} aria-hidden="true">
+              <div className={styles.signalHead}>
+                <span className={styles.signalDot} />
+                <span>signal</span>
+              </div>
+              <ul>
+                {log.length === 0 ? (
+                  <li className={styles.signalEmpty}><code>—</code></li>
+                ) : (
+                  log.map((entry) => (
+                    <li key={entry.id} className={styles[colorClassForEvent({ kind: entry.kind } as NetworkEvent)]}>
+                      <code>
+                        <span className={styles.signalTs}>{fmtTime(entry.ts)}</span>
+                        <span className={styles.signalText}>{entry.text}</span>
+                      </code>
+                    </li>
+                  ))
+                )}
+              </ul>
             </div>
           </div>
 
-        </div>
+          {/* AI timeline pills — light up by stage as the network ticks */}
+          <div className={styles.timelineRow}>
+            <AgentTimeline event={latestEvent} />
+          </div>
+        </motion.div>
       </div>
     </section>
   );

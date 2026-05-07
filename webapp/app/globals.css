@@ -1,12 +1,17 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:           #ffffff;
-  --bg-elevated:  #fafafa;
-  --bg-card:      #ffffff;
-  --bg-card2:     #f9fafb;
-  --border:       #e5e7eb;
-  --border-hover: #d1d5db;
+  /* Surface ladder (Linear-style) — canvas → 3 elevation steps */
+  --bg:           #fafaf9;  /* canvas (warm white) */
+  --bg-elevated:  #f4f4f3;  /* surface-1 — band/section bg */
+  --bg-card:      #ffffff;  /* surface-2 — card */
+  --bg-card2:     #ebebeb;  /* surface-3 — featured/hover */
+  --border:       #ebebeb;  /* Vercel-style softer border */
+  --border-hover: #d4d4d4;
+  /* Shadow-as-border ring (Vercel pattern) — apply via box-shadow */
+  --ring-1:       0 0 0 1px rgba(0, 0, 0, 0.06);
+  --ring-2:       0 0 0 1px rgba(0, 0, 0, 0.10);
+  --ring-card:    0 0 0 1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04), 0 4px 12px -6px rgba(0, 0, 0, 0.06);
   --cyan:         #0891b2;
   --cyan-dim:     #06b6d4;
   --cyan-glow:    rgba(8, 145, 178, 0.08);
@@ -18,8 +23,9 @@
   --text:         #111827;
   --text-muted:   #6b7280;
   --text-dim:     #9ca3af;
-  --font-sans:    'Space Grotesk', system-ui, sans-serif;
-  --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+  --font-sans:    var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  --font-mono:    var(--font-geist-mono), 'JetBrains Mono', 'Fira Code', monospace;
+  --font-serif:   var(--font-instrument-serif), 'Instrument Serif', Georgia, serif;
   --radius:       10px;
   --radius-lg:    14px;
   --radius-xl:    20px;
@@ -58,6 +64,9 @@
   --bg-card2:     #1a1a1a;
   --border:       rgba(255,255,255,0.08);
   --border-hover: rgba(255,255,255,0.14);
+  --ring-1:       0 0 0 1px rgba(255, 255, 255, 0.06);
+  --ring-2:       0 0 0 1px rgba(255, 255, 255, 0.10);
+  --ring-card:    0 0 0 1px rgba(255, 255, 255, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.4), 0 8px 16px -8px rgba(0, 0, 0, 0.6);
   --text:         #f1f5f9;
   --text-muted:   #94a3b8;
   --text-dim:     #475569;
@@ -119,7 +128,45 @@ body {
   font-family: var(--font-sans);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: "calt", "liga", "ss01";
   position: relative;
+}
+
+.tabular,
+[data-tabular] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum", "calt", "liga";
+}
+
+/* ── Scroll progress bar ──────────────────────────── */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 9999;
+  background: linear-gradient(90deg, var(--cyan), #67e8f9);
+  transform-origin: 0 50%;
+  /* JS fallback writes --p (0..1); CSS path uses scroll-timeline below */
+  transform: scaleX(var(--p, 0));
+  pointer-events: none;
+  will-change: transform;
+}
+
+@supports (animation-timeline: scroll(root)) {
+  .scroll-progress--css {
+    animation: scroll-progress linear both;
+    animation-timeline: scroll(root);
+    transform: scaleX(0);
+  }
+  @keyframes scroll-progress {
+    to { transform: scaleX(1); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-progress { display: none; }
 }
 
 /* Dot grid overlay */
@@ -152,7 +199,10 @@ code, pre, .mono { font-family: var(--font-mono); }
 
 ::selection { background: var(--cyan-glow); color: var(--cyan); }
 
-/* Scroll-triggered animations */
+/* Scroll-triggered animations
+   Default path: JS IntersectionObserver toggles `.visible` (works everywhere).
+   Progressive enhancement: when the browser supports CSS view-timeline, we
+   skip the JS state entirely and let the compositor drive the reveal. */
 [data-animate] {
   opacity: 0;
   transform: translateY(22px);
@@ -167,11 +217,50 @@ code, pre, .mono { font-family: var(--font-mono); }
 [data-animate="left"].visible,
 [data-animate="right"].visible { transform: none; }
 
+@supports (animation-timeline: view()) {
+  [data-animate] {
+    opacity: 0;
+    transform: translateY(22px);
+    transition: none;
+    animation: animateRevealUp linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 60%;
+  }
+  [data-animate="left"] {
+    transform: translateX(-30px);
+    animation-name: animateRevealLeft;
+  }
+  [data-animate="right"] {
+    transform: translateX(30px);
+    animation-name: animateRevealRight;
+  }
+  [data-animate].visible {
+    /* Don't fight the CSS animation if JS still toggles `.visible` */
+    animation: animateRevealUp linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 60%;
+  }
+}
+
+@keyframes animateRevealUp {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes animateRevealLeft {
+  from { opacity: 0; transform: translateX(-30px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes animateRevealRight {
+  from { opacity: 0; transform: translateX(30px); }
+  to   { opacity: 1; transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-animate], [data-animate="left"], [data-animate="right"] {
     opacity: 1 !important;
     transform: none !important;
     transition: none !important;
+    animation: none !important;
   }
 }
 

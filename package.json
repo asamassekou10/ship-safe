@@ -60,10 +60,17 @@
     "ai-defense/"
   ],
   "dependencies": {
+    "@number-flow/react": "^0.6.0",
+    "@paper-design/shaders-react": "^0.0.76",
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
+    "d3-force": "^3.0.0",
     "fast-glob": "^3.3.3",
+    "motion": "^12.38.0",
     "ora": "^8.0.1",
     "write-file-atomic": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/d3-force": "^3.0.10"
   }
 }
