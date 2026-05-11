@@ -6,6 +6,112 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [9.3.0] — 2026-05-11 — Tenacity Patch
+
+This release picks up the security flow from the past 30 days — the
+MCP-ecosystem CVE wave (Anthropic declined a protocol-level fix) and the
+Hermes Agent v0.13.0 "Tenacity Release" P0 patches (May 7, 2026). Three
+new structural checks land, four MCP rules carry CVE annotations, plus
+the hardening work that originally motivated the release.
+
+### Agent security
+
+- **Three new Hermes structural checks** mapped to specific PRs in
+  Hermes Agent v0.13.0 (NousResearch/hermes-agent@v2026.5.7):
+  - **`HERMES_AUTH_JSON_TOCTOU`** (high — ASI-04, CWE-367) — race
+    between stat/read and non-atomic write of `auth.json` or MCP OAuth
+    credential paths. Skips files that import `write-file-atomic` or
+    use the temp+rename idiom. Maps to PRs #21176 + #21194.
+  - **`HERMES_CRON_SKILL_INJECTION`** (high — ASI-01, CWE-94) — a
+    scheduled task (`cron.schedule`, `setInterval`, `nodeCron`,
+    `scheduler.*`) loads a Hermes skill file and assembles its content
+    into a prompt without a `scanForInjection`/`sanitize`/`validatePrompt`
+    call in the handler body. Maps to PR #21350.
+  - **`HERMES_BROWSER_CLOUD_METADATA_SSRF`** (high — ASI-04, CWE-918) —
+    a browser- or HTTP-fetch tool definition performs an outbound
+    request without enforcing the cloud-metadata SSRF floor
+    (169.254.169.254, 100.100.100.200, metadata.google.internal,
+    169.254.170.2, fd00:ec2::254). Skips files that already reference
+    a metadata host (assumed to be blocking it). Maps to PR #21228.
+
+- **CVE annotations on four existing MCP rules.** The MCP-ecosystem
+  RCE wave that broke in April 2026 maps to patterns Ship Safe has
+  detected for releases; we now name the CVEs directly in finding
+  output so users can speak about coverage in CVE terms:
+  - `MCP_TOOL_SHELL_EXEC` → **CVE-2026-30615** (Windsurf prompt-injection
+    → local RCE, zero user interaction)
+  - `MCP_DYNAMIC_TOOL_REGISTRATION` → **CVE-2026-26118** (Microsoft MCP
+    tool hijacking)
+  - `MCP_TOOL_NETWORK_REQUEST` → **CVE-2026-44284** (FastGPT MCP SSRF in
+    tool URL handling)
+  - `MCP_NO_AUTH_TRANSPORT` → **CVE-2026-33032** (nginx-ui MCP unauth
+    RCE, CVSS 9.8, 2,600+ exposed instances)
+
+  No detector logic changes — only the `description` strings and a new
+  optional `cves` array on the affected rule objects. Findings carry
+  CVE IDs in their description text from this release forward.
+
+### Fixed
+
+- **`ship-safe plugin new` crashed with `ReferenceError: path is not defined`.**
+  The plugin subcommand in `cli/bin/ship-safe.js` called `path.resolve()`
+  without importing the `path` namespace — only `dirname, join` were
+  destructured at the top of the file. Now uses `resolve` from the same
+  named import, matching the existing pattern.
+
+- **Vestigial `if (force || true)` in `cli/commands/init.js`.** Removed a
+  conditional whose condition was always true (left over from a removed
+  `--force` flag). Behavior unchanged — the rule already short-circuited
+  on the `AGENT_MARKER` check above it.
+
+- **Missing error-cause chain in `cli/commands/live-advisories.js`.** OSV.dev
+  network errors are now rethrown with `{ cause: err }` so downstream
+  handlers can inspect the original failure.
+
+- **`BUILT_IN_AGENTS` docstring said "22 scanning agents"** when the array
+  has had 23 entries since v9.0. Corrected to 23.
+
+### Quality
+
+- **First real lint gate.** Adds `eslint.config.js` (ESLint 9 flat config),
+  `eslint`/`@eslint/js`/`globals` as devDependencies, and `npm run lint` /
+  `npm run lint:fix` scripts. First run surfaced 34 errors — all fixed in
+  this release. 86 non-blocking warnings remain in legacy code paths.
+
+  The 34 fixes break down as: 20 redundant regex escapes (no semantic
+  change — `\-` at end of character class, `\.` outside a class, `\[`
+  inside a negated class, `\/` inside `[...]`), 6 dead-write
+  initializers in `red-team.js`/`agent-fix.js`/`swarm-orchestrator.js`/
+  `agent.js`, 3 intentional ANSI ESC matches in `team-report.js`
+  inline-disabled with comments, 2 BMP zero-width Unicode hunters in
+  `agent-config-scanner.js` and `memory-poisoning-agent.js`
+  inline-disabled (the chars are intentionally treated as a class).
+
+- **38 new unit tests for the v9.2.0 agent fix system.** The agent fix
+  loop landed in v9.2.0 with zero test coverage. This release adds
+  `cli/__tests__/agent-fix.test.js` covering: `parseJsonLoose` (8 tests
+  — bare JSON, ```json fences, brace-extraction from prose, etc.),
+  `countOccurrences` (3), `locateFindString` (5 — including the
+  whitespace-tolerant find-string drift recovery, both multi-line and
+  single-line modes), `windowFileContent` (3), `validatePlan` (10 — all
+  rejection paths plus the happy path with `_resolvedFind` annotation),
+  `reverseEntry` (6 — standard find/replace round-trip, delete-on-create
+  reverse, append strip, multi-edit reverse in opposite order, and
+  failure modes), and `findUpwards` (4 — the `.ship-safeignore` walk-up
+  used by subdirectory scans). Suite: **147 → 185 tests, 0 failures.**
+
+  To support these tests, the following internals are exposed as named
+  exports without changing the public API:
+  - `cli/commands/agent-fix.js`: `parseJsonLoose`, `validatePlan`,
+    `locateFindString`, `countOccurrences`, `windowFileContent`
+  - `cli/commands/undo.js`: `reverseEntry`
+  - `cli/commands/audit.js`: `findUpwards`
+
+  These are not re-exported from `cli/index.js` — they remain test-only
+  helpers and are not part of the published API surface.
+
+---
+
 ## [9.2.1] — 2026-04-26
 
 ### Fixed

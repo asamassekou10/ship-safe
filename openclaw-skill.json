@@ -1,6 +1,6 @@
 {
   "name": "ship-safe-security-scan",
-  "version": "9.0.0",
+  "version": "9.3.0",
   "description": "Run ship-safe security scan on your AI agent configuration — detects ClawJacked, malicious skills, prompt injection, missing auth, Hermes Agent vulnerabilities, and 80+ attack classes.",
   "command": "npx ship-safe openclaw . --preflight --json",
   "permissions": ["read"],

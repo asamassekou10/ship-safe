@@ -1675,6 +1675,46 @@ describe('HermesSecurityAgent', async () => {
     const result = agent.shouldRun({ dependencies: ['@nousresearch/hermes-agent'], files: [] });
     assert.equal(result, true, 'Should run when hermes-agent is a dependency');
   });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Hermes v0.13.0 / v2026.5.7 "Tenacity Release" coverage (May 7, 2026)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  it('detects auth.json TOCTOU window (high — ASI-04, PR #21176 / #21194)', async () => {
+    const { dir, file } = writeHermesFile(
+      // Classic stat-then-write race against the credentials file
+      "const stat = fs.statSync(authPath);\nconst data = JSON.parse(fs.readFileSync(authPath));\ndata.tokens.push(newToken);\nfs.writeFileSync(authPath, JSON.stringify(data));"
+    );
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: { files: [file] }, options: {} });
+      assert.ok(findings.some(f => f.rule === 'HERMES_AUTH_JSON_TOCTOU'),
+        'Should detect TOCTOU between stat/read and write of an auth path');
+    } finally { cleanup(dir); }
+  });
+
+  it('detects cron-loaded skill content without injection scan (high — ASI-01, PR #21350)', async () => {
+    const { dir, file } = writeHermesFile(
+      // Scheduled job that loads a .hermes/skills/*.md file into a prompt
+      "cron.schedule('0 9 * * *', async () => {\n  const skill = fs.readFileSync('.hermes/skills/daily.md', 'utf8');\n  await agent.run(`Today's plan:\\n${skill}`);\n});"
+    );
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: { files: [file] }, options: {} });
+      assert.ok(findings.some(f => f.rule === 'HERMES_CRON_SKILL_INJECTION'),
+        'Should detect cron task loading skill content');
+    } finally { cleanup(dir); }
+  });
+
+  it('detects browser tool without cloud-metadata SSRF floor (high — ASI-04, PR #21228)', async () => {
+    const { dir, file } = writeHermesFile(
+      // Browser tool definition that fetches arbitrary URLs
+      "registerTool('browser', async ({ url }) => {\n  const res = await fetch(url);\n  return await res.text();\n});"
+    );
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: { files: [file] }, options: {} });
+      assert.ok(findings.some(f => f.rule === 'HERMES_BROWSER_CLOUD_METADATA_SSRF'),
+        'Should detect browser/fetch tool without metadata SSRF floor');
+    } finally { cleanup(dir); }
+  });
 });
 
 // =============================================================================

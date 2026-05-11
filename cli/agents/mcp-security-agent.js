@@ -45,7 +45,8 @@ const PATTERNS = [
     severity: 'critical',
     cwe: 'CWE-94',
     owasp: 'A03:2021',
-    description: 'Tool registration from external/user input allows attackers to inject malicious tool definitions (tool poisoning attack).',
+    cves: ['CVE-2026-26118'],
+    description: 'Pattern exploited by CVE-2026-26118 (Microsoft MCP tool hijacking). Tool registration from external/user input allows attackers to inject malicious tool definitions (tool poisoning attack).',
     fix: 'Only register tools from trusted, hardcoded definitions. Never accept tool definitions from user input.',
   },
 
@@ -57,8 +58,9 @@ const PATTERNS = [
     severity: 'critical',
     cwe: 'CWE-306',
     owasp: 'A07:2021',
+    cves: ['CVE-2026-33032'],
     confidence: 'medium',
-    description: 'MCP server created without any authentication configuration. Any client can connect and invoke tools.',
+    description: 'Pattern exploited by CVE-2026-33032 (nginx-ui MCP unauthenticated RCE, CVSS 9.8 — 2,600+ exposed instances). MCP server created without any authentication configuration. Any client can connect and invoke tools.',
     fix: 'Add authentication to MCP server transport: API key validation, JWT verification, or OAuth',
   },
   {
@@ -81,7 +83,8 @@ const PATTERNS = [
     severity: 'critical',
     cwe: 'CWE-78',
     owasp: 'A03:2021',
-    description: 'MCP tool handler executes shell commands. If tool arguments are user-influenced via prompt injection, this enables RCE.',
+    cves: ['CVE-2026-30615'],
+    description: 'Pattern exploited by CVE-2026-30615 (Windsurf prompt-injection → local RCE, zero user interaction). MCP tool handler executes shell commands. If tool arguments are user-influenced via prompt injection, this enables RCE.',
     fix: 'Avoid shell execution in MCP tools. If necessary, use strict allowlists for commands and validate all arguments.',
   },
   {
@@ -111,9 +114,10 @@ const PATTERNS = [
     severity: 'medium',
     cwe: 'CWE-918',
     owasp: 'A10:2021',
+    cves: ['CVE-2026-44284'],
     confidence: 'medium',
-    description: 'MCP tool makes external HTTP requests. Prompt injection could trigger SSRF via tool arguments.',
-    fix: 'Validate URLs against allowlist. Block internal/private IP ranges.',
+    description: 'Pattern exploited by CVE-2026-44284 (FastGPT MCP SSRF in tool URL handling). MCP tool makes external HTTP requests. Prompt injection could trigger SSRF via tool arguments.',
+    fix: 'Validate URLs against allowlist. Block internal/private IP ranges (169.254.169.254, 100.100.100.200, metadata.google.internal).',
   },
 
   // ── Input Injection ──────────────────────────────────────────────────────

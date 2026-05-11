@@ -283,6 +283,11 @@ const PATTERNS = [
     confidence: 'high',
   },
 
+  // Hermes v0.13.0 "Tenacity Release" coverage (May 7, 2026):
+  // The three Tenacity patches require multi-line analysis and are
+  // implemented as structural checks below (checkAuthJsonTOCTOU,
+  // checkCronSkillInjection, checkBrowserCloudMetadataFloor).
+
 ];
 
 // =============================================================================
@@ -435,6 +440,170 @@ function checkMemoryFileDeserialization(content, filePath, agent) {
 }
 
 // =============================================================================
+// HERMES v0.13.0 / v2026.5.7 — "TENACITY RELEASE" STRUCTURAL CHECKS
+// =============================================================================
+// Three patches in Hermes Agent v0.13.0 (May 7, 2026) closed P0
+// vulnerabilities that need cross-line analysis to detect:
+//   - PRs #21176 + #21194 — TOCTOU on auth.json / MCP OAuth credentials
+//   - PR  #21350         — Cron task assembles a prompt from skill content
+//                          without scanning for injection
+//   - PR  #21228         — Browser tool lacks the cloud-metadata SSRF floor
+
+const CRED_PATH_RE  = /(auth|credential|token|oauth|\.hermes\/(?:auth|creds))/i;
+const STAT_OR_READ  = /fs\.(?:existsSync|statSync|accessSync|readFileSync)\s*\([^)]*\)/g;
+const WRITE_SYNC    = /fs\.writeFileSync\s*\(\s*([^,)]*)/g;
+const METADATA_HOSTS = /(?:169\.254\.169\.254|169\.254\.170\.2|fd00:ec2|metadata\.google\.internal|100\.100\.100\.200|metadata\.azure)/i;
+
+/**
+ * Detect a stat-then-write or read-then-write race on a credential-bearing
+ * path. Hermes v0.13.0 PR #21194 closed this for auth.json by switching to
+ * atomic write-then-rename via write-file-atomic; PR #21176 closed the same
+ * for MCP OAuth credential storage. Detection: a stat/read of a path with
+ * "auth"/"credential"/"token"/"oauth"/".hermes/auth" in the argument is
+ * followed within 25 lines by a writeFileSync to a similar path, and the
+ * file does NOT import `write-file-atomic`.
+ */
+function checkAuthJsonTOCTOU(content, filePath, agent) {
+  const findings = [];
+
+  // If the file uses write-file-atomic (or equivalent atomic rename pattern),
+  // skip — the TOCTOU window is already closed.
+  if (/write-file-atomic|renameSync\s*\(\s*[^,]*\.tmp/i.test(content)) return findings;
+
+  const lines = content.split('\n');
+
+  // Find every stat/read on a credential path
+  const reads = [];
+  let m;
+  STAT_OR_READ.lastIndex = 0;
+  while ((m = STAT_OR_READ.exec(content)) !== null) {
+    if (!CRED_PATH_RE.test(m[0])) continue;
+    const line = content.slice(0, m.index).split('\n').length;
+    reads.push({ line, text: m[0] });
+  }
+
+  if (reads.length === 0) return findings;
+
+  // Find every writeFileSync on a credential path
+  WRITE_SYNC.lastIndex = 0;
+  while ((m = WRITE_SYNC.exec(content)) !== null) {
+    const pathArg = m[1] || '';
+    if (!CRED_PATH_RE.test(pathArg)) continue;
+
+    const writeLine = content.slice(0, m.index).split('\n').length;
+    const racingRead = reads.find(r => writeLine - r.line >= 0 && writeLine - r.line <= 25);
+    if (!racingRead) continue;
+
+    findings.push(createFinding({
+      file: filePath,
+      line: writeLine,
+      severity: 'high',
+      category: agent.category,
+      rule: 'HERMES_AUTH_JSON_TOCTOU',
+      title: 'Hermes: TOCTOU on auth.json / MCP OAuth Credentials',
+      description: `Pattern fixed by Hermes v0.13.0 PRs #21176 + #21194 — TOCTOU window between ${racingRead.text} (line ${racingRead.line}) and fs.writeFileSync(${pathArg.trim().slice(0, 60)}…, …) (line ${writeLine}). A concurrent process can race the write and leave the credential file inconsistent or attacker-controlled.`,
+      matched: lines[writeLine - 1]?.trim().slice(0, 240) || '',
+      confidence: 'medium',
+      cwe: 'CWE-367',
+      owasp: 'ASI04',
+      fix: 'Write credentials atomically via the write-file-atomic package (or a manual write-to-temp + fsync + renameSync). See PR #21194 in hermes-agent for the reference fix.',
+    }));
+  }
+
+  return findings;
+}
+
+/**
+ * Detect a scheduled task (cron / setInterval / scheduler) that loads
+ * a Hermes skill file and assembles its content into a prompt without
+ * a scan / sanitize / validate / scanForInjection call in the same
+ * function body. Hermes v0.13.0 PR #21350 closes this by scanning the
+ * assembled prompt before execution.
+ */
+function checkCronSkillInjection(content, filePath, agent) {
+  const findings = [];
+
+  const SCHEDULE_RE = /(cron(?:\.schedule)?|@cron|nodeCron|node[-_]?cron|node[-_]?schedule|scheduler\.(?:schedule|every|at)|setInterval|setTimeout)\s*\(/g;
+  const SKILL_LOAD_RE = /(?:readFile(?:Sync)?|fs\.read|loadSkill|skills\.get)\s*\([^)]*(?:skill|\.hermes\/skills|hermes-skills|playbook|\.md)/i;
+
+  let m;
+  SCHEDULE_RE.lastIndex = 0;
+  while ((m = SCHEDULE_RE.exec(content)) !== null) {
+    // Window: the body of the schedule callback. We approximate as the next
+    // ~30 lines after the schedule call.
+    const startIdx = m.index + m[0].length;
+    const window = content.slice(startIdx, startIdx + 2400);
+
+    if (!SKILL_LOAD_RE.test(window)) continue;
+    // Skip if the same window already runs a scan/sanitize/validate
+    if (/(?:scanForInjection|sanitize|validatePrompt|ship[-_]?safe\.?scan|injection[-_]?scan)/i.test(window)) continue;
+
+    const line = content.slice(0, m.index).split('\n').length;
+    findings.push(createFinding({
+      file: filePath,
+      line,
+      severity: 'high',
+      category: agent.category,
+      rule: 'HERMES_CRON_SKILL_INJECTION',
+      title: 'Hermes: Cron Task Loads Skill Content Without Injection Scan',
+      description: 'Pattern fixed by Hermes v0.13.0 PR #21350 — a scheduled task loads a Hermes skill file (.md) and assembles its content into a prompt. Skill markdown is attacker-influenceable (anyone with PR access can edit it); without an injection scan on the assembled prompt, the scheduled run can be hijacked by a poisoned skill body.',
+      matched: m[0].trim(),
+      confidence: 'medium',
+      cwe: 'CWE-94',
+      owasp: 'ASI01',
+      fix: 'Run the assembled prompt through ship-safe scan (or your own prompt-injection scanner) before invoking the agent. Pin the skill commit hash on every scheduled run.',
+    }));
+  }
+
+  return findings;
+}
+
+/**
+ * Detect a browser- or HTTP-fetch tool definition that performs an outbound
+ * request without enforcing the cloud-metadata SSRF floor. Hermes v0.13.0
+ * PR #21228 closes this in browser-tool hybrid routing by blocking
+ * 169.254.169.254 (AWS/Alibaba), 100.100.100.200 (Alibaba),
+ * metadata.google.internal (GCP), and 169.254.170.2 (ECS task metadata).
+ */
+function checkBrowserCloudMetadataFloor(content, filePath, agent) {
+  const findings = [];
+
+  // If the file already enforces a metadata floor, skip.
+  if (METADATA_HOSTS.test(content)) return findings;
+
+  const TOOL_NAME_RE = /(?:registerTool|server\.tool|addTool|tools\.push|tools\.set)\s*\(\s*['"]?(browser|navigate|web[-_]?browse|fetch[-_]?url|http[-_]?request|browse[-_]?url|webBrowse|fetchUrl|httpRequest)['"]?/gi;
+
+  let m;
+  TOOL_NAME_RE.lastIndex = 0;
+  while ((m = TOOL_NAME_RE.exec(content)) !== null) {
+    // Window: the tool handler body
+    const startIdx = m.index + m[0].length;
+    const window = content.slice(startIdx, startIdx + 1500);
+
+    // Must perform an outbound fetch inside the handler
+    if (!/(?:fetch\s*\(|axios\.|got\s*\(|http\.(?:get|request)|requests\.(?:get|post)|urllib\.|httpx\.)/i.test(window)) continue;
+
+    const line = content.slice(0, m.index).split('\n').length;
+    findings.push(createFinding({
+      file: filePath,
+      line,
+      severity: 'high',
+      category: agent.category,
+      rule: 'HERMES_BROWSER_CLOUD_METADATA_SSRF',
+      title: 'Hermes: Browser/HTTP Tool Without Cloud-Metadata SSRF Floor',
+      description: 'Pattern fixed by Hermes v0.13.0 PR #21228 — a browser or HTTP tool issues outbound requests without enforcing the cloud-metadata SSRF floor. An attacker who controls the URL via prompt injection can reach 169.254.169.254 (AWS/Alibaba), 100.100.100.200 (Alibaba), metadata.google.internal (GCP), or 169.254.170.2 (ECS task metadata) and exfiltrate IAM credentials.',
+      matched: m[0].trim().slice(0, 120),
+      confidence: 'medium',
+      cwe: 'CWE-918',
+      owasp: 'ASI04',
+      fix: 'Block these hosts at the tool boundary: 169.254.169.254, fd00:ec2::254, 100.100.100.200, metadata.google.internal, 169.254.170.2. See PR #21228 in hermes-agent for the reference cloud-metadata floor.',
+    }));
+  }
+
+  return findings;
+}
+
+// =============================================================================
 // AGENT CLASS
 // =============================================================================
 
@@ -487,6 +656,10 @@ export class HermesSecurityAgent extends BaseAgent {
       findings.push(...checkToolContextForwarding(content, filePath, this));
       findings.push(...checkSkillFrontmatter(content, filePath, this));
       findings.push(...checkMemoryFileDeserialization(content, filePath, this));
+      // Hermes v0.13.0 "Tenacity Release" coverage
+      findings.push(...checkAuthJsonTOCTOU(content, filePath, this));
+      findings.push(...checkCronSkillInjection(content, filePath, this));
+      findings.push(...checkBrowserCloudMetadataFloor(content, filePath, this));
     }
 
     return findings;

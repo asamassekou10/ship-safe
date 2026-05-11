@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     canonical: 'https://www.shipsafecli.com/docs',
   },
   openGraph: {
-    title: 'Ship Safe Documentation — v9.2.1',
+    title: 'Ship Safe Documentation — v9.3.0',
     description: 'Every command, agent, and flag. LLM vulnerability CLI, MCP security configuration, RAG poisoning detection, CI/CD integration, and API reference.',
     type: 'website',
     url: 'https://www.shipsafecli.com/docs',
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Ship Safe Documentation — v9.2.1',
+    title: 'Ship Safe Documentation — v9.3.0',
     description: 'Every command, agent, and flag. LLM vulnerability CLI, MCP security configuration, RAG poisoning detection, CI/CD integration, and API reference.',
     images: [ogImage],
   },
