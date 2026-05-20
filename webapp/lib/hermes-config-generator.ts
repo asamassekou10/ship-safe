@@ -335,7 +335,7 @@ ${memoryNote}
 | Skills | \`skills/<category>/SKILL.md\` | Skill source validation |
 
 ---
-_[Ship Safe](https://shipsafecli.com) v9.3.1_
+_[Ship Safe](https://shipsafecli.com) v9.3.2_
 `;
 }
 

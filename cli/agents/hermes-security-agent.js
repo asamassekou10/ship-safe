@@ -699,16 +699,19 @@ export class HermesSecurityAgent extends BaseAgent {
   }
 
   /**
-   * Only run if the project appears to use Hermes Agent.
+   * Always run. The real gate is `_findHermesFiles` inside `analyze`, which
+   * does precise content-based detection (hermes imports, hermes.config,
+   * agent-manifest, .hermes/, hermes-skills/, xurl). On a non-Hermes project
+   * it returns an empty file list and `analyze` emits nothing.
+   *
+   * NOTE: this method previously gated on `recon.dependencies` — a field the
+   * ReconAgent never produces — so HermesSecurityAgent silently never ran in
+   * a real `audit` / `red-team` (only direct `analyze()` calls in unit tests
+   * exercised it). Returning true unconditionally restores the agent; the
+   * file-read cost is already paid by the secret scanner and other agents.
    */
-  shouldRun(recon) {
-    // Run if hermes is detected in dependencies or frameworks
-    if (recon?.dependencies?.some(d => /hermes/i.test(d))) return true;
-    if (recon?.frameworks?.some(f => /hermes/i.test(f))) return true;
-    // Run if hermes config files were discovered during recon
-    if (recon?.configFiles?.some(f => /hermes/i.test(f))) return true;
-    // Don't scan every project — Hermes files are distinctive enough to skip otherwise
-    return false;
+  shouldRun() {
+    return true;
   }
 
   async analyze(context) {

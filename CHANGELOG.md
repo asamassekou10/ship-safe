@@ -6,6 +6,41 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [9.3.2] — 2026-05-20 — HermesSecurityAgent wiring fix
+
+### Fixed
+
+- **`HermesSecurityAgent` never ran in a real scan.** Its `shouldRun()`
+  gate tested `recon.dependencies` — a field the `ReconAgent` does not
+  produce (recon emits `frameworks`, `configFiles`, `languages`,
+  `packageManagers`, but never `dependencies`). The gate therefore always
+  returned `false`, so the agent was skipped in every `audit` and
+  `red-team` run. Unit tests passed because they call `analyze()`
+  directly, bypassing the gate.
+
+  Impact: **every Hermes rule shipped to date was dead code in production**
+  — the original tool-registry / memory / skill rules, the three v9.3.0
+  "Tenacity" rules, and the three v9.3.1 `xurl` rules. None of them could
+  fire in a real scan.
+
+  Fix: `shouldRun()` now returns `true` unconditionally. The real gate is
+  `_findHermesFiles()` inside `analyze()`, which does precise content-based
+  detection (hermes imports, `hermes.config`, `agent-manifest`, `.hermes/`,
+  `hermes-skills/`, `xurl`) and returns nothing on non-Hermes projects. The
+  per-file read cost is already paid by the secret scanner and other agents.
+
+### Tests
+
+- New orchestrator-path integration test: builds the full orchestrator,
+  runs `runAll()` on a Hermes fixture, and asserts `HermesSecurityAgent`
+  appears in `agentResults` and that a `HERMES_` finding surfaces. The
+  pre-existing unit tests only exercised `analyze()` directly, which is
+  why this class of regression went uncaught — the new test closes that
+  gap. Suite: 195 → 196.
+- Updated the `shouldRun` unit test to assert the corrected behavior and
+  added a companion test proving `analyze()` emits nothing on a
+  non-Hermes project (the actual gate).
+
 ## [9.3.1] — 2026-05-12 — xurl skill coverage
 
 Detection for the `xurl` skill attack surface — the xAI guide published

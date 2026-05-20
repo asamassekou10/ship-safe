@@ -1666,14 +1666,25 @@ describe('HermesSecurityAgent', async () => {
     } finally { cleanup(dir); }
   });
 
-  it('shouldRun returns false for non-Hermes projects', () => {
-    const result = agent.shouldRun({ dependencies: ['express', 'react'], frameworks: ['Next.js'], files: [] });
-    assert.equal(result, false, 'Should not run on non-Hermes projects');
+  it('shouldRun always returns true — the real gate is _findHermesFiles in analyze()', () => {
+    // shouldRun used to gate on recon.dependencies, a field ReconAgent never
+    // produces, so the agent never ran. It now returns true unconditionally;
+    // the precise gate is content-based file detection inside analyze().
+    assert.equal(agent.shouldRun({ dependencies: ['express'], frameworks: ['Next.js'] }), true);
+    assert.equal(agent.shouldRun({}), true);
+    assert.equal(agent.shouldRun(), true);
   });
 
-  it('shouldRun returns true when hermes in dependencies', () => {
-    const result = agent.shouldRun({ dependencies: ['@nousresearch/hermes-agent'], files: [] });
-    assert.equal(result, true, 'Should run when hermes-agent is a dependency');
+  it('analyze() emits nothing on a non-Hermes project (the actual gate)', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-nonhermes-'));
+    try {
+      const file = path.join(dir, 'plain.js');
+      fs.writeFileSync(file, 'const express = require("express");\nconst app = express();\n');
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: { files: [file] }, options: {} });
+      assert.equal(findings.length, 0, 'Non-Hermes source must produce zero Hermes findings');
+    } finally {
+      try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* */ }
+    }
   });
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -1794,6 +1805,44 @@ describe('SECRET_PATTERNS — X API credentials', async () => {
 
   it('still flags an xAI (Grok) API key', () => {
     assert.ok(matches('xAI (Grok) API Key', 'xai-' + 'a'.repeat(60)));
+  });
+});
+
+// =============================================================================
+// ORCHESTRATOR WIRING — HermesSecurityAgent actually runs end-to-end
+// =============================================================================
+// Regression guard: HermesSecurityAgent.shouldRun() previously gated on
+// recon.dependencies — a field ReconAgent never produces — so the agent
+// silently never ran in a real audit/red-team. Direct analyze() unit tests
+// did not catch it. This test drives the full orchestrator path.
+
+describe('Orchestrator — HermesSecurityAgent runs end-to-end', async () => {
+  const { buildOrchestratorAsync } = await import('../agents/index.js');
+
+  it('HermesSecurityAgent runs and surfaces HERMES_ findings via runAll()', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-orch-'));
+    try {
+      fs.writeFileSync(path.join(dir, 'package.json'),
+        JSON.stringify({ name: 'hermes-fixture', version: '1.0.0',
+          dependencies: { '@nousresearch/hermes-agent': '1.0.0' } }));
+      // A Hermes file that trips an xurl rule
+      fs.writeFileSync(path.join(dir, 'agent.js'),
+        "import { toolRegistry } from '@nousresearch/hermes-agent';\n" +
+        'execSync(`xurl post "${userText}"`);\n');
+
+      const orch = await buildOrchestratorAsync(dir);
+      const res = await orch.runAll(dir, { quiet: true, noAi: true });
+
+      const ran = res.agentResults.find(a => a.agent === 'HermesSecurityAgent');
+      assert.ok(ran, 'HermesSecurityAgent must appear in agentResults (shouldRun gate)');
+      assert.equal(ran.success, true, 'HermesSecurityAgent must run without error');
+
+      const hermesFindings = res.findings.filter(f => (f.rule || '').startsWith('HERMES_'));
+      assert.ok(hermesFindings.length > 0,
+        'A HERMES_ rule must surface through the full orchestrator path, not just analyze()');
+    } finally {
+      try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* */ }
+    }
   });
 });
 

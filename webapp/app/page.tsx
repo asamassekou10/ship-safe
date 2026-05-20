@@ -45,7 +45,7 @@ const jsonLd = {
       description: '22 AI security agents scan your codebase for secrets, vulnerabilities, memory poisoning, Hermes Agent misconfigurations, and dependency CVEs in one command.',
       url: 'https://www.shipsafecli.com',
       downloadUrl: 'https://www.npmjs.com/package/ship-safe',
-      softwareVersion: '9.3.1',
+      softwareVersion: '9.3.2',
       author: {
         '@type': 'Organization',
         name: 'Ship Safe',

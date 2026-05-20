@@ -98,7 +98,7 @@ $ ship-safe
   ███████╗██╗  ██╗██╗██████╗     ███████╗ █████╗ ███████╗███████╗
   ...
 
-  v9.3.1  ·  DeepSeek  ·  ~/my-project
+  v9.3.2  ·  DeepSeek  ·  ~/my-project
 
   /scan to find issues  ·  /agent to fix them  ·  /help for more
 

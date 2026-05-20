@@ -86,7 +86,7 @@ export default function CodeWindow() {
           <span className={styles.tab}>findings.json</span>
           <span className={styles.tab}>report.sarif</span>
         </div>
-        <span className={styles.meta}>ship-safe v9.3.1</span>
+        <span className={styles.meta}>ship-safe v9.3.2</span>
       </div>
 
       {/* Body — animated lines */}
