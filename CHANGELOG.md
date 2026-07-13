@@ -6,6 +6,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [9.4.1] — 2026-07-13 — Interactive shell stability fix
+
+### Fixed
+- **Interactive `/scan` → `/findings` flow** — hardened the REPL readline
+  lifecycle so nested scan behavior cannot silently close the Ship Safe shell
+  and return control to the parent terminal before `/findings` runs. This
+  addresses GitHub issue #34, where `/findings` was interpreted by bash as a
+  filesystem path after `/scan`.
+
+### Tests
+- Added regression coverage proving `/scan` stores the latest scan, keeps the
+  shell running, and lets `/findings` render the saved findings in the same
+  session.
+
 ## [9.4.0] — 2026-06-14 — Toolbox Patch (RobloxSecurityAgent + ClickFix)
 
 ### Added

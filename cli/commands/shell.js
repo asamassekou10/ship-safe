@@ -114,6 +114,7 @@ async function shipSafeBannerAnimated() {
 
 export async function shellCommand(targetPath = '.', options = {}) {
   const root = path.resolve(targetPath);
+  let rlClosed = false;
 
   // Session state — persists across commands within this REPL
   const state = {
@@ -150,17 +151,35 @@ export async function shellCommand(targetPath = '.', options = {}) {
     terminal: true,
   });
 
-  const ask = (prompt) => new Promise(resolve => rl.question(prompt, resolve));
+  const ask = (prompt) => new Promise(resolve => {
+    if (rlClosed) {
+      resolve(null);
+      return;
+    }
 
-  // Graceful Ctrl-D
+    const onClose = () => {
+      rlClosed = true;
+      resolve(null);
+    };
+    rl.once('close', onClose);
+    rl.question(prompt, answer => {
+      rl.off('close', onClose);
+      resolve(answer);
+    });
+  });
+
+  // Graceful Ctrl-D. Do not call process.exit() directly here: nested commands
+  // and readline edge cases should never kick the user back to bash mid-session.
   rl.on('close', () => {
-    console.log();
-    process.exit(0);
+    rlClosed = true;
   });
 
   let running = true;
   while (running) {
-    const line = (await ask(chalk.cyan('shipsafe › '))).trim();
+    const answer = await ask(chalk.cyan('shipsafe › '));
+    if (answer == null) break;
+
+    const line = answer.trim();
     if (!line) continue;
 
     if (line.startsWith('/')) {
@@ -170,14 +189,14 @@ export async function shellCommand(targetPath = '.', options = {}) {
     }
   }
 
-  rl.close();
+  if (!rlClosed) rl.close();
 }
 
 // =============================================================================
 // SLASH COMMANDS
 // =============================================================================
 
-async function handleSlashCommand(line, state, options) {
+export async function handleSlashCommand(line, state, options = {}) {
   const [raw, ...args] = line.slice(1).split(/\s+/);
   const cmd = raw.toLowerCase();
 
@@ -201,7 +220,8 @@ async function handleSlashCommand(line, state, options) {
     case 'rescan': {
       const spinner = ora({ text: 'Scanning...', color: 'cyan' }).start();
       try {
-        const result = await auditCommand(state.root, { _agenticInner: true, deep: false, deps: false, noAi: true });
+        const runAudit = options._auditCommand || auditCommand;
+        const result = await runAudit(state.root, { _agenticInner: true, deep: false, deps: false, noAi: true });
         state.lastScan = result;
         spinner.stop();
         printScanSummary(result);
@@ -514,4 +534,13 @@ function gradeColor(score) {
   if (score >= 80) return chalk.green;
   if (score >= 60) return chalk.yellow;
   return chalk.red;
+}
+
+export function createShellState(root = '.', provider = null) {
+  return {
+    root: path.resolve(root),
+    provider,
+    lastScan: null,
+    history: [],
+  };
 }
