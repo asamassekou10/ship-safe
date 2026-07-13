@@ -3,6 +3,7 @@ import GitHub from 'next-auth/providers/github';
 import Google from 'next-auth/providers/google';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from './prisma';
+import { sendWelcome } from './lifecycle-emails';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -22,6 +23,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: '/login',
   },
   events: {
+    async createUser({ user }) {
+      if (!user.id) return;
+      // Fire-and-forget welcome; never block or fail signup on email issues.
+      await sendWelcome(user.id).catch(() => {});
+    },
     async signIn({ user, account, isNewUser }) {
       if (!user.id) return;
       await prisma.auditLog.create({

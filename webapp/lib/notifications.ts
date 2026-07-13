@@ -28,7 +28,7 @@ async function sendEmail(to: string, subject: string, html: string) {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: process.env.EMAIL_FROM || 'Ship Safe <noreply@shipsafe.dev>',
+      from: process.env.EMAIL_FROM || 'Ship Safe <noreply@shipsafecli.com>',
       to: [to],
       subject,
       html,
@@ -230,7 +230,7 @@ export async function notifyGuardianComplete(run: GuardianResult) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: process.env.EMAIL_FROM || 'Ship Safe <noreply@shipsafe.dev>',
+          from: process.env.EMAIL_FROM || 'Ship Safe <noreply@shipsafecli.com>',
           to: [user.email],
           subject: `${statusEmoji} PR Guardian: ${run.prTitle || `PR #${run.prNumber}`} — ${run.status}`,
           html: `<div style="font-family:system-ui;background:#09090b;color:#fafafa;padding:2rem;border-radius:12px;max-width:560px">
