@@ -48,3 +48,6 @@ webapp/data/blog.ts
 # The webapp is a Next.js app deployed on Vercel and audited by its own pipeline.
 # Excluding it from the CLI self-scan keeps CI focused on the CLI package itself.
 webapp/
+
+# Local browser export used for star-history reference; not source code.
+GitHub Star History*/
