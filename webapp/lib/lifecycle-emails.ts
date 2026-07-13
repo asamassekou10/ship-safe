@@ -199,6 +199,23 @@ export async function sendLifecycle(user: LifecycleUser, type: LifecycleType): P
   return 'sent';
 }
 
+/**
+ * Render a template and send it to an arbitrary address, bypassing the
+ * EmailEvent idempotency claim. For manual deliverability testing only
+ * (see /api/dev/test-email) — do not use in the automated flows.
+ */
+export async function sendTest(to: string, type: LifecycleType): Promise<boolean> {
+  const sample: LifecycleUser = {
+    id: 'test-preview',
+    email: to,
+    name: 'Alhassane',
+    plan: type === 'day3_outreach' ? 'pro' : 'free',
+    lifecycleOptOut: false,
+  };
+  const { subject, html } = template(sample, type);
+  return send(to, `[test] ${subject}`, html);
+}
+
 /** Send the welcome email (used by the auth createUser hook). Non-throwing. */
 export async function sendWelcome(userId: string): Promise<void> {
   try {
