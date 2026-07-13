@@ -167,7 +167,7 @@ export default function Hero({ stars, downloads }: Props) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.5, ease: 'easeOut' }}
           >
-            One command, 23 agents. Ship Safe scans your code, dependencies, configs, MCP
+            One command, 24 agents. Ship Safe scans your code, dependencies, configs, MCP
             servers, and AI prompts — flagging the leaked secrets, prompt injections, and CVEs
             every traditional scanner misses.
           </motion.p>
@@ -212,7 +212,7 @@ export default function Hero({ stars, downloads }: Props) {
               className={styles.tabular}
               title={`${formatNumber(stars)} stars · ${formatNumber(downloads)} downloads`}
             >
-              23 agents
+              24 agents
             </span>
           </motion.div>
 

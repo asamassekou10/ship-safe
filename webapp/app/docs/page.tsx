@@ -6,13 +6,13 @@ const ogImage = 'https://www.shipsafecli.com/og1.png';
 
 export const metadata: Metadata = {
   title: 'Documentation',
-  description: 'Complete Ship Safe documentation: LLM vulnerability CLI commands, MCP configuration security scanning, RAG poisoning detection, CI/CD integration, 23 agent reference, and API docs.',
+  description: 'Complete Ship Safe documentation: LLM vulnerability CLI commands, MCP configuration security scanning, RAG poisoning detection, CI/CD integration, 24 agent reference, and API docs.',
   keywords: ['Ship Safe docs', 'LLM vulnerability CLI', 'MCP configuration security', 'RAG poisoning detection', 'AI agent security scanner', 'ship-safe commands', 'ship-safe agents', 'DevSecOps documentation', 'OWASP Agentic AI Top 10'],
   alternates: {
     canonical: 'https://www.shipsafecli.com/docs',
   },
   openGraph: {
-    title: 'Ship Safe Documentation — v9.3.2',
+    title: 'Ship Safe Documentation — v9.4.0',
     description: 'Every command, agent, and flag. LLM vulnerability CLI, MCP security configuration, RAG poisoning detection, CI/CD integration, and API reference.',
     type: 'website',
     url: 'https://www.shipsafecli.com/docs',
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Ship Safe Documentation — v9.3.2',
+    title: 'Ship Safe Documentation — v9.4.0',
     description: 'Every command, agent, and flag. LLM vulnerability CLI, MCP security configuration, RAG poisoning detection, CI/CD integration, and API reference.',
     images: [ogImage],
   },
@@ -52,7 +52,7 @@ export default function Docs() {
               <a href="#installation">Installation</a>
               <a href="#quick-start">Quick Start</a>
               <a href="#commands">Commands</a>
-              <a href="#agents">23 Security Agents</a>
+              <a href="#agents">24 Security Agents</a>
               <a href="#scoring">Scoring System</a>
               <a href="#cicd">CI/CD Integration</a>
               <a href="#github-action">GitHub Action</a>
@@ -73,7 +73,7 @@ export default function Docs() {
               <span className={styles.sectionLabel}>// docs</span>
               <h1>Ship Safe CLI</h1>
               <p className={styles.subtitle}>
-                23 AI security agents. 80+ attack classes. One command.
+                24 AI security agents. 80+ attack classes. One command.
               </p>
               <pre className={styles.heroCode}><code>npx ship-safe audit .</code></pre>
             </header>
@@ -100,7 +100,7 @@ export GOOGLE_AI_API_KEY=AIza...`}</code></pre>
               <pre><code>{`# Full security audit with remediation plan + HTML report
 npx ship-safe audit .
 
-# Red team: 23 agents, 80+ attack classes
+# Red team: 24 agents, 80+ attack classes
 npx ship-safe red-team .
 
 # Quick secret scan
@@ -128,8 +128,8 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                 <table>
                   <thead><tr><th>Command</th><th>Description</th></tr></thead>
                   <tbody>
-                    <tr><td><code>audit .</code></td><td>Full audit: secrets + 23 agents + deps + remediation plan + HTML report</td></tr>
-                    <tr><td><code>red-team .</code></td><td>Run 23 agents with 80+ attack classes</td></tr>
+                    <tr><td><code>audit .</code></td><td>Full audit: secrets + 24 agents + deps + remediation plan + HTML report</td></tr>
+                    <tr><td><code>red-team .</code></td><td>Run 24 agents with 80+ attack classes</td></tr>
                     <tr><td><code>scan .</code></td><td>Secret scanner (pattern matching + entropy scoring)</td></tr>
                     <tr><td><code>score .</code></td><td>Security health score (0-100, A-F grade)</td></tr>
                     <tr><td><code>deps .</code></td><td>Dependency CVE audit with EPSS scores</td></tr>
@@ -256,7 +256,7 @@ npx ship-safe ci . --threshold 80`}</code></pre>
 
             {/* ── Agents ────────────────────────────────────────────── */}
             <section id="agents">
-              <h2>23 Security Agents</h2>
+              <h2>24 Security Agents</h2>
               <p>All agents run in parallel with per-agent timeouts. Each implements <code>shouldRun(recon)</code> to skip irrelevant projects automatically.</p>
               <div className={styles.tableWrap}>
                 <table>
@@ -285,6 +285,7 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                     <tr><td><strong>HermesSecurityAgent</strong></td><td>AI/LLM</td><td>Hermes Agent deployments — tool registry poisoning, function-call injection, skill permission drift (ASI-01–ASI-10)</td></tr>
                     <tr><td><strong>AgentAttestationAgent</strong></td><td>Supply Chain</td><td>Agent manifest supply chain — unpinned versions, missing integrity hashes, unsigned manifests (ASI-10, SLSA Level 0)</td></tr>
                     <tr><td><strong>AgenticSupplyChainAgent</strong></td><td>Supply Chain</td><td>AI integration supply chain — over-privileged AI CI actions, OAuth scope creep, unsigned AI webhook receivers (ASI-02, ASI-06, CICD-SEC-8)</td></tr>
+                    <tr><td><strong>RobloxSecurityAgent</strong></td><td>Supply Chain</td><td>Malicious Roblox/Luau Toolbox assets — runtime asset injection (<code>game:GetObjects(&apos;rbxassetid://&apos;)</code>, <code>require(assetId)</code>), <code>HttpEnabled</code> from scripts, obfuscated loaders, and payloads hidden in instance attributes (decoded from <code>.rbxmx</code>/<code>.rbxlx</code>) — plus cross-platform ClickFix paste-and-run lures (CWE-506, CWE-829)</td></tr>
                   </tbody>
                 </table>
               </div>

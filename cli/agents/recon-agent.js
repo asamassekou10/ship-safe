@@ -52,8 +52,15 @@ export class ReconAgent extends BaseAgent {
       if (ext === '.java') recon.languages.add('java');
       if (ext === '.rs') recon.languages.add('rust');
       if (ext === '.php') recon.languages.add('php');
+      if (ext === '.lua') recon.languages.add('lua');
+      if (ext === '.luau') recon.languages.add('luau');
 
       // Frameworks
+      // Roblox / Luau toolchain (Rojo, Wally) and place/model files
+      if (basename === 'default.project.json' || basename === 'wally.toml' ||
+          ext === '.rbxlx' || ext === '.rbxmx' || ext === '.rbxl' || ext === '.rbxm') {
+        if (!recon.frameworks.includes('roblox')) recon.frameworks.push('roblox');
+      }
       if (basename === 'next.config.js' || basename === 'next.config.mjs' || basename === 'next.config.ts') {
         recon.frameworks.push('nextjs');
       }

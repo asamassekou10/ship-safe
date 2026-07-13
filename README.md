@@ -19,7 +19,7 @@
   <img src=".github/assets/demo-repl.gif" alt="Ship Safe REPL demo" width="800" />
 </p>
 
-Type `ship-safe` and you're in. 23 agents scan your codebase for secrets, injections, AI/LLM vulnerabilities, supply chain attacks, and 80+ other classes. The agent shows a diff for every proposed fix, asks before writing, and verifies the fix worked. Every change is logged and reversible.
+Type `ship-safe` and you're in. 24 agents scan your codebase for secrets, injections, AI/LLM vulnerabilities, supply chain attacks, and 80+ other classes. The agent shows a diff for every proposed fix, asks before writing, and verifies the fix worked. Every change is logged and reversible.
 
 ```bash
 npx ship-safe
@@ -33,7 +33,7 @@ npx ship-safe
 # Interactive REPL — scan, fix, ask questions in one session
 npx ship-safe
 
-# Full audit: secrets + 23 agents + deps + remediation plan
+# Full audit: secrets + 24 agents + deps + remediation plan
 npx ship-safe audit .
 
 # Interactive fix agent: plan → diff → accept → verify
@@ -56,7 +56,7 @@ No signup. No API key required for scanning. Works offline.
 
 ---
 
-## 23 Security Agents
+## 24 Security Agents
 
 All agents run in parallel. Each skips irrelevant projects automatically.
 
@@ -85,6 +85,7 @@ All agents run in parallel. Each skips irrelevant projects automatically.
 | **HermesSecurityAgent** | AI/LLM | Tool registry poisoning, function-call injection, skill permission drift (ASI-01–ASI-10) |
 | **AgentAttestationAgent** | Supply Chain | Unpinned agent versions, missing integrity hashes, unsigned manifests (ASI-10, SLSA L0) |
 | **AgenticSupplyChainAgent** | Supply Chain | Over-privileged AI CI actions, OAuth scope creep, unsigned AI webhook receivers (ASI-02, ASI-06) |
+| **RobloxSecurityAgent** | Supply Chain | Malicious Roblox/Luau Toolbox assets (runtime asset injection, `rbxassetid://` loaders, `HttpEnabled`, payloads hidden in instance attributes) + cross-platform ClickFix paste-and-run lures |
 
 **Post-processors:** ScoringEngine · VerifierAgent (secrets liveness) · DeepAnalyzer (LLM taint analysis)
 

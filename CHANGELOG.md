@@ -6,6 +6,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [9.4.0] — 2026-06-14 — Toolbox Patch (RobloxSecurityAgent + ClickFix)
+
+### Added
+- **RobloxSecurityAgent** (24th agent, Supply Chain category) — detects the
+  malicious Roblox/Luau Toolbox supply-chain attack class:
+  - Runtime asset injection: `game:GetObjects('rbxassetid://...')` and
+    `require(<assetId>)`.
+  - `HttpService.HttpEnabled = true` set from a script (exfil/C2 enablement).
+  - Obfuscated loaders: `loadstring`, string-reversal decode loops, assignment
+    to Roblox globals (`Instance`/`CFrame`/`vector`), and `Version` guard removal.
+  - **Off-script payloads hidden in instance attributes** — decodes the base64
+    `<BinaryString name="AttributesSerialize">` blob inside `.rbxmx`/`.rbxlx`
+    files (and embedded `<ProtectedString name="Source">` script source),
+    checking both forward and reversed forms. This closes the gap that
+    source-only scanners miss.
+  - **ClickFix lure detection** (cross-platform) — fake error / human-verification
+    framing next to a paste-and-run keystroke instruction (Ctrl+C→Ctrl+V→Enter,
+    Win+R, command bar), scanned across `.lua`, `.rbxmx`, `.html`, `.md`, `.txt`,
+    `.js`, `.ts`. Maps to CWE-506, CWE-829, CWE-94, CWE-1357.
+- **Recon**: Luau/Lua language detection and Roblox toolchain detection
+  (Rojo `default.project.json`, `wally.toml`, `.rbxlx`/`.rbxmx`).
+
+### Changed
+- Agent count 23 → 24 across CLI, README, docs, and marketing site (also fixed
+  the stale "22 agents" string on the homepage metadata).
+
 ## [9.3.2] — 2026-05-20 — HermesSecurityAgent wiring fix
 
 ### Fixed
