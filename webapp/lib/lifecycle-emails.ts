@@ -308,6 +308,20 @@ export async function runLifecycleEmails(now: Date = new Date()): Promise<{
   return results;
 }
 
+// Shared eligibility for the one-time re-engagement: real email, not opted out,
+// older than the day-3 window, and not already re-engaged.
+const REENGAGE_WHERE = {
+  email: { not: null },
+  lifecycleOptOut: false,
+  createdAt: { lte: new Date(Date.now() - 5 * DAY) },
+  emailEvents: { none: { type: 'reengage' } },
+} as const;
+
+/** How many users are still eligible for the re-engagement send (no send). */
+export async function reengageEligibleCount(): Promise<number> {
+  return prisma.user.count({ where: REENGAGE_WHERE });
+}
+
 /**
  * One-time re-engagement to the existing signup backlog (users older than the
  * day-3 window). Call manually/deliberately (Phase 3), not from the cron.
@@ -315,12 +329,7 @@ export async function runLifecycleEmails(now: Date = new Date()): Promise<{
  */
 export async function sendReengagementBatch(limit = 20): Promise<{ sent: number; scanned: number }> {
   const users = await prisma.user.findMany({
-    where: {
-      email: { not: null },
-      lifecycleOptOut: false,
-      createdAt: { lte: new Date(Date.now() - 5 * DAY) },
-      emailEvents: { none: { type: 'reengage' } },
-    },
+    where: REENGAGE_WHERE,
     select: USER_SELECT,
     orderBy: { createdAt: 'asc' },
     take: limit,
