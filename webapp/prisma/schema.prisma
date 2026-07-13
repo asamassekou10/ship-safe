@@ -29,9 +29,26 @@ model User {
   contentDrafts ContentDraft[]
   intelligenceRuns IntelligenceRun[]
   intelligenceItems IntelligenceItem[]
+  emailEvents   EmailEvent[]
+  lifecycleOptOut Boolean @default(false) // opted out of lifecycle/marketing emails
   llmSettings   Json?     // { provider, model, think, apiKeys: { DEEPSEEK_API_KEY, OPENAI_API_KEY, ... } }
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+// ── Lifecycle emails ─────────────────────────────────────
+// One row per (user, email type). The unique constraint makes the
+// daily cron idempotent — a given lifecycle email is sent at most once.
+
+model EmailEvent {
+  id     String   @id @default(cuid())
+  userId String
+  type   String   // welcome | day3_checkin | day3_outreach | reengage
+  sentAt DateTime @default(now())
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@index([userId])
 }
 
 model Account {

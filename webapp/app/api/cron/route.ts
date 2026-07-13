@@ -4,6 +4,7 @@ import { fireAgentRun } from '@/lib/fire-agent-run';
 import { Cron } from 'croner';
 import { Prisma } from '@prisma/client';
 import { notifyScanComplete, notifyScanFailed, sendWeeklyDigests } from '@/lib/notifications';
+import { runLifecycleEmails } from '@/lib/lifecycle-emails';
 import { mkdtemp, rm, writeFile, mkdir } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -187,10 +188,20 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // ── Lifecycle emails (welcome backfill + day-3 check-in/outreach) ───────────
+  // Idempotent (EmailEvent unique constraint) and window-scoped, so it is safe
+  // to run on every invocation regardless of the cron schedule.
+  let lifecycle: Awaited<ReturnType<typeof runLifecycleEmails>> | undefined;
+  try {
+    lifecycle = await runLifecycleEmails(now);
+  } catch (error) {
+    console.error('[lifecycle] cron run failed', error);
+  }
+
   // ── Expired shared reports cleanup ───────────────────────────────────────────
   await prisma.sharedReport.deleteMany({ where: { expiresAt: { lt: now } } });
 
-  return NextResponse.json({ fired, count: fired.length, scannedRepos, stuckTeamRunsCleaned: stuckResult.count, contentAgent, at: now.toISOString() });
+  return NextResponse.json({ fired, count: fired.length, scannedRepos, stuckTeamRunsCleaned: stuckResult.count, contentAgent, lifecycle, at: now.toISOString() });
 }
 
 // ── Scheduled repo scan runner ────────────────────────────────────────────────
