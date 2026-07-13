@@ -944,7 +944,6 @@
   background:
     radial-gradient(80% 50% at 100% 0%, rgba(34, 211, 238, 0.06), transparent 70%),
     var(--bg-elevated);
-  border-block: 1px solid var(--border);
 }
 
 .outputInner {
@@ -959,44 +958,26 @@
 .outputHead {
   display: flex;
   flex-direction: column;
-  gap: 1.4rem;
+  gap: 1.1rem;
   position: sticky;
   top: 6rem;
 }
 
-.serifPull {
+.outputLead {
   margin: 0;
-  font-family: var(--font-serif);
-  font-weight: 400;
-  font-size: clamp(2rem, 3.4vw, 2.8rem);
-  letter-spacing: -0.012em;
-  line-height: 1.12;
   color: var(--text);
-}
-
-.serifPull em {
-  font-style: italic;
-  color: var(--cyan);
-  font-family: var(--font-serif);
-  font-weight: 400;
-}
-
-.serifQuote {
-  display: inline-block;
-  margin-right: 0.05em;
-  color: var(--cyan);
-  font-family: var(--font-serif);
-  font-size: 1.4em;
-  line-height: 0;
-  vertical-align: -0.18em;
-  opacity: 0.7;
+  font-size: 1.28rem;
+  font-weight: 500;
+  letter-spacing: -0.018em;
+  line-height: 1.3;
+  max-width: 26ch;
 }
 
 .outputBlurb {
   margin: 0;
   color: var(--text-muted);
-  font-size: 0.96rem;
-  line-height: 1.6;
+  font-size: 1.02rem;
+  line-height: 1.65;
 }
 
 .outputBlurb code {
@@ -1025,19 +1006,15 @@
 
 @media (max-width: 768px) {
   .outputSection { padding: 4.5rem 0 4rem; }
-  .serifPull {
-    font-size: clamp(1.55rem, 5.6vw, 2rem);
-    line-height: 1.18;
-  }
-  .outputBlurb { font-size: 0.92rem; }
-  .outputBlurb code { font-size: 0.78rem; }
+  .outputLead { font-size: 1.15rem; }
+  .outputBlurb { font-size: 0.95rem; }
+  .outputBlurb code { font-size: 0.8rem; }
 }
 
 @media (max-width: 640px) {
   .outputSection { padding: 3.5rem 0 3rem; }
   .outputInner { gap: 1.75rem; width: min(100% - 1.5rem, 1200px); }
-  .serifPull { font-size: clamp(1.35rem, 6.5vw, 1.75rem); }
-  .serifQuote { font-size: 1.25em; vertical-align: -0.1em; }
+  .outputLead { font-size: 1.08rem; }
 }
 
 /* ─────────────────────────────────────────────

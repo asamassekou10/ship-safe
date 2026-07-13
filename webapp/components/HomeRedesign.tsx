@@ -231,10 +231,8 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
         <div className={styles.outputInner}>
           <div className={styles.outputHead} data-animate>
             <span className={styles.sectionLabel}>// 05 — output</span>
-            <p className={styles.serifPull}>
-              <span className={styles.serifQuote}>“</span>
-              Agents don&apos;t read your security docs.
-              <em> We do — for them.</em>
+            <p className={styles.outputLead}>
+              Agents don&apos;t read your security docs. We do — for them.
             </p>
             <h2>Real terminal output. Not a screenshot.</h2>
             <p className={styles.outputBlurb}>
@@ -288,7 +286,7 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
           <span>npm downloads</span>
         </div>
         <div>
-          <strong>23</strong>
+          <strong>24</strong>
           <span>AI security agents</span>
         </div>
         <div>
