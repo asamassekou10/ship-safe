@@ -105,7 +105,7 @@ model supply chain.
 
 ### Fixed
 - Repaired UTF-8 mojibake (double/triple-encoded punctuation) in the docs page
-  and README that rendered as garbled `Ã‚Â¢`-style characters. Root cause: an
+  and README that rendered as garbled, double-encoded characters. Root cause: an
   in-place `perl -i` edit that inserted a wide character (em-dash) without a
   UTF-8 I/O layer, re-encoding every pre-existing multibyte character. README
   was repaired surgically (decoding only the double-encoded runs) to preserve
