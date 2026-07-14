@@ -115,7 +115,7 @@ export default async function Dashboard() {
               </>
             )}
           </div>
-          <Link href="/pricing" className={styles.primaryCta}>Upgrade to Pro →</Link>
+          <Link href="/app/checkout?plan=pro" className={styles.primaryCta}>Upgrade to Pro →</Link>
         </div>
       )}
 

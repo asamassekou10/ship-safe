@@ -139,7 +139,7 @@ export default function Hero({ stars, downloads }: Props) {
               visible: { transition: { staggerChildren: 0.045, delayChildren: 0.15 } },
             }}
           >
-            {['Catch', 'the', 'breach'].map((word, i) => (
+            {['Find', 'risky', 'code.'].map((word, i) => (
               <motion.span
                 key={i}
                 className={styles.word}
@@ -158,7 +158,7 @@ export default function Hero({ stars, downloads }: Props) {
                 visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 0.8, 0.36, 1] } },
               }}
             >
-              before you push.
+              Fix it before it ships.
             </motion.span>
           </motion.h1>
 
@@ -167,9 +167,9 @@ export default function Hero({ stars, downloads }: Props) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.5, ease: 'easeOut' }}
           >
-            One command, 24 agents. Ship Safe scans your code, dependencies, configs, MCP
-            servers, and AI prompts — flagging the leaked secrets, prompt injections, and CVEs
-            every traditional scanner misses.
+            Ship Safe connects local scanning, PR review, exploitability ranking, and hosted
+            history so developers can move from risky code to a concrete fix without leaving
+            the workflow.
           </motion.p>
 
           <motion.div
@@ -183,7 +183,7 @@ export default function Hero({ stars, downloads }: Props) {
                 Start free scan <span aria-hidden="true">→</span>
               </Link>
             </MagneticButton>
-            <Link href="/docs" className={styles.secondaryCta}>View docs</Link>
+            <Link href="#get-started" className={styles.secondaryCta}>Run locally</Link>
           </motion.div>
 
           <motion.div
@@ -222,7 +222,7 @@ export default function Hero({ stars, downloads }: Props) {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 1.1 }}
           >
-            <span className={styles.trustLabel}>Catches misconfigs in</span>
+            <span className={styles.trustLabel}>Built for stacks using</span>
             <span className={styles.trustList}>
               {['Anthropic', 'OpenAI', 'Stripe', 'Vercel', 'Cursor', 'Supabase', 'MCP'].map((name) => (
                 <span key={name} className={styles.trustItem}>{name}</span>

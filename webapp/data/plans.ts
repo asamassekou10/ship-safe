@@ -15,13 +15,13 @@ export const plans: Plan[] = [
     price: '$9',
     period: '/month',
     desc: 'For developers who ship fast and need full coverage.',
-    cta: 'Buy Pro',
-    ctaHref: '/app/checkout?plan=pro',
+    cta: 'Start Pro',
+    ctaHref: '/signup?callbackUrl=/app/checkout%3Fplan%3Dpro',
     featured: true,
     features: [
       'Unlimited cloud scans',
       'Private repos (GitHub, GitLab, upload)',
-      'All 23 security agents',
+      'All 24 security agents',
       'AI deep analysis (bring your own API key)',
       'Scan history + score trends',
       'PDF reports (branded)',
@@ -35,8 +35,8 @@ export const plans: Plan[] = [
     price: '$19',
     period: '/mo per seat',
     desc: 'For teams that need collaboration and shared visibility.',
-    cta: 'Buy Team',
-    ctaHref: '/app/checkout?plan=team',
+    cta: 'Start Team',
+    ctaHref: '/signup?callbackUrl=/app/checkout%3Fplan%3Dteam',
     featured: false,
     features: [
       'Everything in Pro',
@@ -80,9 +80,5 @@ export const pricingFaq = [
   {
     q: 'Can I cancel anytime?',
     a: 'Yes. Pro and Team are month-to-month with no long-term commitment. Cancel anytime from your account settings and you will not be charged again.',
-  },
-  {
-    q: 'Do you offer refunds?',
-    a: 'Yes. If you are not satisfied within 30 days of purchase, we will issue a full refund — no questions asked.',
   },
 ];

@@ -49,7 +49,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {plan === 'free' ? (
             <div className={styles.planBadge}>
               <span className={styles.planName}>No active plan</span>
-              <Link href="/pricing" className={styles.upgradeCta}>Upgrade to Pro →</Link>
+              <Link href="/app/checkout?plan=pro" className={styles.upgradeCta}>Upgrade to Pro →</Link>
             </div>
           ) : (
             <div className={styles.planBadge}>

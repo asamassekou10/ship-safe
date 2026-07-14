@@ -412,12 +412,9 @@ h2 {
   to   { opacity: 1; transform: none; }
 }
 
-/* Gradient text utility */
+/* Accent text utility */
 .gradient-text {
-  background: linear-gradient(135deg, #0891b2 0%, #2563eb 55%, #1d4ed8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--primary);
 }
 
 /* Section divider */

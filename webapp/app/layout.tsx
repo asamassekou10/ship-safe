@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     default: 'Ship Safe — AI Agent Security Scanner for Developers',
     template: '%s | Ship Safe',
   },
-  description: 'AI agent security scanner that detects LLM vulnerabilities, MCP configuration security issues, RAG poisoning, secrets, and dependency CVEs. 23 agents, one command. Free CLI, no signup required.',
+  description: 'AI agent security scanner that detects LLM vulnerabilities, MCP configuration security issues, RAG poisoning, secrets, and dependency CVEs. 24 agents, one command. Free CLI, no signup required.',
   metadataBase: new URL('https://www.shipsafecli.com'),
   keywords: ['AI agent security scanner', 'LLM vulnerability CLI', 'MCP configuration security', 'RAG poisoning prevention', 'security scanner', 'secret detection', 'LLM security', 'prompt injection scanner', 'OWASP Agentic AI Top 10', 'DevSecOps', 'application security', 'dependency CVE scanner', 'open source SAST'],
   alternates: {

@@ -54,11 +54,7 @@
 }
 
 .gradientText {
-  background: linear-gradient(120deg, var(--cyan), #38bdf8 50%, #67e8f9);
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
+  color: var(--text);
 }
 
 .hero p {
@@ -69,12 +65,51 @@
   max-width: 620px;
 }
 
+.upgradeReasons {
+  padding: 0 0 1.25rem;
+}
+
+.upgradeReasonsInner {
+  width: min(980px, calc(100% - 3rem));
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.upgradeReasonsInner > span {
+  color: var(--text);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.upgradeReasonsInner ul {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.55rem 0.85rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.upgradeReasonsInner li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 24px;
+}
+
 /* ─────────────────────────────────────────────
    Plans
    ───────────────────────────────────────────── */
 
 .plansSection {
-  padding: 2.5rem 0 5rem;
+  padding: 1.25rem 0 5rem;
 }
 
 .plansGrid {
@@ -245,18 +280,6 @@
   background: rgba(8, 145, 178, 0.04);
 }
 
-.guarantee {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.guarantee svg { color: var(--cyan); flex-shrink: 0; }
-
 .featureList {
   list-style: none;
   margin: 0;
@@ -282,60 +305,81 @@
 }
 
 /* ─────────────────────────────────────────────
-   Open-source band (serif accent)
+   Open-source band
    ───────────────────────────────────────────── */
 
 .osSection {
-  padding: 5rem 0;
-  background:
-    radial-gradient(60% 50% at 100% 0%, rgba(34, 211, 238, 0.06), transparent 70%),
-    var(--bg-elevated);
+  padding: 4.5rem 0;
   border-block: 1px solid var(--border);
+  background: var(--bg-elevated);
 }
 
 .osInner {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1.2rem;
-  width: min(900px, calc(100% - 3rem));
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+  align-items: center;
+  gap: 2rem;
+  width: min(1100px, calc(100% - 3rem));
   margin: 0 auto;
 }
 
-.osLead {
+.osCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.osCopy h2 {
   margin: 0;
-  font-family: var(--font-serif);
-  font-weight: 400;
-  font-size: clamp(1.6rem, 3.2vw, 2.4rem);
-  letter-spacing: -0.012em;
-  line-height: 1.18;
   color: var(--text);
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-weight: 600;
+  letter-spacing: -0.038em;
+  line-height: 1.04;
+  font-feature-settings: "ss01", "calt", "liga";
+  max-width: 12ch;
 }
 
-.osLead em {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-weight: 400;
-  color: var(--cyan);
-}
-
-.serifQuote {
-  display: inline-block;
-  margin-right: 0.05em;
-  color: var(--cyan);
-  font-family: var(--font-serif);
-  font-size: 1.4em;
-  line-height: 0;
-  vertical-align: -0.18em;
-  opacity: 0.7;
-}
-
-.osBody {
+.osCopy p {
   margin: 0;
   color: var(--text-muted);
-  font-size: 1rem;
-  line-height: 1.6;
+  font-size: 1.02rem;
+  line-height: 1.65;
   max-width: 620px;
+}
+
+.osPanel {
+  display: grid;
+  gap: 1rem;
+  justify-items: start;
+  padding: 1.25rem;
+  border-radius: 12px;
+  background: var(--bg-card);
+  box-shadow: var(--ring-1);
+}
+
+.osPoints {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.osPoints li {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 34px;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.osPoints svg {
+  color: var(--cyan);
+  flex-shrink: 0;
 }
 
 /* ─────────────────────────────────────────────
@@ -568,12 +612,23 @@
 
 @media (max-width: 1024px) {
   .plansGrid { grid-template-columns: 1fr; max-width: 640px; }
+  .osInner { grid-template-columns: 1fr; }
+  .osCopy h2 { max-width: 16ch; }
   .faqInner { grid-template-columns: 1fr; gap: 2rem; }
   .faqHead { position: static; }
 }
 
 @media (max-width: 640px) {
   .hero { padding: 4rem 0 2rem; }
+  .upgradeReasonsInner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .upgradeReasonsInner ul {
+    justify-content: flex-start;
+  }
+
   .plansSection { padding: 1.5rem 0 4rem; }
   .planCard { padding: 1.4rem; }
   .priceNum { font-size: 2rem; }

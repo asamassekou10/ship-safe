@@ -188,6 +188,28 @@ function renderInline(text: string): React.ReactNode {
   return parts.length === 1 ? parts[0] : parts;
 }
 
+function extractFaqs(content: string): Array<{ question: string; answer: string }> {
+  const faqStart = content.indexOf('\n## FAQ');
+  if (faqStart === -1) return [];
+
+  const source = content.slice(faqStart);
+  const nextSection = source.indexOf('\n## ', 6);
+  const faqSection = nextSection === -1 ? source : source.slice(0, nextSection);
+  const matches = [...faqSection.matchAll(/\n### (.+?)\n([\s\S]*?)(?=\n### |\n## |$)/g)];
+
+  return matches
+    .map((match) => ({
+      question: match[1].trim(),
+      answer: match[2]
+        .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+        .replace(/`(.+?)`/g, '$1')
+        .replace(/\*\*(.+?)\*\*/g, '$1')
+        .replace(/\s+/g, ' ')
+        .trim(),
+    }))
+    .filter((item) => item.question && item.answer);
+}
+
 export default async function BlogPost({ params }: Props) {
   const { slug } = await params;
   const post = getPostBySlug(slug);
@@ -195,9 +217,9 @@ export default async function BlogPost({ params }: Props) {
 
   const morePosts = posts.filter((p) => p.slug !== slug).slice(0, 3);
   const postUrl = `https://www.shipsafecli.com/blog/${post.slug}`;
+  const faqs = extractFaqs(post.content);
 
-  const jsonLd = {
-    '@context': 'https://schema.org',
+  const articleJsonLd = {
     '@type': 'Article',
     headline: post.title,
     description: post.description,
@@ -223,6 +245,25 @@ export default async function BlogPost({ params }: Props) {
       '@id': `https://www.shipsafecli.com/blog/${post.slug}`,
     },
     keywords: post.keywords.join(', '),
+  };
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      articleJsonLd,
+      ...(faqs.length > 0
+        ? [{
+            '@type': 'FAQPage',
+            mainEntity: faqs.map((faq) => ({
+              '@type': 'Question',
+              name: faq.question,
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: faq.answer,
+              },
+            })),
+          }]
+        : []),
+    ],
   };
 
   return (
@@ -307,7 +348,7 @@ export default async function BlogPost({ params }: Props) {
             <div className={styles.cta}>
               <h3>Scan your project now</h3>
               <pre className={styles.ctaCode}><code>npx ship-safe audit .</code></pre>
-              <p>23 agents. 80+ attack classes. Free and open source.</p>
+              <p>24 agents. 80+ attack classes. Free and open source.</p>
               <div className={styles.ctaLinks}>
                 <a href="https://github.com/asamassekou10/ship-safe" className="btn btn-primary">View on GitHub</a>
                 <Link href="/pricing" className="btn btn-ghost">See pricing</Link>

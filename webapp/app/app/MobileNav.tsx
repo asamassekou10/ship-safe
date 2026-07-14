@@ -95,7 +95,7 @@ export default function MobileNav({ userName, userImage, plan, isAdmin }: Props)
             {plan === 'free' ? (
               <>
                 <span className={styles.planName}>No active plan</span>
-                <Link href="/pricing" className={styles.upgradeCta} onClick={close}>Upgrade to Pro →</Link>
+                <Link href="/app/checkout?plan=pro" className={styles.upgradeCta} onClick={close}>Upgrade to Pro →</Link>
               </>
             ) : (
               <>

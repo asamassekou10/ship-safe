@@ -106,7 +106,7 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
     <div className={styles.page}>
       <div className={styles.header}>
         <h1>New Scan</h1>
-        <p className={styles.subtitle}>Submit a repository to scan with all 18 security agents.</p>
+        <p className={styles.subtitle}>Submit a repository to scan with all 24 security agents.</p>
       </div>
 
       {!isPaidPlan && (
@@ -115,13 +115,13 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
             <>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               You have <strong>{freeRemaining} free scan{freeRemaining !== 1 ? 's' : ''}</strong> remaining.{' '}
-              <Link href="/pricing" className={styles.trialUpgradeLink}>Upgrade for unlimited →</Link>
+              <Link href="/app/checkout?plan=pro" className={styles.trialUpgradeLink}>Upgrade for unlimited →</Link>
             </>
           ) : (
             <>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               You&apos;ve used your free scan.{' '}
-              <Link href="/pricing" className={styles.trialUpgradeLink}>Upgrade to Pro for unlimited scans →</Link>
+              <Link href="/app/checkout?plan=pro" className={styles.trialUpgradeLink}>Upgrade to Pro for unlimited scans →</Link>
             </>
           )}
         </div>
@@ -313,7 +313,7 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
         {(error === '__LIMIT__' || error === '__TRIAL_EXHAUSTED__') ? (
           <div className={styles.error}>
             You&apos;ve used your free scan.{' '}
-            <Link href="/pricing" style={{ color: 'var(--cyan)', textDecoration: 'underline' }}>
+            <Link href="/app/checkout?plan=pro" style={{ color: 'var(--cyan)', textDecoration: 'underline' }}>
               Upgrade to Pro
             </Link>{' '}
             for unlimited scans.

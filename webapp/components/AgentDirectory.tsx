@@ -143,7 +143,7 @@ export default function AgentDirectory() {
     <section className={styles.section} id="agents">
       <div className="container">
         <span className="section-label">Under the hood</span>
-        <h2>23 agents. Every attack surface covered.</h2>
+        <h2>24 agents. Every attack surface covered.</h2>
         <p className="section-sub">
           Not wrappers — each agent has its own detection logic, rule set, and OWASP mapping.
           Here&rsquo;s exactly what runs when you type <code>ship-safe audit .</code>

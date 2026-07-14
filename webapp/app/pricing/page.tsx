@@ -65,6 +65,19 @@ const jsonLd = {
   ],
 };
 
+const upgradeReasons = [
+  'Save scan history',
+  'Monitor private repos',
+  'Get PR checks',
+  'Share reports',
+];
+
+const openSourcePoints = [
+  'Unlimited local scans',
+  'MIT licensed CLI',
+  '24 agents included',
+];
+
 export default function Pricing() {
   return (
     <>
@@ -84,6 +97,20 @@ export default function Pricing() {
               The CLI is always free and open-source. Pay only when you want the hosted dashboard,
               team collaboration, or PR Guardian.
             </p>
+          </div>
+        </section>
+
+        <section className={styles.upgradeReasons} aria-label="Why upgrade">
+          <div className={styles.upgradeReasonsInner}>
+            <span>Upgrade when you need to</span>
+            <ul>
+              {upgradeReasons.map((reason) => (
+                <li key={reason}>
+                  <AnimatedCheck variant="check" delay={80} />
+                  {reason}
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 
@@ -120,15 +147,6 @@ export default function Pricing() {
                   </Link>
                 )}
 
-                {plan.featured && (
-                  <p className={styles.guarantee}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    </svg>
-                    30-day money-back guarantee
-                  </p>
-                )}
-
                 <ul className={styles.featureList}>
                   {plan.features.map((f, idx) => (
                     <li key={f} className={styles.featureItem}>
@@ -142,20 +160,30 @@ export default function Pricing() {
           </CursorGlow>
         </section>
 
-        {/* ── Open-source band (serif accent) ───────── */}
+        {/* ── Open-source band ──────────────────────── */}
         <section className={styles.osSection}>
           <div className={styles.osInner} data-animate>
-            <span className={styles.sectionLabel}>// 02 — open source</span>
-            <p className={styles.osLead}>
-              <span className={styles.serifQuote}>“</span>
-              The CLI and all 23 agents are <em>MIT licensed.</em> Self-host it, fork it, contribute to it.
-            </p>
-            <p className={styles.osBody}>
-              The SaaS layer funds development. The core stays free forever — that&apos;s the deal.
-            </p>
-            <a href="https://github.com/asamassekou10/ship-safe" target="_blank" rel="noopener noreferrer" className={styles.secondaryCta}>
-              View on GitHub <span aria-hidden="true">→</span>
-            </a>
+            <div className={styles.osCopy}>
+              <span className={styles.sectionLabel}>// 02 — open source</span>
+              <h2>Start free. Upgrade when the workflow needs a home.</h2>
+              <p>
+                The CLI stays free and open source. Paid plans add the hosted dashboard,
+                scan history, reports, PR checks, and team collaboration around the same scanner.
+              </p>
+            </div>
+            <div className={styles.osPanel}>
+              <ul className={styles.osPoints}>
+                {openSourcePoints.map((point, idx) => (
+                  <li key={point}>
+                    <AnimatedCheck variant="check" delay={120 + idx * 80} />
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+              <a href="https://github.com/asamassekou10/ship-safe" target="_blank" rel="noopener noreferrer" className={styles.secondaryCta}>
+                View on GitHub <span aria-hidden="true">→</span>
+              </a>
+            </div>
           </div>
         </section>
 

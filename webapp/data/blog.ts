@@ -14,6 +14,999 @@ export interface BlogPost {
 
 const manualPosts: BlogPost[] = [
   {
+    slug: 'agentic-ransomware-jadepuffer-ai-threat-actor',
+    title: 'Agentic Ransomware Is Here: What JadePuffer Means for Dev Teams',
+    description: 'Security researchers reported an LLM-orchestrated ransomware operation called JadePuffer. The techniques were familiar, but the orchestration was new: credential hunting, lateral movement, retries, and destruction stitched together by an AI agent.',
+    date: '2026-07-14T12:00:00-05:00',
+    author: 'Ship Safe Team',
+    tags: ['AI security', 'ransomware', 'agentic threats', 'developer security'],
+    keywords: ['agentic ransomware', 'JadePuffer', 'AI ransomware', 'LLM cyber attack', 'agentic threat actor', 'Langflow CVE-2025-3248', 'AI security', 'developer security', 'credential exposure', 'LLMjacking'],
+    content: `
+Agentic ransomware is moving from theory into real incident planning. Security teams have been waiting for credible examples of AI agents doing more than writing phishing copy or helping an operator debug a script. JadePuffer is the warning shot.
+
+Multiple reports covering Sysdig research describe JadePuffer as an LLM-orchestrated ransomware operation. The important detail is not that the attack used novel malware. It did not need to. The notable part is that an AI agent reportedly chained ordinary attacker work into a complete operation: exploit an exposed Langflow instance, search for credentials, adapt when steps failed, touch databases and configuration stores, and generate an extortion note.
+
+That is the part developers should care about. AI does not need a zero-day to make your infrastructure more exposed. It can make old mistakes faster to exploit.
+
+## What changed
+
+Traditional ransomware operations are constrained by operator time. A human has to enumerate the host, inspect files, test credentials, pivot, and decide what to do next. JadePuffer suggests a different pattern: a human chooses the target and infrastructure, then an agent performs much of the tedious campaign logic.
+
+That changes the economics:
+
+- Known vulnerabilities become more dangerous because exploitation can be repeated and adjusted cheaply.
+- Credentials in AI-adjacent systems become high-value pivot points.
+- Detection windows shrink because failed payloads can be corrected quickly.
+- Verbose AI-generated traces may create new detection signals, but only if teams are watching.
+
+The uncomfortable lesson is simple: the "boring" controls matter more now. Patch known flaws. Reduce exposed admin surfaces. Scope tokens. Remove secrets from places agents can read.
+
+## Why developers are in the blast radius
+
+JadePuffer reportedly targeted Langflow, an AI application builder. That matters because the same kind of infrastructure is now everywhere: internal agent builders, prototype dashboards, notebook servers, workflow tools, vector database consoles, and MCP servers.
+
+These systems often start as experiments. Then they get real API keys. Then they get connected to production data. Then they stay internet-facing because the demo link was convenient.
+
+That is how AI infrastructure becomes ransomware infrastructure.
+
+## What to check this week
+
+Start with the AI-adjacent systems, not only the main app:
+
+- Exposed Langflow, Flowise, notebook, admin, and agent-builder instances
+- API keys stored in workflow nodes, prompt templates, environment files, or config exports
+- Database credentials reachable from automation hosts
+- Cloud tokens with broad read or write access
+- Services that can reach both AI tooling and production databases
+- Old CVEs in low-code AI platforms and internal dashboards
+- Build logs, agent traces, and debug output that reveal credentials
+
+Then ask one sharper question: if an agent got shell access here, what credentials could it discover in 60 seconds?
+
+## How Ship Safe helps
+
+Ship Safe is not a ransomware detector. It is a pre-deploy scanner for the mistakes that make ransomware campaigns easy to automate:
+
+- Leaked API keys and service tokens
+- Dangerous environment variable handling
+- Overbroad CI permissions
+- Exposed secrets in agent and MCP configuration
+- Unpinned actions and automation dependencies
+- Missing CI gates for critical findings
+
+Run it before the next deploy:
+
+\`\`\`bash
+npx ship-safe scan
+npx ship-safe ci --fail-on critical
+\`\`\`
+
+For teams wiring AI tools into production, the goal is not to panic. The goal is to stop leaving agent-readable credentials beside internet-facing tools.
+
+If you are also running MCP servers or agent workflows, pair this checklist with our guide to [MCP security](/blog/mcp-security-is-the-new-api-security) and the [Hermes agent security page](/hermes).
+
+## A likely attack timeline
+
+The JadePuffer reports are useful because they show how ordinary weaknesses can become an automated chain. A practical version of the timeline looks like this:
+
+1. **Initial access:** the attacker finds an exposed AI application server running a vulnerable component.
+2. **Command execution:** the first exploit gives the campaign a shell or execution primitive.
+3. **Credential discovery:** the agent searches common places: environment variables, config exports, shell history, cloud metadata, database URLs, and local files.
+4. **Service mapping:** the agent tests which credentials work and what systems are reachable from the compromised host.
+5. **Data targeting:** databases, object stores, and app directories become the next priority.
+6. **Impact:** destructive or extortion behavior runs after enough leverage is found.
+
+Nothing in that list requires magic. That is the uncomfortable part. AI makes the loop faster, more persistent, and less dependent on a human operator staying focused through every failed attempt.
+
+## What was old, what was new
+
+The old parts:
+
+- Exposed services
+- Known CVEs
+- Secrets in environment variables
+- Overbroad service tokens
+- Databases reachable from app hosts
+- Weak monitoring around internal tools
+
+The new part is the orchestration layer. The agent can keep trying. It can inspect errors, choose a new path, summarize what it found, and generate the next command. That turns a messy intrusion into something closer to a workflow.
+
+This is why teams should avoid dismissing agentic ransomware as hype. The malware may be familiar, but the labor model is changing.
+
+## Detection signals to watch
+
+Agentic operations can be noisy in ways human operations are not. Watch for:
+
+- Repeated failed shell commands with small syntax changes
+- Fast enumeration of unrelated config files
+- Reads against \`.env\`, \`.npmrc\`, cloud credential paths, SSH directories, and agent config directories
+- Sudden access to AI workflow exports or prompt/config stores
+- Database connection attempts from hosts that normally do not connect directly
+- Ransom-note-like files appearing after broad filesystem traversal
+- API calls that test many credentials in quick succession
+
+If you log agent tool calls or command execution, keep those logs. They may become one of the best ways to tell the difference between normal automation and an automated intrusion.
+
+## A hardening checklist for AI infrastructure
+
+Treat every AI workflow box as production infrastructure once it touches production credentials:
+
+- Put agent builders behind SSO and private networking.
+- Patch AI app frameworks with the same urgency as public web frameworks.
+- Use short-lived credentials for experiments.
+- Keep production database URLs out of workflow builders.
+- Separate demo, staging, and production tokens.
+- Disable outbound network paths that the tool does not need.
+- Alert when AI tooling reads secrets or environment exports.
+- Rotate tokens after any exposure of workflow config.
+
+The fastest win is credential reduction. If an agentic attacker lands on a host and finds nothing useful, the campaign loses momentum.
+
+## How to talk about this with your team
+
+The wrong message is "AI ransomware means everything is different." That turns into fear and vague spending. The better message is more specific:
+
+- We have more automation touching production-like systems.
+- Those systems often carry credentials before they receive production-grade hardening.
+- Attackers can now automate more of the discovery and retry work.
+- Our controls need to reduce what an automated intruder can learn and reuse.
+
+That framing keeps the conversation grounded. It leads to concrete work: inventory AI tools, remove stale tokens, patch exposed services, and add release gates for critical findings.
+
+## A simple tabletop exercise
+
+Pick one AI workflow server and walk through three questions:
+
+1. What credentials are present on this host?
+2. What internal systems can this host reach?
+3. What logs would tell us an automated actor was enumerating the host?
+
+If the answers are unclear, that is the next sprint. You do not need a perfect ransomware program to reduce risk. You need to make the first compromised AI box boring.
+
+## FAQ
+
+### What is agentic ransomware?
+
+Agentic ransomware is ransomware activity where an AI agent helps orchestrate steps such as reconnaissance, credential discovery, command retries, targeting, or extortion content. The malware may be conventional, but the workflow becomes more automated.
+
+### Does agentic ransomware require a zero-day?
+
+No. The practical risk is that an agent can exploit known vulnerabilities, exposed tools, and leaked credentials faster and more persistently than a human operator working manually.
+
+### How can developers reduce risk quickly?
+
+Start by patching exposed AI tooling, removing production credentials from workflow builders, reducing token scopes, and adding CI gates for critical secret and configuration findings. Ship Safe's [pricing page](/pricing) covers when to move from local scanning to hosted history and team workflows.
+
+## Scan your AI attack surface
+
+Run Ship Safe locally with \`npx ship-safe scan\`, or [start a free cloud scan](/signup) if you want scan history, team workflows, and PR Guardian automation.
+
+## Sources
+
+- [TechRadar: JADEPUFFER attack run entirely by an LLM](https://www.techradar.com/pro/security/experts-warn-of-the-first-documented-case-of-agentic-ransomware-dangerous-jadepuffer-attack-run-entirely-by-an-llm)
+- [Business Insider: AI agentic ransomware report](https://www.businessinsider.com/ai-ransomware-attack-sysdig-jade-puffer-2026-7)
+    `.trim(),
+  },
+  {
+    slug: 'hallusquatting-ai-agents-malicious-repositories',
+    title: 'HalluSquatting: When AI Agents Install Repos That Do Not Exist',
+    description: 'HalluSquatting turns model hallucination into a supply-chain attack: agents invent package or repository names, attackers squat those names, and automation fetches malicious code.',
+    date: '2026-07-14T12:00:00-05:00',
+    author: 'Ship Safe Team',
+    tags: ['supply chain', 'AI agents', 'dependency security', 'developer security'],
+    keywords: ['HalluSquatting', 'AI hallucination security', 'malicious GitHub repository', 'AI agent supply chain', 'dependency confusion', 'AI coding agent security', 'package squatting', 'tool call security'],
+    content: `
+HalluSquatting is a supply-chain attack against AI coding agents. AI coding agents are useful because they turn intent into action. That is also why they are dangerous.
+
+HalluSquatting is a new supply-chain pattern built around a familiar model failure: hallucination. An agent tries to solve a task, invents a plausible package, repository, or tool URL, and then attempts to fetch or execute it. Attackers can pre-register those hallucinated names and wait for automation to arrive.
+
+This is dependency confusion with a new source of confusion: the model itself.
+
+## The attack path
+
+The pattern is direct:
+
+- A developer asks an agent to add a library, connect a tool, or install a helper repo.
+- The model suggests a package or repository that sounds real but is not.
+- The agent, plugin, or developer workflow runs an install command.
+- An attacker-controlled project with that hallucinated name executes malicious code.
+
+The dangerous version is not a human reading a bad suggestion. It is a tool-using agent with permission to clone, install, run tests, or execute setup scripts.
+
+## Why this is different from ordinary typosquatting
+
+Typosquatting depends on human error. HalluSquatting depends on model behavior.
+
+That matters because the same hallucinated names may appear across many users, models, and agent workflows. If a name is plausible enough to be generated repeatedly, it becomes valuable real estate for attackers.
+
+AI agents also tend to make the workflow feel authoritative. A package name appears inside a confident plan. A repository URL appears beside other correct steps. The install command is wrapped in helpful prose. That lowers skepticism right when skepticism is most needed.
+
+## Controls that actually help
+
+Do not rely on "the model should know better." Treat every dependency addition as untrusted until verified.
+
+For developer machines:
+
+- Require human approval before any agent runs \`npm install\`, \`pip install\`, \`curl | sh\`, \`git clone\`, or setup scripts.
+- Prefer official docs and package registries over model-invented URLs.
+- Check repository age, owner, release history, stars, issues, and provenance before installing.
+- Disable lifecycle scripts during review when possible.
+
+For CI:
+
+- Pin dependencies and actions.
+- Review lockfile diffs like code diffs.
+- Block new packages from unapproved registries.
+- Fail builds when install scripts appear in newly added dependencies.
+- Run security scans on dependency changes before merge.
+
+For agent platforms:
+
+- Log every tool call that fetches code.
+- Separate "suggest" from "execute."
+- Restrict agents to allowlisted package managers, registries, and repositories.
+- Require a signed approval step for new executable dependencies.
+
+## What Ship Safe can flag
+
+Ship Safe helps catch the blast-radius pieces around this attack class:
+
+- New dependency and lockfile changes
+- Unpinned GitHub Actions
+- Dangerous install commands in CI
+- Secrets exposed to build or agent contexts
+- MCP and agent configs that allow broad filesystem or network access
+
+Run:
+
+\`\`\`bash
+npx ship-safe scan
+npx ship-safe ci --fail-on high
+\`\`\`
+
+HalluSquatting is a reminder that agent safety is not only about prompts. It is about whether a generated command can cross from text into execution.
+
+If you are hardening AI-assisted development more broadly, read our related post on [MCP security](/blog/mcp-security-is-the-new-api-security) and the [Ship Safe docs](/docs) for local scan setup.
+
+## A realistic failure mode
+
+Imagine a developer asks an agent:
+
+\`\`\`
+Add a GitHub issue summarizer and wire it into our release notes job.
+\`\`\`
+
+The agent searches its training-shaped memory, decides a package named \`github-issue-summarizer-js\` exists, and proposes:
+
+\`\`\`bash
+npm install github-issue-summarizer-js
+\`\`\`
+
+If the package does not exist yet, an attacker can publish it. If the agent is allowed to install and run tests, the install path becomes code execution. If CI has release tokens, the blast radius is no longer the developer laptop.
+
+That is the core pattern: hallucinated dependency, real package, automated execution.
+
+## How this differs from dependency confusion
+
+Dependency confusion usually exploits naming overlap between private and public packages. HalluSquatting exploits naming generation.
+
+| Attack | Source of the bad name | Why it works |
+| --- | --- | --- |
+| Typosquatting | Human typo | The wrong package looks close enough. |
+| Dependency confusion | Registry precedence | A public package wins over a private name. |
+| HalluSquatting | Model hallucination | The agent invents a plausible dependency and then trusts it. |
+
+That means the defensive control cannot be "spell better." The control has to sit at the execution boundary.
+
+## Policy examples
+
+For local agent work, a simple rule goes a long way:
+
+\`\`\`text
+Agents may suggest dependencies, but only humans may install new executable packages.
+\`\`\`
+
+For CI, enforce a stricter version:
+
+\`\`\`yaml
+# Example policy shape
+dependency_changes:
+  require_review: true
+  block_install_scripts_until_approved: true
+  allowed_registries:
+    - https://registry.npmjs.org/
+  require_lockfile_diff: true
+\`\`\`
+
+For GitHub Actions, prefer pinned SHAs:
+
+\`\`\`yaml
+# Risky
+- uses: vendor/ai-release-helper@v2
+
+# Safer
+- uses: vendor/ai-release-helper@3f4c2d1e9a0b... # reviewed v2.1.0
+\`\`\`
+
+## Questions to ask before accepting an agent's install plan
+
+- Did the agent cite official documentation or invent a package name?
+- Is the package old enough to have real usage?
+- Is the maintainer connected to the project it claims to support?
+- Does the package run install scripts?
+- Does it request network access during installation?
+- Does the lockfile add unexpected transitive dependencies?
+- Will CI expose tokens while this package runs?
+
+This is not about rejecting AI help. It is about keeping generated suggestions away from automatic execution until provenance is clear.
+
+## What to log from agent workflows
+
+If your team uses coding agents, keep an audit trail for package-changing actions:
+
+- The prompt that requested the change
+- The package or repository name proposed
+- The command the agent wanted to run
+- Whether a human approved it
+- The resulting lockfile diff
+- Any lifecycle scripts introduced by the dependency
+
+These logs help in two ways. First, they make review easier. Second, if a malicious package lands, you can answer the incident-response question quickly: where did this name come from?
+
+## How to review a suspicious dependency
+
+When a package looks plausible but unfamiliar, check it like this:
+
+1. Search for official documentation that names the package.
+2. Compare the package owner to the project owner.
+3. Check publish date and version history.
+4. Inspect install scripts and postinstall behavior.
+5. Read the tarball contents, not only the README.
+6. Confirm the package is used by real projects.
+7. Run it in a sandbox before letting it near CI secrets.
+
+For npm, a surprising number of attacks hide in lifecycle scripts. For GitHub repos, look for setup scripts that fetch remote payloads or ask for broad tokens.
+
+## A safer agent instruction
+
+You can also harden the agent prompt itself:
+
+\`\`\`text
+When adding dependencies, do not invent package names. Use official documentation,
+verify the package exists, explain why it is trusted, and wait for approval before
+running installation commands.
+\`\`\`
+
+This is not a complete defense, but it improves the default behavior. Pair it with technical enforcement so the agent cannot install first and explain later.
+
+## The product lesson
+
+HalluSquatting is a product-design problem as much as a package-security problem. If your agent UI makes execution feel like the default next step, users will approve too quickly. Better interfaces slow down only the dangerous moments: new package, new repo, new shell command, new credential request.
+
+That is the balance to aim for. Let agents move fast on reading, summarizing, and editing. Add friction when generated text becomes executable trust.
+
+## FAQ
+
+### What is HalluSquatting?
+
+HalluSquatting is an attack where a model invents a plausible package, repository, or URL, and an attacker registers that hallucinated name so an agent or developer installs malicious code.
+
+### Is HalluSquatting the same as dependency confusion?
+
+No. Dependency confusion abuses registry resolution and private package naming. HalluSquatting abuses model-generated names that sound real but may not exist yet.
+
+### How do you prevent AI agents from installing malicious packages?
+
+Require approval before install commands, review lockfile diffs, pin trusted actions, block risky lifecycle scripts, and scan dependency changes in CI. For team workflows, [start with Ship Safe](/signup) or compare cloud options on [pricing](/pricing).
+
+## Scan dependency changes before merge
+
+Run \`npx ship-safe ci --fail-on high\` in pull requests, then use [PR Guardian](/signup) when you want findings and remediation hints beside the code review.
+
+## Source
+
+- [Tom's Hardware: HalluSquatting attack against agentic AI workflows](https://www.tomshardware.com/tech-industry/cyber-security/hallusquatting-is-the-latest-agentic-ai-exploit-where-models-dream-up-potentially-malicious-urls-in-tool-calls-attack-exploits-a-fundamental-weakness-in-every-available-model)
+    `.trim(),
+  },
+  {
+    slug: 'google-dialogflow-cx-flaw-ai-chatbot-security-boundaries',
+    title: 'The Google Dialogflow CX Flaw Shows Why AI Chatbots Need Security Boundaries',
+    description: 'Google patched a Dialogflow CX vulnerability that could have exposed or manipulated customer chatbot conversations. The lesson for builders: chatbots are now production attack surfaces.',
+    date: '2026-07-14T12:00:00-05:00',
+    author: 'Ship Safe Team',
+    tags: ['AI security', 'chatbots', 'cloud security', 'data exposure'],
+    keywords: ['Dialogflow CX vulnerability', 'Google AI chatbot security', 'chatbot data exposure', 'AI customer service security', 'AI agent isolation', 'credential exposure', 'conversation hijacking', 'AI SaaS security'],
+    content: `
+AI chatbot security is now production security. Chatbots are no longer side projects: they handle support tickets, insurance questions, account lookups, refunds, onboarding, and sometimes financial or health data. That makes them part of the production security boundary.
+
+Axios reported that Google patched a critical Dialogflow CX flaw discovered by Varonis. According to the report, the issue could have allowed attackers to intercept or manipulate chatbot conversations and trick users into sharing sensitive data. Varonis said it found no evidence of exploitation before the patch.
+
+Even patched, the incident is a useful warning: if a chatbot can talk to customers, access context, or trigger tools, it is not just "AI UX." It is infrastructure.
+
+## The real risk is trust
+
+Users trust a chatbot because it appears inside a trusted product. That creates a phishing surface with better branding than most attackers can buy.
+
+If an attacker can influence an AI conversation, they may not need to breach the database immediately. They can ask the user for:
+
+- Password reset information
+- Account identifiers
+- Payment details
+- Insurance or health information
+- One-time codes
+- Internal support context
+
+That is why chatbot isolation matters. The bot should not be able to see everything, ask for everything, or act on everything.
+
+## What chatbot teams should review
+
+Start with the boundaries:
+
+- What data can the bot retrieve?
+- Which tools can it call?
+- Can it trigger account changes, refunds, password flows, or ticket escalation?
+- Are sensitive requests handed to a human or verified flow?
+- Are conversations logged, retained, and access-controlled?
+- Can support staff see secrets or tokens in transcripts?
+- Are API keys scoped only to the bot's required actions?
+
+Then look at prompt and retrieval paths:
+
+- Is untrusted customer input separated from system instructions?
+- Are retrieved documents treated as data, not instructions?
+- Are tool outputs allowed to change policy?
+- Are high-risk actions gated by deterministic checks?
+
+## What developers can do now
+
+For every AI chatbot, create a small threat model:
+
+| Question | Why it matters |
+| --- | --- |
+| What can the bot read? | Data exposure starts with overbroad retrieval. |
+| What can the bot write? | Tool access turns conversation bugs into account changes. |
+| What secrets can it touch? | Agent logs and transcripts often leak more than expected. |
+| Who reviews risky actions? | Human handoff is a boundary, not a feature checkbox. |
+
+Chatbot security should feel more like API security than prompt styling. The controls are permissions, isolation, logging, review, and least privilege.
+
+## How Ship Safe fits
+
+Ship Safe scans the surrounding app and automation for the mistakes that make AI tools unsafe:
+
+- Leaked API keys and chatbot provider tokens
+- Unsafe webhook handlers
+- Overbroad integration permissions
+- Agent and MCP configs that forward secrets
+- CI workflows that expose production credentials
+
+\`\`\`bash
+npx ship-safe scan
+\`\`\`
+
+If your chatbot is connected to customer data, it deserves the same release gate as your backend.
+
+For agent and tool integrations, the same boundary thinking applies to [MCP servers](/blog/mcp-security-is-the-new-api-security), [Hermes agents](/hermes), and CI workflows that carry production credentials.
+
+## A chatbot threat model in plain English
+
+Most chatbot reviews stop at model quality: is it helpful, does it answer correctly, does it stay on brand? Security review needs different questions.
+
+### Data access
+
+The bot should only retrieve the minimum data required for the conversation. A support bot that answers billing questions probably does not need full account export access. A returns bot does not need raw payment tokens. A healthcare assistant does not need unrelated patient history.
+
+### Tool access
+
+Every tool call should be categorized:
+
+- **Read-only:** lookup an order, fetch a help article, check subscription status.
+- **Low-risk write:** create a support ticket, add an internal note.
+- **High-risk write:** issue a refund, change an address, reset credentials, close an account.
+
+High-risk writes should be deterministic flows with explicit verification, not free-form model decisions.
+
+### Transcript access
+
+Chat transcripts can become sensitive records. They may contain account IDs, personal details, pasted credentials, support context, or regulated data. Limit who can search them. Redact secrets. Set retention rules. Treat transcript exports like customer data exports.
+
+### Human handoff
+
+Handoff is not only a UX feature. It is a security boundary. If the user asks for a sensitive change, the bot should hand the request to a verified flow or human reviewer instead of improvising.
+
+## Secure design patterns
+
+Good chatbot security is usually boring:
+
+- Separate system instructions from customer-controlled text.
+- Keep retrieval documents as data, not authority.
+- Give the bot scoped service accounts.
+- Use deterministic validators before tool execution.
+- Require user re-authentication for sensitive actions.
+- Log tool calls with request IDs.
+- Redact secrets from prompts, tool outputs, and transcripts.
+- Rate-limit conversation flows that request sensitive data.
+
+The hard part is discipline. A chatbot that can answer everything and do everything will feel magical in a demo. It will also create a large attack surface.
+
+## Release checklist
+
+Before shipping a customer-facing AI assistant, confirm:
+
+- The bot cannot reveal system prompts or hidden policy text.
+- Tool calls are allowlisted and scoped.
+- Sensitive writes require deterministic confirmation.
+- Customer input cannot override tool policy.
+- Logs do not store raw tokens or passwords.
+- Support staff access to transcripts is role-limited.
+- Prompt injection tests are part of QA.
+- Security review happens again when new tools are added.
+
+## Example: refund assistant boundary
+
+Consider a customer-support assistant that can help with refunds. A risky design gives the model a tool called \`issueRefund\` and lets it decide when to call it based on conversation context.
+
+A safer design splits the flow:
+
+- The model can explain refund policy.
+- The model can collect the order ID.
+- A deterministic service checks eligibility.
+- The user re-authenticates if needed.
+- The refund tool accepts only a validated refund request ID.
+- The model cannot directly choose amount, destination, or payment method.
+
+That turns the chatbot from an authority into an interface over policy. The distinction matters. Models are good at language. They should not be the only control deciding money movement, account recovery, or data disclosure.
+
+## Where prompt injection fits
+
+Prompt injection against chatbots is not always dramatic. It can be subtle:
+
+- A user asks the bot to reveal hidden support notes.
+- A retrieved document tells the bot to ignore policy.
+- A pasted email contains instructions aimed at the assistant.
+- A malicious webpage is summarized and becomes part of the conversation context.
+
+The fix is not one perfect system prompt. The fix is layers: keep untrusted content labeled, restrict tools, validate sensitive actions outside the model, and monitor abnormal tool-call patterns.
+
+## Metrics worth tracking
+
+If a chatbot is production-critical, measure security behavior:
+
+- Tool calls per conversation
+- Failed authorization attempts
+- Human handoff rate for sensitive requests
+- Redaction rate in transcripts
+- Prompt-injection test pass rate
+- Percentage of tools with scoped credentials
+
+Those metrics turn chatbot security from a launch checklist into an operating practice.
+
+## FAQ
+
+### What made the Dialogflow CX issue important?
+
+The reported flaw mattered because customer-facing AI conversations can carry sensitive data and user trust. If attackers can influence or observe those conversations, the chatbot becomes a phishing and data-exposure surface.
+
+### Should AI chatbots be treated like APIs?
+
+Yes. A chatbot that can retrieve data or call tools should be reviewed like an API client with scoped permissions, audit logs, rate limits, and deterministic checks around sensitive actions.
+
+### What should developers scan before shipping a chatbot?
+
+Scan for leaked provider keys, unsafe webhook handlers, overbroad integration scopes, transcript exposure, and agent or MCP configs that forward secrets. You can [run Ship Safe locally](/docs) or [save scan history in the dashboard](/signup).
+
+## Put chatbot checks in the release gate
+
+Before a chatbot reaches customers, run \`npx ship-safe scan\` and review high-risk findings around secrets, webhooks, CI permissions, and agent configuration.
+
+## Source
+
+- [Axios: Google patched AI chatbot flaw that could have exposed customer conversations](https://www.axios.com/2026/07/07/varonis-google-ai-agent-chatbot-security)
+    `.trim(),
+  },
+  {
+    slug: 'mcp-security-is-the-new-api-security',
+    title: 'MCP Security Is Becoming the New API Security',
+    description: 'Model Context Protocol servers are becoming the connective tissue for AI agents. That means capability claims, tool trust, prompt injection, and secret forwarding now need the same discipline teams apply to APIs.',
+    date: '2026-07-14T12:00:00-05:00',
+    author: 'Ship Safe Team',
+    tags: ['MCP', 'AI agents', 'prompt injection', 'application security'],
+    keywords: ['MCP security', 'Model Context Protocol security', 'MCP prompt injection', 'AI agent tool security', 'capability attestation', 'tool call boundary', 'ClawGuard', 'MCPSec', 'agentic AI security'],
+    content: `
+MCP security is becoming the new API security. For years, API security meant knowing which service could call which endpoint with which token. Agentic AI adds a new version of that problem: which model can call which tool through which MCP server with which credential.
+
+That is why MCP security is becoming the new API security.
+
+Recent research on the Model Context Protocol highlights risks that are structural, not cosmetic. MCP servers can sit between an AI agent and sensitive systems: files, repos, browsers, calendars, databases, cloud APIs, and internal services. Once a server is trusted, its outputs can influence the agent's next action.
+
+That is a powerful design. It is also a trust boundary.
+
+## The MCP risks to understand
+
+Three failure modes show up again and again:
+
+### 1. Capability claims without enough verification
+
+If a tool server says it can perform a safe action, how does the client verify what the server can really do? Capability declarations are useful, but declarations are not enforcement.
+
+### 2. Tool output becomes instruction
+
+An MCP server may return content from a webpage, file, issue, ticket, or document. That content can contain prompt injection. If the agent treats it as trusted instruction, the server becomes an injection path.
+
+### 3. Secrets cross boundaries quietly
+
+Many MCP configs pass environment variables, bearer tokens, or auth headers into tool servers. If the server is remote, compromised, misspelled, or overbroad, credentials leave the local trust boundary.
+
+## A practical MCP review checklist
+
+Before enabling an MCP server, ask:
+
+- Is the server local or remote?
+- Who maintains it?
+- What filesystem paths can it read?
+- What network destinations can it reach?
+- What credentials does it receive?
+- Does it need write access?
+- Can it execute shell commands?
+- Are tool calls logged?
+- Are destructive actions approved by a human?
+- Is untrusted content separated from trusted instructions?
+
+If those answers are fuzzy, the server should not touch production credentials.
+
+## The better mental model
+
+Do not think of MCP servers as plugins. Think of them as service accounts with a language-model interface.
+
+That means the normal rules apply:
+
+- Least privilege
+- Separate dev and prod credentials
+- Audit logs
+- Explicit allowlists
+- Human approval for destructive actions
+- No production secrets in demos
+- No remote tool server gets broad auth by default
+
+## What Ship Safe checks
+
+Ship Safe scans MCP and agent configuration for risky patterns:
+
+- Third-party MCP URLs receiving auth headers or high-value environment variables
+- MCP servers with broad filesystem access
+- Tool configs that mix untrusted input and write actions
+- Agent workflows that can act without approval
+- Secrets committed beside agent configs
+
+Run:
+
+\`\`\`bash
+npx ship-safe scan
+npx ship-safe red-team
+\`\`\`
+
+MCP makes agents useful because it gives them hands. Security work starts when you decide what those hands are allowed to touch.
+
+For concrete agent workflows, see the [Hermes page](/hermes). For release automation, pair MCP scanning with the [Ship Safe docs](/docs) and the hosted workflows on [pricing](/pricing).
+
+## Local MCP versus remote MCP
+
+Local servers are not automatically safe, but they are easier to reason about. A local filesystem MCP server might read files on your machine, but it does not need to receive your credentials over the network. A remote MCP server changes the model: now you are trusting another service with tool inputs, outputs, and often credentials.
+
+Use different defaults:
+
+| Server type | Safer default |
+| --- | --- |
+| Local read-only | Allow for development with path restrictions. |
+| Local write-capable | Require approval for destructive actions. |
+| Remote read-only | Review maintainer, logs, and data retention. |
+| Remote write-capable | Treat like a production integration. |
+| Remote with secrets | Avoid unless there is a strong reason and scoped credentials. |
+
+The riskiest pattern is a remote MCP server that receives production tokens and can execute broad actions. That is not a plugin. That is an external service account.
+
+## A bad config pattern
+
+\`\`\`json
+{
+  "servers": {
+    "deploy-helper": {
+      "url": "https://mcp.example-tools.dev/deploy",
+      "headers": {
+        "Authorization": "Bearer \${GITHUB_TOKEN}"
+      },
+      "env": {
+        "VERCEL_TOKEN": "\${VERCEL_TOKEN}"
+      }
+    }
+  }
+}
+\`\`\`
+
+This forwards high-value credentials to a remote server. Even if the server is honest, you have to trust its infrastructure, logs, dependencies, employees, and incident response. Use a narrow token created for that exact server, or keep the tool local.
+
+## What good looks like
+
+\`\`\`json
+{
+  "servers": {
+    "repo-reader": {
+      "command": "node",
+      "args": ["./tools/mcp/repo-reader.js"],
+      "env": {
+        "ROOT": "./src",
+        "MODE": "read-only"
+      }
+    }
+  }
+}
+\`\`\`
+
+This shape is easier to defend: local command, limited root, read-only mode, no production token. It may not cover every workflow, but it is a safer baseline.
+
+## MCP security is a lifecycle
+
+Review once is not enough. MCP servers evolve like APIs:
+
+- New tools are added.
+- Permissions grow.
+- Environment variables drift.
+- Local-only prototypes become shared team configs.
+- Demo tokens become production tokens.
+
+Add MCP configs to code review. Add them to scanning. Add them to onboarding docs. If a server can read code or act on a system, it belongs in your security inventory.
+
+## How prompt injection travels through MCP
+
+MCP does not create prompt injection by itself, but it can move injection across boundaries. A server might fetch a GitHub issue, Slack message, webpage, PDF, or ticket. That content is untrusted. If it tells the agent to call another tool, exfiltrate a file, or change its objective, the agent needs to treat that as data, not instruction.
+
+The safe pattern is:
+
+- Tool output is labeled as untrusted unless explicitly trusted.
+- Tool output cannot grant new permissions.
+- Tool output cannot change the system policy.
+- Tool output cannot trigger destructive actions without approval.
+- The agent explains the planned action before crossing a write boundary.
+
+This is the same lesson web security learned years ago: input is input, even when it comes through a useful integration.
+
+## Building an MCP inventory
+
+Create a small inventory for every server:
+
+| Field | Example |
+| --- | --- |
+| Name | github-reader |
+| Owner | platform team |
+| Location | local command |
+| Data access | repo read-only |
+| Credentials | GitHub token, read-only |
+| Write actions | none |
+| Approval required | yes for future write tools |
+| Logs | local audit file |
+
+The point is not bureaucracy. The point is to avoid the mystery state where nobody knows which server has which token.
+
+## Red flags during review
+
+Watch for:
+
+- Remote URLs with production tokens
+- Servers that ask for full filesystem roots
+- Tools named vaguely, like \`execute\`, \`run\`, or \`admin\`
+- Configs copied from demos
+- Shared tokens across multiple MCP servers
+- No owner listed for a server
+- Write tools without approval language
+- Output from external content used in later tool calls
+
+If an MCP server would scare you as a conventional API integration, it should scare you as an AI tool integration too.
+
+## FAQ
+
+### What is MCP security?
+
+MCP security is the practice of controlling which Model Context Protocol servers an agent can use, what data those servers can access, what credentials they receive, and which actions require approval.
+
+### Are local MCP servers safer than remote MCP servers?
+
+Local servers are easier to reason about, but not automatically safe. Remote MCP servers add extra trust questions because tool inputs, outputs, and sometimes credentials cross a network boundary.
+
+### What is the biggest MCP mistake?
+
+The highest-risk pattern is forwarding production tokens or broad auth headers to third-party MCP servers. Use scoped credentials, local tools, approval gates, and scan MCP configs before merge.
+
+## Scan MCP configs before they spread
+
+Run \`npx ship-safe scan\` before committing MCP or agent configuration. To keep a history of MCP findings across repos, [start a cloud scan](/signup).
+
+## Sources
+
+- [Breaking the Protocol: Security Analysis of MCP](https://arxiv.org/abs/2601.17549)
+- [ClawGuard: Runtime Security for Tool-Augmented LLM Agents](https://arxiv.org/abs/2604.11790)
+    `.trim(),
+  },
+  {
+    slug: 'microsoft-ai-vulnerability-scanning-defenders-attackers-race',
+    title: 'Microsoft Is Using AI to Find Windows Bugs. Attackers Are Doing the Same.',
+    description: 'Microsoft is using AI-assisted scanning to find and prioritize Windows vulnerabilities. That is the future for defenders, but attackers are using similar automation to compress exploit timelines.',
+    date: '2026-07-14T12:00:00-05:00',
+    author: 'Ship Safe Team',
+    tags: ['AI security', 'vulnerability management', 'DevSecOps', 'secure SDLC'],
+    keywords: ['Microsoft AI vulnerability scanning', 'MDASH', 'AI cyber defense', 'AI exploit discovery', 'vulnerability management', 'secure SDLC', 'AI security scanner', 'developer security automation'],
+    content: `
+AI vulnerability scanning is becoming part of modern software delivery. Microsoft is now using AI to help find and prioritize Windows vulnerabilities. That is good news for defenders. It is also a sign of where the whole industry is going.
+
+The same automation that helps a large engineering organization scan more code can help attackers search for weaknesses faster. The race is no longer "AI or no AI." It is whether defenders can put automation earlier in the development loop than attackers can put it in the exploitation loop.
+
+## What Microsoft's move signals
+
+According to recent coverage, Microsoft introduced an AI-driven system called MDASH, a multi-model agentic scanning harness used to scan Windows, prioritize potential vulnerabilities, and help engineers fix issues earlier.
+
+That is not replacing humans. It is changing where humans spend time. Instead of manually searching every corner, engineers review, validate, prioritize, and fix higher-signal findings.
+
+That is the right pattern for software teams of any size:
+
+- Let automation scan continuously.
+- Let humans make judgment calls.
+- Put fixes close to the code.
+- Fail risky changes before release.
+
+## Attackers get the same speedup
+
+The defensive story has an offensive mirror. Google has described incidents where attackers used AI to help exploit weaknesses. Other reports around advanced AI cyber capabilities point in the same direction: vulnerability discovery, exploit adaptation, and campaign orchestration are becoming cheaper.
+
+That does not mean every attacker instantly becomes elite. It means the window between "bug exists" and "bug is exploited" keeps shrinking.
+
+For developers, the implication is practical: scanning after deploy is too late.
+
+## What smaller teams should copy
+
+Most teams cannot build Microsoft's internal scanning infrastructure. They can copy the operating principle:
+
+- Run security checks on every pull request.
+- Treat dependency and config changes as security-sensitive.
+- Rank findings by severity and exploitability.
+- Block critical issues in CI.
+- Keep scan history so regressions are visible.
+- Review AI-agent and MCP configs like production code.
+
+The goal is not to create more alerts. The goal is to make the important alert arrive while the code is still fresh in the author's head.
+
+## The Ship Safe workflow
+
+Ship Safe brings that loop to normal developer teams:
+
+\`\`\`bash
+# local scan
+npx ship-safe scan
+
+# CI gate
+npx ship-safe ci --fail-on critical
+
+# deeper adversarial pass
+npx ship-safe red-team
+\`\`\`
+
+It checks for secrets, dependency risk, CI/CD exposure, MCP and agent misconfigurations, unsafe webhook patterns, and other release-blocking mistakes.
+
+AI has made both sides faster. The best response is not slower process. It is earlier signal.
+
+That is the same reason Ship Safe puts local scans, CI checks, and PR Guardian into one workflow. Start with the [docs](/docs), then use [pricing](/pricing) when scan history, team workflows, and hosted automation become useful.
+
+## What "earlier signal" means in practice
+
+Earlier signal is not a dashboard someone checks once a month. It is feedback where developers already make decisions:
+
+- In the terminal before a push
+- In the pull request before review
+- In CI before deploy
+- In the issue or ticket where the fix is tracked
+- In the dependency update before the merge button
+
+If a finding arrives after production exposure, it is incident response. If it arrives while the author is still in the diff, it is engineering feedback.
+
+## A lightweight AI-era security loop
+
+Teams do not need a giant platform to start. A good loop can be simple:
+
+1. Run a local scan before opening the PR.
+2. Run a stricter scan in CI.
+3. Fail only on high-confidence critical issues at first.
+4. Track repeated findings so the team learns what keeps coming back.
+5. Add deeper red-team scans for releases, auth changes, payments, and AI-agent changes.
+6. Review the rules quarterly as the stack changes.
+
+That gives developers the thing they actually need: a short list of risks worth fixing now.
+
+## Where AI helps defenders most
+
+AI is useful when it reduces the distance between a finding and a fix:
+
+- Summarizing why the issue matters
+- Grouping duplicate findings
+- Explaining exploitability in plain language
+- Suggesting a safer pattern
+- Translating a finding into a PR comment
+- Prioritizing what blocks release versus what goes into backlog
+
+It is less useful when it produces a thousand vague warnings. The future of security tooling is not "more alerts with AI prose." It is better triage, better context, and faster repair.
+
+## The takeaway for small teams
+
+Attackers are automating. Large vendors are automating. Small teams should automate too, but with taste: put checks close to code, scope the noise, and make the output actionable.
+
+Security does not need to slow the team down when it is part of the workflow. It slows the team down when it arrives late.
+
+## What to automate first
+
+If you are starting from zero, do not try to automate every security control in one week. Start with the checks that catch the most common release-ending mistakes:
+
+1. Secret scanning
+2. Dependency risk
+3. Dangerous CI permissions
+4. Publicly exposed environment config
+5. Webhook signature verification
+6. Agent and MCP config review
+
+These are high-leverage because they map to real incident chains. A single leaked token or overbroad CI job can matter more than dozens of low-severity code smells.
+
+## What humans should still own
+
+Automation should not make final risk decisions alone. Humans should own:
+
+- Whether a finding is acceptable for the business context
+- Whether a remediation changes product behavior
+- Whether a dependency is worth the trust tradeoff
+- Whether a new AI tool should receive production credentials
+- Whether an exception expires and who reviews it
+
+The best security automation creates better human decisions. It does not pretend judgment is obsolete.
+
+## A practical PR comment
+
+A useful AI-assisted security comment looks like this:
+
+\`\`\`text
+Critical: this workflow gives an AI release helper write-all permissions and
+exposes VERCEL_TOKEN. If the action is compromised or repointed, it can deploy
+with production credentials. Pin the action to a SHA and reduce permissions to
+contents: read unless deployment write access is required.
+\`\`\`
+
+That is actionable. It explains impact, names the risky file, and suggests the fix. That is the quality bar teams should demand from AI-assisted scanners.
+
+## Why this belongs in release work
+
+AI vulnerability scanning should not live in a separate security ceremony. It belongs in release work because releases are where risk becomes real. A vulnerable dependency, leaked token, or unsafe agent config is much cheaper to fix before the release branch moves forward.
+
+The point is not to make every developer a security specialist. The point is to give every developer enough signal to avoid shipping the obvious, high-impact mistakes that attackers increasingly automate.
+
+## FAQ
+
+### What is AI vulnerability scanning?
+
+AI vulnerability scanning uses models or agentic systems to help find, rank, explain, or remediate security issues. The strongest use case is not replacing engineers, but giving them earlier and clearer signals.
+
+### Does AI make attackers faster too?
+
+Yes. Attackers can use AI to summarize code, adapt exploit attempts, triage targets, and automate campaign steps. That makes pre-deploy scanning and CI gates more important.
+
+### Where should small teams start?
+
+Start with secrets, dependency risk, dangerous CI permissions, webhook verification, and agent or MCP configuration. Run local scans first, then [start a free Ship Safe account](/signup) when you need history and team review.
+
+## Bring AI security into the PR
+
+Run \`npx ship-safe ci --fail-on critical\` in CI so the important findings arrive while the code is still fresh, not after the release has shipped.
+
+## Sources
+
+- [Windows Central: Windows uses AI to find and help fix vulnerabilities](https://www.windowscentral.com/microsoft/windows-11/windows-now-uses-ai-to-find-and-help-fix-vulnerabilities-but-its-not-replacing-humans)
+- [AP: Google disrupts hackers using AI to exploit a digital weakness](https://apnews.com/article/926aea7f7dc5e0e61adce3273c55c6d4)
+    `.trim(),
+  },
+  {
     slug: 'vercel-april-2026-ai-integration-supply-chain-attack',
     title: 'The Vercel April 2026 Incident: How a Compromised AI Integration Became a Supply Chain Attack',
     description: 'In April 2026, attackers breached Context.ai, compromised a Vercel employee account, and escalated through Google Workspace into Vercel environments - exploiting non-sensitive environment variable designations. Updated with the CEO statement. Here is the confirmed attack chain and the AgenticSupplyChainAgent rules that detect it.',

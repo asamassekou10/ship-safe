@@ -30,6 +30,20 @@ const coverage = [
   'PR review',
 ];
 
+const proofItems = [
+  { value: 'MIT', label: 'open-source CLI' },
+  { value: '24', label: 'specialized agents' },
+  { value: 'SARIF', label: 'GitHub-ready output' },
+  { value: 'CI', label: 'pipeline gating' },
+];
+
+const workflowSteps = [
+  { label: 'Scan', detail: 'Run locally, in CI, or from the dashboard.' },
+  { label: 'Triage', detail: 'Rank findings by severity, confidence, and exploitability.' },
+  { label: 'Fix', detail: 'Turn issues into remediation steps and PR comments.' },
+  { label: 'Guard', detail: 'Keep watching repos, dependencies, advisories, and agent config.' },
+];
+
 const compareRows = [
   { label: 'Setup time',           legacy: 'Hours of config',        ours: 'One command' },
   { label: 'Triage',               legacy: 'Manual',                  ours: 'Severity + exploitability ranked' },
@@ -80,6 +94,33 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
       {/* ── Hero ───────────────────────────────────── */}
       <Hero stars={stars} downloads={downloads} />
 
+      {/* ── Proof strip ────────────────────────────── */}
+      <section className={styles.proofStrip} aria-label="Ship Safe proof points">
+        <div className={styles.proofStripInner}>
+          <span className={styles.proofStripLabel}>// trusted signals</span>
+          <div className={styles.proofStripGrid}>
+            <div>
+              <strong><StatsCounter value={stars} /></strong>
+              <span>GitHub stars</span>
+            </div>
+            <div>
+              <strong><StatsCounter value={downloads} /></strong>
+              <span>npm downloads</span>
+            </div>
+            {proofItems.map((item) => (
+              <div key={item.label}>
+                <strong>{item.value}</strong>
+                <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
+          <div className={styles.proofStripActions}>
+            <Link href="/signup" className={styles.inlineCta}>Start free scan</Link>
+            <Link href="/pricing" className={styles.inlineLink}>Compare plans</Link>
+          </div>
+        </div>
+      </section>
+
       {/* ── Coverage marquee ──────────────────────── */}
       <section className={styles.marquee} aria-label="Ship Safe coverage">
         <span className={styles.marqueeLabel}>// coverage</span>
@@ -99,16 +140,16 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
       <section id="features" className={styles.section}>
         <div className={styles.sectionHeader} data-animate>
           <span className={styles.sectionLabel}>// 01 — workflow</span>
-          <h2>One security loop, scan to action.</h2>
-          <p>Most tools stop at findings. Ship Safe helps you decide what matters, fix it, and keep watching.</p>
+          <h2>Security that stays in your workflow.</h2>
+          <p>Most tools stop at findings. Ship Safe keeps the full loop connected: scan, triage, fix, and guard every release.</p>
         </div>
 
         <CursorGlow className={styles.bento}>
           <article className={`${styles.bentoCard} ${styles.bentoLg}`} data-glow data-animate>
             <div className={styles.bentoCopy}>
               <span className={styles.bentoStep}>01</span>
-              <h3>Scan before you ship</h3>
-              <p>One command runs across code, deps, secrets, config, CI/CD, AI usage, and mobile risk — local or cloud.</p>
+              <h3>Monitor in one command</h3>
+              <p>Run the scanner locally, in CI, or in the cloud across code, deps, secrets, config, CI/CD, AI usage, and mobile risk.</p>
               <div className={styles.bentoTags}>
                 <span>One-command CLI</span>
                 <span>Hosted history</span>
@@ -129,21 +170,21 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
 
           <article className={styles.bentoCard} data-glow data-animate>
             <span className={styles.bentoStep}>02</span>
-            <h3>Fix what matters</h3>
-            <p>Prioritize the risks that hurt your app first, then turn them into concrete fixes and team work.</p>
+            <h3>Root-cause with context</h3>
+            <p>See why a finding matters, where it came from, what changed, and which fix should happen first.</p>
             <div className={styles.bentoTags}>
-              <span>AI remediation</span>
+              <span>Exploitability rank</span>
               <span>GitHub issues</span>
             </div>
           </article>
 
           <article className={styles.bentoCard} data-glow data-animate>
             <span className={styles.bentoStep}>03</span>
-            <h3>Stay ahead of new risk</h3>
-            <p>Track fresh advisories, security news, vendor blogs, and agent signals in one place — ranked against your repos.</p>
+            <h3>Break production less</h3>
+            <p>Catch secrets, risky config, vulnerable packages, and AI-agent exposure before they become release blockers.</p>
             <div className={styles.bentoTags}>
-              <span>Intelligence</span>
-              <span>Breach playbooks</span>
+              <span>PR checks</span>
+              <span>CI gates</span>
             </div>
           </article>
 
@@ -159,12 +200,29 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
           <article className={`${styles.bentoCard} ${styles.bentoMini} ${styles.bentoAccent}`} data-glow data-animate>
             <div className={styles.statBig}>
               <strong>
-                <StatsCounter value={23} />
+                <StatsCounter value={24} />
               </strong>
               <span>specialized AI security agents working in parallel</span>
             </div>
           </article>
         </CursorGlow>
+
+        <div className={styles.workflowRail} data-animate aria-label="Ship Safe connected workflow">
+          {workflowSteps.map((step, idx) => (
+            <div key={step.label} className={styles.workflowStep}>
+              <span>{String(idx + 1).padStart(2, '0')}</span>
+              <strong>{step.label}</strong>
+              <p>{step.detail}</p>
+            </div>
+          ))}
+        </div>
+        <div className={styles.sectionCta} data-animate>
+          <p>Ready to see this loop on your own repo?</p>
+          <div className={styles.heroActions}>
+            <Link href="/signup" className={styles.primaryCta}>Scan your repo <span aria-hidden="true">→</span></Link>
+            <Link href="#get-started" className={styles.secondaryCta}>Try the CLI</Link>
+          </div>
+        </div>
       </section>
 
       {/* ── Triage / PR Guardian ──────────────────── */}
@@ -173,7 +231,7 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
           <div className={styles.tiltedFrame}>
             <Image
               src="/PR%20Guardian.png"
-              alt="Ship Safe PR Guardian reviewing a pull request"
+              alt="Ship Safe PR Guardian automation settings"
               width={2700}
               height={1298}
               sizes="(max-width: 1024px) 100vw, 600px"
@@ -188,14 +246,18 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
           <span className={styles.sectionLabel}>// 02 — triage</span>
           <h2>Catch risk before it merges.</h2>
           <p>
-            PR Guardian reviews every pull request for secrets, risky config, and dependency changes —
-            commenting inline so reviewers see the security context next to the diff.
+            PR Guardian turns scan context into pull-request automation: risky lines, dependency changes,
+            AI-agent config, fix hints, and threshold gates beside the code reviewers are already reading.
           </p>
           <ul className={styles.checkList}>
             <li>Inline comments on the exact lines that introduce risk.</li>
             <li>Severity, confidence, and a one-line remediation hint.</li>
             <li>Threshold gates that fail the check, not just warn.</li>
           </ul>
+          <div className={styles.heroActions}>
+            <Link href="/signup" className={styles.primaryCta}>Set up PR Guardian <span aria-hidden="true">→</span></Link>
+            <Link href="/docs" className={styles.secondaryCta}>Read CI docs</Link>
+          </div>
         </div>
       </section>
 
@@ -227,18 +289,22 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
       </section>
 
       {/* ── Output: real CLI terminal + serif manifesto ─── */}
-      <section className={styles.outputSection}>
+      <section className={styles.outputSection} id="get-started">
         <div className={styles.outputInner}>
           <div className={styles.outputHead} data-animate>
-            <span className={styles.sectionLabel}>// 05 — output</span>
+            <span className={styles.sectionLabel}>// 05 — get started</span>
             <p className={styles.outputLead}>
-              Agents don&apos;t read your security docs. We do — for them.
+              Five seconds to your first security report.
             </p>
-            <h2>Real terminal output. Not a screenshot.</h2>
+            <h2>Run locally before you connect anything.</h2>
             <p className={styles.outputBlurb}>
-              Every scan ranks findings by exploitability against your actual stack. Pipe to <code>--sarif</code>,{' '}
-              <code>--github-pr</code>, or fail the build with <code>--fail-on critical</code> — your call.
+              Start with <code>npx ship-safe scan</code>. Add <code>--sarif</code>, <code>--github-pr</code>,
+              or <code>--fail-on critical</code> when you are ready to wire the same signal into CI.
             </p>
+            <div className={styles.heroActions}>
+              <Link href="/docs" className={styles.secondaryCta}>Open setup docs</Link>
+              <Link href="/signup" className={styles.primaryCta}>Save scan history <span aria-hidden="true">→</span></Link>
+            </div>
           </div>
           <div className={styles.outputMedia} data-animate>
             <CodeWindow />
@@ -302,6 +368,10 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
             <span className={styles.sectionLabel}>// 07 — pricing</span>
             <h2>Free CLI. Cloud when you need it.</h2>
             <p>Start with the open-source scanner. Add the hosted dashboard for history, teams, agents, and Security Intelligence.</p>
+            <div className={styles.heroActions}>
+              <Link href="/signup" className={styles.primaryCta}>Start with cloud <span aria-hidden="true">→</span></Link>
+              <Link href="/pricing" className={styles.secondaryCta}>View pricing</Link>
+            </div>
           </div>
           <div className={styles.pricingCards}>
             <div className={styles.priceCard} data-animate>
@@ -316,6 +386,15 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
               <p>Scan history, teams, AI-assisted fixes, agents, PR Guardian, and Security Intelligence.</p>
               <Link href="/pricing" className={styles.priceLink}>See plans →</Link>
             </div>
+          </div>
+          <div className={styles.dashboardPreview} data-animate>
+            <Image
+              src="/Dashboard.png"
+              alt="Ship Safe hosted dashboard overview"
+              width={2458}
+              height={1280}
+              sizes="(max-width: 1024px) 100vw, 760px"
+            />
           </div>
         </div>
       </section>

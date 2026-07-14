@@ -13,15 +13,15 @@ export default async function CheckoutPage({
 }: {
   searchParams: Promise<{ plan?: string }>;
 }) {
-  const session = await auth();
-  if (!session?.user?.id || !session.user.email) {
-    redirect('/login');
-  }
-
   const { plan } = await searchParams;
 
   if (plan !== 'pro' && plan !== 'team') {
     redirect('/pricing');
+  }
+
+  const session = await auth();
+  if (!session?.user?.id || !session.user.email) {
+    redirect(`/signup?callbackUrl=/app/checkout%3Fplan%3D${plan}`);
   }
 
   const user = await prisma.user.findUnique({
@@ -71,7 +71,7 @@ export default async function CheckoutPage({
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
-          30-day money-back guarantee · Cancel anytime
+          Cancel anytime
         </p>
       </div>
 
