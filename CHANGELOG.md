@@ -6,6 +6,40 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [9.5.0] — 2026-07-13 — Trust Boundary (in progress)
+
+The attack surface has moved into the AI developer toolchain. This release
+line adds coverage for the threats landing in mid-2026 — starting with the AI
+model supply chain.
+
+### Added
+- **ModelScanAgent** (25th agent, Supply Chain category) — statically inspects
+  ML model weight files for code-execution payloads **without unpickling**:
+  - Opens pickle-based weights that other agents skip (binary, over the text
+    cap): `.pkl`/`.pickle`/`.pt`/`.pth`/`.ckpt`/`.bin`/`.joblib`/`.dill`.
+  - `MODEL_PICKLE_CODE_EXECUTION` (critical) — dangerous callables in the
+    pickle stream (`os.system`, `subprocess`, `builtins.exec/eval`, `pty.spawn`,
+    …), scanning head + tail so payloads at either end are caught, and reading
+    inside PyTorch zip containers.
+  - `MODEL_UNSAFE_PICKLE_FORMAT` (high) — pickle-serialized weights present at
+    all; steer to safetensors.
+  - `MODEL_EVASION_ARCHIVE` (high) — a model file wrapped in 7z/RAR to dodge
+    scanners (the Hugging Face PickleScan-evasion technique).
+  - `MODEL_TORCH_LOAD_UNSAFE` / `MODEL_PICKLE_LOAD_SOURCE` — source-level
+    unsafe loaders (`torch.load` without `weights_only=True`, `pickle`/`joblib`/
+    `dill` loads). Maps to CWE-502, CWE-506; references PickleScan
+    CVE-2025-10155/56/57.
+  - `.safetensors`/`.gguf`/`.onnx` are treated as safe and skipped; ambiguous
+    `.bin` requires a positive pickle/zip signature to avoid false positives.
+
+### Changed
+- Agent count 24 → 25 across CLI, README, docs, and marketing site.
+
+### Tests
+- 7 new tests (212 → 219): payload detection, unsafe-format flagging,
+  safetensors safety, `.bin` false-positive guard, archive evasion, and the
+  source-level `torch.load` loader (positive and negative).
+
 ## [9.4.1] — 2026-07-13 — Interactive shell stability fix
 
 ### Fixed

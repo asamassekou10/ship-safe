@@ -8,14 +8,14 @@ const ogImage = 'https://www.shipsafecli.com/og1.png';
 
 export const metadata: Metadata = {
   title: 'Ship Safe — AI Agent Security Scanner for Developers',
-  description: '24 AI security agents scan your codebase for LLM vulnerabilities, MCP configuration security issues, RAG poisoning, Claude Managed Agent misconfigs, secrets, and dependency CVEs. OWASP Agentic AI Top 10 mapping, live advisory feeds. Free CLI.',
+  description: '25 AI security agents scan your codebase for LLM vulnerabilities, MCP configuration security issues, RAG poisoning, Claude Managed Agent misconfigs, secrets, and dependency CVEs. OWASP Agentic AI Top 10 mapping, live advisory feeds. Free CLI.',
   keywords: ['AI agent security scanner', 'LLM vulnerability CLI', 'MCP configuration security', 'RAG poisoning prevention', 'prevent RAG poisoning', 'application security scanner', 'AI security agents', 'secret scanner', 'OWASP Agentic AI Top 10', 'memory poisoning detection', 'prompt injection scanner', 'DevSecOps tool', 'free security scanner', 'open source SAST'],
   alternates: {
     canonical: 'https://www.shipsafecli.com',
   },
   openGraph: {
     title: 'Ship Safe — AI Agent Security Scanner for Developers',
-    description: '24 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
+    description: '25 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
     type: 'website',
     url: 'https://www.shipsafecli.com',
     siteName: 'Ship Safe',
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Ship Safe — AI Agent Security Scanner for Developers',
-    description: '24 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
+    description: '25 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
     images: [ogImage],
   },
 };
@@ -42,7 +42,7 @@ const jsonLd = {
         price: '0',
         priceCurrency: 'USD',
       },
-      description: '24 AI security agents scan your codebase for secrets, vulnerabilities, memory poisoning, Hermes Agent misconfigurations, and dependency CVEs in one command.',
+      description: '25 AI security agents scan your codebase for secrets, vulnerabilities, memory poisoning, Hermes Agent misconfigurations, and dependency CVEs in one command.',
       url: 'https://www.shipsafecli.com',
       downloadUrl: 'https://www.npmjs.com/package/ship-safe',
       softwareVersion: '9.4.1',
