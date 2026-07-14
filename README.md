@@ -37,7 +37,7 @@ No signup. No API key required for scanning. Works offline for core checks.
 # Interactive REPL: scan, fix, and ask questions in one session
 npx ship-safe
 
-# Full audit: secrets + 28 agents + deps + remediation plan
+# Full audit: secrets + 29 agents + deps + remediation plan
 npx ship-safe audit .
 
 # Interactive fix agent: plan, diff, approve, verify
@@ -132,6 +132,7 @@ All agents run in parallel. Each skips irrelevant projects automatically.
 | **TrustBoundaryAgent** | Agentic | GhostApproval symlink attacks (config-named links into `~/.ssh`/`~/.aws`/`.env`), repo symlinks escaping the tree, and Friendly Fire run-on-review instructions in agent-read docs (CWE-59, CWE-61) |
 | **SlopSquatAgent** | Supply Chain | Hallucinated / phantom package imports (slopsquatting) — bare imports not declared, installed, or builtin, plus known AI-hallucinated names (CWE-1357) |
 | **ClickFixAgent** | Supply Chain | ClickFix / fake-CAPTCHA paste-and-run lures (fake error + Win+R/Ctrl+V/command-bar keystrokes, PowerShell cradles) and fake-installer npm lifecycle scripts (CWE-1357, CWE-506) |
+| **InstallGuardAgent** | Supply Chain | npm worm behaviors in lifecycle scripts (credential harvesting, env exfiltration, destructive `rm -rf`, obfuscated `node -e`) and weaponized `binding.gyp` node-gyp actions (CWE-506, CWE-829) |
 
 **Post-processors:** ScoringEngine Â· VerifierAgent (secrets liveness) Â· DeepAnalyzer (LLM taint analysis)
 
