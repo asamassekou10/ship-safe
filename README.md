@@ -2,7 +2,7 @@
   <img src=".github/assets/ship-safe-logo-2026.png" alt="Ship Safe Logo" width="180" />
 </p>
 <p align="center"><strong>Find risky code, AI-agent vulnerabilities, and supply-chain issues before they ship.</strong></p>
-<p align="center"><a href="https://shipsafecli.com">Website</a> · <a href="https://shipsafecli.com/docs">Docs</a> · <a href="https://shipsafecli.com/pricing">Pricing</a> · <a href="https://shipsafecli.com/blog">Blog</a></p>
+<p align="center"><a href="https://shipsafecli.com">Website</a> Â· <a href="https://shipsafecli.com/docs">Docs</a> Â· <a href="https://shipsafecli.com/pricing">Pricing</a> Â· <a href="https://shipsafecli.com/blog">Blog</a></p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/ship-safe"><img src="https://badge.fury.io/js/ship-safe.svg" alt="npm version" /></a>
@@ -37,7 +37,7 @@ No signup. No API key required for scanning. Works offline for core checks.
 # Interactive REPL: scan, fix, and ask questions in one session
 npx ship-safe
 
-# Full audit: secrets + 26 agents + deps + remediation plan
+# Full audit: secrets + 27 agents + deps + remediation plan
 npx ship-safe audit .
 
 # Interactive fix agent: plan, diff, approve, verify
@@ -123,15 +123,16 @@ All agents run in parallel. Each skips irrelevant projects automatically.
 | **GitHistoryScanner** | Secrets | Leaked secrets in git commit history |
 | **CICDScanner** | CI/CD | Pipeline poisoning, unpinned actions, secret logging (OWASP CI/CD Top 10) |
 | **APIFuzzer** | API | Routes without auth, mass assignment, GraphQL introspection, debug endpoints |
-| **ManagedAgentScanner** | AI/LLM | Claude Managed Agent misconfigs: always_allow policies, unrestricted networking (ASI-03–ASI-07) |
-| **HermesSecurityAgent** | AI/LLM | Tool registry poisoning, function-call injection, skill permission drift (ASI-01–ASI-10) |
+| **ManagedAgentScanner** | AI/LLM | Claude Managed Agent misconfigs: always_allow policies, unrestricted networking (ASI-03âASI-07) |
+| **HermesSecurityAgent** | AI/LLM | Tool registry poisoning, function-call injection, skill permission drift (ASI-01âASI-10) |
 | **AgentAttestationAgent** | Supply Chain | Unpinned agent versions, missing integrity hashes, unsigned manifests (ASI-10, SLSA L0) |
 | **AgenticSupplyChainAgent** | Supply Chain | Over-privileged AI CI actions, OAuth scope creep, unsigned AI webhook receivers (ASI-02, ASI-06) |
 | **RobloxSecurityAgent** | Supply Chain | Malicious Roblox/Luau Toolbox assets (runtime asset injection, `rbxassetid://` loaders, `HttpEnabled`, payloads hidden in instance attributes) + cross-platform ClickFix paste-and-run lures |
 | **ModelScanAgent** | Supply Chain | Code-execution payloads in ML model weights (pickle opcodes in `.pt`/`.pkl`/`.ckpt`), `torch.load` without `weights_only`, scanner-evasion archives (CWE-502, CWE-506) |
 | **TrustBoundaryAgent** | Agentic | GhostApproval symlink attacks (config-named links into `~/.ssh`/`~/.aws`/`.env`), repo symlinks escaping the tree, and Friendly Fire run-on-review instructions in agent-read docs (CWE-59, CWE-61) |
+| **SlopSquatAgent** | Supply Chain | Hallucinated / phantom package imports (slopsquatting) — bare imports not declared, installed, or builtin, plus known AI-hallucinated names (CWE-1357) |
 
-**Post-processors:** ScoringEngine · VerifierAgent (secrets liveness) · DeepAnalyzer (LLM taint analysis)
+**Post-processors:** ScoringEngine Â· VerifierAgent (secrets liveness) Â· DeepAnalyzer (LLM taint analysis)
 
 ---
 
@@ -140,14 +141,14 @@ All agents run in parallel. Each skips irrelevant projects automatically.
 ```
 $ ship-safe
 
-  ███████╗██╗  ██╗██╗██████╗     ███████╗ █████╗ ███████╗███████╗
+  âââââââââââ  âââââââââââââ     ââââââââ ââââââ ââââââââââââââââ
   ...
 
-  v9.4.1  ·  DeepSeek  ·  ~/my-project
+  v9.4.1  Â·  DeepSeek  Â·  ~/my-project
 
-  /scan to find issues  ·  /agent to fix them  ·  /help for more
+  /scan to find issues  Â·  /agent to fix them  Â·  /help for more
 
-shipsafe ›
+shipsafe âº
 ```
 
 | Command | What it does |
@@ -190,9 +191,9 @@ jobs:
 
 ## LLM Support
 
-Works with any provider — auto-detected from environment variables. Use `--provider <name>` to override.
+Works with any provider â auto-detected from environment variables. Use `--provider <name>` to override.
 
-Anthropic · OpenAI · Google · DeepSeek · Groq · Together · Mistral · xAI · Perplexity · Ollama · LM Studio · any OpenAI-compatible endpoint
+Anthropic Â· OpenAI Â· Google Â· DeepSeek Â· Groq Â· Together Â· Mistral Â· xAI Â· Perplexity Â· Ollama Â· LM Studio Â· any OpenAI-compatible endpoint
 
 No API key required for scanning. AI is optional.
 
@@ -222,7 +223,7 @@ docs/
 
 ## Contributing
 
-1. Fork · add your pattern, agent, or config · open a PR
+1. Fork Â· add your pattern, agent, or config Â· open a PR
 2. See [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ---
@@ -245,4 +246,4 @@ Ship Safe is MIT-licensed and free forever.
 
 ---
 
-**Ship fast. Ship safe.** — [shipsafecli.com](https://shipsafecli.com)
+**Ship fast. Ship safe.** â [shipsafecli.com](https://shipsafecli.com)

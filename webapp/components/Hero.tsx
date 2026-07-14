@@ -213,7 +213,7 @@ export default function Hero({ stars, downloads }: Props) {
               className={styles.tabular}
               title={`${formatNumber(stars)} stars · ${formatNumber(downloads)} downloads`}
             >
-              26 agents
+              27 agents
             </span>
           </motion.div>
 

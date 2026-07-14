@@ -44,15 +44,27 @@ model supply chain.
   - `AGENT_RUN_ON_REVIEW` (medium) — docs directing the agent to run code during
     setup or its own review pass. Maps to CWE-59, CWE-61, CWE-77.
 
+- **SlopSquatAgent** (27th agent, Supply Chain category) — detects hallucinated
+  ("slopsquatting" / HalluSquatting) package imports, offline and structurally:
+  - `SLOPSQUAT_PHANTOM_IMPORT` (medium / low confidence) — a bare import that is
+    not a Node builtin, not declared in package.json, and not present in
+    node_modules, so it will not resolve. If an AI assistant invented the name,
+    an attacker can register it and ship malware — the phantom slot is the
+    attack surface.
+  - `SLOPSQUAT_KNOWN_HALLUCINATION` (high) — import of a documented AI-invented
+    package name. Excludes the project's own package name, scoped packages
+    resolved correctly. Maps to CWE-1357, CWE-829.
+
 ### Changed
-- Agent count 24 → 26 across CLI, README, docs, and marketing site.
+- Agent count 24 → 27 across CLI, README, docs, and marketing site.
 
 ### Tests
-- 13 new tests (212 → 225): ModelScan payload detection, unsafe-format flagging,
+- 19 new tests (212 → 231): ModelScan payload detection, unsafe-format flagging,
   safetensors safety, `.bin` false-positive guard, archive evasion, the
   source-level `torch.load` loader; plus TrustBoundary symlink (sensitive /
   escaping / benign) and Friendly Fire (curl|bash, run-on-review, clean-README)
-  coverage.
+  coverage; plus SlopSquat phantom-import, known-hallucination, and
+  false-positive guards (declared / installed / builtin / self / scoped).
 
 ## [9.4.1] — 2026-07-13 — Interactive shell stability fix
 
