@@ -36,6 +36,7 @@ export { RobloxSecurityAgent } from './roblox-security-agent.js';
 export { ModelScanAgent } from './model-scan-agent.js';
 export { TrustBoundaryAgent } from './trust-boundary-agent.js';
 export { SlopSquatAgent } from './slopsquat-agent.js';
+export { ClickFixAgent } from './clickfix-agent.js';
 export { ABOMGenerator } from './abom-generator.js';
 export { VerifierAgent } from './verifier-agent.js';
 export { DeepAnalyzer } from './deep-analyzer.js';
@@ -45,7 +46,7 @@ export { PolicyEngine } from './policy-engine.js';
 export { HTMLReporter } from './html-reporter.js';
 
 /**
- * Create a fully configured orchestrator with all 27 scanning agents.
+ * Create a fully configured orchestrator with all 28 scanning agents.
  * (VerifierAgent and DeepAnalyzer run as post-processors, not in the agent pool.)
  *
  * Plugin system: if rootPath is provided, custom agents from
@@ -80,6 +81,7 @@ import { RobloxSecurityAgent as RobloxSecurityAgentClass } from './roblox-securi
 import { ModelScanAgent as ModelScanAgentClass } from './model-scan-agent.js';
 import { TrustBoundaryAgent as TrustBoundaryAgentClass } from './trust-boundary-agent.js';
 import { SlopSquatAgent as SlopSquatAgentClass } from './slopsquat-agent.js';
+import { ClickFixAgent as ClickFixAgentClass } from './clickfix-agent.js';
 import { loadPlugins } from '../utils/plugin-loader.js';
 
 const BUILT_IN_AGENTS = () => [
@@ -110,6 +112,7 @@ const BUILT_IN_AGENTS = () => [
   new ModelScanAgentClass(),
   new TrustBoundaryAgentClass(),
   new SlopSquatAgentClass(),
+  new ClickFixAgentClass(),
 ];
 
 /** Synchronous build — no plugin support. Used by legacy callers. */

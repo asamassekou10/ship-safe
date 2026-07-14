@@ -2,35 +2,26 @@
  * Roblox / Game-Asset Supply-Chain Agent
  * ======================================
  *
- * Detects the malicious-asset supply-chain and social-engineering attack class
- * that targets Roblox / Luau developers, plus the cross-platform "ClickFix"
- * paste-and-run lure that targets developers everywhere.
+ * Detects the malicious game-asset supply-chain attack class that targets
+ * Roblox / Luau developers. (The cross-platform "ClickFix" paste-and-run lure
+ * that this incident also surfaced is now its own first-class ClickFixAgent.)
  *
- * Two attack families:
- *
- *   1. GAME-ASSET SUPPLY CHAIN (Roblox Toolbox / Marketplace)
- *      A free model (footballer, anime character, game asset) is inserted into
- *      a place during prototyping. It carries obfuscated Luau that:
- *        - downloads a second-stage model at runtime via game:GetObjects /
- *          require(assetId)  (rbxassetid://...)
- *        - enables HttpService for exfiltration / C2
- *        - removes an internal version/detection guard before running it
- *        - stores its payload in an INSTANCE ATTRIBUTE (not script source) so
- *          source-only scanners never see it. In a Rojo-managed repo this
- *          serializes to a base64 <BinaryString name="AttributesSerialize">
- *          blob inside the .rbxmx / .rbxlx XML.
- *
- *   2. CLICKFIX SOCIAL ENGINEERING (cross-platform)
- *      A fake error / CAPTCHA dialog ("Error 501", "verify you are human")
- *      instructs the developer to copy text and run it via a keystroke
- *      sequence (Ctrl+C -> Shift+F5 -> Ctrl+V -> Enter, or Win+R). Lures show
- *      up in HTML overlays, READMEs, docs, and embedded UI text.
+ * GAME-ASSET SUPPLY CHAIN (Roblox Toolbox / Marketplace)
+ *   A free model (footballer, anime character, game asset) is inserted into
+ *   a place during prototyping. It carries obfuscated Luau that:
+ *     - downloads a second-stage model at runtime via game:GetObjects /
+ *       require(assetId)  (rbxassetid://...)
+ *     - enables HttpService for exfiltration / C2
+ *     - removes an internal version/detection guard before running it
+ *     - stores its payload in an INSTANCE ATTRIBUTE (not script source) so
+ *       source-only scanners never see it. In a Rojo-managed repo this
+ *       serializes to a base64 <BinaryString name="AttributesSerialize">
+ *       blob inside the .rbxmx / .rbxlx XML.
  *
  * Scans:
  *   - .lua / .luau source files
  *   - .rbxmx / .rbxlx XML model/place files (script <ProtectedString> source
  *     AND decoded instance attributes)
- *   - any text/markdown/HTML file (ClickFix lure only)
  *
  * Maps to: CWE-506 (Embedded Malicious Code), CWE-829 (Untrusted Functionality),
  *          CWE-94 (Code Injection), CWE-1357 (Reliance on Insufficiently
@@ -132,17 +123,8 @@ const DEFINITE_RULES = new Set([
   'ROBLOX_ATTRIBUTE_PAYLOAD_LOADER',
 ]);
 
-// =============================================================================
-// CLICKFIX LURE (run on any text/markdown/HTML file)
-// =============================================================================
-
-// Error/CAPTCHA framing near an instruction to copy text and run it via keys.
-const CLICKFIX_FRAMING = /(?:error\s*\d{3}|verify\s+(?:you\s+are|that\s+you'?re)\s+(?:a\s+)?human|i'?m\s+not\s+a\s+robot|something\s+went\s+wrong\s+with\s+this)/i;
-const CLICKFIX_ACTION = /(?:ctrl\s*\+\s*c\b[\s\S]{0,160}ctrl\s*\+\s*v|win\s*\+\s*r|shift\s*\+\s*f5|command\s+bar|paste\s+(?:it|this|the\s+(?:text|code)))/i;
-
 const SCANNABLE_LUAU_EXT = new Set(['.lua', '.luau']);
 const SCANNABLE_RBX_EXT = new Set(['.rbxmx', '.rbxlx']);
-const CLICKFIX_EXT = new Set(['.lua', '.luau', '.rbxmx', '.rbxlx', '.html', '.htm', '.md', '.txt', '.json', '.js', '.ts']);
 
 // =============================================================================
 // AGENT
@@ -152,16 +134,13 @@ export class RobloxSecurityAgent extends BaseAgent {
   constructor() {
     super(
       'RobloxSecurityAgent',
-      'Detects malicious Roblox/Luau Toolbox assets (runtime asset injection, attribute-stored payloads, obfuscated loaders) and cross-platform ClickFix paste-and-run lures',
+      'Detects malicious Roblox/Luau Toolbox assets: runtime asset injection, attribute-stored payloads, and obfuscated loaders',
       'supply-chain'
     );
   }
 
-  /**
-   * Run when the project shows any Roblox/Luau signal, OR always for the
-   * ClickFix lure (which is platform-agnostic). We gate the expensive Roblox
-   * passes per-file by extension, so running broadly is cheap.
-   */
+  // Roblox-specific rules only; the cross-platform ClickFix lure is now its
+  // own first-class detector (ClickFixAgent).
   shouldRun() {
     return true;
   }
@@ -177,10 +156,6 @@ export class RobloxSecurityAgent extends BaseAgent {
         findings.push(...this._scanLuaSource(file, this.readFile(file), null, 'firstparty'));
       } else if (SCANNABLE_RBX_EXT.has(ext)) {
         findings.push(...this._scanRbxXml(file));
-      }
-
-      if (CLICKFIX_EXT.has(ext)) {
-        findings.push(...this._scanClickFix(file));
       }
     }
 
@@ -326,33 +301,6 @@ export class RobloxSecurityAgent extends BaseAgent {
       }
     }
     return findings;
-  }
-
-  // ── ClickFix lure ────────────────────────────────────────────────────────────
-
-  _scanClickFix(file) {
-    const content = this.readFile(file);
-    if (!content) return [];
-    // Match within a sliding window so framing + action must be near each other.
-    if (!CLICKFIX_FRAMING.test(content)) return [];
-    const idx = content.search(CLICKFIX_FRAMING);
-    const window = content.slice(Math.max(0, idx - 200), idx + 600);
-    if (!CLICKFIX_ACTION.test(window)) return [];
-
-    const lineNum = content.slice(0, idx).split('\n').length;
-    return [createFinding({
-      file,
-      line: lineNum,
-      severity: 'high',
-      category: 'supply-chain',
-      rule: 'CLICKFIX_PASTE_RUN',
-      title: 'ClickFix paste-and-run social-engineering lure',
-      description: 'Text presents a fake error or human-verification prompt next to an instruction to copy content and run it via a keystroke sequence (e.g. Ctrl+C -> Ctrl+V -> Enter, Win+R, command bar). This is the ClickFix lure pattern. No legitimate tool asks a developer to paste and run code to recover from an error.',
-      matched: (content.slice(idx).match(CLICKFIX_FRAMING) || [''])[0].slice(0, 80),
-      confidence: 'medium',
-      cwe: 'CWE-1357',
-      fix: 'Do not run the instructed code. Remove this lure. Treat the asset/page that rendered it as compromised.',
-    })];
   }
 
   // ── helpers ──────────────────────────────────────────────────────────────────

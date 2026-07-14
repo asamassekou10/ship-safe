@@ -162,20 +162,3 @@ describe('RobloxSecurityAgent — .rbxmx XML', () => {
   });
 });
 
-describe('RobloxSecurityAgent — ClickFix lure', () => {
-  it('flags a fake-error paste-and-run lure', async () => {
-    const lure = [
-      'Error 501',
-      'Something went wrong with this game.',
-      'To fix this, copy the text in the textbox and paste it into the command bar.',
-      '(Ctrl+C -> Shift+F5 -> Ctrl+V -> Press Enter)',
-    ].join('\n');
-    const f = await scan(lure, '.txt');
-    assert.ok(f.some(x => x.rule === 'CLICKFIX_PASTE_RUN' && x.severity === 'high'));
-  });
-
-  it('does not flag an ordinary error message with no paste instruction', async () => {
-    const f = await scan('Error 500: internal server error. Check the logs.', '.txt');
-    assert.equal(f.filter(x => x.rule === 'CLICKFIX_PASTE_RUN').length, 0);
-  });
-});

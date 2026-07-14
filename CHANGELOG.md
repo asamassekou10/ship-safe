@@ -55,16 +55,33 @@ model supply chain.
     package name. Excludes the project's own package name, scoped packages
     resolved correctly. Maps to CWE-1357, CWE-829.
 
+- **ClickFixAgent** (28th agent, Supply Chain category) — promotes the ClickFix
+  detector (previously embedded in RobloxSecurityAgent) to a first-class,
+  cross-platform detector:
+  - `CLICKFIX_PASTE_RUN` (high) — fake-error / fake-CAPTCHA framing next to a
+    paste-and-run keystroke sequence (Ctrl+C→Ctrl+V→Enter, Win+R, command bar);
+    confidence raised when a PowerShell download-cradle is nearby. Runs across
+    docs, HTML, source, and shell/PowerShell files.
+  - `CLICKFIX_FAKE_INSTALLER` (high) — an npm `preinstall`/`postinstall`/etc.
+    lifecycle script that pipes a remote fetch into a shell (the fake-installer
+    mechanism, e.g. the OpenClaw ClickFix npm package). Maps to CWE-1357,
+    CWE-506, CWE-77.
+- RobloxSecurityAgent no longer carries the ClickFix rule (moved to
+  ClickFixAgent); its Roblox-specific coverage is unchanged.
+
 ### Changed
-- Agent count 24 → 27 across CLI, README, docs, and marketing site.
+- Agent count 24 → 28 across CLI, README, docs, and marketing site.
 
 ### Tests
-- 19 new tests (212 → 231): ModelScan payload detection, unsafe-format flagging,
+- 23 net new tests (212 → 235): ModelScan payload detection, unsafe-format flagging,
   safetensors safety, `.bin` false-positive guard, archive evasion, the
   source-level `torch.load` loader; plus TrustBoundary symlink (sensitive /
   escaping / benign) and Friendly Fire (curl|bash, run-on-review, clean-README)
   coverage; plus SlopSquat phantom-import, known-hallucination, and
-  false-positive guards (declared / installed / builtin / self / scoped).
+  false-positive guards (declared / installed / builtin / self / scoped); plus
+  ClickFix lure detection (Ctrl+V and Win+R lures, PowerShell cradle, fake
+  npm installer) with clean-docs and normal-postinstall negatives. The two
+  ClickFix cases moved out of the RobloxSecurityAgent suite into ClickFixAgent.
 
 ## [9.4.1] — 2026-07-13 — Interactive shell stability fix
 

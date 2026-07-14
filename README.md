@@ -37,7 +37,7 @@ No signup. No API key required for scanning. Works offline for core checks.
 # Interactive REPL: scan, fix, and ask questions in one session
 npx ship-safe
 
-# Full audit: secrets + 27 agents + deps + remediation plan
+# Full audit: secrets + 28 agents + deps + remediation plan
 npx ship-safe audit .
 
 # Interactive fix agent: plan, diff, approve, verify
@@ -127,10 +127,11 @@ All agents run in parallel. Each skips irrelevant projects automatically.
 | **HermesSecurityAgent** | AI/LLM | Tool registry poisoning, function-call injection, skill permission drift (ASI-01âASI-10) |
 | **AgentAttestationAgent** | Supply Chain | Unpinned agent versions, missing integrity hashes, unsigned manifests (ASI-10, SLSA L0) |
 | **AgenticSupplyChainAgent** | Supply Chain | Over-privileged AI CI actions, OAuth scope creep, unsigned AI webhook receivers (ASI-02, ASI-06) |
-| **RobloxSecurityAgent** | Supply Chain | Malicious Roblox/Luau Toolbox assets (runtime asset injection, `rbxassetid://` loaders, `HttpEnabled`, payloads hidden in instance attributes) + cross-platform ClickFix paste-and-run lures |
+| **RobloxSecurityAgent** | Supply Chain | Malicious Roblox/Luau Toolbox assets (runtime asset injection, `rbxassetid://` loaders, `HttpEnabled`, payloads hidden in instance attributes) |
 | **ModelScanAgent** | Supply Chain | Code-execution payloads in ML model weights (pickle opcodes in `.pt`/`.pkl`/`.ckpt`), `torch.load` without `weights_only`, scanner-evasion archives (CWE-502, CWE-506) |
 | **TrustBoundaryAgent** | Agentic | GhostApproval symlink attacks (config-named links into `~/.ssh`/`~/.aws`/`.env`), repo symlinks escaping the tree, and Friendly Fire run-on-review instructions in agent-read docs (CWE-59, CWE-61) |
 | **SlopSquatAgent** | Supply Chain | Hallucinated / phantom package imports (slopsquatting) — bare imports not declared, installed, or builtin, plus known AI-hallucinated names (CWE-1357) |
+| **ClickFixAgent** | Supply Chain | ClickFix / fake-CAPTCHA paste-and-run lures (fake error + Win+R/Ctrl+V/command-bar keystrokes, PowerShell cradles) and fake-installer npm lifecycle scripts (CWE-1357, CWE-506) |
 
 **Post-processors:** ScoringEngine Â· VerifierAgent (secrets liveness) Â· DeepAnalyzer (LLM taint analysis)
 
