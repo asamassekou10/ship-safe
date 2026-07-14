@@ -6,7 +6,7 @@
  * in tracked text files. This class of corruption was introduced once by an
  * in-place `perl -i -pe` edit that inserted a wide character (an em-dash)
  * without a UTF-8 I/O layer, which re-encoded every pre-existing multibyte
- * character in the file. It renders as garbled `Ã‚Â¢`-style text.
+ * character in the file. It renders as garbled, double-encoded text.
  *
  * If this test fails: do NOT edit text content with `perl -i`/`sed` using
  * non-ASCII characters. Use the editor's UTF-8-safe write path (or Node with
