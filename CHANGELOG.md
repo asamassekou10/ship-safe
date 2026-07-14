@@ -104,9 +104,14 @@ model supply chain.
   an engineering indicator, not legal advice.
 
 ### Fixed
-- Repaired pervasive mojibake (triple-encoded em-dashes and other punctuation)
-  in the documentation page — a pre-existing UTF-8 corruption that rendered as
-  garbled characters. 735+ occurrences corrected.
+- Repaired UTF-8 mojibake (double/triple-encoded punctuation) in the docs page
+  and README that rendered as garbled `Ã‚Â¢`-style characters. Root cause: an
+  in-place `perl -i` edit that inserted a wide character (em-dash) without a
+  UTF-8 I/O layer, re-encoding every pre-existing multibyte character. README
+  was repaired surgically (decoding only the double-encoded runs) to preserve
+  already-clean characters.
+- Added an **encoding-guard test** that fails CI if any tracked text file
+  contains mojibake, preventing recurrence.
 
 ### Tests
 - 23 net new tests (212 → 235): ModelScan payload detection, unsafe-format flagging,
