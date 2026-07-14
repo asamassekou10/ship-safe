@@ -14,6 +14,68 @@ export interface BlogPost {
 
 const manualPosts: BlogPost[] = [
   {
+    slug: 'ship-safe-v9-5-0-securing-the-ai-development-toolchain',
+    title: 'The Attack Surface Moved Into Your AI Toolchain. We Shipped Five Agents For It.',
+    description: 'Through the first half of 2026, the highest-velocity attacks stopped targeting production apps and started targeting the developer AI toolchain — coding agents, package registries, model hubs, and MCP servers. Ship Safe v9.5.0 adds coverage for five of them.',
+    date: '2026-07-14T15:00:00-05:00',
+    author: 'Ship Safe Team',
+    tags: ['AI security', 'supply chain', 'AI agents', 'developer security', 'release'],
+    keywords: ['GhostApproval', 'slopsquatting', 'ClickFix', 'pickle model security', 'npm worm', 'Shai-Hulud', 'MCP security', 'AI Bill of Materials', 'EU AI Act', 'AI supply chain', 'developer security'],
+    content: `
+For most of the last decade, an application security tool's job was to look at the code you wrote and the dependencies you pulled in. That is still necessary. It is no longer sufficient.
+
+Through the first half of 2026, the highest-velocity attacks stopped targeting production apps and started targeting the thing developers now build *with*: the AI toolchain. The coding agent. The package registry the agent installs from. The model hub. The MCP server that auto-loads when you open a repo. These are not your application — they are the tools around it, and they have become an execution surface.
+
+We spent this release cycle reading the incident reports and building detection for the ones that are landing right now. Ship Safe v9.5.0 grows coverage from 24 to 29 agents and adds an AI Bill of Materials. Here is what changed and why.
+
+## Your model files are executable
+
+The default serialization format for PyTorch and much of the ML ecosystem is pickle, and pickle runs arbitrary code when it is loaded. Malicious models on Hugging Face have used this for years, and in a twist worth noting, the hub's own scanner (PickleScan) shipped three CVSS-9.3 bypasses at the end of 2025. A model file is not data. It is a program that runs the moment you call \`torch.load()\`.
+
+**ModelScanAgent** opens the weight files other scanners skip — the binary ones over the text-size cap — and inspects the pickle opcode stream for code-execution payloads without ever unpickling. It flags \`torch.load()\` without \`weights_only=True\`, models wrapped in 7z/RAR to dodge scanners, and steers you toward safetensors.
+
+## Your coding agent can be turned against you
+
+Two July 2026 techniques make the point. **GhostApproval** (Wiz) uses a symlink: a repo file named something innocent like \`project_settings.json\` is actually a link to \`~/.ssh/authorized_keys\`. Ask your agent to "set up the workspace," and it writes an attacker's key through the link. **Friendly Fire** (AI Now) goes further — a repo's own docs instruct the agent to run a command *during its security-review pass*, so the review becomes the exploit.
+
+**TrustBoundaryAgent** detects both: repo symlinks that resolve into credential paths or escape the repo, and run-on-review / \`curl | bash\` instructions planted in the files an agent reads as context.
+
+## The package your AI suggested might not exist — yet
+
+AI assistants confidently import packages that do not exist. Attackers register those hallucinated names and ship malware under them — "slopsquatting." The hallucinations are predictable: around 43% recur on every run, and researchers found names that every major frontier model consistently invents. Register ahead of the next agent and you have a supply-chain foothold.
+
+**SlopSquatAgent** flags imports that are neither declared in \`package.json\`, installed in \`node_modules\`, nor a Node builtin — the exact slot an attacker registers — plus known-hallucinated names.
+
+## "Paste this to fix it" is now aimed at developers
+
+ClickFix — the fake-error, fake-CAPTCHA "copy this and run it" lure — surged roughly 517% and now targets developers directly. In March 2026 a malicious npm package posed as an installer, showed a convincing fake CLI, then prompted for the system password. **ClickFixAgent** catches the lure pattern (fake-error framing next to Win+R / Ctrl+V / command-bar keystrokes and PowerShell cradles) across docs, HTML, and source, plus fake-installer \`preinstall\`/\`postinstall\` scripts.
+
+## The worms run before your defenses do
+
+The Shai-Hulud to Miasma lineage of self-propagating npm worms shares a playbook: execute via a lifecycle script or a weaponized \`binding.gyp\` before most tooling engages, harvest credentials, self-spread, then wipe home directories. **InstallGuardAgent** inspects those two auto-run entry points for credential harvesting, env exfiltration, destructive commands, and obfuscated execution.
+
+We also taught **MCPSecurityAgent** to flag a repo-local \`.mcp.json\` that auto-launches a server the moment you accept your editor's folder-trust prompt.
+
+## Know what AI is actually in your project
+
+An SBOM lists your npm and pip dependencies. It says nothing about your models, your LLM SDKs, your MCP servers, or your agent instruction files. So we added an **AI Bill of Materials**:
+
+    npx ship-safe aibom . --ai-act
+
+It inventories the AI supply chain (with pickle-based models flagged as unsafe), and the --ai-act flag produces a heuristic EU AI Act high-risk readiness report mapped to the Article 9–17 provider obligations that bind on August 2, 2026 — where roughly 78% of organizations are not yet ready. It is an engineering indicator, not legal advice, but it tells you where the gaps are.
+
+## The through-line
+
+There is one idea under all of this: agents scanning agents is now normal, and the scanner must not become the attack surface. Ship Safe reads and analyzes a repository — it never runs the repository's suggested workflow during a scan. If a repo's docs say "run this to set up," we treat that as untrusted input, not a command.
+
+Run it against anything, no signup, no API key:
+
+    npx ship-safe audit .
+
+Every one of these agents maps to a documented, cited 2026 threat. If you find something we should cover next, that is exactly the kind of thing we want to hear.
+`,
+  },
+  {
     slug: 'agentic-ransomware-jadepuffer-ai-threat-actor',
     title: 'Agentic Ransomware Is Here: What JadePuffer Means for Dev Teams',
     description: 'Security researchers reported an LLM-orchestrated ransomware operation called JadePuffer. The techniques were familiar, but the orchestration was new: credential hunting, lateral movement, retries, and destruction stitched together by an AI agent.',
