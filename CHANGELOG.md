@@ -32,13 +32,27 @@ model supply chain.
   - `.safetensors`/`.gguf`/`.onnx` are treated as safe and skipped; ambiguous
     `.bin` requires a positive pickle/zip signature to avoid false positives.
 
+- **TrustBoundaryAgent** (26th agent, Agentic category) — detects AI
+  coding-agent trust-boundary attacks:
+  - `SYMLINK_SENSITIVE_TARGET` (critical) — **GhostApproval**: a config-named
+    repo file that is actually a symlink into `~/.ssh`, `~/.aws`, `.env`,
+    `~/.npmrc`, `/etc`, etc. An agent editing the "file" writes through to the
+    real target (SSH-key theft / authorized-key planting).
+  - `SYMLINK_ESCAPES_REPO` (high/medium) — a symlink resolving outside the repo.
+  - `AGENT_REMOTE_EXEC_INSTRUCTION` (high) — **Friendly Fire**: `curl|bash` /
+    PowerShell download-cradle in an agent-read file (README/AGENTS.md/…).
+  - `AGENT_RUN_ON_REVIEW` (medium) — docs directing the agent to run code during
+    setup or its own review pass. Maps to CWE-59, CWE-61, CWE-77.
+
 ### Changed
-- Agent count 24 → 25 across CLI, README, docs, and marketing site.
+- Agent count 24 → 26 across CLI, README, docs, and marketing site.
 
 ### Tests
-- 7 new tests (212 → 219): payload detection, unsafe-format flagging,
-  safetensors safety, `.bin` false-positive guard, archive evasion, and the
-  source-level `torch.load` loader (positive and negative).
+- 13 new tests (212 → 225): ModelScan payload detection, unsafe-format flagging,
+  safetensors safety, `.bin` false-positive guard, archive evasion, the
+  source-level `torch.load` loader; plus TrustBoundary symlink (sensitive /
+  escaping / benign) and Friendly Fire (curl|bash, run-on-review, clean-README)
+  coverage.
 
 ## [9.4.1] — 2026-07-13 — Interactive shell stability fix
 

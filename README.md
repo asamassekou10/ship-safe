@@ -37,7 +37,7 @@ No signup. No API key required for scanning. Works offline for core checks.
 # Interactive REPL: scan, fix, and ask questions in one session
 npx ship-safe
 
-# Full audit: secrets + 25 agents + deps + remediation plan
+# Full audit: secrets + 26 agents + deps + remediation plan
 npx ship-safe audit .
 
 # Interactive fix agent: plan, diff, approve, verify
@@ -129,6 +129,7 @@ All agents run in parallel. Each skips irrelevant projects automatically.
 | **AgenticSupplyChainAgent** | Supply Chain | Over-privileged AI CI actions, OAuth scope creep, unsigned AI webhook receivers (ASI-02, ASI-06) |
 | **RobloxSecurityAgent** | Supply Chain | Malicious Roblox/Luau Toolbox assets (runtime asset injection, `rbxassetid://` loaders, `HttpEnabled`, payloads hidden in instance attributes) + cross-platform ClickFix paste-and-run lures |
 | **ModelScanAgent** | Supply Chain | Code-execution payloads in ML model weights (pickle opcodes in `.pt`/`.pkl`/`.ckpt`), `torch.load` without `weights_only`, scanner-evasion archives (CWE-502, CWE-506) |
+| **TrustBoundaryAgent** | Agentic | GhostApproval symlink attacks (config-named links into `~/.ssh`/`~/.aws`/`.env`), repo symlinks escaping the tree, and Friendly Fire run-on-review instructions in agent-read docs (CWE-59, CWE-61) |
 
 **Post-processors:** ScoringEngine · VerifierAgent (secrets liveness) · DeepAnalyzer (LLM taint analysis)
 
