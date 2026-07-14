@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/assets/logo%20ship%20safe.png" alt="Ship Safe Logo" width="180" />
+  <img src=".github/assets/ship-safe-logo-2026.png" alt="Ship Safe Logo" width="180" />
 </p>
 <p align="center"><strong>AI security agent for developers. Scan, fix, and ship safely.</strong></p>
 <p align="center"><a href="https://shipsafecli.com">shipsafecli.com</a> · <a href="https://shipsafecli.com/docs">Docs</a> · <a href="https://shipsafecli.com/blog">Blog</a></p>
