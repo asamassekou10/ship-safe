@@ -1,8 +1,8 @@
 <p align="center">
   <img src=".github/assets/ship-safe-logo-2026.png" alt="Ship Safe Logo" width="180" />
 </p>
-<p align="center"><strong>AI security agent for developers. Scan, fix, and ship safely.</strong></p>
-<p align="center"><a href="https://shipsafecli.com">shipsafecli.com</a> · <a href="https://shipsafecli.com/docs">Docs</a> · <a href="https://shipsafecli.com/blog">Blog</a></p>
+<p align="center"><strong>Find risky code, AI-agent vulnerabilities, and supply-chain issues before they ship.</strong></p>
+<p align="center"><a href="https://shipsafecli.com">Website</a> · <a href="https://shipsafecli.com/docs">Docs</a> · <a href="https://shipsafecli.com/pricing">Pricing</a> · <a href="https://shipsafecli.com/blog">Blog</a></p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/ship-safe"><img src="https://badge.fury.io/js/ship-safe.svg" alt="npm version" /></a>
@@ -13,30 +13,34 @@
   <a href="https://github.com/sponsors/asamassekou10"><img src="https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github" alt="Sponsor" /></a>
 </p>
 
----
+## Ship Safe
 
-<p align="center">
-  <img src=".github/assets/demo-repl.gif" alt="Ship Safe REPL demo" width="800" />
-</p>
+Ship Safe is an AI security scanner for modern software teams. It runs locally in your repo, finds issues across application code, AI agents, MCP configs, prompts, dependencies, CI/CD, secrets, and cloud-adjacent configuration, then helps you review and apply safe fixes.
 
-Type `ship-safe` and you're in. 24 agents scan your codebase for secrets, injections, AI/LLM vulnerabilities, supply chain attacks, and 80+ other classes. The agent shows a diff for every proposed fix, asks before writing, and verifies the fix worked. Every change is logged and reversible.
+Start a scan with one command:
 
 ```bash
 npx ship-safe
 ```
+
+No signup. No API key required for scanning. Works offline for core checks.
+
+<p align="center">
+  <img src=".github/assets/demo-repl.gif" alt="Ship Safe REPL demo" width="800" />
+</p>
 
 ---
 
 ## Quick Start
 
 ```bash
-# Interactive REPL — scan, fix, ask questions in one session
+# Interactive REPL: scan, fix, and ask questions in one session
 npx ship-safe
 
 # Full audit: secrets + 24 agents + deps + remediation plan
 npx ship-safe audit .
 
-# Interactive fix agent: plan → diff → accept → verify
+# Interactive fix agent: plan, diff, approve, verify
 npx ship-safe agent .
 npx ship-safe agent . --severity critical   # critical findings only
 npx ship-safe agent . --branch --pr         # fix on a branch + open a PR
@@ -48,7 +52,23 @@ npx ship-safe undo
 npx ship-safe ci . --threshold 80 --sarif results.sarif
 ```
 
-No signup. No API key required for scanning. Works offline.
+## What Ship Safe Finds
+
+| Area | Examples |
+|------|----------|
+| AI and LLM security | Prompt injection, agent hijacking, excessive agency, memory poisoning, RAG poisoning, unsafe tool calls |
+| MCP and agent configs | Over-broad tool permissions, poisoned registries, untrusted transports, dangerous allowlists |
+| Application security | SQL/NoSQL injection, XSS, SSRF, auth bypass, path traversal, insecure API routes |
+| Secrets and compliance | API keys, tokens, credentials, PII, leaked secrets in git history |
+| Supply chain | Typosquatting, dependency confusion, risky install scripts, unpinned AI actions |
+| CI/CD | Pipeline poisoning, unpinned GitHub Actions, secret logging, unsafe workflow triggers |
+
+## How It Works
+
+1. **Scan locally** - Ship Safe inspects your repo with targeted agents and skips checks that do not apply.
+2. **Review findings** - Findings include severity, file location, evidence, and recommended remediation.
+3. **Fix with control** - The agent proposes a plan and diff, asks before writing, verifies the result, and keeps changes reversible.
+4. **Gate in CI** - Use `ship-safe ci` to fail risky builds and upload SARIF into GitHub code scanning.
 
 <p align="center">
   <img src=".github/assets/demo-agent.gif" alt="Ship Safe agent demo" width="800" />
@@ -56,7 +76,29 @@ No signup. No API key required for scanning. Works offline.
 
 ---
 
-## 24 Security Agents
+## Why Developers Use It
+
+- **Built for AI-native apps**: catches risks in agents, MCP servers, prompts, RAG flows, managed-agent configs, and AI-powered CI.
+- **Fast local feedback**: run it before a PR, during review, or inside CI without sending code to a hosted scanner.
+- **Fixes are reviewable**: every suggested change is shown as a diff before it touches your files.
+- **Works with your stack**: JavaScript, TypeScript, Python, config files, infrastructure files, GitHub Actions, and more.
+- **Open source core**: MIT-licensed CLI with docs, examples, and a growing agent system.
+
+## Free CLI, Paid Team Workflows
+
+The open-source CLI is the fastest way to scan any repo locally. Upgrade when you need a hosted workflow around the same scanner:
+
+| Need | Use |
+|------|-----|
+| Local scans, audits, and agent-assisted fixes | Free CLI |
+| Scan history, cloud dashboard, and PDF reports | Pro |
+| Shared workspace, PR Guardian, team reports, and collaboration | Team |
+
+Compare plans at [shipsafecli.com/pricing](https://shipsafecli.com/pricing).
+
+---
+
+## Security Agents
 
 All agents run in parallel. Each skips irrelevant projects automatically.
 

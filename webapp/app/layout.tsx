@@ -39,7 +39,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'Ship Safe — AI Agent Security Scanner for Developers',
-    description: '23 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
+    description: '24 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
     type: 'website',
     url: 'https://www.shipsafecli.com',
     siteName: 'Ship Safe',
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Ship Safe — AI Agent Security Scanner for Developers',
-    description: '23 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
+    description: '24 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
     images: ['https://www.shipsafecli.com/og1.png'],
   },
 };
@@ -62,6 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="icon" type="image/png" href="/logo.png" />
         <link rel="apple-touch-icon" href="/logo.png" />
+        <link rel="alternate" type="text/plain" href="/llms.txt" title="Ship Safe AI-readable summary" />
       </head>
       <body>
         <ScrollProgress />

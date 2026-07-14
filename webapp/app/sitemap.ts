@@ -63,6 +63,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'weekly',
       priority: 0.8,
     },
+    {
+      url: `${baseUrl}/llms.txt`,
+      lastModified: latestPost,
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/llms-full.txt`,
+      lastModified: latestPost,
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    },
     ...blogEntries,
     {
       url: `${baseUrl}/login`,
