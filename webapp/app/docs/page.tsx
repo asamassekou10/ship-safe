@@ -217,6 +217,7 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                     <tr><td><code>doctor</code></td><td>Environment diagnostics</td></tr>
                     <tr><td><code>sbom .</code></td><td>Generate CycloneDX SBOM (CRA-ready)</td></tr>
                     <tr><td><code>abom .</code></td><td>Agent Bill of Materials (CycloneDX 1.5)</td></tr>
+                    <tr><td><code>aibom . --ai-act</code></td><td>AI Bill of Materials (models, LLM/ML SDKs, MCP servers) + EU AI Act readiness report</td></tr>
                     <tr><td><code>policy init</code></td><td>Create policy-as-code config</td></tr>
                     <tr><td><code>guard</code></td><td>Block git push if secrets found</td></tr>
                     <tr><td><code>checklist</code></td><td>Launch-day security checklist</td></tr>

@@ -48,6 +48,7 @@ import { openclawCommand } from '../commands/openclaw.js';
 import { scanSkillCommand } from '../commands/scan-skill.js';
 import { scanMcpCommand } from '../commands/scan-mcp.js';
 import { abomCommand } from '../commands/abom.js';
+import { aibomCommand } from '../commands/aibom.js';
 import { updateIntelCommand } from '../commands/update-intel.js';
 import { hooksCommand } from '../commands/hooks.js';
 import { legalCommand } from '../commands/legal.js';
@@ -515,6 +516,17 @@ program
   .option('-o, --output <file>', 'Output file path', 'abom.json')
   .option('--json', 'Output to stdout as JSON')
   .action(abomCommand);
+
+// -----------------------------------------------------------------------------
+// AIBOM COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('aibom [path]')
+  .description('Generate AI Bill of Materials (models, LLM/ML SDKs, MCP servers, agent configs) + EU AI Act readiness')
+  .option('-o, --output <file>', 'Output file path', 'aibom.json')
+  .option('--ai-act', 'Also print the EU AI Act high-risk readiness report')
+  .option('--json', 'Output to stdout as JSON')
+  .action(aibomCommand);
 
 // -----------------------------------------------------------------------------
 // HOOKS COMMAND (Claude Code PreToolUse / PostToolUse integration)

@@ -94,6 +94,15 @@ model supply chain.
   for Agentic Applications 2026** categories (inter-agent communication,
   cascading failures, human-agent trust, rogue agents).
 
+- **`aibom` command + AIBOMGenerator** — an AI Bill of Materials (CycloneDX
+  1.5) that inventories the AI supply chain an SBOM misses: model weights (with
+  pickle/safe serialization flagged), LLM/ML SDKs and providers (npm + PyPI),
+  MCP servers, and agent instruction files. `--ai-act` adds a heuristic **EU AI
+  Act high-risk readiness report** (Articles 9–17 obligations, Aug 2 2026
+  deadline) scoring risk-management, data-governance, logging, transparency,
+  human-oversight, testing, and AI-security signals, with a gap list. Framed as
+  an engineering indicator, not legal advice.
+
 ### Fixed
 - Repaired pervasive mojibake (triple-encoded em-dashes and other punctuation)
   in the documentation page — a pre-existing UTF-8 corruption that rendered as

@@ -39,6 +39,7 @@ export { SlopSquatAgent } from './slopsquat-agent.js';
 export { ClickFixAgent } from './clickfix-agent.js';
 export { InstallGuardAgent } from './install-guard-agent.js';
 export { ABOMGenerator } from './abom-generator.js';
+export { AIBOMGenerator } from './aibom-generator.js';
 export { VerifierAgent } from './verifier-agent.js';
 export { DeepAnalyzer } from './deep-analyzer.js';
 export { ScoringEngine, GRADES, CATEGORIES } from './scoring-engine.js';
