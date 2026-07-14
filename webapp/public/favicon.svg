@@ -1,4 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="8" fill="#0a0a0a"/>
-  <text x="4" y="24" font-size="22" font-family="system-ui">⚡</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Ship Safe">
+  <rect width="64" height="64" rx="14" fill="#05070a"/>
+  <path d="M18 17.5 33 9v23.5L18 41V17.5Z" fill="none" stroke="#22d3ee" stroke-width="4.5" stroke-linejoin="round"/>
+  <path d="M37 13.5 49 21v14l-12-6.6V13.5Z" fill="#f8fafc"/>
+  <path d="M36 35.5 51 43.5v6L36 41.5v-6Z" fill="#f8fafc"/>
+  <path d="M22 47v6M31 43v13M40 47v6M48 45v8" stroke="#22d3ee" stroke-width="4" stroke-linecap="round"/>
 </svg>

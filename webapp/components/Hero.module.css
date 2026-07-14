@@ -331,6 +331,165 @@
   margin: 0 auto;
 }
 
+.mascotCard {
+  position: absolute;
+  right: -2.1rem;
+  bottom: 1.4rem;
+  z-index: 4;
+  width: clamp(118px, 11vw, 154px);
+  aspect-ratio: 2 / 3;
+  overflow: visible;
+  pointer-events: none;
+  transform-origin: 50% 78%;
+}
+
+.mascotCard::before,
+.mascotCard::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.mascotCard::before {
+  inset: 18% 10% 4%;
+  border-radius: 999px;
+  background:
+    radial-gradient(closest-side, rgba(34, 211, 238, 0.26), rgba(34, 211, 238, 0.08) 48%, transparent 72%);
+  filter: blur(18px);
+  animation: mascotGlow 4.2s ease-in-out infinite;
+}
+
+.mascotCard::after {
+  left: 18%;
+  right: 14%;
+  bottom: -1%;
+  height: 14%;
+  border-radius: 999px;
+  background:
+    radial-gradient(closest-side, rgba(34, 211, 238, 0.28), rgba(34, 211, 238, 0.08) 55%, transparent 75%);
+  filter: blur(7px);
+  opacity: 0.75;
+  animation: mascotShadow 5.4s ease-in-out infinite;
+}
+
+.mascotAura,
+.mascotBeam,
+.mascotOrbit,
+.mascotPing,
+.mascotStatus {
+  position: absolute;
+  pointer-events: none;
+}
+
+.mascotAura {
+  inset: 5% -16% -6%;
+  z-index: -2;
+  border-radius: 999px;
+  background:
+    radial-gradient(50% 58% at 48% 44%, rgba(34, 211, 238, 0.18), transparent 72%),
+    radial-gradient(46% 34% at 25% 48%, rgba(34, 211, 238, 0.12), transparent 70%);
+  filter: blur(6px);
+}
+
+.mascotBeam {
+  left: 1%;
+  right: 2%;
+  bottom: 10%;
+  height: 1px;
+  z-index: 3;
+  background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.72), transparent);
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.5);
+  animation: mascotBeam 3.4s ease-in-out infinite;
+}
+
+.mascotOrbit {
+  left: 1%;
+  bottom: 11%;
+  z-index: 3;
+  width: 55%;
+  aspect-ratio: 4 / 1;
+  border: 1px solid rgba(34, 211, 238, 0.38);
+  border-radius: 999px;
+  transform: rotate(-8deg);
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.4));
+}
+
+.mascotOrbitOne {
+  animation: mascotOrbit 3.8s ease-in-out infinite;
+}
+
+.mascotOrbitTwo {
+  left: 6%;
+  bottom: 15%;
+  width: 43%;
+  opacity: 0.58;
+  animation: mascotOrbit 4.6s ease-in-out infinite reverse;
+}
+
+.mascotImage {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 52% 39%;
+  filter: saturate(1.04) contrast(1.08) drop-shadow(0 24px 28px rgba(0, 0, 0, 0.54));
+  border-radius: 28px;
+  mask-image:
+    linear-gradient(180deg, transparent 0%, black 8%, black 86%, transparent 100%),
+    linear-gradient(90deg, transparent 0%, black 8%, black 92%, transparent 100%);
+  mask-composite: intersect;
+  -webkit-mask-image:
+    linear-gradient(180deg, transparent 0%, black 8%, black 86%, transparent 100%),
+    linear-gradient(90deg, transparent 0%, black 8%, black 92%, transparent 100%);
+  -webkit-mask-composite: source-in;
+}
+
+.mascotPing {
+  left: 17%;
+  top: 42%;
+  z-index: 3;
+  width: 34%;
+  aspect-ratio: 1;
+  border: 1px solid rgba(34, 211, 238, 0.5);
+  border-radius: 999px;
+  opacity: 0.8;
+  animation: mascotScan 2.8s ease-out infinite;
+}
+
+.mascotStatus {
+  right: -4%;
+  bottom: 30%;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 26px;
+  padding: 0.28rem 0.5rem;
+  border: 1px solid rgba(34, 211, 238, 0.24);
+  border-radius: 999px;
+  background: rgba(5, 5, 7, 0.74);
+  backdrop-filter: blur(8px);
+  color: #a5f3fc;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 10px 26px -14px rgba(34, 211, 238, 0.65);
+}
+
+.mascotStatus i {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #22d3ee;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.8);
+  animation: pulseDot 1.8s ease-in-out infinite;
+}
+
 /* Inner relative wrapper: AgentNetwork canvas + codeCallout + signalLog stack here */
 .networkFrame {
   position: relative;
@@ -449,13 +608,26 @@
   position: absolute;
   top: 0.85rem;
   right: 0.85rem;
-  width: min(190px, 42%);
+  width: min(190px, 38%);
+  max-height: 168px;
   padding: 0.55rem 0.7rem;
   border: 1px solid #3d3a39;
   border-radius: 8px;
   background: rgba(5, 5, 7, 0.78);
   backdrop-filter: blur(6px);
   z-index: 3;
+  overflow: hidden;
+}
+
+.signalLog::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 42px;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(5, 5, 7, 0.96));
 }
 
 .signalHead {
@@ -533,6 +705,34 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes mascotScan {
+  0%   { transform: scale(0.45); opacity: 0; }
+  22%  { opacity: 0.85; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes mascotGlow {
+  0%, 100% { opacity: 0.7; transform: scale(0.96); }
+  50%      { opacity: 1; transform: scale(1.04); }
+}
+
+@keyframes mascotShadow {
+  0%, 100% { transform: scaleX(1); opacity: 0.68; }
+  50%      { transform: scaleX(0.84); opacity: 0.42; }
+}
+
+@keyframes mascotBeam {
+  0%, 100% { opacity: 0; transform: translateY(0); }
+  18%      { opacity: 0.72; }
+  52%      { opacity: 0.28; transform: translateY(-145px); }
+  76%      { opacity: 0.58; }
+}
+
+@keyframes mascotOrbit {
+  0%, 100% { transform: rotate(-8deg) scaleX(0.92); opacity: 0.35; }
+  50%      { transform: rotate(-8deg) scaleX(1.08); opacity: 0.82; }
+}
+
 /* ── Responsive ──────────────────────────── */
 
 /* Tablet landscape & below: tighten gap, keep callout/log floating */
@@ -543,6 +743,11 @@
   }
   .codeCallout { left: 0.75rem; width: min(360px, 70%); }
   .signalLog { width: min(200px, 50%); }
+  .mascotCard {
+    right: -0.4rem;
+    bottom: 1.2rem;
+    width: 126px;
+  }
 }
 
 /* Tablet portrait: shrink hero padding, drop network height, tighten log */
@@ -587,6 +792,7 @@
   }
   .proof strong { font-size: 0.84rem; }
   .proofDivider { display: none; }
+  .mascotCard { display: none; }
   .signalLog { display: none; }
   .codeCallout {
     left: 0.5rem;
@@ -611,6 +817,12 @@
 
 @media (prefers-reduced-motion: reduce) {
   .statusPill i,
+  .mascotPing,
+  .mascotCard::before,
+  .mascotCard::after,
+  .mascotBeam,
+  .mascotOrbit,
+  .mascotStatus i,
   .primaryCta::after,
   .signalLog li {
     animation: none !important;

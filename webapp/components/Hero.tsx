@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
@@ -237,6 +238,41 @@ export default function Hero({ stars, downloads }: Props) {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 0.8, 0.36, 1] }}
         >
+          <motion.div
+            className={styles.mascotCard}
+            initial={{ opacity: 0, x: 26, y: 12, scale: 0.94 }}
+            animate={{
+              opacity: 1,
+              x: 0,
+              scale: 1,
+              y: reduceMotion ? 0 : [0, -10, 0],
+            }}
+            transition={{
+              opacity: { duration: 0.55, delay: 0.65 },
+              x: { duration: 0.55, delay: 0.65 },
+              scale: { duration: 0.55, delay: 0.65 },
+              y: { duration: 5.4, repeat: Infinity, ease: 'easeInOut' },
+            }}
+            aria-hidden="true"
+          >
+            <span className={styles.mascotAura} />
+            <span className={`${styles.mascotOrbit} ${styles.mascotOrbitOne}`} />
+            <span className={`${styles.mascotOrbit} ${styles.mascotOrbitTwo}`} />
+            <span className={styles.mascotBeam} />
+            <Image
+              src="/mascot-ship-safe.png"
+              alt=""
+              width={1024}
+              height={1536}
+              sizes="(max-width: 768px) 0px, 180px"
+              className={styles.mascotImage}
+              priority
+            />
+            <span className={styles.mascotPing} />
+            <span className={styles.mascotStatus}>
+              <i /> guardian active
+            </span>
+          </motion.div>
           <div className={styles.networkFrame}>
             <AgentNetwork onFinding={setFinding} onEvent={handleEvent} />
 
