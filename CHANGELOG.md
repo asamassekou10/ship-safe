@@ -69,8 +69,21 @@ model supply chain.
 - RobloxSecurityAgent no longer carries the ClickFix rule (moved to
   ClickFixAgent); its Roblox-specific coverage is unchanged.
 
+- **InstallGuardAgent** (29th agent, Supply Chain category) — hardens against
+  the Shai-Hulud / Miasma self-propagating npm worm lineage at the two auto-run
+  entry points:
+  - `WORM_LIFECYCLE_CRED_HARVEST` (critical) — a `pre/postinstall`-class script
+    that reads a credential store (`~/.npmrc`, `~/.aws/credentials`, `~/.ssh`,
+    `GITHUB_TOKEN`, `AWS_*`, `VAULT_TOKEN`, …).
+  - `WORM_LIFECYCLE_EXFIL` (critical) — a lifecycle script exfiltrating env /
+    secrets over the network.
+  - `WORM_LIFECYCLE_DESTRUCTIVE` (high) — `rm -rf $HOME`-class commands.
+  - `WORM_LIFECYCLE_OBFUSCATED_EXEC` (high) — `node -e` / `eval` / base64.
+  - `WORM_BINDING_GYP` (high) — a weaponized `binding.gyp` node-gyp action that
+    fetches, spawns, or evaluates rather than compiles. Maps to CWE-506, CWE-829.
+
 ### Changed
-- Agent count 24 → 28 across CLI, README, docs, and marketing site.
+- Agent count 24 → 29 across CLI, README, docs, and marketing site.
 
 ### Tests
 - 23 net new tests (212 → 235): ModelScan payload detection, unsafe-format flagging,
