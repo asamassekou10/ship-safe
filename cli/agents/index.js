@@ -33,6 +33,7 @@ export { HermesSecurityAgent } from './hermes-security-agent.js';
 export { AgentAttestationAgent } from './agent-attestation-agent.js';
 export { AgenticSupplyChainAgent } from './agentic-supply-chain-agent.js';
 export { RobloxSecurityAgent } from './roblox-security-agent.js';
+export { ModelScanAgent } from './model-scan-agent.js';
 export { ABOMGenerator } from './abom-generator.js';
 export { VerifierAgent } from './verifier-agent.js';
 export { DeepAnalyzer } from './deep-analyzer.js';
@@ -42,7 +43,7 @@ export { PolicyEngine } from './policy-engine.js';
 export { HTMLReporter } from './html-reporter.js';
 
 /**
- * Create a fully configured orchestrator with all 24 scanning agents.
+ * Create a fully configured orchestrator with all 25 scanning agents.
  * (VerifierAgent and DeepAnalyzer run as post-processors, not in the agent pool.)
  *
  * Plugin system: if rootPath is provided, custom agents from
@@ -74,6 +75,7 @@ import { HermesSecurityAgent as HermesSecurityAgentClass } from './hermes-securi
 import { AgentAttestationAgent as AgentAttestationAgentClass } from './agent-attestation-agent.js';
 import { AgenticSupplyChainAgent as AgenticSupplyChainAgentClass } from './agentic-supply-chain-agent.js';
 import { RobloxSecurityAgent as RobloxSecurityAgentClass } from './roblox-security-agent.js';
+import { ModelScanAgent as ModelScanAgentClass } from './model-scan-agent.js';
 import { loadPlugins } from '../utils/plugin-loader.js';
 
 const BUILT_IN_AGENTS = () => [
@@ -101,6 +103,7 @@ const BUILT_IN_AGENTS = () => [
   new AgentAttestationAgentClass(),
   new AgenticSupplyChainAgentClass(),
   new RobloxSecurityAgentClass(),
+  new ModelScanAgentClass(),
 ];
 
 /** Synchronous build — no plugin support. Used by legacy callers. */
