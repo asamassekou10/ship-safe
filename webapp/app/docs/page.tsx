@@ -6,13 +6,13 @@ const ogImage = 'https://www.shipsafecli.com/og1.png';
 
 export const metadata: Metadata = {
   title: 'Documentation',
-  description: 'Complete Ship Safe documentation: LLM vulnerability CLI commands, MCP configuration security scanning, RAG poisoning detection, CI/CD integration, 26 agent reference, and API docs.',
+  description: 'Complete Ship Safe documentation: LLM vulnerability CLI commands, MCP configuration security scanning, RAG poisoning detection, CI/CD integration, 27 agent reference, and API docs.',
   keywords: ['Ship Safe docs', 'LLM vulnerability CLI', 'MCP configuration security', 'RAG poisoning detection', 'AI agent security scanner', 'ship-safe commands', 'ship-safe agents', 'DevSecOps documentation', 'OWASP Agentic AI Top 10'],
   alternates: {
     canonical: 'https://www.shipsafecli.com/docs',
   },
   openGraph: {
-    title: 'Ship Safe Documentation — v9.5.0',
+    title: 'Ship Safe Documentation â v9.5.0',
     description: 'Every command, agent, and flag. LLM vulnerability CLI, MCP security configuration, RAG poisoning detection, CI/CD integration, and API reference.',
     type: 'website',
     url: 'https://www.shipsafecli.com/docs',
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Ship Safe Documentation — v9.5.0',
+    title: 'Ship Safe Documentation â v9.5.0',
     description: 'Every command, agent, and flag. LLM vulnerability CLI, MCP security configuration, RAG poisoning detection, CI/CD integration, and API reference.',
     images: [ogImage],
   },
@@ -41,7 +41,7 @@ export default function Docs() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} // ship-safe-ignore — static JSON-LD, no user input
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} // ship-safe-ignore â static JSON-LD, no user input
       />
       <Nav />
       <main className={styles.docsPage}>
@@ -52,7 +52,7 @@ export default function Docs() {
               <a href="#installation">Installation</a>
               <a href="#quick-start">Quick Start</a>
               <a href="#commands">Commands</a>
-              <a href="#agents">26 Security Agents</a>
+              <a href="#agents">27 Security Agents</a>
               <a href="#scoring">Scoring System</a>
               <a href="#cicd">CI/CD Integration</a>
               <a href="#github-action">GitHub Action</a>
@@ -73,12 +73,12 @@ export default function Docs() {
               <span className={styles.sectionLabel}>// docs</span>
               <h1>Ship Safe CLI</h1>
               <p className={styles.subtitle}>
-                26 AI security agents. 80+ attack classes. One command.
+                27 AI security agents. 80+ attack classes. One command.
               </p>
               <pre className={styles.heroCode}><code>npx ship-safe audit .</code></pre>
             </header>
 
-            {/* ── Installation ──────────────────────────────────────── */}
+            {/* ââ Installation ââââââââââââââââââââââââââââââââââââââââ */}
             <section id="installation">
               <h2>Installation</h2>
               <p>Ship Safe requires Node.js 18 or later. No signup or API key required.</p>
@@ -94,13 +94,13 @@ export OPENAI_API_KEY=sk-...
 export GOOGLE_AI_API_KEY=AIza...`}</code></pre>
             </section>
 
-            {/* ── Quick Start ───────────────────────────────────────── */}
+            {/* ââ Quick Start âââââââââââââââââââââââââââââââââââââââââ */}
             <section id="quick-start">
               <h2>Quick Start</h2>
               <pre><code>{`# Full security audit with remediation plan + HTML report
 npx ship-safe audit .
 
-# Red team: 26 agents, 80+ attack classes
+# Red team: 27 agents, 80+ attack classes
 npx ship-safe red-team .
 
 # Quick secret scan
@@ -119,7 +119,7 @@ npx ship-safe diff --staged
 npx ship-safe ci . --threshold 80`}</code></pre>
             </section>
 
-            {/* ── Commands ──────────────────────────────────────────── */}
+            {/* ââ Commands ââââââââââââââââââââââââââââââââââââââââââââ */}
             <section id="commands">
               <h2>Commands</h2>
 
@@ -128,8 +128,8 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                 <table>
                   <thead><tr><th>Command</th><th>Description</th></tr></thead>
                   <tbody>
-                    <tr><td><code>audit .</code></td><td>Full audit: secrets + 26 agents + deps + remediation plan + HTML report</td></tr>
-                    <tr><td><code>red-team .</code></td><td>Run 26 agents with 80+ attack classes</td></tr>
+                    <tr><td><code>audit .</code></td><td>Full audit: secrets + 27 agents + deps + remediation plan + HTML report</td></tr>
+                    <tr><td><code>red-team .</code></td><td>Run 27 agents with 80+ attack classes</td></tr>
                     <tr><td><code>scan .</code></td><td>Secret scanner (pattern matching + entropy scoring)</td></tr>
                     <tr><td><code>score .</code></td><td>Security health score (0-100, A-F grade)</td></tr>
                     <tr><td><code>deps .</code></td><td>Dependency CVE audit with EPSS scores</td></tr>
@@ -144,12 +144,12 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                   <thead><tr><th>Command</th><th>Description</th></tr></thead>
                   <tbody>
                     <tr><td><code>ship-safe</code></td><td>Drop into the interactive REPL (bare invocation on a TTY)</td></tr>
-                    <tr><td><code>shell .</code></td><td>Explicit REPL — slash commands, streaming LLM, persistent session</td></tr>
-                    <tr><td><code>agent .</code></td><td>Interactive fix loop: scan → plan → diff → accept/skip/edit/quit → verify</td></tr>
+                    <tr><td><code>shell .</code></td><td>Explicit REPL â slash commands, streaming LLM, persistent session</td></tr>
+                    <tr><td><code>agent .</code></td><td>Interactive fix loop: scan â plan â diff â accept/skip/edit/quit â verify</td></tr>
                     <tr><td><code>agent . --plan-only</code></td><td>Preview fix plans without writing any files</td></tr>
                     <tr><td><code>agent . --severity critical</code></td><td>Only plan/fix findings at the given severity or above</td></tr>
                     <tr><td><code>agent . --branch --pr</code></td><td>Commit fixes on a new branch and open a PR via <code>gh</code></td></tr>
-                    <tr><td><code>agent . --yolo --branch</code></td><td>Unattended CI mode — auto-accept all plans</td></tr>
+                    <tr><td><code>agent . --yolo --branch</code></td><td>Unattended CI mode â auto-accept all plans</td></tr>
                     <tr><td><code>undo</code></td><td>Revert the last fix applied by the agent</td></tr>
                     <tr><td><code>undo --all</code></td><td>Revert every fix in <code>.ship-safe/fixes.jsonl</code></td></tr>
                   </tbody>
@@ -183,7 +183,7 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                 <table>
                   <thead><tr><th>Command</th><th>Description</th></tr></thead>
                   <tbody>
-                    <tr><td><code>hooks install</code></td><td>Install real-time Claude Code hooks — block secrets before they land on disk</td></tr>
+                    <tr><td><code>hooks install</code></td><td>Install real-time Claude Code hooks â block secrets before they land on disk</td></tr>
                     <tr><td><code>hooks status</code></td><td>Check if Claude Code hooks are installed</td></tr>
                     <tr><td><code>hooks remove</code></td><td>Uninstall Claude Code hooks</td></tr>
                     <tr><td><code>remediate .</code></td><td>Auto-fix hardcoded secrets (rewrite code + write .env)</td></tr>
@@ -254,9 +254,9 @@ npx ship-safe ci . --threshold 80`}</code></pre>
               </div>
             </section>
 
-            {/* ── Agents ────────────────────────────────────────────── */}
+            {/* ââ Agents ââââââââââââââââââââââââââââââââââââââââââââââ */}
             <section id="agents">
-              <h2>26 Security Agents</h2>
+              <h2>27 Security Agents</h2>
               <p>All agents run in parallel with per-agent timeouts. Each implements <code>shouldRun(recon)</code> to skip irrelevant projects automatically.</p>
               <div className={styles.tableWrap}>
                 <table>
@@ -281,20 +281,21 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                     <tr><td><strong>GitHistoryScanner</strong></td><td>Secrets</td><td>Leaked secrets in git commit history</td></tr>
                     <tr><td><strong>CICDScanner</strong></td><td>CI/CD</td><td>OWASP CI/CD Top 10: pipeline poisoning, unpinned actions, secret logging</td></tr>
                     <tr><td><strong>APIFuzzer</strong></td><td>API</td><td>Routes without auth, mass assignment, GraphQL introspection, debug endpoints</td></tr>
-                    <tr><td><strong>ManagedAgentScanner</strong></td><td>AI/LLM</td><td>Claude Managed Agent misconfigs — always_allow policies, unrestricted networking, unpinned packages</td></tr>
-                    <tr><td><strong>HermesSecurityAgent</strong></td><td>AI/LLM</td><td>Hermes Agent deployments — tool registry poisoning, function-call injection, skill permission drift (ASI-01–ASI-10)</td></tr>
-                    <tr><td><strong>AgentAttestationAgent</strong></td><td>Supply Chain</td><td>Agent manifest supply chain — unpinned versions, missing integrity hashes, unsigned manifests (ASI-10, SLSA Level 0)</td></tr>
-                    <tr><td><strong>AgenticSupplyChainAgent</strong></td><td>Supply Chain</td><td>AI integration supply chain — over-privileged AI CI actions, OAuth scope creep, unsigned AI webhook receivers (ASI-02, ASI-06, CICD-SEC-8)</td></tr>
-                    <tr><td><strong>RobloxSecurityAgent</strong></td><td>Supply Chain</td><td>Malicious Roblox/Luau Toolbox assets — runtime asset injection (<code>game:GetObjects(&apos;rbxassetid://&apos;)</code>, <code>require(assetId)</code>), <code>HttpEnabled</code> from scripts, obfuscated loaders, and payloads hidden in instance attributes (decoded from <code>.rbxmx</code>/<code>.rbxlx</code>) — plus cross-platform ClickFix paste-and-run lures (CWE-506, CWE-829)</td></tr>
-                    <tr><td><strong>ModelScanAgent</strong></td><td>Supply Chain</td><td>ML model supply chain — code-execution payloads in pickle-based weights (<code>.pt</code>/<code>.pkl</code>/<code>.ckpt</code>/<code>.bin</code>), <code>torch.load</code> without <code>weights_only=True</code>, and archive-wrapped scanner evasion (CWE-502, CWE-506)</td></tr>
-                    <tr><td><strong>TrustBoundaryAgent</strong></td><td>Agentic</td><td>AI coding-agent trust boundary — GhostApproval symlinks (config-named links into <code>~/.ssh</code>/<code>~/.aws</code>/<code>.env</code>), symlinks escaping the repo, and Friendly Fire run-on-review/curl-pipe-bash instructions in agent-read files (CWE-59, CWE-61)</td></tr>
+                    <tr><td><strong>ManagedAgentScanner</strong></td><td>AI/LLM</td><td>Claude Managed Agent misconfigs â always_allow policies, unrestricted networking, unpinned packages</td></tr>
+                    <tr><td><strong>HermesSecurityAgent</strong></td><td>AI/LLM</td><td>Hermes Agent deployments â tool registry poisoning, function-call injection, skill permission drift (ASI-01âASI-10)</td></tr>
+                    <tr><td><strong>AgentAttestationAgent</strong></td><td>Supply Chain</td><td>Agent manifest supply chain â unpinned versions, missing integrity hashes, unsigned manifests (ASI-10, SLSA Level 0)</td></tr>
+                    <tr><td><strong>AgenticSupplyChainAgent</strong></td><td>Supply Chain</td><td>AI integration supply chain â over-privileged AI CI actions, OAuth scope creep, unsigned AI webhook receivers (ASI-02, ASI-06, CICD-SEC-8)</td></tr>
+                    <tr><td><strong>RobloxSecurityAgent</strong></td><td>Supply Chain</td><td>Malicious Roblox/Luau Toolbox assets â runtime asset injection (<code>game:GetObjects(&apos;rbxassetid://&apos;)</code>, <code>require(assetId)</code>), <code>HttpEnabled</code> from scripts, obfuscated loaders, and payloads hidden in instance attributes (decoded from <code>.rbxmx</code>/<code>.rbxlx</code>) â plus cross-platform ClickFix paste-and-run lures (CWE-506, CWE-829)</td></tr>
+                    <tr><td><strong>ModelScanAgent</strong></td><td>Supply Chain</td><td>ML model supply chain â code-execution payloads in pickle-based weights (<code>.pt</code>/<code>.pkl</code>/<code>.ckpt</code>/<code>.bin</code>), <code>torch.load</code> without <code>weights_only=True</code>, and archive-wrapped scanner evasion (CWE-502, CWE-506)</td></tr>
+                    <tr><td><strong>TrustBoundaryAgent</strong></td><td>Agentic</td><td>AI coding-agent trust boundary â GhostApproval symlinks (config-named links into <code>~/.ssh</code>/<code>~/.aws</code>/<code>.env</code>), symlinks escaping the repo, and Friendly Fire run-on-review/curl-pipe-bash instructions in agent-read files (CWE-59, CWE-61)</td></tr>
+                    <tr><td><strong>SlopSquatAgent</strong></td><td>Supply Chain</td><td>Slopsquatting / hallucinated packages — imports that are neither declared in <code>package.json</code>, present in <code>node_modules</code>, nor Node builtins (the slot attackers register), plus documented AI-hallucinated names (CWE-1357)</td></tr>
                   </tbody>
                 </table>
               </div>
               <p><strong>Post-processors:</strong> ScoringEngine (8-category weighted scoring), VerifierAgent (secrets liveness verification), DeepAnalyzer (LLM-powered taint analysis)</p>
             </section>
 
-            {/* ── Scoring ───────────────────────────────────────────── */}
+            {/* ââ Scoring âââââââââââââââââââââââââââââââââââââââââââââ */}
             <section id="scoring">
               <h2>Scoring System</h2>
               <p>Starts at 100. Each finding deducts points by severity and category, weighted by confidence level (high: 100%, medium: 60%, low: 30%).</p>
@@ -317,7 +318,7 @@ npx ship-safe ci . --threshold 80`}</code></pre>
               <p><strong>Exit codes:</strong> <code>0</code> for A/B (&gt;= 75), <code>1</code> for C/D/F. Use in CI to fail builds.</p>
             </section>
 
-            {/* ── CI/CD ─────────────────────────────────────────────── */}
+            {/* ââ CI/CD âââââââââââââââââââââââââââââââââââââââââââââââ */}
             <section id="cicd">
               <h2>CI/CD Integration</h2>
               <pre><code>{`# Basic CI: fail if score < 75
@@ -337,7 +338,7 @@ npx ship-safe ci . --baseline`}</code></pre>
               <p>Export formats: <code>--json</code>, <code>--sarif</code>, <code>--csv</code>, <code>--md</code>, <code>--html</code>, <code>--pdf</code></p>
             </section>
 
-            {/* ── GitHub Action ──────────────────────────────────────── */}
+            {/* ââ GitHub Action ââââââââââââââââââââââââââââââââââââââââ */}
             <section id="github-action">
               <h2>GitHub Action</h2>
               <pre><code>{`# .github/workflows/security.yml
@@ -378,7 +379,7 @@ jobs:
               </div>
             </section>
 
-            {/* ── LLM ───────────────────────────────────────────────── */}
+            {/* ââ LLM âââââââââââââââââââââââââââââââââââââââââââââââââ */}
             <section id="llm">
               <h2>Multi-LLM Support</h2>
               <p>AI classification is optional. All core commands work fully offline. Use <code>--provider &lt;name&gt;</code> or set the matching environment variable.</p>
@@ -403,7 +404,7 @@ jobs:
               </div>
             </section>
 
-            {/* ── Incremental Scanning ──────────────────────────────── */}
+            {/* ââ Incremental Scanning ââââââââââââââââââââââââââââââââ */}
             <section id="scanning">
               <h2>Incremental Scanning</h2>
               <p>Ship Safe caches file hashes and findings in <code>.ship-safe/context.json</code>. Only changed files are re-scanned on subsequent runs.</p>
@@ -415,7 +416,7 @@ jobs:
               <p>LLM responses are cached in <code>.ship-safe/llm-cache.json</code> with a 7-day TTL to reduce API costs.</p>
             </section>
 
-            {/* ── Suppression ───────────────────────────────────────── */}
+            {/* ââ Suppression âââââââââââââââââââââââââââââââââââââââââ */}
             <section id="suppression">
               <h2>Suppressing Findings</h2>
               <p><strong>Inline:</strong> Add <code># ship-safe-ignore</code> on any line:</p>
@@ -429,7 +430,7 @@ tests/fixtures/
 docs/`}</code></pre>
             </section>
 
-            {/* ── Policy ────────────────────────────────────────────── */}
+            {/* ââ Policy ââââââââââââââââââââââââââââââââââââââââââââââ */}
             <section id="policy">
               <h2>Policy-as-Code</h2>
               <pre><code>{`npx ship-safe policy init`}</code></pre>
@@ -443,7 +444,7 @@ docs/`}</code></pre>
 }`}</code></pre>
             </section>
 
-            {/* ── OWASP ─────────────────────────────────────────────── */}
+            {/* ââ OWASP âââââââââââââââââââââââââââââââââââââââââââââââ */}
             <section id="owasp">
               <h2>OWASP Coverage</h2>
               <div className={styles.tableWrap}>
@@ -461,7 +462,7 @@ docs/`}</code></pre>
               <p>Compliance mapping to SOC 2 Type II, ISO 27001:2022, and NIST AI RMF is included in audit reports.</p>
             </section>
 
-            {/* ── OpenClaw ──────────────────────────────────────────── */}
+            {/* ââ OpenClaw ââââââââââââââââââââââââââââââââââââââââââââ */}
             <section id="openclaw">
               <h2>OpenClaw Security</h2>
               <pre><code>{`# Focused OpenClaw security scan
@@ -513,7 +514,7 @@ jobs:
               <p>Scans <code>openclaw.json</code>, <code>.cursorrules</code>, <code>CLAUDE.md</code>, Claude Code hooks, and MCP configs. Checks against the bundled threat intelligence database for known ClawHavoc IOCs.</p>
             </section>
 
-            {/* ── Claude Code ───────────────────────────────────────── */}
+            {/* ââ Claude Code âââââââââââââââââââââââââââââââââââââââââ */}
             <section id="claude-code">
               <h2>Claude Code Plugin</h2>
               <pre><code>{`claude plugin add github:asamassekou10/ship-safe`}</code></pre>
@@ -531,7 +532,7 @@ jobs:
               </div>
             </section>
 
-            {/* ── Config Files ──────────────────────────────────────── */}
+            {/* ââ Config Files ââââââââââââââââââââââââââââââââââââââââ */}
             <section id="config">
               <h2>Configuration Files</h2>
               <div className={styles.tableWrap}>
@@ -545,14 +546,14 @@ jobs:
                     <tr><td><code>.ship-safe/baseline.json</code></td><td>Accepted findings baseline</td></tr>
                     <tr><td><code>.ship-safe/llm-cache.json</code></td><td>LLM response cache (7-day TTL)</td></tr>
                     <tr><td><code>.ship-safe/fixes.jsonl</code></td><td>Log of every fix applied by <code>agent</code> (used by <code>undo</code>)</td></tr>
-                    <tr><td><code>.ship-safe/failures.jsonl</code></td><td>Plans that failed to apply — parse errors, declined plans, provider errors</td></tr>
+                    <tr><td><code>.ship-safe/failures.jsonl</code></td><td>Plans that failed to apply â parse errors, declined plans, provider errors</td></tr>
                   </tbody>
                 </table>
               </div>
               <p>The <code>.ship-safe/</code> directory is automatically excluded from scans and should be added to <code>.gitignore</code>.</p>
             </section>
 
-            {/* ── Supply Chain ──────────────────────────────────────── */}
+            {/* ââ Supply Chain ââââââââââââââââââââââââââââââââââââââââ */}
             <section id="supply-chain">
               <h2>Supply Chain Hardening</h2>
               <p>Ship Safe practices what it preaches. Our own supply chain is hardened against the <a href="/blog/supply-chain-attacks-2026-how-we-hardened-ship-safe">2026 Trivy/CanisterWorm attack chain</a>:</p>

@@ -35,6 +35,7 @@ export { AgenticSupplyChainAgent } from './agentic-supply-chain-agent.js';
 export { RobloxSecurityAgent } from './roblox-security-agent.js';
 export { ModelScanAgent } from './model-scan-agent.js';
 export { TrustBoundaryAgent } from './trust-boundary-agent.js';
+export { SlopSquatAgent } from './slopsquat-agent.js';
 export { ABOMGenerator } from './abom-generator.js';
 export { VerifierAgent } from './verifier-agent.js';
 export { DeepAnalyzer } from './deep-analyzer.js';
@@ -44,7 +45,7 @@ export { PolicyEngine } from './policy-engine.js';
 export { HTMLReporter } from './html-reporter.js';
 
 /**
- * Create a fully configured orchestrator with all 26 scanning agents.
+ * Create a fully configured orchestrator with all 27 scanning agents.
  * (VerifierAgent and DeepAnalyzer run as post-processors, not in the agent pool.)
  *
  * Plugin system: if rootPath is provided, custom agents from
@@ -78,6 +79,7 @@ import { AgenticSupplyChainAgent as AgenticSupplyChainAgentClass } from './agent
 import { RobloxSecurityAgent as RobloxSecurityAgentClass } from './roblox-security-agent.js';
 import { ModelScanAgent as ModelScanAgentClass } from './model-scan-agent.js';
 import { TrustBoundaryAgent as TrustBoundaryAgentClass } from './trust-boundary-agent.js';
+import { SlopSquatAgent as SlopSquatAgentClass } from './slopsquat-agent.js';
 import { loadPlugins } from '../utils/plugin-loader.js';
 
 const BUILT_IN_AGENTS = () => [
@@ -107,6 +109,7 @@ const BUILT_IN_AGENTS = () => [
   new RobloxSecurityAgentClass(),
   new ModelScanAgentClass(),
   new TrustBoundaryAgentClass(),
+  new SlopSquatAgentClass(),
 ];
 
 /** Synchronous build — no plugin support. Used by legacy callers. */

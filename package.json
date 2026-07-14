@@ -1,7 +1,7 @@
 {
   "name": "ship-safe",
   "version": "9.5.0",
-  "description": "AI-powered multi-agent security platform. 26 agents scan 80+ attack classes including AI integration supply chain (Vercel-class attacks), Hermes Agent deployments (ASI-01–ASI-10), tool registry poisoning, function-call injection, skill permission drift, and agent attestation. Ship Safe × Hermes Agent.",
+  "description": "AI-powered multi-agent security platform. 27 agents scan 80+ attack classes including AI integration supply chain (Vercel-class attacks), Hermes Agent deployments (ASI-01–ASI-10), tool registry poisoning, function-call injection, skill permission drift, and agent attestation. Ship Safe × Hermes Agent.",
   "main": "cli/index.js",
   "bin": {
     "ship-safe": "cli/bin/ship-safe.js"
