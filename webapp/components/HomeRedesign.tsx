@@ -32,7 +32,7 @@ const coverage = [
 
 const proofItems = [
   { value: 'MIT', label: 'open-source CLI' },
-  { value: '25', label: 'specialized agents' },
+  { value: '26', label: 'specialized agents' },
   { value: 'SARIF', label: 'GitHub-ready output' },
   { value: 'CI', label: 'pipeline gating' },
 ];
@@ -352,7 +352,7 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
           <span>npm downloads</span>
         </div>
         <div>
-          <strong>25</strong>
+          <strong>26</strong>
           <span>AI security agents</span>
         </div>
         <div>

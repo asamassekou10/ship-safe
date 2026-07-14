@@ -6,7 +6,7 @@ const ogImage = 'https://www.shipsafecli.com/og1.png';
 
 export const metadata: Metadata = {
   title: 'Documentation',
-  description: 'Complete Ship Safe documentation: LLM vulnerability CLI commands, MCP configuration security scanning, RAG poisoning detection, CI/CD integration, 25 agent reference, and API docs.',
+  description: 'Complete Ship Safe documentation: LLM vulnerability CLI commands, MCP configuration security scanning, RAG poisoning detection, CI/CD integration, 26 agent reference, and API docs.',
   keywords: ['Ship Safe docs', 'LLM vulnerability CLI', 'MCP configuration security', 'RAG poisoning detection', 'AI agent security scanner', 'ship-safe commands', 'ship-safe agents', 'DevSecOps documentation', 'OWASP Agentic AI Top 10'],
   alternates: {
     canonical: 'https://www.shipsafecli.com/docs',
@@ -52,7 +52,7 @@ export default function Docs() {
               <a href="#installation">Installation</a>
               <a href="#quick-start">Quick Start</a>
               <a href="#commands">Commands</a>
-              <a href="#agents">25 Security Agents</a>
+              <a href="#agents">26 Security Agents</a>
               <a href="#scoring">Scoring System</a>
               <a href="#cicd">CI/CD Integration</a>
               <a href="#github-action">GitHub Action</a>
@@ -73,7 +73,7 @@ export default function Docs() {
               <span className={styles.sectionLabel}>// docs</span>
               <h1>Ship Safe CLI</h1>
               <p className={styles.subtitle}>
-                25 AI security agents. 80+ attack classes. One command.
+                26 AI security agents. 80+ attack classes. One command.
               </p>
               <pre className={styles.heroCode}><code>npx ship-safe audit .</code></pre>
             </header>
@@ -100,7 +100,7 @@ export GOOGLE_AI_API_KEY=AIza...`}</code></pre>
               <pre><code>{`# Full security audit with remediation plan + HTML report
 npx ship-safe audit .
 
-# Red team: 25 agents, 80+ attack classes
+# Red team: 26 agents, 80+ attack classes
 npx ship-safe red-team .
 
 # Quick secret scan
@@ -128,8 +128,8 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                 <table>
                   <thead><tr><th>Command</th><th>Description</th></tr></thead>
                   <tbody>
-                    <tr><td><code>audit .</code></td><td>Full audit: secrets + 25 agents + deps + remediation plan + HTML report</td></tr>
-                    <tr><td><code>red-team .</code></td><td>Run 25 agents with 80+ attack classes</td></tr>
+                    <tr><td><code>audit .</code></td><td>Full audit: secrets + 26 agents + deps + remediation plan + HTML report</td></tr>
+                    <tr><td><code>red-team .</code></td><td>Run 26 agents with 80+ attack classes</td></tr>
                     <tr><td><code>scan .</code></td><td>Secret scanner (pattern matching + entropy scoring)</td></tr>
                     <tr><td><code>score .</code></td><td>Security health score (0-100, A-F grade)</td></tr>
                     <tr><td><code>deps .</code></td><td>Dependency CVE audit with EPSS scores</td></tr>
@@ -256,7 +256,7 @@ npx ship-safe ci . --threshold 80`}</code></pre>
 
             {/* ── Agents ────────────────────────────────────────────── */}
             <section id="agents">
-              <h2>25 Security Agents</h2>
+              <h2>26 Security Agents</h2>
               <p>All agents run in parallel with per-agent timeouts. Each implements <code>shouldRun(recon)</code> to skip irrelevant projects automatically.</p>
               <div className={styles.tableWrap}>
                 <table>
@@ -287,6 +287,7 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                     <tr><td><strong>AgenticSupplyChainAgent</strong></td><td>Supply Chain</td><td>AI integration supply chain — over-privileged AI CI actions, OAuth scope creep, unsigned AI webhook receivers (ASI-02, ASI-06, CICD-SEC-8)</td></tr>
                     <tr><td><strong>RobloxSecurityAgent</strong></td><td>Supply Chain</td><td>Malicious Roblox/Luau Toolbox assets — runtime asset injection (<code>game:GetObjects(&apos;rbxassetid://&apos;)</code>, <code>require(assetId)</code>), <code>HttpEnabled</code> from scripts, obfuscated loaders, and payloads hidden in instance attributes (decoded from <code>.rbxmx</code>/<code>.rbxlx</code>) — plus cross-platform ClickFix paste-and-run lures (CWE-506, CWE-829)</td></tr>
                     <tr><td><strong>ModelScanAgent</strong></td><td>Supply Chain</td><td>ML model supply chain — code-execution payloads in pickle-based weights (<code>.pt</code>/<code>.pkl</code>/<code>.ckpt</code>/<code>.bin</code>), <code>torch.load</code> without <code>weights_only=True</code>, and archive-wrapped scanner evasion (CWE-502, CWE-506)</td></tr>
+                    <tr><td><strong>TrustBoundaryAgent</strong></td><td>Agentic</td><td>AI coding-agent trust boundary — GhostApproval symlinks (config-named links into <code>~/.ssh</code>/<code>~/.aws</code>/<code>.env</code>), symlinks escaping the repo, and Friendly Fire run-on-review/curl-pipe-bash instructions in agent-read files (CWE-59, CWE-61)</td></tr>
                   </tbody>
                 </table>
               </div>
