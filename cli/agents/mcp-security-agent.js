@@ -309,6 +309,7 @@ export class MCPSecurityAgent extends BaseAgent {
     for (const file of configFiles) {
       findings = findings.concat(this._checkMcpTyposquatting(file));
       findings = findings.concat(this._checkOverPermissioned(file));
+      findings = findings.concat(this._checkAutoLaunchOnTrust(file, rootPath));
     }
 
     // ── 5. Detect shadow MCP configs (not in version control) ───────────
@@ -384,6 +385,48 @@ export class MCPSecurityAgent extends BaseAgent {
       });
     }
 
+    return findings;
+  }
+
+  /**
+   * Detect repo-local MCP configs that auto-launch a local process when the
+   * developer accepts the editor's folder-trust prompt. A malicious repo can
+   * ship such a config so a stdio server (command) runs the moment the folder
+   * is trusted in Claude Code / Cursor / VS Code — the shared weak default
+   * across agentic CLI tools (Adversa, 2026).
+   */
+  _checkAutoLaunchOnTrust(filePath, rootPath) {
+    // Only project-local configs auto-load on trust; skip global user configs.
+    const rel = path.relative(rootPath, filePath).replace(/\\/g, '/');
+    const base = path.basename(filePath);
+    const isProjectLocal = base === '.mcp.json' || base === 'mcp.json'
+      || rel.endsWith('.cursor/mcp.json') || rel.endsWith('.vscode/mcp.json');
+    if (!isProjectLocal) return [];
+
+    const content = this.readFile(filePath);
+    if (!content) return [];
+    let config;
+    try { config = JSON.parse(content); } catch { return []; }
+    const servers = config.mcpServers || config.servers || (config.mcp && config.mcp.servers) || {};
+    const findings = [];
+
+    for (const [name, server] of Object.entries(servers)) {
+      if (!server || typeof server !== 'object' || typeof server.command !== 'string') continue;
+      const invocation = `${server.command} ${(server.args || []).join(' ')}`.trim();
+      findings.push({
+        file: filePath, line: 1, column: 0,
+        severity: 'high',
+        category: this.category,
+        rule: 'MCP_AUTO_LAUNCH_ON_TRUST',
+        title: `MCP: Server "${name}" auto-launches on folder trust`,
+        description: `Project-local ${base} defines a stdio server ("${name}") that runs \`${invocation.slice(0, 80)}\`. If this repo is opened and trusted in an agentic editor (Claude Code, Cursor, VS Code), the command executes automatically — a malicious repo weaponizes this to run code the moment you accept the trust prompt.`,
+        matched: invocation.slice(0, 100),
+        confidence: 'high',
+        cwe: 'CWE-829',
+        owasp: 'ASI06:2026',
+        fix: 'Do not ship auto-launching MCP servers in a repo. Review the command, require explicit per-server approval, and never trust a repo-supplied server definition without inspecting what it runs.',
+      });
+    }
     return findings;
   }
 

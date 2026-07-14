@@ -81,9 +81,23 @@ model supply chain.
   - `WORM_LIFECYCLE_OBFUSCATED_EXEC` (high) — `node -e` / `eval` / base64.
   - `WORM_BINDING_GYP` (high) — a weaponized `binding.gyp` node-gyp action that
     fetches, spawns, or evaluates rather than compiles. Maps to CWE-506, CWE-829.
+- **MCPSecurityAgent**: new `MCP_AUTO_LAUNCH_ON_TRUST` (high) — a repo-local
+  MCP config (`.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`) that defines
+  a stdio `command` server which auto-launches when the folder is trusted in an
+  agentic editor. A malicious repo weaponizes this to run code on the trust
+  prompt (Adversa, 2026). Excludes remote-only servers and the global
+  `claude_desktop_config.json`. Maps to CWE-829, ASI06:2026.
 
 ### Changed
 - Agent count 24 → 29 across CLI, README, docs, and marketing site.
+- Refreshed the OWASP Agentic coverage mapping to the finalized **OWASP Top 10
+  for Agentic Applications 2026** categories (inter-agent communication,
+  cascading failures, human-agent trust, rogue agents).
+
+### Fixed
+- Repaired pervasive mojibake (triple-encoded em-dashes and other punctuation)
+  in the documentation page — a pre-existing UTF-8 corruption that rendered as
+  garbled characters. 735+ occurrences corrected.
 
 ### Tests
 - 23 net new tests (212 → 235): ModelScan payload detection, unsafe-format flagging,
