@@ -6,7 +6,40 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [9.5.0] — 2026-07-13 — Trust Boundary (in progress)
+## [9.5.1] — 2026-07-15 — GPT-Red AI Agent Red Team
+
+### Added
+- **GPT-Red AI agent red-team mode** via `ship-safe red-team . --gpt-red`:
+  - Runs an AI-inspired attacker / defender / judge loop for agentic security
+    posture, prompt-injection exposure, tool-permission drift, MCP trust
+    boundaries, and remediation prioritization.
+  - Uses the existing AI provider stack when configured, including OpenAI,
+    OpenAI-compatible/local endpoints, DeepSeek, and Moonshot/Kimi providers.
+  - Keeps deterministic offline execution available by default when no provider
+    is configured, and explicitly through `--no-ai`.
+  - Adds `--iterations` for deeper scenario rounds and `--show-payloads` for
+    controlled payload visibility in reports.
+- Expanded red-team swarm role mapping to cover all 29 built-in Ship Safe
+  agents.
+- Added a GPT-Red launch blog post and refreshed README / AI-readable discovery
+  content so the new command is easier for search engines and AI answer engines
+  to understand.
+
+### Changed
+- `red-team --gpt-red` now provides materially different coverage from the
+  standard red-team command: it evaluates multi-step AI-agent attack narratives,
+  defensive controls, and judge-style risk scoring instead of only aggregating
+  static findings.
+- npm packaging now excludes generated `cli/.ship-safe/` scan state from the
+  published package.
+
+### Tests
+- Added focused coverage for GPT-Red offline mode, provider-backed mode, CLI
+  orchestration, swarm role counts, and packaging behavior.
+- Release validation includes the full Node test suite, webapp TypeScript check,
+  npm dry-run pack, and a clean-project `red-team --gpt-red --no-ai` smoke test.
+
+## [9.5.0] — 2026-07-13 — AI Toolchain Security
 
 The attack surface has moved into the AI developer toolchain. This release
 line adds coverage for the threats landing in mid-2026 — starting with the AI
