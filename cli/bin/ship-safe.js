@@ -261,7 +261,7 @@ program
 // -----------------------------------------------------------------------------
 program
   .command('audit [path]')
-  .description('Full security audit: secrets + 22 agents + deps + score + deep analysis + remediation plan')
+  .description('Full security audit: secrets + 29 agents + deps + score + deep analysis + remediation plan')
   .option('--json', 'Output results as JSON')
   .option('--sarif', 'Output results in SARIF format')
   .option('--csv', 'Output results as CSV')
@@ -307,7 +307,7 @@ program
 // -----------------------------------------------------------------------------
 program
   .command('red-team [path]')
-  .description('Multi-agent security audit: 22 agents scan for 80+ attack classes')
+  .description('Multi-agent security audit: 29 agents scan for 80+ attack classes')
   .option('--agents <list>', 'Comma-separated list of agents to run')
   .option('--json', 'Output results as JSON')
   .option('--sarif', 'Output results in SARIF format')
@@ -316,7 +316,10 @@ program
   .option('--no-deps', 'Skip dependency audit')
   .option('--no-ai', 'Skip AI classification')
   .option('--deep', 'LLM-powered taint analysis for critical/high findings')
-  .option('--swarm', 'Use AI swarm mode — 23 parallel agents via DeepSeek V4 Flash or Kimi K2.6 (requires DEEPSEEK_API_KEY or MOONSHOT_API_KEY)')
+  .option('--swarm', 'Use AI swarm mode — 29 parallel agents via DeepSeek V4 Flash or Kimi K2.6 (requires DEEPSEEK_API_KEY or MOONSHOT_API_KEY)')
+  .option('--gpt-red', 'Run AI agent red-team scenarios against agent-readable content (DeepSeek/Kimi/OpenAI; offline fallback)')
+  .option('--iterations <n>', 'GPT-Red attacker/defender/judge iterations (default: 2, max: 5)', parseInt)
+  .option('--show-payloads', 'Show sanitized GPT-Red payload summaries in findings')
   .option('--think', 'Enable extended thinking mode (GPT-5.5 reasoning_effort:high, Claude extended thinking)')
   .option('--local', 'Use local Ollama model for deep analysis (default: llama3.2)')
   .option('--model <model>', 'LLM model for deep analysis')
@@ -691,9 +694,9 @@ if (process.argv.length === 2 && process.stdin.isTTY) {
   console.log(banner);
   console.log(chalk.yellow('\nQuick start:\n'));
   console.log(chalk.cyan.bold('  v9.0 — Agent Studio, Teams & Findings'));
-  console.log(chalk.white('  npx ship-safe audit .       ') + chalk.gray('# Full audit: secrets + 22 agents + deps + remediation'));
+  console.log(chalk.white('  npx ship-safe audit .       ') + chalk.gray('# Full audit: secrets + 29 agents + deps + remediation'));
   console.log(chalk.white('  npx ship-safe audit . --deep') + chalk.gray('# LLM-powered taint analysis (Anthropic/Ollama)'));
-  console.log(chalk.white('  npx ship-safe red-team .    ') + chalk.gray('# 22-agent red team scan (80+ attack classes)'));
+  console.log(chalk.white('  npx ship-safe red-team .    ') + chalk.gray('# 29-agent red team scan (80+ attack classes)'));
   console.log(chalk.white('  npx ship-safe vibe-check .  ') + chalk.gray('# Fun security check with emoji & shareable badge'));
   console.log(chalk.white('  npx ship-safe benchmark .   ') + chalk.gray('# Compare score against industry averages'));
   console.log(chalk.white('  npx ship-safe ci .          ') + chalk.gray('# CI/CD mode: scan, score, exit code'));

@@ -138,7 +138,7 @@ function template(user: LifecycleUser, type: LifecycleType): { subject: string; 
         subject: 'Welcome to Ship Safe 🛡️',
         html: shell(
           `<p style="${P}">Hi ${name},</p>
-<p style="${P}">Thanks for signing up for Ship Safe. It scans your code for secrets, injections, AI/LLM and supply-chain risks — <strong>24 agents, one command.</strong></p>
+<p style="${P}">Thanks for signing up for Ship Safe. It scans your code for secrets, injections, AI/LLM and supply-chain risks — <strong>29 agents, one command.</strong></p>
 <p style="margin:0 0 12px;">The fastest way to see it work, right now, in any repo:</p>
 ${terminal('npx ship-safe audit .')}
 ${button(dashboard, 'Open the dashboard →')}

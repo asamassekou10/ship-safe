@@ -54,6 +54,7 @@
   },
   "files": [
     "cli/",
+    "!cli/.ship-safe/",
     "!cli/__tests__/",
     "checklists/",
     "configs/",

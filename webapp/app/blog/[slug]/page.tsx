@@ -348,7 +348,7 @@ export default async function BlogPost({ params }: Props) {
             <div className={styles.cta}>
               <h3>Scan your project now</h3>
               <pre className={styles.ctaCode}><code>npx ship-safe audit .</code></pre>
-              <p>24 agents. 80+ attack classes. Free and open source.</p>
+              <p>29 agents. 80+ attack classes. Free and open source.</p>
               <div className={styles.ctaLinks}>
                 <a href="https://github.com/asamassekou10/ship-safe" className="btn btn-primary">View on GitHub</a>
                 <Link href="/pricing" className="btn btn-ghost">See pricing</Link>

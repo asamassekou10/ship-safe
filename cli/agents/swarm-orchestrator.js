@@ -2,11 +2,11 @@
  * SwarmOrchestrator — K2.6-Powered Parallel Security Swarm
  * ==========================================================
  *
- * Instead of running 23 agents locally in Node.js (chunks of 6),
+ * Instead of running the local agent pool in Node.js (chunks of 6),
  * --swarm sends the entire task to Kimi K2.6 and lets its native
  * 300-agent swarm handle parallel analysis.
  *
- * Each of Ship Safe's 23 attack classes is assigned as an explicit
+ * Each of Ship Safe's AI security attack classes is assigned as an explicit
  * sub-agent role. K2.6 fans out, each sub-agent scans for its class,
  * and results are returned as a consolidated findings array.
  *
@@ -25,7 +25,7 @@ import { ReconAgent } from './recon-agent.js';
 import { createFinding } from './base-agent.js';
 
 // =============================================================================
-// AGENT ROLE DEFINITIONS — maps Ship Safe's 23 attack classes to swarm roles
+// AGENT ROLE DEFINITIONS — maps Ship Safe's attack classes to swarm roles
 // =============================================================================
 
 const SWARM_ROLES = [
@@ -52,6 +52,12 @@ const SWARM_ROLES = [
   { id: 'hermes-security',     name: 'Hermes Security Agent',      desc: 'Hermes CLI security, agent tool permissions, orchestrator misconfiguration' },
   { id: 'agent-attestation',   name: 'Agent Attestation Agent',    desc: 'Missing agent identity verification, unauthenticated agent-to-agent calls' },
   { id: 'agentic-supply-chain', name: 'Agentic Supply Chain Agent', desc: 'Compromised AI integrations, OAuth scope creep, MCP server supply chain' },
+  { id: 'roblox-security',     name: 'Roblox Security Agent',      desc: 'Malicious Roblox/Luau assets, runtime asset injection, hidden payload loaders' },
+  { id: 'model-scan',          name: 'Model Scan Agent',           desc: 'Executable ML model weights, pickle payloads, unsafe torch.load usage' },
+  { id: 'trust-boundary',      name: 'Trust Boundary Agent',       desc: 'GhostApproval symlinks, repo trust-boundary escapes, run-on-review instructions' },
+  { id: 'slopsquat',           name: 'SlopSquat Agent',            desc: 'Hallucinated package imports, phantom dependencies, slopsquatting risk' },
+  { id: 'clickfix',            name: 'ClickFix Agent',             desc: 'Fake CAPTCHA paste-and-run lures, fake installer scripts, command cradles' },
+  { id: 'install-guard',       name: 'Install Guard Agent',        desc: 'npm worm lifecycle behavior, credential harvesting, destructive install scripts' },
 ];
 
 // Max file content to include in the swarm prompt (cost control)

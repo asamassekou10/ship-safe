@@ -1,12 +1,12 @@
 ---
 name: ship-safe-red-team
-description: Run a multi-agent red team scan — 16 specialized security agents scan for 80+ attack classes including injection, auth bypass, SSRF, supply chain, Supabase RLS, MCP security, agentic AI, RAG poisoning, PII compliance, and more. Use when the user wants a deep security analysis beyond just secrets.
+description: Run a multi-agent red team scan — 29 specialized security agents scan for 80+ attack classes including injection, auth bypass, SSRF, supply chain, Supabase RLS, MCP security, agentic AI, RAG poisoning, PII compliance, and more. Use when the user wants a deep security analysis beyond just secrets.
 argument-hint: "[path] [--agents <list>]"
 ---
 
 # Ship Safe — Red Team Scan
 
-You are running a multi-agent red team scan using Ship Safe's 13 security agents.
+You are running a multi-agent red team scan using Ship Safe's 29 security agents.
 
 ## Step 1: Run the red team scan
 
@@ -26,7 +26,7 @@ If the user wants specific agents only, use the `--agents` flag:
 npx ship-safe@latest red-team . --agents injection,auth,ssrf --json --no-ai 2>/dev/null
 ```
 
-Available agents: `injection`, `auth`, `ssrf`, `supply-chain`, `config`, `llm`, `mobile`, `git-history`, `cicd`, `api`, `supabase-rls`
+Available agents include: `injection`, `auth`, `ssrf`, `supply-chain`, `config`, `llm`, `mobile`, `git-history`, `cicd`, `api`, `supabase-rls`, `mcp`, `agentic`, `rag`, `pii`, `agent-config`, `memory-poisoning`, `managed-agent`, `hermes`, `agent-attestation`, `agentic-supply-chain`, `roblox-security`, `model-scan`, `trust-boundary`, `slopsquat`, `clickfix`, `install-guard`
 
 ## Step 2: Parse and present results
 
@@ -65,7 +65,7 @@ Based on the results, suggest:
 
 ## Important Notes
 
-- The 13 agents are: InjectionTester, AuthBypassAgent, SSRFProber, SupplyChainAudit, ConfigAuditor, SupabaseRLSAgent, LLMRedTeam, MobileScanner, GitHistoryScanner, CICDScanner, APIFuzzer, ReconAgent, ScoringEngine
+- The scanner includes 29 built-in agents. Recon, verification, and scoring run as supporting phases around the agent pool.
 - Agents run in parallel — the scan should complete in under 60 seconds for most projects
 - Low-confidence findings in test files or documentation are likely false positives
 - Never display actual secret values

@@ -11,13 +11,14 @@
  *   npx ship-safe red-team . --json         JSON output
  *   npx ship-safe red-team . --html report.html  Generate HTML report
  *   npx ship-safe red-team . --sarif        SARIF output
+ *   npx ship-safe red-team . --gpt-red      AI agent red-team scenarios with offline fallback
  */
 
 import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
-import { buildOrchestratorAsync } from '../agents/index.js';
+import { buildOrchestratorAsync, createGPTRedAgent } from '../agents/index.js';
 import { SwarmOrchestrator } from '../agents/swarm-orchestrator.js';
 import { ReconAgent } from '../agents/recon-agent.js';
 import { ScoringEngine } from '../agents/scoring-engine.js';
@@ -69,7 +70,7 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
     reconSpinner.succeed(chalk.green('Attack surface mapped'));
 
     const providerLabel = swarm.provider?.name || 'AI';
-    const swarmSpinner = ora({ text: `Deploying ${chalk.cyan('23 swarm agents')} via ${providerLabel}...`, color: 'cyan' }).start();
+    const swarmSpinner = ora({ text: `Deploying ${chalk.cyan('29 swarm agents')} via ${providerLabel}...`, color: 'cyan' }).start();
     try {
       findings = await swarm.run(absolutePath, recon, files);
       swarmSpinner.succeed(chalk.green(`Swarm complete — ${findings.length} finding(s)`));
@@ -87,6 +88,9 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
     console.log();
 
     const orchestrator = await buildOrchestratorAsync(absolutePath, { quiet: true });
+    if (options.gptRed) {
+      orchestrator.register(createGPTRedAgent());
+    }
 
     const agentFilter = options.agents
       ? options.agents.split(',').map(a => a.trim())
@@ -102,6 +106,10 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
     if (options.provider) orchestratorOpts.provider = options.provider;
     if (options.baseUrl) orchestratorOpts.baseUrl = options.baseUrl;
     if (options.budget) orchestratorOpts.budget = options.budget;
+    if (options.ai === false) orchestratorOpts.ai = false;
+    if (options.gptRed) orchestratorOpts.gptRed = true;
+    if (options.iterations) orchestratorOpts.iterations = options.iterations;
+    if (options.showPayloads) orchestratorOpts.showPayloads = true;
 
     const results = await orchestrator.runAll(absolutePath, orchestratorOpts); // ship-safe-ignore — orchestrator result, not LLM output triggering actions
     ({ recon, findings, agentResults } = results);
@@ -109,7 +117,7 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
 
   // ── 2. Dependency audit ─────────────────────────────────────────────────────
   let depVulns = [];
-  if (!options.noDeps) {
+  if (options.deps !== false && !options.noDeps) {
     const depSpinner = ora({ text: 'Auditing dependencies...', color: 'cyan' }).start();
     try {
       const depResult = await runDepsAudit(absolutePath);
@@ -318,6 +326,8 @@ function outputJSON(scoreResult, findings, recon, agentResults) {
       fix: f.fix,
       aiClassification: f.aiClassification,
       aiFix: f.aiFix,
+      attackPath: f.attackPath,
+      gptRed: f.gptRed,
     })),
     recon,
     agents: agentResults,

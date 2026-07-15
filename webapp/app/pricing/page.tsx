@@ -75,7 +75,7 @@ const upgradeReasons = [
 const openSourcePoints = [
   'Unlimited local scans',
   'MIT licensed CLI',
-  '24 agents included',
+  '29 agents included',
 ];
 
 export default function Pricing() {

@@ -38,6 +38,7 @@ export { TrustBoundaryAgent } from './trust-boundary-agent.js';
 export { SlopSquatAgent } from './slopsquat-agent.js';
 export { ClickFixAgent } from './clickfix-agent.js';
 export { InstallGuardAgent } from './install-guard-agent.js';
+export { GPTRedAgent } from './gpt-red-agent.js';
 export { ABOMGenerator } from './abom-generator.js';
 export { AIBOMGenerator } from './aibom-generator.js';
 export { VerifierAgent } from './verifier-agent.js';
@@ -85,6 +86,7 @@ import { TrustBoundaryAgent as TrustBoundaryAgentClass } from './trust-boundary-
 import { SlopSquatAgent as SlopSquatAgentClass } from './slopsquat-agent.js';
 import { ClickFixAgent as ClickFixAgentClass } from './clickfix-agent.js';
 import { InstallGuardAgent as InstallGuardAgentClass } from './install-guard-agent.js';
+import { GPTRedAgent as GPTRedAgentClass } from './gpt-red-agent.js';
 import { loadPlugins } from '../utils/plugin-loader.js';
 
 const BUILT_IN_AGENTS = () => [
@@ -118,6 +120,10 @@ const BUILT_IN_AGENTS = () => [
   new ClickFixAgentClass(),
   new InstallGuardAgentClass(),
 ];
+
+export function createGPTRedAgent() {
+  return new GPTRedAgentClass();
+}
 
 /** Synchronous build — no plugin support. Used by legacy callers. */
 export function buildOrchestrator() {

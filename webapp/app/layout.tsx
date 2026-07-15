@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     default: 'Ship Safe — AI Agent Security Scanner for Developers',
     template: '%s | Ship Safe',
   },
-  description: 'AI agent security scanner that detects LLM vulnerabilities, MCP configuration security issues, RAG poisoning, secrets, and dependency CVEs. 24 agents, one command. Free CLI, no signup required.',
+  description: 'AI agent security scanner that detects LLM vulnerabilities, MCP configuration security issues, RAG poisoning, secrets, and dependency CVEs. 29 agents, one command. Free CLI, no signup required.',
   metadataBase: new URL('https://www.shipsafecli.com'),
   keywords: ['AI agent security scanner', 'LLM vulnerability CLI', 'MCP configuration security', 'RAG poisoning prevention', 'security scanner', 'secret detection', 'LLM security', 'prompt injection scanner', 'OWASP Agentic AI Top 10', 'DevSecOps', 'application security', 'dependency CVE scanner', 'open source SAST'],
   alternates: {
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'Ship Safe — AI Agent Security Scanner for Developers',
-    description: '24 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
+    description: '29 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
     type: 'website',
     url: 'https://www.shipsafecli.com',
     siteName: 'Ship Safe',
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Ship Safe — AI Agent Security Scanner for Developers',
-    description: '24 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
+    description: '29 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
     images: ['https://www.shipsafecli.com/og1.png'],
   },
 };

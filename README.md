@@ -23,7 +23,7 @@ Start a scan with one command:
 npx ship-safe
 ```
 
-No signup. No API key required for scanning. Works offline for core checks.
+No signup. No API key required for scanning. Works offline for core checks. AI-backed red-team modes use your configured provider when available.
 
 <p align="center">
   <img src=".github/assets/demo-repl.gif" alt="Ship Safe REPL demo" width="800" />
@@ -39,6 +39,9 @@ npx ship-safe
 
 # Full audit: secrets + 29 agents + deps + remediation plan
 npx ship-safe audit .
+
+# AI agent red-team scenarios for agent-readable content
+npx ship-safe red-team . --gpt-red
 
 # Interactive fix agent: plan, diff, approve, verify
 npx ship-safe agent .
@@ -197,7 +200,7 @@ Works with any provider — auto-detected from environment variables. Use `--pro
 
 Anthropic · OpenAI · Google · DeepSeek · Groq · Together · Mistral · xAI · Perplexity · Ollama · LM Studio · any OpenAI-compatible endpoint
 
-No API key required for scanning. AI is optional.
+No API key required for core scanning. AI classification and `red-team --gpt-red` use your configured provider when available, with deterministic offline fallback for GPT-Red checks.
 
 ---
 

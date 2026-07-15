@@ -293,7 +293,7 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
                         checked={aiOptions.swarm}
                         onChange={e => setAiOptions(p => ({ ...p, swarm: e.target.checked }))}
                       />
-                      <span><strong>Swarm</strong> — 23 parallel agents, ~30s</span>
+                      <span><strong>Swarm</strong> — 29 parallel agents, ~30s</span>
                     </label>
                     <label className={styles.aiToggle}>
                       <input

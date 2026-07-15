@@ -243,9 +243,9 @@ export function printBanner(version) {
   console.log(chalk.cyan('╚══════╝╚═╝  ╚═╝╚═╝╚═╝         ╚══════╝╚═╝  ╚═╝╚═╝     ╚══════╝'));
   console.log();
   if (version) {
-    console.log(chalk.gray(`  v${version} · 23 agents · 80+ attack classes · shipsafecli.com`));
+    console.log(chalk.gray(`  v${version} · 29 agents · 80+ attack classes · shipsafecli.com`));
   } else {
-    console.log(chalk.gray('  23 agents · 80+ attack classes · shipsafecli.com'));
+    console.log(chalk.gray('  29 agents · 80+ attack classes · shipsafecli.com'));
   }
   console.log();
 }

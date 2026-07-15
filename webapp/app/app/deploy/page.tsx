@@ -409,7 +409,7 @@ export default function DeployPage() {
             New to Hermes? Read the guide →
           </a>
         </div>
-        <h1>Deploy 23 security agents</h1>
+        <h1>Deploy 29 security agents</h1>
         <p className={styles.headerSub}>
           Answer 4 questions. Get a hardened config bundle — allowlists, integrity hashes, and CI — dropped into your project with one command.
         </p>

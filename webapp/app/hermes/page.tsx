@@ -11,7 +11,7 @@ const ogImage = 'https://www.shipsafecli.com/og1.png';
 
 export const metadata: Metadata = {
   title: 'Hermes Agent Security — Ship Safe',
-  description: 'Harden your Hermes agent against tool poisoning, function-call injection, and memory attacks. Answer 4 questions, get one setup command, deploy 23 security agents.',
+  description: 'Harden your Hermes agent against tool poisoning, function-call injection, and memory attacks. Answer 4 questions, get one setup command, deploy 29 security agents.',
   keywords: ['Hermes agent security', 'Hermes tool poisoning', 'function-call injection', 'LLM agent security', 'Hermes framework hardening', 'agentic security', 'AI agent security'],
   alternates: {
     canonical: 'https://www.shipsafecli.com/hermes',

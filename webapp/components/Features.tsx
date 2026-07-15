@@ -37,7 +37,7 @@ export default function Features() {
                 </div>
                 <div className={styles.miniLine}>
                   <span className={styles.miniOk}>✔</span>
-                  <span>24 agents: 2 findings</span>
+                  <span>29 agents: 2 findings</span>
                   <span className={styles.miniTag} data-level="medium">MEDIUM</span>
                 </div>
                 <div className={styles.miniLine}>
@@ -139,7 +139,7 @@ export default function Features() {
                 </div>
                 <div className={styles.miniLine}>
                   <span className={styles.miniOk}>✔</span>
-                  <span>24 agents: 0 findings</span>
+                  <span>29 agents: 0 findings</span>
                 </div>
                 <div className={styles.miniLine}>
                   <span className={styles.miniOk}>✔</span>

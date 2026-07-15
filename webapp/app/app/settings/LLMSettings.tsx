@@ -178,7 +178,7 @@ export default function LLMSettings() {
             />
             <span>
               <strong>Swarm mode</strong>
-              <span className={s.llmHint}>23 parallel agents — requires DeepSeek or Kimi key</span>
+              <span className={s.llmHint}>29 parallel agents — requires DeepSeek or Kimi key</span>
             </span>
           </label>
         </div>

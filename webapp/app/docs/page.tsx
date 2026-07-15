@@ -81,7 +81,7 @@ export default function Docs() {
             {/* ── Installation ──────────────────────────────────────── */}
             <section id="installation">
               <h2>Installation</h2>
-              <p>Ship Safe requires Node.js 18 or later. No signup or API key required.</p>
+              <p>Ship Safe requires Node.js 18 or later. No signup or API key required for core scans.</p>
               <pre><code>{`# Run directly (no install)
 npx ship-safe audit .
 
@@ -102,6 +102,9 @@ npx ship-safe audit .
 
 # Red team: 29 agents, 80+ attack classes
 npx ship-safe red-team .
+
+# AI agent red-team scenarios for agent-readable content
+npx ship-safe red-team . --gpt-red
 
 # Quick secret scan
 npx ship-safe scan .
@@ -130,6 +133,7 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                   <tbody>
                     <tr><td><code>audit .</code></td><td>Full audit: secrets + 29 agents + deps + remediation plan + HTML report</td></tr>
                     <tr><td><code>red-team .</code></td><td>Run 29 agents with 80+ attack classes</td></tr>
+                    <tr><td><code>red-team . --gpt-red</code></td><td>Run AI attacker/defender/judge scenarios against agent-readable docs, prompts, and MCP/tool configs. Uses DeepSeek, Kimi, OpenAI-compatible, or offline fallback.</td></tr>
                     <tr><td><code>scan .</code></td><td>Secret scanner (pattern matching + entropy scoring)</td></tr>
                     <tr><td><code>score .</code></td><td>Security health score (0-100, A-F grade)</td></tr>
                     <tr><td><code>deps .</code></td><td>Dependency CVE audit with EPSS scores</td></tr>
@@ -385,7 +389,7 @@ jobs:
             {/* ── LLM ───────────────────────────────────────────────── */}
             <section id="llm">
               <h2>Multi-LLM Support</h2>
-              <p>AI classification is optional. All core commands work fully offline. Use <code>--provider &lt;name&gt;</code> or set the matching environment variable.</p>
+              <p>AI classification and GPT-Red scenario mode are optional. All core commands work fully offline. Use <code>--provider &lt;name&gt;</code> or set the matching environment variable.</p>
               <div className={styles.tableWrap}>
                 <table>
                   <thead><tr><th>Provider</th><th>Env Variable</th><th>Flag</th><th>Default Model</th></tr></thead>

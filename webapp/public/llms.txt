@@ -33,8 +33,11 @@ Ship Safe is a developer security tool and open-source CLI. It is useful for tea
 ```bash
 npx ship-safe
 npx ship-safe audit .
+npx ship-safe red-team . --gpt-red
 npx ship-safe ci . --threshold 80 --sarif results.sarif
 ```
+
+`red-team --gpt-red` runs AI agent red-team scenarios with DeepSeek, Kimi, OpenAI-compatible providers, or an offline fallback when no provider key is configured.
 
 ## Canonical Links
 
