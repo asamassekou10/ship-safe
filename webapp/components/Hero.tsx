@@ -116,6 +116,22 @@ export default function Hero({ stars, downloads }: Props) {
           grainOverlay={0.06}
           speed={reduceMotion ? 0 : 0.16}
         />
+        {reduceMotion === false && (
+          <div className={styles.logoVideoWrap}>
+            <video
+              className={styles.logoVideo}
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              poster="/logo.png"
+              aria-hidden="true"
+            >
+              <source src="/Animate_logo_ship-safe.mp4" type="video/mp4" />
+            </video>
+          </div>
+        )}
         <div className={styles.bgFade} />
         <div className={styles.bgGrid} />
       </div>

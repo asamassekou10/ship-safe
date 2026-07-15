@@ -66,6 +66,42 @@
   opacity: 0.55;
 }
 
+.logoVideoWrap {
+  position: absolute;
+  left: 50%;
+  top: 1.15rem;
+  width: clamp(420px, 58vw, 780px);
+  aspect-ratio: 3 / 2;
+  transform: translateX(-50%);
+  opacity: 0.32;
+  filter: saturate(1.32) contrast(1.18) blur(0.1px);
+  mix-blend-mode: screen;
+  mask-image:
+    radial-gradient(ellipse 68% 52% at 50% 48%, #000 30%, transparent 76%),
+    linear-gradient(180deg, transparent 0%, #000 18%, #000 72%, transparent 100%);
+  mask-composite: intersect;
+  -webkit-mask-image:
+    radial-gradient(ellipse 68% 52% at 50% 48%, #000 30%, transparent 76%),
+    linear-gradient(180deg, transparent 0%, #000 18%, #000 72%, transparent 100%);
+  -webkit-mask-composite: source-in;
+}
+
+.logoVideoWrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(closest-side at 50% 48%, rgba(34, 211, 238, 0.18), transparent 72%);
+  pointer-events: none;
+}
+
+.logoVideo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .bgFade {
   position: absolute;
   inset: 0;
@@ -753,6 +789,11 @@
 /* Tablet portrait: shrink hero padding, drop network height, tighten log */
 @media (max-width: 768px) {
   .hero { padding: 4rem 0 3rem; }
+  .logoVideoWrap {
+    top: 0.4rem;
+    width: min(680px, 92vw);
+    opacity: 0.2;
+  }
   .codeCallout {
     left: 0.5rem;
     bottom: 0.6rem;
@@ -769,6 +810,7 @@
 /* Phone: compact stack, full-width callout, hide log */
 @media (max-width: 640px) {
   .hero { padding: 3rem 0 2.5rem; }
+  .logoVideoWrap { display: none; }
   .inner { gap: 1.75rem; }
   .copy { gap: 1rem; }
   .copy h1 {
@@ -816,6 +858,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .logoVideoWrap {
+    display: none;
+  }
   .statusPill i,
   .mascotPing,
   .mascotCard::before,
