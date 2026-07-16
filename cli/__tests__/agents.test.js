@@ -1931,6 +1931,79 @@ describe('GPTRedAgent', async () => {
     }
   });
 
+  it('expands GPT-Red context for Kimi K3 long-context mode', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-gpt-red-k3-'));
+    const agentDoc = path.join(dir, 'AGENTS.md');
+    const pkg = path.join(dir, 'package.json');
+    const workflowDir = path.join(dir, '.github', 'workflows');
+    const workflow = path.join(workflowDir, 'ci.yml');
+
+    fs.mkdirSync(workflowDir, { recursive: true });
+    fs.writeFileSync(agentDoc, [
+      '# Agent Instructions',
+      'Allowed tools: bash, readFile, writeFile, fetch, process.env',
+    ].join('\n'));
+    fs.writeFileSync(pkg, JSON.stringify({
+      scripts: {
+        postinstall: 'node scripts/setup.js',
+        test: 'npm run security-check',
+      },
+    }, null, 2));
+    fs.writeFileSync(workflow, 'name: ci\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n');
+
+    const provider = {
+      name: 'Kimi',
+      model: 'kimi-k3',
+      apiKey: 'test-key',
+      async complete(_systemPrompt, userPrompt, options) {
+        assert.match(userPrompt, /Kimi K3 long-context mode is enabled/);
+        assert.match(userPrompt, /### package\.json/);
+        assert.match(userPrompt, /### \.github\/workflows\/ci\.yml/);
+        assert.equal(options.maxTokens, 8192);
+        assert.equal(options.think, true);
+        return JSON.stringify({
+          mode: 'ai-agent-red-team',
+          findings: [{
+            scenarioId: 'ci-build-poisoning',
+            file: 'package.json',
+            line: 3,
+            severity: 'medium',
+            title: 'Kimi K3 correlated package and CI context',
+            description: 'The long-context pass correlated install scripts with CI execution context.',
+            attackPath: 'package.json -> CI workflow -> agent task -> impact',
+            payloadSummary: 'Sanitized package-script abuse scenario.',
+            successCriteria: ['build-script correlation'],
+            remediation: 'Require review gates for lifecycle scripts used by CI or agents.',
+          }],
+        });
+      },
+    };
+
+    try {
+      const findings = await agent.analyze({
+        rootPath: dir,
+        files: [agentDoc, pkg, workflow],
+        recon: {},
+        sharedFindings: [{
+          rule: 'WORM_LIFECYCLE_EXFIL',
+          severity: 'critical',
+          file: pkg,
+          line: 3,
+          title: 'Lifecycle exfiltration risk',
+        }],
+        options: { gptRed: true, gptRedProvider: provider, k3LongContext: true },
+      });
+
+      const finding = findings.find(f => f.rule === 'GPT_RED_AI_CI_BUILD_POISONING');
+      assert.ok(finding, 'K3 long-context AI finding should be returned');
+      assert.equal(finding.gptRed.contextMode, 'k3-long-context');
+      assert.ok(finding.gptRed.contextFiles >= 3);
+      assert.ok(finding.gptRed.contextChars > 0);
+    } finally {
+      cleanup(dir);
+    }
+  });
+
   it('surfaces GPT_RED findings through the full orchestrator when registered', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-gpt-red-orch-'));
     try {

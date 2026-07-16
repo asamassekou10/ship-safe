@@ -59,6 +59,8 @@ npx ship-safe undo
 
 Kimi support defaults to `kimi-k3` with `MOONSHOT_API_KEY` or `KIMI_API_KEY`. Use `npx ship-safe red-team . --gpt-red --provider kimi --model kimi-k3` for long-context AI-agent red teaming over repository instructions, MCP configs, tool manifests, docs, and prior findings.
 
+`--k3-long-context` is a Kimi K3-specific GPT-Red mode. It expands the red-team bundle beyond agent-readable docs to include package scripts, CI workflows, deployment config, MCP/tool manifests, docs, and prior Ship Safe findings, with hard file and character caps to control cost.
+
 ## Open Source And Pricing
 
 The Ship Safe CLI is MIT-licensed and free for local scans. Pro and Team plans are for hosted workflows:

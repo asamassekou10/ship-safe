@@ -202,6 +202,12 @@ Anthropic · OpenAI · Google · DeepSeek · Kimi K3 / Moonshot · Groq · Toget
 
 Kimi defaults to `kimi-k3` through `MOONSHOT_API_KEY` or `KIMI_API_KEY`. Use `--provider kimi --model kimi-k3` for long-context GPT-Red and deep-analysis runs.
 
+For Kimi K3-specific long-context red teaming:
+
+```bash
+npx ship-safe red-team . --gpt-red --provider kimi --model kimi-k3 --k3-long-context
+```
+
 No API key required for core scanning. AI classification and `red-team --gpt-red` use your configured provider when available, with deterministic offline fallback for GPT-Red checks.
 
 ---

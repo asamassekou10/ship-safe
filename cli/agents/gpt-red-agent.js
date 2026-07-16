@@ -23,9 +23,14 @@ const HIDDEN_TEXT_RE = /[\u{E0001}-\u{E007F}]|[\u200B\u200C\u200D\uFEFF\u2060]{4
 const TOOL_CAPABILITY_RE = /(?:tools?|functions?|actions?|capabilities|permissions?|allow(?:ed)?|always_allow|auto_approve|auto_execute|dangerously-skip-permissions|workspace-write|danger-full-access|filesystem|readFile|writeFile|shell|bash|exec|spawn|curl|wget|fetch|http|network|mcpServers?)/i;
 const SECRET_CAPABILITY_RE = /(?:\.env|process\.env|env\s*:|api[_-]?key|token|secret|authorization|bearer|vault|credentials?|access_token|refresh_token|client_secret|service_role)/i;
 const NETWORK_CAPABILITY_RE = /(?:https?:\/\/|fetch\s*\(|axios\.|requests\.(?:get|post)|curl|wget|webhook|callbackUrl|baseUrl|mcpServers?)/i;
+const K3_EXTRA_CONTEXT_RE = /(?:^|\/)(?:package\.json|pnpm-workspace\.yaml|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|Dockerfile|docker-compose\.ya?ml|\.github\/workflows\/.*\.ya?ml|\.gitlab-ci\.ya?ml|vercel\.json|netlify\.toml|wrangler\.toml|next\.config\.(?:js|mjs|ts)|tsconfig\.json)$/i;
 const MAX_AI_FILES = 12;
 const MAX_AI_FILE_CHARS = 6000;
 const MAX_AI_BUNDLE_CHARS = 60000;
+const MAX_K3_FILES = 60;
+const MAX_K3_FILE_CHARS = 12000;
+const MAX_K3_BUNDLE_CHARS = 250000;
+const MAX_PRIOR_FINDINGS = 25;
 
 const GPT_RED_SCENARIOS = [
   {
@@ -65,6 +70,11 @@ const GPT_RED_SCENARIOS = [
 function isCandidateFile(rootPath, file) {
   const rel = path.relative(rootPath, file).replace(/\\/g, '/');
   return AGENT_READABLE_FILE_RE.test(rel) || AGENT_CONFIG_RE.test(rel) || RAG_DOC_RE.test(rel);
+}
+
+function isK3ContextFile(rootPath, file) {
+  const rel = path.relative(rootPath, file).replace(/\\/g, '/');
+  return isCandidateFile(rootPath, file) || K3_EXTRA_CONTEXT_RE.test(rel);
 }
 
 function firstMatchLine(lines, regex) {
@@ -135,29 +145,67 @@ function resolveProvider(rootPath, options = {}) {
   return null;
 }
 
-function buildCandidateBundle(rootPath, candidates) {
+function isKimiK3Provider(provider) {
+  return /kimi-k3/i.test(provider?.model || '') || /kimi-k3/i.test(provider?.name || '');
+}
+
+function buildCandidateBundle(rootPath, candidates, options = {}) {
+  const k3LongContext = options.k3LongContext === true;
+  const maxFiles = k3LongContext ? MAX_K3_FILES : MAX_AI_FILES;
+  const maxFileChars = k3LongContext ? MAX_K3_FILE_CHARS : MAX_AI_FILE_CHARS;
+  const maxBundleChars = k3LongContext ? MAX_K3_BUNDLE_CHARS : MAX_AI_BUNDLE_CHARS;
   let bundle = '';
   let total = 0;
   const selected = [];
 
-  for (const file of candidates.slice(0, MAX_AI_FILES)) {
+  for (const file of candidates.slice(0, maxFiles)) {
     try {
       const content = fs.readFileSync(file, 'utf-8');
       if (!content) continue;
 
       const rel = path.relative(rootPath, file).replace(/\\/g, '/');
-      const snippet = content.slice(0, Math.min(MAX_AI_FILE_CHARS, MAX_AI_BUNDLE_CHARS - total));
+      const snippet = content.slice(0, Math.min(maxFileChars, maxBundleChars - total));
       if (!snippet) break;
       bundle += `\n\n### ${rel}\n\`\`\`\n${snippet}\n\`\`\``;
       total += snippet.length;
       selected.push({ file, rel });
-      if (total >= MAX_AI_BUNDLE_CHARS) break;
+      if (total >= maxBundleChars) break;
     } catch {
       continue;
     }
   }
 
-  return { bundle, selected };
+  return {
+    bundle,
+    selected,
+    stats: {
+      mode: k3LongContext ? 'k3-long-context' : 'standard',
+      selectedFiles: selected.length,
+      chars: total,
+      maxFiles,
+      maxFileChars,
+      maxBundleChars,
+    },
+  };
+}
+
+function summarizePriorFindings(findings = []) {
+  if (!Array.isArray(findings) || findings.length === 0) return '';
+
+  const items = findings
+    .filter(f => f && ['critical', 'high', 'medium'].includes(f.severity))
+    .slice(0, MAX_PRIOR_FINDINGS)
+    .map(f => ({
+      rule: f.rule,
+      severity: f.severity,
+      file: f.file ? path.basename(f.file) : undefined,
+      line: f.line,
+      title: f.title,
+      attackPath: f.attackPath,
+    }));
+
+  if (items.length === 0) return '';
+  return `\n\nPrior Ship Safe findings for correlation:\n${JSON.stringify(items, null, 2)}`;
 }
 
 function safeJsonParse(text) {
@@ -192,15 +240,22 @@ export class GPTRedAgent extends BaseAgent {
   }
 
   async analyze(context) {
-    const { rootPath, files, options = {} } = context;
-    const candidates = files.filter(file => isCandidateFile(rootPath, file));
-    const offlineFindings = this.runOfflineChecks(rootPath, candidates);
+    const { rootPath, files, options = {}, sharedFindings = [] } = context;
     const provider = options.ai === false ? null : resolveProvider(rootPath, options);
+    const useK3LongContext = options.k3LongContext === true && isKimiK3Provider(provider);
+    const candidates = files.filter(file => useK3LongContext ? isK3ContextFile(rootPath, file) : isCandidateFile(rootPath, file));
+    const offlineFindings = this.runOfflineChecks(rootPath, candidates);
 
     if (!provider) return offlineFindings;
 
     try {
-      const aiFindings = await this.runAIScenarios({ rootPath, candidates, provider, options });
+      const aiFindings = await this.runAIScenarios({
+        rootPath,
+        candidates,
+        provider,
+        options: { ...options, k3LongContext: useK3LongContext },
+        priorFindings: sharedFindings,
+      });
       if (aiFindings.length === 0) return offlineFindings;
 
       const seen = new Set(offlineFindings.map(f => `${f.file}:${f.line}:${f.rule}`));
@@ -269,9 +324,9 @@ export class GPTRedAgent extends BaseAgent {
     return findings;
   }
 
-  async runAIScenarios({ rootPath, candidates, provider, options }) {
+  async runAIScenarios({ rootPath, candidates, provider, options, priorFindings = [] }) {
     if (candidates.length === 0) return [];
-    const { bundle, selected } = buildCandidateBundle(rootPath, candidates);
+    const { bundle, selected, stats } = buildCandidateBundle(rootPath, candidates, { k3LongContext: options.k3LongContext });
     if (!bundle || selected.length === 0) return [];
 
     const iterations = Math.max(1, Math.min(Number(options.iterations || options.gptRedIterations || 2), 5));
@@ -298,13 +353,21 @@ Rules:
       successSignals: s.successSignals,
     }));
 
+    const priorFindingSummary = options.k3LongContext ? summarizePriorFindings(priorFindings) : '';
+    const contextInstruction = options.k3LongContext
+      ? `Kimi K3 long-context mode is enabled. Correlate repository instructions, MCP/tool configs, package scripts, CI workflows, deployment config, docs, and prior findings. Stay grounded in the supplied files and respect the context cap metadata: ${JSON.stringify(stats)}.`
+      : `Standard GPT-Red context mode is enabled. Stay grounded in the supplied agent-readable files.`;
+
     const userPrompt = `Run ${iterations} bounded attacker/defender/judge iteration(s) across these scenarios.
+
+Context mode:
+${contextInstruction}
 
 Scenarios:
 ${JSON.stringify(scenarios, null, 2)}
 
 Repository surfaces:
-${bundle}
+${bundle}${priorFindingSummary}
 
 Return JSON with this exact shape:
 {
@@ -326,9 +389,9 @@ Return JSON with this exact shape:
 }`;
 
     const text = await provider.complete(systemPrompt, userPrompt, {
-      maxTokens: 4096,
+      maxTokens: options.k3LongContext ? 8192 : 4096,
       jsonMode: true,
-      think: options.think || false,
+      think: options.k3LongContext || options.think || false,
     });
     const parsed = safeJsonParse(text);
     const rawFindings = Array.isArray(parsed?.findings) ? parsed.findings : [];
@@ -358,6 +421,9 @@ Return JSON with this exact shape:
         provider: provider.name,
         model: provider.model || null,
         iterations,
+        contextMode: stats.mode,
+        contextFiles: stats.selectedFiles,
+        contextChars: stats.chars,
         scenarioId,
         successCriteria: Array.isArray(raw.successCriteria) ? raw.successCriteria : [],
         payloadSummary: raw.payloadSummary || '',

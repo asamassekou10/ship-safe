@@ -318,6 +318,7 @@ program
   .option('--deep', 'LLM-powered taint analysis for critical/high findings')
   .option('--swarm', 'Use AI swarm mode — 29 parallel agents via DeepSeek V4 Flash or Kimi K3 (requires DEEPSEEK_API_KEY, MOONSHOT_API_KEY, or KIMI_API_KEY)')
   .option('--gpt-red', 'Run AI agent red-team scenarios against agent-readable content (DeepSeek/Kimi/OpenAI; offline fallback)')
+  .option('--k3-long-context', 'Expand GPT-Red context with package, CI, deployment, docs, and prior findings when using Kimi K3')
   .option('--iterations <n>', 'GPT-Red attacker/defender/judge iterations (default: 2, max: 5)', parseInt)
   .option('--show-payloads', 'Show sanitized GPT-Red payload summaries in findings')
   .option('--think', 'Enable extended thinking mode (GPT-5.5 reasoning_effort:high, Claude extended thinking)')

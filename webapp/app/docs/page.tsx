@@ -134,6 +134,7 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                     <tr><td><code>audit .</code></td><td>Full audit: secrets + 29 agents + deps + remediation plan + HTML report</td></tr>
                     <tr><td><code>red-team .</code></td><td>Run 29 agents with 80+ attack classes</td></tr>
                     <tr><td><code>red-team . --gpt-red</code></td><td>Run AI attacker/defender/judge scenarios against agent-readable docs, prompts, and MCP/tool configs. Uses DeepSeek, Kimi, OpenAI-compatible, or offline fallback.</td></tr>
+                    <tr><td><code>red-team . --gpt-red --k3-long-context</code></td><td>Use Kimi K3 to correlate agent docs, MCP/tool configs, package scripts, CI, deployment config, and prior findings in one bounded long-context pass.</td></tr>
                     <tr><td><code>scan .</code></td><td>Secret scanner (pattern matching + entropy scoring)</td></tr>
                     <tr><td><code>score .</code></td><td>Security health score (0-100, A-F grade)</td></tr>
                     <tr><td><code>deps .</code></td><td>Dependency CVE audit with EPSS scores</td></tr>
@@ -389,7 +390,7 @@ jobs:
             {/* ── LLM ───────────────────────────────────────────────── */}
             <section id="llm">
               <h2>Multi-LLM Support</h2>
-              <p>AI classification and GPT-Red scenario mode are optional. All core commands work fully offline. Use <code>--provider &lt;name&gt;</code> or set the matching environment variable. Kimi defaults to <code>kimi-k3</code> for long-context AI-agent red teaming.</p>
+              <p>AI classification and GPT-Red scenario mode are optional. All core commands work fully offline. Use <code>--provider &lt;name&gt;</code> or set the matching environment variable. Kimi defaults to <code>kimi-k3</code> for long-context AI-agent red teaming; add <code>--k3-long-context</code> to expand GPT-Red context with package, CI, deployment, docs, and prior findings.</p>
               <div className={styles.tableWrap}>
                 <table>
                   <thead><tr><th>Provider</th><th>Env Variable</th><th>Flag</th><th>Default Model</th></tr></thead>

@@ -12,6 +12,7 @@
  *   npx ship-safe red-team . --html report.html  Generate HTML report
  *   npx ship-safe red-team . --sarif        SARIF output
  *   npx ship-safe red-team . --gpt-red      AI agent red-team scenarios with offline fallback
+ *   npx ship-safe red-team . --gpt-red --provider kimi --model kimi-k3 --k3-long-context
  */
 
 import fs from 'fs';
@@ -108,6 +109,7 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
     if (options.budget) orchestratorOpts.budget = options.budget;
     if (options.ai === false) orchestratorOpts.ai = false;
     if (options.gptRed) orchestratorOpts.gptRed = true;
+    if (options.k3LongContext) orchestratorOpts.k3LongContext = true;
     if (options.iterations) orchestratorOpts.iterations = options.iterations;
     if (options.showPayloads) orchestratorOpts.showPayloads = true;
 

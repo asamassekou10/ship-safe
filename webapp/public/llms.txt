@@ -41,6 +41,8 @@ npx ship-safe ci . --threshold 80 --sarif results.sarif
 
 Kimi support defaults to `kimi-k3` using `MOONSHOT_API_KEY` or `KIMI_API_KEY`. Use `npx ship-safe red-team . --gpt-red --provider kimi --model kimi-k3` for long-context AI-agent red teaming.
 
+Use `npx ship-safe red-team . --gpt-red --provider kimi --model kimi-k3 --k3-long-context` to correlate agent docs, MCP/tool configs, package scripts, CI, deployment config, and prior findings in one bounded Kimi K3 pass.
+
 ## Canonical Links
 
 - Website: https://www.shipsafecli.com
