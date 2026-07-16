@@ -115,7 +115,7 @@ All agents run in parallel. Each skips irrelevant projects automatically.
 | **SupabaseRLSAgent** | Auth | service_role key in client code, tables without RLS, anon key inserts |
 | **LLMRedTeam** | AI/LLM | OWASP LLM Top 10: prompt injection, excessive agency, system prompt leakage |
 | **MCPSecurityAgent** | AI/LLM | MCP server misuse, tool poisoning, typosquatting, unvalidated inputs |
-| **AgenticSecurityAgent** | AI/LLM | OWASP Agentic AI Top 10: agent hijacking, privilege escalation |
+| **AgenticSecurityAgent** | AI/LLM | OWASP Agentic AI Top 10: agent hijacking, privilege escalation, Kimi K3/OpenAI-compatible tool-call misuse |
 | **RAGSecurityAgent** | AI/LLM | Context injection, document poisoning, vector DB access control |
 | **MemoryPoisoningAgent** | AI/LLM | Instruction injection in agent memory files, hidden Unicode payloads (ASI-01, ASI-05) |
 | **PIIComplianceAgent** | Compliance | SSNs, credit cards, emails, phone numbers in source code |
@@ -207,6 +207,8 @@ For Kimi K3-specific long-context red teaming:
 ```bash
 npx ship-safe red-team . --gpt-red --provider kimi --model kimi-k3 --k3-long-context
 ```
+
+Ship Safe also checks Kimi K3 / OpenAI-compatible tool-call implementations for dynamic tool loading from prompt context, missing tool allowlists, forced tool calls on untrusted input, and replayed tool results without the original assistant tool-call message.
 
 No API key required for core scanning. AI classification and `red-team --gpt-red` use your configured provider when available, with deterministic offline fallback for GPT-Red checks.
 

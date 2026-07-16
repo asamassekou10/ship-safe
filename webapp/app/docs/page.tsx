@@ -276,7 +276,7 @@ npx ship-safe ci . --threshold 80`}</code></pre>
                     <tr><td><strong>SupabaseRLSAgent</strong></td><td>Auth</td><td>Row Level Security issues, service_role key exposure, anon key inserts</td></tr>
                     <tr><td><strong>LLMRedTeam</strong></td><td>AI/LLM</td><td>OWASP LLM Top 10: prompt injection, excessive agency, system prompt leakage</td></tr>
                     <tr><td><strong>MCPSecurityAgent</strong></td><td>AI/LLM</td><td>MCP server misuse, tool poisoning, typosquatting, unvalidated inputs</td></tr>
-                    <tr><td><strong>AgenticSecurityAgent</strong></td><td>AI/LLM</td><td>OWASP Agentic AI Top 10: agent hijacking, privilege escalation, memory poisoning</td></tr>
+                    <tr><td><strong>AgenticSecurityAgent</strong></td><td>AI/LLM</td><td>OWASP Agentic AI Top 10: agent hijacking, privilege escalation, memory poisoning, and Kimi K3/OpenAI-compatible tool-call misuse</td></tr>
                     <tr><td><strong>RAGSecurityAgent</strong></td><td>AI/LLM</td><td>RAG pipeline security: context injection, document poisoning, vector DB access</td></tr>
                     <tr><td><strong>MemoryPoisoningAgent</strong></td><td>AI/LLM</td><td>ASI-01/ASI-05: instruction injection in agent memory files, hidden Unicode payloads, persona hijacking</td></tr>
                     <tr><td><strong>PIIComplianceAgent</strong></td><td>Compliance</td><td>PII detection: SSNs, credit cards, emails, phone numbers in source code</td></tr>
@@ -390,7 +390,7 @@ jobs:
             {/* ── LLM ───────────────────────────────────────────────── */}
             <section id="llm">
               <h2>Multi-LLM Support</h2>
-              <p>AI classification and GPT-Red scenario mode are optional. All core commands work fully offline. Use <code>--provider &lt;name&gt;</code> or set the matching environment variable. Kimi defaults to <code>kimi-k3</code> for long-context AI-agent red teaming; add <code>--k3-long-context</code> to expand GPT-Red context with package, CI, deployment, docs, and prior findings.</p>
+              <p>AI classification and GPT-Red scenario mode are optional. All core commands work fully offline. Use <code>--provider &lt;name&gt;</code> or set the matching environment variable. Kimi defaults to <code>kimi-k3</code> for long-context AI-agent red teaming; add <code>--k3-long-context</code> to expand GPT-Red context with package, CI, deployment, docs, and prior findings. Ship Safe also scans Kimi K3/OpenAI-compatible tool-call code for dynamic tool loading, missing allowlists, forced tool calls on untrusted input, and tool-result replay issues.</p>
               <div className={styles.tableWrap}>
                 <table>
                   <thead><tr><th>Provider</th><th>Env Variable</th><th>Flag</th><th>Default Model</th></tr></thead>

@@ -61,6 +61,8 @@ Kimi support defaults to `kimi-k3` with `MOONSHOT_API_KEY` or `KIMI_API_KEY`. Us
 
 `--k3-long-context` is a Kimi K3-specific GPT-Red mode. It expands the red-team bundle beyond agent-readable docs to include package scripts, CI workflows, deployment config, MCP/tool manifests, docs, and prior Ship Safe findings, with hard file and character caps to control cost.
 
+Ship Safe v9.5.2 also adds Kimi K3 / OpenAI-compatible tool-call security checks. AgenticSecurityAgent detects dynamic tool definitions loaded from prompt/RAG/tool-result context, model-selected tool names executed without an allowlist, forced tool choice with untrusted user input, and tool-result replay without preserving the assistant tool-call message.
+
 ## Open Source And Pricing
 
 The Ship Safe CLI is MIT-licensed and free for local scans. Pro and Team plans are for hosted workflows:

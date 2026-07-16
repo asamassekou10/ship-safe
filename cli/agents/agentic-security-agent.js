@@ -16,7 +16,7 @@
  */
 
 import path from 'path';
-import { BaseAgent } from './base-agent.js';
+import { BaseAgent, createFinding } from './base-agent.js';
 
 // =============================================================================
 // AGENTIC SECURITY PATTERNS
@@ -265,6 +265,71 @@ const PATTERNS = [
 ];
 
 // =============================================================================
+// KIMI K3 / OPENAI-COMPATIBLE TOOL-CALL SECURITY CHECKS
+// =============================================================================
+
+const TOOL_CALL_STRUCTURAL_RULES = [
+  {
+    rule: 'AGENT_DYNAMIC_TOOL_LOADING_FROM_CONTEXT',
+    title: 'Agent: Dynamic Tool Definitions Loaded From Prompt Context',
+    severity: 'high',
+    cwe: 'CWE-829',
+    owasp: 'ASI02:2026',
+    description: 'Tool definitions appear to be injected into system/developer context from user, document, or retrieved content. Kimi K3-style dynamic tool loading makes this especially risky: poisoned context can add or reshape tools.',
+    fix: 'Load tool definitions from trusted code/config only. Never let user, RAG, document, or tool-result content define available tools.',
+    test(content) {
+      return /(?:system|developer|messages|prompt)[\s\S]{0,500}(?:tool|function)s?[\s\S]{0,500}(?:req\.|request\.|body\.|params\.|query\.|user|userMessage|input|retrieved|document|toolResult|tool_result)/i.test(content);
+    },
+  },
+  {
+    rule: 'AGENT_TOOL_CALL_NO_ALLOWLIST',
+    title: 'Agent: Tool Call Name Executed Without Allowlist',
+    severity: 'high',
+    cwe: 'CWE-20',
+    owasp: 'ASI02:2026',
+    description: 'LLM-selected tool names are executed without a visible allowlist. A prompt injection can force invocation of unexpected tools.',
+    fix: 'Validate every model-selected tool name against an explicit allowlist before dispatching the handler.',
+    test(content) {
+      const dispatchesModelTool = /(?:tool_calls?|function_call)[\s\S]{0,500}(?:\.name|name\s*\})[\s\S]{0,500}(?:executeTool|callTool|invokeTool|toolRegistry\s*\[|tools\s*\[|handlers\s*\[)/i.test(content)
+        || /(?:executeTool|callTool|invokeTool)\s*\(\s*(?:toolCall|tool_call|tool|call|choice)[\w.]*\.name/i.test(content)
+        || /(?:toolRegistry|tools|handlers)\s*\[\s*(?:toolCall|tool_call|tool|call|choice)[\w.]*\.(?:function\.)?name\s*\]/i.test(content);
+      const hasAllowlist = /(?:allowedTools|toolAllowlist|allowedToolNames|SAFE_TOOLS|ALLOWED_TOOLS)[\s\S]{0,400}(?:includes|has|\[)/i.test(content);
+      return dispatchesModelTool && !hasAllowlist;
+    },
+  },
+  {
+    rule: 'AGENT_TOOL_CHOICE_REQUIRED_UNTRUSTED',
+    title: 'Agent: Forced Tool Choice With Untrusted Input',
+    severity: 'medium',
+    cwe: 'CWE-862',
+    owasp: 'ASI02:2026',
+    description: 'The model is forced to call a tool while untrusted user input is included in the same request. This can convert prompt injection into tool execution.',
+    fix: 'Avoid forced tool choice for untrusted prompts. Prefer explicit routing, read-only tools, allowlists, and human approval for side-effect tools.',
+    test(content) {
+      const forcedTool = /tool_choice\s*[:=]\s*(?:['"]required['"]|['"]any['"]|\{\s*type\s*:\s*['"]function['"])/i.test(content);
+      const untrustedInput = /(?:req\.|request\.|body\.|params\.|query\.|user|userMessage|input|message|prompt)/i.test(content);
+      const hasToolRequest = /(?:chat\.completions|responses\.create|createChatCompletion|messages\.create|generate|completion)[\s\S]{0,1200}(?:tools|functions)/i.test(content);
+      return forcedTool && untrustedInput && hasToolRequest;
+    },
+  },
+  {
+    rule: 'AGENT_TOOL_CALL_REPLAY_MISSING_ASSISTANT',
+    title: 'Agent: Tool Result Replayed Without Assistant Tool-Call Message',
+    severity: 'medium',
+    cwe: 'CWE-345',
+    owasp: 'ASI02:2026',
+    description: 'Tool results are appended to conversation history without preserving the assistant message that requested the tool call. OpenAI-compatible tool-call APIs require this linkage; dropping it can confuse provenance and allow forged tool results.',
+    fix: 'Persist the assistant message containing tool_calls before appending role: "tool" messages, and verify tool_call_id links to an issued call.',
+    test(content) {
+      const appendsToolResult = /(?:role\s*:\s*['"]tool['"]|tool_call_id|toolCallId)[\s\S]{0,500}(?:messages\.push|history\.push|conversation\.push|append)/i.test(content)
+        || /(?:messages\.push|history\.push|conversation\.push|append)[\s\S]{0,500}(?:role\s*:\s*['"]tool['"]|tool_call_id|toolCallId)/i.test(content);
+      const preservesAssistantToolCalls = /role\s*:\s*['"]assistant['"][\s\S]{0,500}tool_calls/i.test(content);
+      return appendsToolResult && !preservesAssistantToolCalls;
+    },
+  },
+];
+
+// =============================================================================
 // AGENTIC SECURITY AGENT
 // =============================================================================
 
@@ -288,8 +353,63 @@ export class AgenticSecurityAgent extends BaseAgent {
     let findings = [];
     for (const file of codeFiles) {
       findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS));
+      findings = findings.concat(this.scanToolCallStructure(file));
     }
     return findings;
+  }
+
+  scanToolCallStructure(file) {
+    const content = this.readFile(file);
+    if (!content) return [];
+
+    const findings = [];
+    for (const rule of TOOL_CALL_STRUCTURAL_RULES) {
+      if (!rule.test(content)) continue;
+      const line = this.findLine(content, rule);
+      const lines = content.split('\n');
+      const matched = lines[line - 1] || '';
+      if (this.isSuppressed(matched)) continue;
+
+      const finding = createFinding({
+        file,
+        line,
+        column: 1,
+        severity: rule.severity,
+        category: this.category,
+        rule: rule.rule,
+        title: rule.title,
+        description: rule.description,
+        matched: matched.slice(0, 180),
+        confidence: 'medium',
+        cwe: rule.cwe,
+        owasp: rule.owasp,
+        fix: rule.fix,
+      });
+
+      const start = Math.max(0, line - 4);
+      const end = Math.min(lines.length, line + 3);
+      finding.codeContext = lines.slice(start, end).map((text, idx) => ({
+        line: start + idx + 1,
+        text,
+        highlight: (start + idx + 1) === line,
+      }));
+      findings.push(finding);
+    }
+
+    return findings;
+  }
+
+  findLine(content, rule) {
+    const markers = {
+      AGENT_DYNAMIC_TOOL_LOADING_FROM_CONTEXT: /(?:system|developer|messages|prompt)/i,
+      AGENT_TOOL_CALL_NO_ALLOWLIST: /(?:executeTool|callTool|invokeTool|toolRegistry|tool_calls?|function_call)/i,
+      AGENT_TOOL_CHOICE_REQUIRED_UNTRUSTED: /tool_choice/i,
+      AGENT_TOOL_CALL_REPLAY_MISSING_ASSISTANT: /(?:role\s*:\s*['"]tool['"]|tool_call_id|toolCallId)/i,
+    };
+    const marker = markers[rule.rule] || /tool/i;
+    const lines = content.split('\n');
+    const idx = lines.findIndex(line => marker.test(line));
+    return idx === -1 ? 1 : idx + 1;
   }
 }
 

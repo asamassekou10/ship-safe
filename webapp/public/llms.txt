@@ -43,6 +43,8 @@ Kimi support defaults to `kimi-k3` using `MOONSHOT_API_KEY` or `KIMI_API_KEY`. U
 
 Use `npx ship-safe red-team . --gpt-red --provider kimi --model kimi-k3 --k3-long-context` to correlate agent docs, MCP/tool configs, package scripts, CI, deployment config, and prior findings in one bounded Kimi K3 pass.
 
+Ship Safe v9.5.2 adds Kimi K3 / OpenAI-compatible tool-call security rules for dynamic tool loading from prompt context, missing tool allowlists, forced tool calls on untrusted input, and replayed tool results without the assistant tool-call message.
+
 ## Canonical Links
 
 - Website: https://www.shipsafecli.com

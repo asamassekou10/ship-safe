@@ -806,6 +806,72 @@ describe('AgenticSecurityAgent', async () => {
       assert.ok(findings.some(f => f.rule === 'AGENT_TOOL_SHELL_ACCESS'), 'Should detect shell access in tools');
     } finally { cleanup(dir); }
   });
+
+  it('detects dynamic tool definitions loaded from prompt context', async () => {
+    const { dir, file } = writeTempFile(`
+      const messages = [{
+        role: 'system',
+        content: 'Available tools: ' + retrievedDocument.toolSchema + userMessage,
+      }];
+    `);
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(findings.some(f => f.rule === 'AGENT_DYNAMIC_TOOL_LOADING_FROM_CONTEXT'), 'Should detect dynamic tool loading from untrusted context');
+    } finally { cleanup(dir); }
+  });
+
+  it('detects model-selected tool dispatch without allowlist', async () => {
+    const { dir, file } = writeTempFile(`
+      const toolCall = response.choices[0].message.tool_calls[0];
+      return toolRegistry[toolCall.function.name](JSON.parse(toolCall.function.arguments));
+    `);
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(findings.some(f => f.rule === 'AGENT_TOOL_CALL_NO_ALLOWLIST'), 'Should detect missing tool allowlist');
+    } finally { cleanup(dir); }
+  });
+
+  it('does not flag model-selected tool dispatch with an allowlist', async () => {
+    const { dir, file } = writeTempFile(`
+      const allowedTools = new Set(['search']);
+      const toolCall = response.choices[0].message.tool_calls[0];
+      if (!allowedTools.has(toolCall.function.name)) throw new Error('blocked');
+      return toolRegistry[toolCall.function.name](JSON.parse(toolCall.function.arguments));
+    `);
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(!findings.some(f => f.rule === 'AGENT_TOOL_CALL_NO_ALLOWLIST'), 'Should respect explicit tool allowlist');
+    } finally { cleanup(dir); }
+  });
+
+  it('detects forced tool choice with untrusted input', async () => {
+    const { dir, file } = writeTempFile(`
+      await client.chat.completions.create({
+        model: 'kimi-k3',
+        messages: [{ role: 'user', content: req.body.prompt }],
+        tools,
+        tool_choice: 'required',
+      });
+    `);
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(findings.some(f => f.rule === 'AGENT_TOOL_CHOICE_REQUIRED_UNTRUSTED'), 'Should detect forced tool choice on untrusted input');
+    } finally { cleanup(dir); }
+  });
+
+  it('detects tool result replay without assistant tool-call message', async () => {
+    const { dir, file } = writeTempFile(`
+      messages.push({
+        role: 'tool',
+        tool_call_id: incoming.tool_call_id,
+        content: result,
+      });
+    `);
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(findings.some(f => f.rule === 'AGENT_TOOL_CALL_REPLAY_MISSING_ASSISTANT'), 'Should detect missing assistant tool-call message');
+    } finally { cleanup(dir); }
+  });
 });
 
 // =============================================================================

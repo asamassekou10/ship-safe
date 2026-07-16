@@ -6,6 +6,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [9.5.2] — 2026-07-16 — Kimi K3 Tool-Call Security
+
+### Added
+- Kimi K3 provider support now defaults `kimi` / `moonshot` to `kimi-k3`
+  while keeping `kimi-k2.6` and `kimi-k2.7-code` selectable.
+- `KIMI_API_KEY` is accepted alongside `MOONSHOT_API_KEY` across CLI and
+  hosted-agent settings.
+- `red-team --gpt-red --k3-long-context` expands GPT-Red context for Kimi K3
+  runs with package scripts, CI workflows, deployment config, docs, MCP/tool
+  manifests, and prior findings under hard file/character caps.
+- Agentic tool-call security checks for Kimi K3 / OpenAI-compatible agents:
+  - dynamic tool definitions loaded from prompt/RAG/tool-result context
+  - model-selected tool names executed without an allowlist
+  - forced tool choice with untrusted user input
+  - tool-result replay without preserving the assistant tool-call message
+
+### Changed
+- Kimi reasoning output is treated as internal reasoning and is never parsed as
+  final Ship Safe JSON output.
+- README, docs, provider UI, and AI-readable files now document Kimi K3 and the
+  new long-context GPT-Red mode.
+
+### Tests
+- Added provider tests for Kimi K3 defaults, reasoning handling, and
+  `KIMI_API_KEY` resolution.
+- Added GPT-Red long-context and agentic tool-call security regression tests.
+
 ## [9.5.1] — 2026-07-15 — GPT-Red AI Agent Red Team
 
 ### Added
