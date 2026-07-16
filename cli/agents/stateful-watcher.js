@@ -1,8 +1,8 @@
 /**
- * StatefulWatcher — Persistent K2.6 Security Session
+ * StatefulWatcher — Persistent Kimi Security Session
  * ====================================================
  *
- * Keeps a Kimi K2.6 conversation thread open across file-change events.
+ * Keeps a Kimi conversation thread open across file-change events.
  * Each scan sends only the diff — not the full codebase — so the model
  * builds understanding incrementally rather than restarting from scratch.
  *
@@ -10,7 +10,7 @@
  *  - No duplicate findings on repeated scans of unchanged files
  *  - Model understands which files are already clean vs. risky
  *  - Diffs are small → faster, cheaper per event
- *  - K2.6's 12h+ session length handles full work sessions without reset
+ *  - Kimi K3's long-context session handles full work sessions without reset
  *
  * USAGE (via watch command):
  *   npx ship-safe watch . --deep --stateful
@@ -49,7 +49,7 @@ export class StatefulWatcher {
 
   static create(rootPath, options = {}) {
     const providerName = typeof options.provider === 'string' ? options.provider : 'kimi';
-    const provider = autoDetectProvider(rootPath, { provider: providerName, model: options.model || 'kimi-k2.6' });
+    const provider = autoDetectProvider(rootPath, { provider: providerName, model: options.model || 'kimi-k3' });
     if (!provider) return null;
     return new StatefulWatcher({ provider, rootPath, verbose: options.verbose });
   }

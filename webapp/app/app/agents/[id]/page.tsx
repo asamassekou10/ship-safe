@@ -480,7 +480,7 @@ export default function AgentDetailPage() {
   const lastDeploy     = agent.deployments[0];
   const isLive         = agent.status === 'deployed' || agent.status === 'running';
   const isDeploying    = agent.status === 'deploying' || deploying;
-  const LLM_KEYS       = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'XAI_API_KEY'];
+  const LLM_KEYS       = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'XAI_API_KEY'];
   const hasLLMKey      = LLM_KEYS.some(k => (agent.envVars as Record<string,string>)[k]?.trim());
   const latestDeployError = agent.status === 'failed' ? lastDeploy?.deployLog : null;
 

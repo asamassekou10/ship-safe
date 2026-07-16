@@ -1957,6 +1957,56 @@ describe('GPTRedAgent', async () => {
 });
 
 // =============================================================================
+// LLM PROVIDER PRESETS
+// =============================================================================
+
+describe('LLM provider presets', async () => {
+  const { createProvider, OPENAI_COMPATIBLE_PRESETS } = await import('../providers/llm-provider.js');
+
+  it('defaults Kimi and Moonshot providers to Kimi K3', () => {
+    const kimi = createProvider('kimi', 'test-key');
+    const moonshot = createProvider('moonshot', 'test-key');
+
+    assert.equal(OPENAI_COMPATIBLE_PRESETS.kimi.model, 'kimi-k3');
+    assert.equal(kimi.model, 'kimi-k3');
+    assert.equal(moonshot.model, 'kimi-k3');
+  });
+
+  it('uses Kimi K3 reasoning_effort=max and returns only final content', async () => {
+    const originalFetch = globalThis.fetch;
+    let requestBody;
+
+    globalThis.fetch = async (_url, init) => {
+      requestBody = JSON.parse(init.body);
+      return {
+        ok: true,
+        async json() {
+          return {
+            choices: [{
+              message: {
+                reasoning_content: '{"unsafe":"internal reasoning"}',
+                content: '{"safe":true}',
+              },
+            }],
+          };
+        },
+      };
+    };
+
+    try {
+      const provider = createProvider('kimi', 'test-key', { think: true, thinkLevel: 'high' });
+      const text = await provider.complete('system', 'user', { jsonMode: true, think: true, thinkLevel: 'high' });
+
+      assert.equal(requestBody.model, 'kimi-k3');
+      assert.equal(requestBody.reasoning_effort, 'max');
+      assert.equal(text, '{"safe":true}');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+// =============================================================================
 // AGENT ATTESTATION AGENT (v8.0)
 // =============================================================================
 

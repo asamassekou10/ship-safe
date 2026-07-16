@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 const AGENT_NAME = 'Ship Safe Content Research Agent';
 const AGENT_SLUG_PREFIX = 'ship-safe-content-research';
 const TOOL_NAMES = ['web_search', 'browser', 'read_file'];
-const LLM_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'XAI_API_KEY'];
+const LLM_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'XAI_API_KEY'];
 
 function toSlug(name: string, suffix?: string) {
   const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);

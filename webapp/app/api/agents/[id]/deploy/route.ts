@@ -35,7 +35,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Deployment not configured on this server' }, { status: 503 });
   }
 
-  const LLM_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'XAI_API_KEY'];
+  const LLM_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'XAI_API_KEY'];
 
   const { id } = await params;
   const agent = await prisma.agent.findFirst({
@@ -48,7 +48,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
   const hasLLMKey = LLM_KEYS.some(k => envVars[k]?.trim());
   if (!hasLLMKey) {
     return NextResponse.json({
-      error: 'Add an LLM API key before deploying. Go to Edit and add ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, DEEPSEEK_API_KEY, MOONSHOT_API_KEY, or XAI_API_KEY.',
+      error: 'Add an LLM API key before deploying. Go to Edit and add ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, DEEPSEEK_API_KEY, MOONSHOT_API_KEY, KIMI_API_KEY, or XAI_API_KEY.',
     }, { status: 400 });
   }
 

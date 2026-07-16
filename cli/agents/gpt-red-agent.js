@@ -116,7 +116,7 @@ function resolveProvider(rootPath, options = {}) {
   if (!preferredProvider && !options.baseUrl) {
     for (const [providerName, model] of [
       ['deepseek-flash', 'deepseek-v4-flash'],
-      ['kimi', 'kimi-k2.6'],
+      ['kimi', 'kimi-k3'],
       ['openai', options.model],
     ]) {
       const candidate = autoDetectProvider(rootPath, { provider: providerName, model: model || options.model });

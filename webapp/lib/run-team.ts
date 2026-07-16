@@ -29,7 +29,7 @@ function detectProviderFromEnvVars(envVars: Record<string, string>): string {
   if (envVars['DEEPSEEK_API_KEY']) return 'deepseek-flash';
   if (envVars['OPENAI_API_KEY'])   return 'openai';
   if (envVars['ANTHROPIC_API_KEY']) return 'anthropic';
-  if (envVars['MOONSHOT_API_KEY']) return 'kimi';
+  if (envVars['MOONSHOT_API_KEY'] || envVars['KIMI_API_KEY']) return 'kimi';
   if (envVars['XAI_API_KEY'])      return 'xai';
   if (envVars['GOOGLE_API_KEY'])   return 'google';
   return '';

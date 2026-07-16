@@ -7,7 +7,7 @@ const PROVIDERS = [
   { value: 'deepseek',     label: 'DeepSeek V4 Pro',  desc: 'Best for deep analysis · 1M ctx' },
   { value: 'deepseek-flash', label: 'DeepSeek V4 Flash', desc: 'Fastest · ideal for swarm' },
   { value: 'openai',       label: 'OpenAI',          desc: 'GPT-5.5 · GPT-5.5 Pro' },
-  { value: 'kimi',         label: 'Kimi K2.6',       desc: 'Moonshot · extended thinking' },
+  { value: 'kimi',         label: 'Kimi K3',         desc: 'Moonshot · 1M context' },
   { value: 'anthropic',    label: 'Anthropic',       desc: 'Claude Opus / Sonnet' },
   { value: 'xai',          label: 'xAI',             desc: 'Grok-3 mini' },
 ];
@@ -23,6 +23,8 @@ const MODELS_BY_PROVIDER: Record<string, { value: string; label: string }[]> = {
     { value: 'gpt-5.4-mini',label: 'GPT-5.4 Mini' },
   ],
   kimi:          [
+    { value: 'kimi-k3',           label: 'Kimi K3' },
+    { value: 'kimi-k2.7-code-preview', label: 'Kimi K2.7 Code' },
     { value: 'kimi-k2.6',         label: 'Kimi K2.6' },
     { value: 'moonshot-v1-128k',  label: 'Moonshot 128K' },
   ],
@@ -48,6 +50,7 @@ const ALL_KEYS = [
   { key: 'DEEPSEEK_API_KEY',  label: 'DeepSeek',  placeholder: 'sk-...' },
   { key: 'OPENAI_API_KEY',    label: 'OpenAI',    placeholder: 'sk-...' },
   { key: 'MOONSHOT_API_KEY',  label: 'Kimi / Moonshot', placeholder: 'sk-...' },
+  { key: 'KIMI_API_KEY',      label: 'Kimi',      placeholder: 'sk-...' },
   { key: 'ANTHROPIC_API_KEY', label: 'Anthropic', placeholder: 'sk-ant-...' },
   { key: 'XAI_API_KEY',       label: 'xAI',       placeholder: 'xai-...' },
   { key: 'GOOGLE_API_KEY',    label: 'Google',    placeholder: 'AIza...' },

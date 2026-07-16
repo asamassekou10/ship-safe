@@ -254,7 +254,7 @@ export class Orchestrator {
           if (deepSpinner) deepSpinner.fail(chalk.yellow(`Deep analysis failed: ${err.message}`));
         }
       } else if (!quiet) {
-        console.log(chalk.gray('  Deep analysis: no LLM provider found (set ANTHROPIC_API_KEY, MOONSHOT_API_KEY, or use --local)'));
+        console.log(chalk.gray('  Deep analysis: no LLM provider found (set ANTHROPIC_API_KEY, MOONSHOT_API_KEY, KIMI_API_KEY, or use --local)'));
       }
     }
 

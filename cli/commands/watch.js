@@ -50,7 +50,7 @@ export async function watchCommand(targetPath = '.', options = {}) {
     return watchConfigs(absolutePath);
   }
 
-  // Stateful mode: persistent K2.6 session (subset of deep)
+  // Stateful mode: persistent Kimi session (subset of deep)
   if (options.stateful) {
     return watchStateful(absolutePath, options);
   }
@@ -302,7 +302,7 @@ async function watchStateful(absolutePath, options = {}) {
   const scoringEngine = new ScoringEngine();
 
   console.log();
-  output.header('Ship Safe — Stateful Watch Mode (Kimi K2.6)');
+  output.header('Ship Safe — Stateful Watch Mode (Kimi K3)');
   console.log();
   console.log(chalk.cyan('  Persistent security session — context builds over time'));
   console.log(chalk.gray(`  Debounce: ${debounceMs}ms`));
@@ -311,12 +311,12 @@ async function watchStateful(absolutePath, options = {}) {
 
   const watcher = StatefulWatcher.create(absolutePath, {
     provider: options.provider || 'kimi',
-    model: options.model || 'kimi-k2.6',
+    model: options.model || 'kimi-k3',
     verbose: options.verbose,
   });
 
   if (!watcher) {
-    output.error('Stateful watch requires MOONSHOT_API_KEY. Set it and retry.');
+    output.error('Stateful watch requires MOONSHOT_API_KEY or KIMI_API_KEY. Set one and retry.');
     process.exit(1);
   }
 

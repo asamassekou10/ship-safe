@@ -55,7 +55,9 @@ npx ship-safe ci . --threshold 80 --sarif results.sarif
 npx ship-safe undo
 ```
 
-`npx ship-safe red-team . --gpt-red` runs GPT-Red-inspired AI agent red-team scenarios. It uses configured DeepSeek, Kimi/Moonshot, OpenAI-compatible, or local providers when available, and falls back to deterministic offline checks when no AI provider is configured.
+`npx ship-safe red-team . --gpt-red` runs GPT-Red-inspired AI agent red-team scenarios. It uses configured DeepSeek, Kimi K3/Moonshot, OpenAI-compatible, or local providers when available, and falls back to deterministic offline checks when no AI provider is configured.
+
+Kimi support defaults to `kimi-k3` with `MOONSHOT_API_KEY` or `KIMI_API_KEY`. Use `npx ship-safe red-team . --gpt-red --provider kimi --model kimi-k3` for long-context AI-agent red teaming over repository instructions, MCP configs, tool manifests, docs, and prior findings.
 
 ## Open Source And Pricing
 

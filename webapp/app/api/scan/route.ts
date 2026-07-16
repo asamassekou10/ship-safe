@@ -138,7 +138,7 @@ function resolveProviderLabel(requested: string): string {
   if (process.env.DEEPSEEK_API_KEY) return 'deepseek-flash';
   if (process.env.OPENAI_API_KEY)   return 'openai';
   if (process.env.ANTHROPIC_API_KEY) return 'anthropic';
-  if (process.env.MOONSHOT_API_KEY) return 'kimi';
+  if (process.env.MOONSHOT_API_KEY || process.env.KIMI_API_KEY) return 'kimi';
   if (process.env.XAI_API_KEY)      return 'xai';
   return '';
 }

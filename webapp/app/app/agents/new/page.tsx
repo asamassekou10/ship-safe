@@ -23,7 +23,7 @@ const MEMORY_OPTIONS = [
   { value: 'none',      label: 'None',      desc: 'Stateless — no memory' },
 ];
 
-const LLM_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'XAI_API_KEY'];
+const LLM_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'XAI_API_KEY'];
 
 type Step = 0 | 1 | 2 | 3;
 
@@ -287,7 +287,7 @@ export default function NewAgentPage() {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               <div>
                 <strong>LLM API key required.</strong> Add at least one key below. Supported providers:
-                {' '}<code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code>, <code>DEEPSEEK_API_KEY</code>, <code>MOONSHOT_API_KEY</code>, <code>XAI_API_KEY</code>.
+                {' '}<code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code>, <code>DEEPSEEK_API_KEY</code>, <code>MOONSHOT_API_KEY</code>, <code>KIMI_API_KEY</code>, <code>XAI_API_KEY</code>.
               </div>
             </div>
 

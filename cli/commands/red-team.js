@@ -58,7 +58,7 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
     });
 
     if (!swarm) {
-      output.error('Swarm mode requires DEEPSEEK_API_KEY or MOONSHOT_API_KEY. Set one and retry.');
+      output.error('Swarm mode requires DEEPSEEK_API_KEY, MOONSHOT_API_KEY, or KIMI_API_KEY. Set one and retry.');
       process.exit(1);
     }
 

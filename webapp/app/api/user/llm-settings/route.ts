@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Only store known API key names
-  const ALLOWED_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'XAI_API_KEY', 'GOOGLE_API_KEY'];
+  const ALLOWED_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'XAI_API_KEY', 'GOOGLE_API_KEY'];
   const safeKeys: Record<string, string> = {};
   if (apiKeys && typeof apiKeys === 'object') {
     for (const [k, v] of Object.entries(apiKeys)) {

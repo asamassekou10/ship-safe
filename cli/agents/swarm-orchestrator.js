@@ -1,13 +1,13 @@
 /**
- * SwarmOrchestrator — K2.6-Powered Parallel Security Swarm
+ * SwarmOrchestrator — Kimi-Powered Parallel Security Swarm
  * ==========================================================
  *
  * Instead of running the local agent pool in Node.js (chunks of 6),
- * --swarm sends the entire task to Kimi K2.6 and lets its native
+ * --swarm sends the entire task to Kimi K3 and lets its long-context
  * 300-agent swarm handle parallel analysis.
  *
  * Each of Ship Safe's AI security attack classes is assigned as an explicit
- * sub-agent role. K2.6 fans out, each sub-agent scans for its class,
+ * sub-agent role. Kimi fans out, each sub-agent scans for its class,
  * and results are returned as a consolidated findings array.
  *
  * Output is mapped back to Ship Safe's Finding format so SARIF,
@@ -89,10 +89,10 @@ export class SwarmOrchestrator {
       return new SwarmOrchestrator({ provider, verbose: options.verbose, budgetCents: options.budgetCents });
     }
 
-    // Auto-select: prefer deepseek-flash (1M ctx, cheap) then kimi as fallback
+    // Auto-select: prefer deepseek-flash (1M ctx, cheap) then Kimi K3 as fallback
     for (const [providerName, swarmModel] of [
       ['deepseek-flash', 'deepseek-v4-flash'],
-      ['kimi',           'moonshot-v1-128k'],
+      ['kimi',           'kimi-k3'],
     ]) {
       const provider = autoDetectProvider(rootPath, { provider: providerName, model: swarmModel });
       if (provider) return new SwarmOrchestrator({ provider, verbose: options.verbose, budgetCents: options.budgetCents });

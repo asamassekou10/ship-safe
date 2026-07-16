@@ -389,7 +389,7 @@ jobs:
             {/* ── LLM ───────────────────────────────────────────────── */}
             <section id="llm">
               <h2>Multi-LLM Support</h2>
-              <p>AI classification and GPT-Red scenario mode are optional. All core commands work fully offline. Use <code>--provider &lt;name&gt;</code> or set the matching environment variable.</p>
+              <p>AI classification and GPT-Red scenario mode are optional. All core commands work fully offline. Use <code>--provider &lt;name&gt;</code> or set the matching environment variable. Kimi defaults to <code>kimi-k3</code> for long-context AI-agent red teaming.</p>
               <div className={styles.tableWrap}>
                 <table>
                   <thead><tr><th>Provider</th><th>Env Variable</th><th>Flag</th><th>Default Model</th></tr></thead>
@@ -402,6 +402,7 @@ jobs:
                     <tr><td>Together AI</td><td><code>TOGETHER_API_KEY</code></td><td><code>--provider together</code></td><td>Llama-3-70b-chat-hf</td></tr>
                     <tr><td>Mistral</td><td><code>MISTRAL_API_KEY</code></td><td><code>--provider mistral</code></td><td>mistral-small-latest</td></tr>
                     <tr><td>DeepSeek</td><td><code>DEEPSEEK_API_KEY</code></td><td><code>--provider deepseek</code></td><td>deepseek-chat</td></tr>
+                    <tr><td>Kimi / Moonshot</td><td><code>MOONSHOT_API_KEY</code> or <code>KIMI_API_KEY</code></td><td><code>--provider kimi</code></td><td>kimi-k3</td></tr>
                     <tr><td>xAI (Grok)</td><td><code>XAI_API_KEY</code></td><td><code>--provider xai</code></td><td>grok-beta</td></tr>
                     <tr><td>Perplexity</td><td><code>PERPLEXITY_API_KEY</code></td><td><code>--provider perplexity</code></td><td>llama-3.1-sonar-small-128k-online</td></tr>
                     <tr><td>LM Studio</td><td><em>none</em></td><td><code>--provider lmstudio</code></td><td>Local server</td></tr>

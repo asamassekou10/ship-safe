@@ -279,7 +279,7 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
                     <option value="deepseek-flash">DeepSeek V4 Flash ⚡</option>
                     <option value="deepseek">DeepSeek V4 Pro</option>
                     <option value="openai">OpenAI GPT-5.5</option>
-                    <option value="kimi">Kimi K2.6</option>
+                    <option value="kimi">Kimi K3</option>
                     <option value="anthropic">Anthropic Claude</option>
                   </select>
                 </div>
@@ -301,7 +301,7 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
                         checked={aiOptions.think}
                         onChange={e => setAiOptions(p => ({ ...p, think: e.target.checked }))}
                       />
-                      <span><strong>Think mode</strong> — extended reasoning (GPT-5.5 / Claude)</span>
+                      <span><strong>Think mode</strong> — extended reasoning (GPT-5.5 / Claude / Kimi K3)</span>
                     </label>
                   </div>
                 </div>

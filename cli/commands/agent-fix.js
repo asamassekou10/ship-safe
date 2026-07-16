@@ -121,7 +121,7 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
   });
   if (!provider) {
     output.error('No LLM provider available.');
-    console.log(chalk.gray('  Set one of: DEEPSEEK_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, MOONSHOT_API_KEY, XAI_API_KEY'));
+    console.log(chalk.gray('  Set one of: DEEPSEEK_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, MOONSHOT_API_KEY, KIMI_API_KEY, XAI_API_KEY'));
     process.exit(1);
   }
   console.log(chalk.gray(`  Provider: ${chalk.cyan(provider.name)}`));

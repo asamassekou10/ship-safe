@@ -454,8 +454,11 @@ const OPENAI_COMPATIBLE_PRESETS = {
   perplexity: { baseUrl: 'https://api.perplexity.ai/chat/completions',               model: 'llama-3.1-sonar-large-128k-online', envKey: 'PERPLEXITY_API_KEY' },
   lmstudio:   { baseUrl: 'http://localhost:1234/v1/chat/completions',                model: null,                         envKey: null },
   xai:        { baseUrl: 'https://api.x.ai/v1/chat/completions',                    model: 'grok-3-mini',                envKey: 'XAI_API_KEY' },
-  kimi:       { baseUrl: 'https://api.moonshot.ai/v1/chat/completions',             model: 'kimi-k2.6',                  envKey: 'MOONSHOT_API_KEY' },
-  moonshot:   { baseUrl: 'https://api.moonshot.ai/v1/chat/completions',             model: 'kimi-k2.6',                  envKey: 'MOONSHOT_API_KEY' },
+  kimi:       { baseUrl: 'https://api.moonshot.ai/v1/chat/completions',             model: 'kimi-k3',                    envKey: 'MOONSHOT_API_KEY' },
+  moonshot:   { baseUrl: 'https://api.moonshot.ai/v1/chat/completions',             model: 'kimi-k3',                    envKey: 'MOONSHOT_API_KEY' },
+  'kimi-k3':  { baseUrl: 'https://api.moonshot.ai/v1/chat/completions',             model: 'kimi-k3',                    envKey: 'MOONSHOT_API_KEY' },
+  'kimi-k2.7-code': { baseUrl: 'https://api.moonshot.ai/v1/chat/completions',       model: 'kimi-k2.7-code-preview',     envKey: 'MOONSHOT_API_KEY' },
+  'kimi-k2.6': { baseUrl: 'https://api.moonshot.ai/v1/chat/completions',            model: 'kimi-k2.6',                  envKey: 'MOONSHOT_API_KEY' },
   // Gemma 4 via Ollama — runs fully local, no API key required
   // e4b: MoE 4B active params, ~8GB RAM;  27b: dense, ~20GB RAM
   gemma4:     { baseUrl: 'http://localhost:11434/v1/chat/completions',               model: 'gemma4:e4b',                 envKey: null },
@@ -468,9 +471,23 @@ class OpenAICompatibleProvider extends OpenAIProvider {
     this.name = name;
   }
 
+  get isKimi() {
+    return /kimi|moonshot/i.test(this.name || '') || /kimi|moonshot/i.test(this.model || '');
+  }
+
+  get isKimiK3() {
+    return /kimi-k3/i.test(this.model || '');
+  }
+
   /** Models known to support OpenAI function calling reliably */
   get supportsStructuredOutput() {
     return /kimi|moonshot|gpt-4|gpt-5|grok|deepseek|mistral-large/i.test(this.model || '');
+  }
+
+  _applyReasoningOptions(body, options = {}) {
+    if (!options.think) return;
+    body.max_tokens = options.maxTokens || 16384;
+    body.reasoning_effort = this.isKimiK3 ? 'max' : (options.thinkLevel || 'high');
   }
 
   async complete(systemPrompt, userPrompt, options = {}) {
@@ -483,10 +500,13 @@ class OpenAICompatibleProvider extends OpenAIProvider {
       ],
     };
     if (options.jsonMode) body.response_format = { type: 'json_object' };
-    if (options.think) {
-      body.reasoning_effort = options.thinkLevel || 'high';
-      body.max_tokens = options.maxTokens || 16384;
+    if (options.jsonSchema) {
+      body.response_format = {
+        type: 'json_schema',
+        json_schema: options.jsonSchema,
+      };
     }
+    this._applyReasoningOptions(body, options);
 
     const response = await fetch(this.baseUrl, {
       method: 'POST',
@@ -504,9 +524,10 @@ class OpenAICompatibleProvider extends OpenAIProvider {
 
     const data = await response.json();
     const msg = data.choices?.[0]?.message;
-    // Kimi K2.6 thinking mode: actual answer in `content`; `reasoning_content` is internal thinking only
-    // With jsonMode, rely only on content (json_object format guarantees it); otherwise fall back to reasoning
-    if (options.jsonMode) return msg?.content || '';
+    // Kimi K3/K2 reasoning lives in `reasoning_content`; never parse it as final
+    // output, especially for JSON-mode security analysis.
+    if (this.isKimi) return msg?.content || '';
+    if (options.jsonMode || options.jsonSchema) return msg?.content || '';
     return msg?.content || msg?.reasoning_content || '';
   }
 
@@ -621,7 +642,7 @@ export function createProvider(provider, apiKey, options = {}) {
   throw new Error(
     `Unknown LLM provider: "${provider}".\n` +
     `Built-in: anthropic, openai, google, ollama\n` +
-    `Presets:  gpt-5.5, gpt-5.5-pro, gpt-5.4, gpt-5.4-mini, gpt-5.4-nano, groq, together, mistral, cohere, deepseek, deepseek-flash, perplexity, lmstudio, xai, kimi\n` +
+    `Presets:  gpt-5.5, gpt-5.5-pro, gpt-5.4, gpt-5.4-mini, gpt-5.4-nano, groq, together, mistral, cohere, deepseek, deepseek-flash, perplexity, lmstudio, xai, kimi, kimi-k3\n` +
     `Custom:   pass any name with --base-url <url>`
   );
 }
@@ -670,7 +691,11 @@ export function autoDetectProvider(rootPath, options = {}) {
 
   for (const [envVar, providerName] of Object.entries(envKeys)) {
     if (process.env[envVar]) {
-      return createProvider(providerName, process.env[envVar], { model: options.model });
+      return createProvider(providerName, process.env[envVar], {
+        model: options.model,
+        think: options.think,
+        thinkLevel: options.thinkLevel,
+      });
     }
   }
 
@@ -682,7 +707,11 @@ export function autoDetectProvider(rootPath, options = {}) {
         const content = fs.readFileSync(envPath, 'utf-8');
         for (const [envVar, providerName] of Object.entries(envKeys)) {
           const match = content.match(new RegExp(`^${envVar}\\s*=\\s*["']?([^"'\\s]+)`, 'm'));
-          if (match) return createProvider(providerName, match[1], { model: options.model });
+          if (match) return createProvider(providerName, match[1], {
+            model: options.model,
+            think: options.think,
+            thinkLevel: options.thinkLevel,
+          });
         }
       } catch { /* ignore */ }
     }
@@ -698,16 +727,23 @@ function resolveApiKey(providerName, rootPath) {
   const name = providerName.toLowerCase();
   const preset = OPENAI_COMPATIBLE_PRESETS[name];
   const envVar = preset?.envKey || `${name.toUpperCase()}_API_KEY`;
+  const envVars = name === 'kimi' || name === 'moonshot' || name.startsWith('kimi-')
+    ? ['MOONSHOT_API_KEY', 'KIMI_API_KEY']
+    : [envVar];
 
-  if (process.env[envVar]) return process.env[envVar];
+  for (const key of envVars) {
+    if (process.env[key]) return process.env[key];
+  }
 
   if (rootPath) {
     const envPath = path.join(rootPath, '.env');
     if (fs.existsSync(envPath)) {
       try {
         const content = fs.readFileSync(envPath, 'utf-8');
-        const match = content.match(new RegExp(`^${envVar}\\s*=\\s*["']?([^"'\\s]+)`, 'm'));
-        if (match) return match[1];
+        for (const key of envVars) {
+          const match = content.match(new RegExp(`^${key}\\s*=\\s*["']?([^"'\\s]+)`, 'm'));
+          if (match) return match[1];
+        }
       } catch { /* ignore */ }
     }
   }

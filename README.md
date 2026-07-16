@@ -198,7 +198,9 @@ jobs:
 
 Works with any provider — auto-detected from environment variables. Use `--provider <name>` to override.
 
-Anthropic · OpenAI · Google · DeepSeek · Groq · Together · Mistral · xAI · Perplexity · Ollama · LM Studio · any OpenAI-compatible endpoint
+Anthropic · OpenAI · Google · DeepSeek · Kimi K3 / Moonshot · Groq · Together · Mistral · xAI · Perplexity · Ollama · LM Studio · any OpenAI-compatible endpoint
+
+Kimi defaults to `kimi-k3` through `MOONSHOT_API_KEY` or `KIMI_API_KEY`. Use `--provider kimi --model kimi-k3` for long-context GPT-Red and deep-analysis runs.
 
 No API key required for core scanning. AI classification and `red-team --gpt-red` use your configured provider when available, with deterministic offline fallback for GPT-Red checks.
 
