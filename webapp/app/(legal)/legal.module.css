@@ -1,0 +1,122 @@
+.legalPage {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  padding: 6rem 1.5rem 4rem;
+}
+
+.legalShell {
+  width: min(860px, 100%);
+  margin: 0 auto;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 650;
+  text-decoration: none;
+  margin-bottom: 2rem;
+}
+
+.backLink:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.legalCard {
+  padding: clamp(1.5rem, 4vw, 3rem);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(10, 10, 10, 0.72);
+  box-shadow: var(--ring-card);
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: 0.7rem;
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.legalCard h1 {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 5vw, 3.5rem);
+  font-weight: 720;
+  letter-spacing: -0.035em;
+  line-height: 1;
+}
+
+.updated {
+  margin: 0.85rem 0 2rem;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+}
+
+.notice {
+  margin: 0 0 2rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 12px;
+  background: rgba(34, 211, 238, 0.055);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+.section {
+  padding: 1.35rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.section h2 {
+  margin: 0 0 0.55rem;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 760;
+  letter-spacing: -0.01em;
+  text-align: left;
+}
+
+.section p,
+.section li {
+  color: var(--text-muted);
+  font-size: 0.94rem;
+  line-height: 1.72;
+}
+
+.section p {
+  margin: 0;
+}
+
+.section ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.section li + li {
+  margin-top: 0.35rem;
+}
+
+.contact {
+  color: var(--cyan);
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .legalPage {
+    padding: 5rem 1rem 3rem;
+  }
+
+  .legalCard {
+    border-radius: 14px;
+  }
+}

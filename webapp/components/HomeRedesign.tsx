@@ -30,13 +30,6 @@ const coverage = [
   'PR review',
 ];
 
-const proofItems = [
-  { value: 'MIT', label: 'open-source CLI' },
-  { value: '29', label: 'specialized agents' },
-  { value: 'SARIF', label: 'GitHub-ready output' },
-  { value: 'CI', label: 'pipeline gating' },
-];
-
 const workflowSteps = [
   { label: 'Scan', detail: 'Run locally, in CI, or from the dashboard.' },
   { label: 'Triage', detail: 'Rank findings by severity, confidence, and exploitability.' },
@@ -93,33 +86,6 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
     <main className={styles.page}>
       {/* ── Hero ───────────────────────────────────── */}
       <Hero stars={stars} downloads={downloads} />
-
-      {/* ── Proof strip ────────────────────────────── */}
-      <section className={styles.proofStrip} aria-label="Ship Safe proof points">
-        <div className={styles.proofStripInner}>
-          <span className={styles.proofStripLabel}>// trusted signals</span>
-          <div className={styles.proofStripGrid}>
-            <div>
-              <strong><StatsCounter value={stars} /></strong>
-              <span>GitHub stars</span>
-            </div>
-            <div>
-              <strong><StatsCounter value={downloads} /></strong>
-              <span>npm downloads</span>
-            </div>
-            {proofItems.map((item) => (
-              <div key={item.label}>
-                <strong>{item.value}</strong>
-                <span>{item.label}</span>
-              </div>
-            ))}
-          </div>
-          <div className={styles.proofStripActions}>
-            <Link href="/signup" className={styles.inlineCta}>Start free scan</Link>
-            <Link href="/pricing" className={styles.inlineLink}>Compare plans</Link>
-          </div>
-        </div>
-      </section>
 
       {/* ── Coverage marquee ──────────────────────── */}
       <section className={styles.marquee} aria-label="Ship Safe coverage">
@@ -437,7 +403,7 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
             <MagneticButton>
               <Link href="/signup" className={styles.primaryCta}>Start free scan <span aria-hidden="true">→</span></Link>
             </MagneticButton>
-            <a href="https://github.com/asamassekou10/ship-safe" className={styles.secondaryCta}>View on GitHub</a>
+            <Link href="/pricing" className={styles.secondaryCta}>Compare plans</Link>
           </div>
         </div>
       </section>

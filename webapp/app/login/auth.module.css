@@ -1,21 +1,61 @@
 .authPage {
   min-height: 100vh;
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1.5rem;
-  position: relative;
-  z-index: 1;
+  padding: 2rem 1rem;
+  overflow: hidden;
+}
+
+.authPage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(42% 34% at 50% 28%, rgba(34, 211, 238, 0.08), transparent 72%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.34));
+  pointer-events: none;
 }
 
 .authCard {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 2.5rem;
-  width: 100%;
-  max-width: 400px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 24px 60px rgba(0,0,0,0.06);
+  width: min(500px, 100%);
+  padding: clamp(1.65rem, 4vw, 2.45rem);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 28%),
+    rgba(10, 10, 11, 0.82);
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.44),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(18px);
+}
+
+.brandMark {
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 1.05rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.14), transparent 58%),
+    rgba(255, 255, 255, 0.025);
+  box-shadow: 0 0 36px rgba(255, 255, 255, 0.06);
+}
+
+.brandMark:hover { text-decoration: none; }
+
+.brandMark img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  border-radius: 10px;
 }
 
 .authHeader {
@@ -23,121 +63,135 @@
   margin-bottom: 2rem;
 }
 
-.logo {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 800;
-  font-size: 1.05rem;
-  color: var(--text);
-  text-decoration: none;
-  margin-bottom: 1.5rem;
-}
-.logo:hover { text-decoration: none; opacity: 0.85; }
-
-.logoImg {
-  border-radius: 6px;
-  object-fit: contain;
-}
-
 .authHeader h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  margin-bottom: 0.35rem;
-  text-align: center;
+  margin: 0;
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 640;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .authHeader p {
-  color: var(--text-muted);
-  font-size: 0.88rem;
-  text-align: center;
+  margin: 0.75rem 0 0;
+  color: rgba(226, 232, 240, 0.48);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
 }
 
-.form { display: flex; flex-direction: column; gap: 1.1rem; }
+.tabs {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 1.7rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
 
-.field { display: flex; flex-direction: column; gap: 0.4rem; }
-
-.field label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-muted);
+.tabs a,
+.activeTab {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-}
-
-.forgotLink {
-  font-size: 0.78rem;
-  color: var(--cyan);
-  font-weight: 500;
-}
-.forgotLink:hover { text-decoration: underline; }
-
-.input {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.7rem 1rem;
-  font-size: 0.9rem;
-  color: var(--text);
-  font-family: var(--font-sans);
-  width: 100%;
-  transition: border-color 0.15s, box-shadow 0.15s;
-  outline: none;
-}
-.input::placeholder { color: var(--text-dim); }
-.input:focus {
-  border-color: var(--cyan-dim);
-  box-shadow: 0 0 0 3px rgba(8,145,178,0.08);
-}
-
-.submitBtn {
-  width: 100%;
   justify-content: center;
-  margin-top: 0.25rem;
-  font-size: 0.95rem;
-  padding: 0.8rem;
+  min-height: 42px;
+  color: rgba(226, 232, 240, 0.48);
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
 }
 
-.divider {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin: 1.5rem 0;
-  color: var(--text-dim);
-  font-size: 0.78rem;
+.tabs a:hover {
+  color: rgba(255, 255, 255, 0.86);
+  text-decoration: none;
 }
-.divider::before, .divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border);
+
+.activeTab {
+  color: #ffffff;
+  box-shadow: inset 0 -2px 0 #ffffff;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.oauthBtns { display: flex; gap: 0.75rem; }
+.oauthBtns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
 
 .oauthBtn {
-  flex: 1;
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  font-size: 0.88rem;
+  gap: 0.6rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.055);
+  color: rgba(255, 255, 255, 0.88);
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
 }
 
-.switchAuth {
-  text-align: center;
-  font-size: 0.85rem;
-  color: var(--text-dim);
-  margin-top: 1.5rem;
+.oauthBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
 }
-.switchAuth a { color: var(--cyan); font-weight: 500; }
-.switchAuth a:hover { text-decoration: underline; }
 
-@media (max-width: 480px) {
-  .authPage { padding: 1.5rem 1rem; }
-  .authCard { padding: 1.75rem 1.25rem; }
-  .authHeader h1 { font-size: 1.25rem; }
-  .oauthBtns { flex-direction: column; }
+.oauthBtn:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.footerLine {
+  display: flex;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: 1.65rem;
+  padding-top: 1.35rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(226, 232, 240, 0.58);
+  font-size: 0.9rem;
+}
+
+.footerLine a {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.footerLine a:hover { text-decoration: underline; }
+
+@media (max-width: 520px) {
+  .authCard {
+    padding: 1.35rem;
+    border-radius: 20px;
+  }
+
+  .authHeader h1 {
+    font-size: 1.65rem;
+  }
+
+  .authHeader p {
+    font-size: 0.66rem;
+    letter-spacing: 0.16em;
+  }
+
+  .oauthBtns {
+    grid-template-columns: 1fr;
+  }
+
+  .footerLine {
+    flex-wrap: wrap;
+  }
 }

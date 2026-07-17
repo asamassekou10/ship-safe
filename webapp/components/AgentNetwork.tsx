@@ -221,7 +221,7 @@ export default function AgentNetwork({ onFinding, onEvent }: Props) {
       pulsesRef.current = alivePulses;
 
       // Nodes (skip core — bolt SVG handles that)
-      ctx.font = '500 10.5px var(--font-geist-mono, ui-monospace, monospace)';
+      ctx.font = '500 10.5px var(--font-jetbrains-mono, ui-monospace, monospace)';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       nodes.forEach((n) => {

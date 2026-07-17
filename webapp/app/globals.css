@@ -23,9 +23,9 @@
   --text:         #111827;
   --text-muted:   #6b7280;
   --text-dim:     #9ca3af;
-  --font-sans:    var(--font-geist-sans), system-ui, -apple-system, sans-serif;
-  --font-mono:    var(--font-geist-mono), 'JetBrains Mono', 'Fira Code', monospace;
-  --font-serif:   var(--font-instrument-serif), 'Instrument Serif', Georgia, serif;
+  --font-sans:    var(--font-inter), system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-space-grotesk), var(--font-inter), system-ui, sans-serif;
+  --font-mono:    var(--font-jetbrains-mono), 'SFMono-Regular', 'Fira Code', monospace;
   --radius:       10px;
   --radius-lg:    14px;
   --radius-xl:    20px;
@@ -128,7 +128,8 @@ body {
   font-family: var(--font-sans);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: "calt", "liga", "ss01";
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "calt", "liga";
   position: relative;
 }
 
@@ -196,6 +197,16 @@ body::after {
 a { color: var(--cyan); text-decoration: none; }
 a:hover { text-decoration: underline; }
 code, pre, .mono { font-family: var(--font-mono); }
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.section-label {
+  font-family: var(--font-display);
+}
 
 ::selection { background: var(--cyan-glow); color: var(--cyan); }
 
@@ -288,7 +299,7 @@ section { padding: 6rem 0; }
 h2 {
   font-size: clamp(1.75rem, 4vw, 2.5rem);
   font-weight: 800;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.025em;
   margin-bottom: 0.75rem;
   text-align: center;
 }

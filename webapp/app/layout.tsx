@@ -1,28 +1,26 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono, Instrument_Serif } from 'next/font/google';
+import { Inter, JetBrains_Mono, Space_Grotesk } from 'next/font/google';
 import Providers from './providers';
 import AuroraBackground from '@/components/AuroraBackground';
 import ScrollProgress from '@/components/ScrollProgress';
 import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 
-const geistSans = Geist({
+const inter = Inter({
   subsets: ['latin'],
-  variable: '--font-geist-sans',
+  variable: '--font-inter',
   display: 'swap',
 });
 
-const geistMono = Geist_Mono({
+const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
-  variable: '--font-geist-mono',
+  variable: '--font-space-grotesk',
   display: 'swap',
 });
 
-const instrumentSerif = Instrument_Serif({
-  weight: '400',
+const jetBrainsMono = JetBrains_Mono({
   subsets: ['latin'],
-  style: ['normal', 'italic'],
-  variable: '--font-instrument-serif',
+  variable: '--font-jetbrains-mono',
   display: 'swap',
 });
 
@@ -55,7 +53,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${spaceGrotesk.variable} ${jetBrainsMono.variable}`}>
       <head>
         <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />

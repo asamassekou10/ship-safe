@@ -1,23 +1,207 @@
-.freeBadge {
+.signupPage {
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: rgba(22,163,74,0.06);
-  border: 1px solid rgba(22,163,74,0.15);
-  border-radius: var(--radius);
-  padding: 0.6rem 1rem;
-  font-size: 0.82rem;
-  color: var(--green);
-  margin-bottom: 1.5rem;
-  font-weight: 500;
+  justify-content: center;
+  padding: 2rem 1rem;
+  overflow: hidden;
+}
+
+.signupPage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(42% 34% at 50% 28%, rgba(34, 211, 238, 0.08), transparent 72%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.34));
+  pointer-events: none;
+}
+
+.authCard {
+  width: min(500px, 100%);
+  padding: clamp(1.65rem, 4vw, 2.45rem);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 28%),
+    rgba(10, 10, 11, 0.82);
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.44),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(18px);
+}
+
+.brandMark {
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 1.05rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.14), transparent 58%),
+    rgba(255, 255, 255, 0.025);
+  box-shadow: 0 0 36px rgba(255, 255, 255, 0.06);
+}
+
+.brandMark:hover { text-decoration: none; }
+
+.brandMark img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.brandHeader {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.brandHeader h1 {
+  margin: 0;
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 640;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.brandHeader p {
+  margin: 0.75rem 0 0;
+  color: rgba(226, 232, 240, 0.48);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.tabs {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 1.7rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.tabs a,
+.activeTab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  color: rgba(226, 232, 240, 0.48);
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.tabs a:hover {
+  color: rgba(255, 255, 255, 0.86);
+  text-decoration: none;
+}
+
+.activeTab {
+  color: #ffffff;
+  box-shadow: inset 0 -2px 0 #ffffff;
+}
+
+.oauthBtns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.oauthBtn {
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.055);
+  color: rgba(255, 255, 255, 0.88);
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.oauthBtn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .terms {
-  font-size: 0.75rem;
-  color: var(--text-dim);
+  margin: 1.1rem auto 0;
+  max-width: 330px;
+  color: rgba(148, 163, 184, 0.54);
+  font-size: 0.74rem;
+  line-height: 1.55;
   text-align: center;
-  line-height: 1.5;
-  margin-top: -0.25rem;
 }
-.terms a { color: var(--text-dim); text-decoration: underline; }
-.terms a:hover { color: var(--text-muted); }
+
+.terms a {
+  color: rgba(226, 232, 240, 0.7);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.terms a:hover { color: #ffffff; }
+
+.footerLine {
+  display: flex;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: 1.65rem;
+  padding-top: 1.35rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(226, 232, 240, 0.58);
+  font-size: 0.9rem;
+}
+
+.footerLine a {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.footerLine a:hover { text-decoration: underline; }
+
+@media (max-width: 520px) {
+  .authCard {
+    padding: 1.35rem;
+    border-radius: 20px;
+  }
+
+  .brandHeader h1 {
+    font-size: 1.65rem;
+  }
+
+  .brandHeader p {
+    font-size: 0.66rem;
+    letter-spacing: 0.16em;
+  }
+
+  .oauthBtns {
+    grid-template-columns: 1fr;
+  }
+
+  .footerLine {
+    flex-wrap: wrap;
+  }
+}

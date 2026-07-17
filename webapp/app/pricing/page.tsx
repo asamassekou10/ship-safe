@@ -1,6 +1,6 @@
 import Nav from '@/components/Nav';
 import Link from 'next/link';
-import { plans, pricingFaq } from '@/data/plans';
+import { pricingFaq } from '@/data/plans';
 import AnimatedCheck from '@/components/AnimatedCheck';
 import MagneticButton from '@/components/MagneticButton';
 import CursorGlow from '@/components/CursorGlow';
@@ -12,14 +12,14 @@ const ogImage = 'https://www.shipsafecli.com/og1.png';
 
 export const metadata: Metadata = {
   title: 'Pricing',
-  description: 'Ship Safe pricing: free open-source CLI for everyone. Pro ($9/month) and Team ($19/seat/month) plans for cloud dashboard, GitHub integration, and team collaboration.',
+  description: 'Ship Safe pricing: start free with the open-source CLI. Upgrade to Pro for scan history, PR checks, private repos, and hosted reports.',
   keywords: ['Ship Safe pricing', 'AI agent security scanner pricing', 'LLM vulnerability CLI cost', 'free security tool', 'DevSecOps pricing', 'application security cost'],
   alternates: {
     canonical: 'https://www.shipsafecli.com/pricing',
   },
   openGraph: {
-    title: 'Simple, transparent pricing — Ship Safe',
-    description: 'The CLI is always free and open-source. Pro & Team plans for the cloud dashboard, GitHub integration, and team collaboration.',
+    title: 'Start free. Upgrade when your team needs history — Ship Safe',
+    description: 'Run Ship Safe locally for free. Add the dashboard when you need scan history, PR checks, private repos, and team workflows.',
     type: 'website',
     url: 'https://www.shipsafecli.com/pricing',
     siteName: 'Ship Safe',
@@ -27,8 +27,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Simple, transparent pricing — Ship Safe',
-    description: 'The CLI is always free and open-source. Pro & Team plans for the cloud dashboard, GitHub integration, and team collaboration.',
+    title: 'Start free. Upgrade when your team needs history — Ship Safe',
+    description: 'Run Ship Safe locally for free. Add the dashboard when you need scan history, PR checks, private repos, and team workflows.',
     images: [ogImage],
   },
 };
@@ -65,17 +65,57 @@ const jsonLd = {
   ],
 };
 
-const upgradeReasons = [
-  'Save scan history',
-  'Monitor private repos',
-  'Get PR checks',
-  'Share reports',
-];
-
-const openSourcePoints = [
-  'Unlimited local scans',
-  'MIT licensed CLI',
-  '29 agents included',
+const pricingCards = [
+  {
+    name: 'Free CLI',
+    eyebrow: 'Open source',
+    price: '$0',
+    period: 'forever',
+    desc: 'Run local security scans without an account.',
+    cta: 'Run locally',
+    ctaHref: '/docs#get-started',
+    featured: false,
+    features: [
+      'Unlimited local scans',
+      'MIT licensed',
+      '29 security agents',
+      'No account required',
+    ],
+  },
+  {
+    name: 'Pro',
+    eyebrow: 'Most popular',
+    price: '$9',
+    period: '/month',
+    desc: 'For developers who want history, reports, and PR checks.',
+    cta: 'Start Pro',
+    ctaHref: '/signup?callbackUrl=/app/checkout%3Fplan%3Dpro',
+    featured: true,
+    features: [
+      'Cloud dashboard',
+      'Scan history and trends',
+      'Private repos',
+      'PR Guardian checks',
+      'Hosted reports',
+    ],
+  },
+  {
+    name: 'Team',
+    eyebrow: 'Teams',
+    price: '$19',
+    period: '/seat/month',
+    desc: 'For shared security workflows across repos and people.',
+    cta: 'Start Team',
+    ctaHref: '/signup?callbackUrl=/app/checkout%3Fplan%3Dteam',
+    featured: false,
+    features: [
+      'Everything in Pro',
+      'Shared workspace',
+      'Role-based access',
+      'Slack and webhooks',
+      'Team security score',
+    ],
+  },
 ];
 
 export default function Pricing() {
@@ -91,33 +131,26 @@ export default function Pricing() {
         {/* ── Hero ──────────────────────────────────── */}
         <section className={styles.hero}>
           <div className={styles.heroInner}>
-            <span className={styles.sectionLabel}>// 01 — pricing</span>
-            <h1>Simple, transparent <span className={styles.gradientText}>pricing.</span></h1>
+            <span className={styles.sectionLabel}>// pricing</span>
+            <h1>Start free. Upgrade later.</h1>
             <p>
-              The CLI is always free and open-source. Pay only when you want the hosted dashboard,
-              team collaboration, or PR Guardian.
+              Local scans are free. Pro adds history, PR checks, private repos, and hosted reports.
             </p>
-          </div>
-        </section>
-
-        <section className={styles.upgradeReasons} aria-label="Why upgrade">
-          <div className={styles.upgradeReasonsInner}>
-            <span>Upgrade when you need to</span>
-            <ul>
-              {upgradeReasons.map((reason) => (
-                <li key={reason}>
-                  <AnimatedCheck variant="check" delay={80} />
-                  {reason}
-                </li>
-              ))}
-            </ul>
+            <div className={styles.heroActions}>
+              <MagneticButton>
+                <Link href="/signup" className={styles.primaryCta}>
+                  Start free scan <span aria-hidden="true">→</span>
+                </Link>
+              </MagneticButton>
+              <Link href="#plans" className={styles.secondaryCta}>Compare plans</Link>
+            </div>
           </div>
         </section>
 
         {/* ── Plans ─────────────────────────────────── */}
-        <section className={styles.plansSection}>
+        <section id="plans" className={styles.plansSection}>
           <CursorGlow className={styles.plansGrid}>
-            {plans.map((plan, i) => (
+            {pricingCards.map((plan, i) => (
               <article
                 key={plan.name}
                 data-glow
@@ -125,7 +158,9 @@ export default function Pricing() {
                 data-delay={String(i * 60)}
                 className={`${styles.planCard} ${plan.featured ? styles.featured : ''}`}
               >
-                {plan.featured && <span className={styles.popularBadge}>Most popular</span>}
+                <span className={`${styles.planEyebrow} ${plan.featured ? styles.featuredEyebrow : ''}`}>
+                  {plan.eyebrow}
+                </span>
                 <header className={styles.planHeader}>
                   <h3 className={styles.planName}>{plan.name}</h3>
                   <div className={styles.planPrice}>
@@ -135,17 +170,19 @@ export default function Pricing() {
                   <p className={styles.planDesc}>{plan.desc}</p>
                 </header>
 
-                {plan.featured ? (
-                  <MagneticButton>
-                    <Link href={plan.ctaHref} className={styles.primaryCta}>
-                      {plan.cta} <span aria-hidden="true">→</span>
+                <div className={styles.planCtaSlot}>
+                  {plan.featured ? (
+                    <MagneticButton className={styles.ctaMagnet}>
+                      <Link href={plan.ctaHref} className={styles.primaryCta}>
+                        {plan.cta} <span aria-hidden="true">→</span>
+                      </Link>
+                    </MagneticButton>
+                  ) : (
+                    <Link href={plan.ctaHref} className={styles.secondaryCta}>
+                      {plan.cta}
                     </Link>
-                  </MagneticButton>
-                ) : (
-                  <Link href={plan.ctaHref} className={styles.secondaryCta}>
-                    {plan.cta}
-                  </Link>
-                )}
+                  )}
+                </div>
 
                 <ul className={styles.featureList}>
                   {plan.features.map((f, idx) => (
@@ -158,32 +195,15 @@ export default function Pricing() {
               </article>
             ))}
           </CursorGlow>
-        </section>
-
-        {/* ── Open-source band ──────────────────────── */}
-        <section className={styles.osSection}>
-          <div className={styles.osInner} data-animate>
-            <div className={styles.osCopy}>
-              <span className={styles.sectionLabel}>// 02 — open source</span>
-              <h2>Start free. Upgrade when the workflow needs a home.</h2>
-              <p>
-                The CLI stays free and open source. Paid plans add the hosted dashboard,
-                scan history, reports, PR checks, and team collaboration around the same scanner.
-              </p>
+          <div className={styles.decisionNote}>
+            <p>Most developers start free. Upgrade to Pro when you want history, GitHub PR checks, and hosted reports.</p>
+          </div>
+          <div className={styles.enterpriseRow}>
+            <div>
+              <strong>Need SSO, on-prem, or custom policies?</strong>
+              <span>Enterprise includes Team plus SAML, SLA, deployment support, and volume pricing.</span>
             </div>
-            <div className={styles.osPanel}>
-              <ul className={styles.osPoints}>
-                {openSourcePoints.map((point, idx) => (
-                  <li key={point}>
-                    <AnimatedCheck variant="check" delay={120 + idx * 80} />
-                    <span>{point}</span>
-                  </li>
-                ))}
-              </ul>
-              <a href="https://github.com/asamassekou10/ship-safe" target="_blank" rel="noopener noreferrer" className={styles.secondaryCta}>
-                View on GitHub <span aria-hidden="true">→</span>
-              </a>
-            </div>
+            <a href="mailto:hello@shipsafecli.com" className={styles.secondaryCta}>Contact us</a>
           </div>
         </section>
 
@@ -191,9 +211,9 @@ export default function Pricing() {
         <section className={styles.faqSection}>
           <div className={styles.faqInner}>
             <div className={styles.faqHead} data-animate>
-              <span className={styles.sectionLabel}>// 03 — faq</span>
-              <h2>Pricing questions, answered.</h2>
-              <p>Anything else? <Link href="/docs">Read the docs</Link> or <a href="mailto:hello@shipsafecli.com">email us</a>.</p>
+              <span className={styles.sectionLabel}>// faq</span>
+              <h2>Questions, answered.</h2>
+              <p>Short answers for the buying decision.</p>
             </div>
             <CursorGlow className={styles.faqList}>
               {pricingFaq.map((item) => (
@@ -217,8 +237,8 @@ export default function Pricing() {
             <div className={styles.mesh} />
           </div>
           <div className={styles.finalInner}>
-            <span className={styles.statusPill}><i /> Try without signing up</span>
-            <h2>Run your first scan in under a minute.</h2>
+            <span className={styles.statusPill}><i /> No account needed for local scans</span>
+            <h2>Start scanning free today.</h2>
             <div className={styles.finalCommand}>
               <span>$</span>
               <code>npx ship-safe scan</code>
@@ -229,7 +249,7 @@ export default function Pricing() {
                   Start free <span aria-hidden="true">→</span>
                 </Link>
               </MagneticButton>
-              <a href="https://github.com/asamassekou10/ship-safe" className={styles.secondaryCta}>View on GitHub</a>
+              <Link href="#plans" className={styles.secondaryCta}>Compare plans</Link>
             </div>
           </div>
         </section>
