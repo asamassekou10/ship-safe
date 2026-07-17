@@ -266,6 +266,7 @@ docker-compose.override.yml
 CONTEXT.md
 
 # Local scratch files
+demo-recordings/
 *.jpg
 *.jpeg
 *.png

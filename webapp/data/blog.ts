@@ -295,6 +295,272 @@ Ship Safe's GPT-Red-inspired mode is our first step toward making them testable 
     `.trim(),
   },
   {
+    slug: 'kimi-k3-agent-tool-call-security-ship-safe',
+    title: 'Kimi K3 Changes The Agent Security Baseline',
+    description: 'Ship Safe v9.5.2 adds Kimi K3 red-team coverage for long-context AI agents, dynamic tool loading, forced tool calls, and missing tool allowlists.',
+    date: '2026-07-16T17:30:00-05:00',
+    author: 'Ship Safe Team',
+    tags: ['AI security', 'Kimi K3', 'tool calls', 'AI agents', 'release'],
+    keywords: ['Kimi K3 security', 'Kimi K3 tool calls', 'AI agent tool-call security', 'dynamic tool loading security', 'tool_choice required security', 'Ship Safe v9.5.2', 'Kimi K3 red team', 'OpenAI-compatible tool calls', 'agentic AI security scanner', 'long context security'],
+    content: `
+Kimi K3 is not just another model update. It changes the default shape of AI-agent applications.
+
+The official Kimi API documentation describes K3 as a flagship model with a 1M-token context window, native visual understanding, OpenAI-compatible chat-completions usage, always-on thinking mode, structured output, custom tool calls, dynamic tool loading, and automatic context caching. In other words: it is built for long-running agent work, large codebases, and tool-heavy workflows.
+
+That is exactly why the security baseline has to move.
+
+When models get longer context and better tool use, developers wire them into more of the system. They pass bigger repository bundles. They expose richer tool registries. They let the model pick actions. They keep multi-turn state. They ask the agent to reason across docs, package scripts, CI, deployment config, MCP servers, and previous findings.
+
+Those are useful capabilities. They are also where the next class of AI-agent vulnerabilities lives.
+
+Ship Safe v9.5.2 adds Kimi K3 support and new tool-call security checks for that layer.
+
+## The K3 feature that matters most for security
+
+The headline number is the 1M-token context window. For security, the important part is not only "more context." It is what teams will put inside that context.
+
+A normal agent run can now include:
+
+- source files,
+- README and agent instructions,
+- package scripts,
+- CI workflows,
+- deployment config,
+- MCP server manifests,
+- tool schemas,
+- prior scanner findings,
+- issue text,
+- design docs,
+- logs,
+- and user prompts.
+
+That is a lot of useful signal. It is also a lot of trust boundaries collapsed into one prompt.
+
+Security tools used to ask: "Is this file dangerous?"
+
+Agent security has to ask: "What happens when this untrusted file sits next to tools, credentials, memory, and authority?"
+
+That is the reason Ship Safe added:
+
+\`\`\`bash
+npx ship-safe red-team . --gpt-red --provider kimi --model kimi-k3 --k3-long-context
+\`\`\`
+
+The \`--k3-long-context\` flag expands GPT-Red mode beyond the usual agent-readable documents. It lets Ship Safe correlate package scripts, CI, deployment config, MCP/tool manifests, docs, and prior findings in one bounded Kimi K3 pass.
+
+## Tool calls are now an application security boundary
+
+Kimi's docs show a standard tool loop:
+
+1. Send messages with tool definitions.
+2. Let the model return \`tool_calls\`.
+3. Execute each tool call.
+4. Append the complete assistant message.
+5. Append tool results with matching \`tool_call_id\`.
+6. Call the model again.
+
+That loop is familiar to anyone building with OpenAI-compatible tool calls. The danger is that most real applications do not keep the boundary crisp.
+
+The risky version looks like this:
+
+\`\`\`js
+const toolRegistry = {
+  readFile,
+  postToWebhook,
+  shell
+};
+
+const response = await client.chat.completions.create({
+  model: 'kimi-k3',
+  tool_choice: 'required',
+  messages,
+  tools: Object.entries(toolRegistry).map(([name]) => ({
+    type: 'function',
+    function: {
+      name,
+      description: \`Execute \${name} from the project registry.\`,
+      parameters: { type: 'object', additionalProperties: true }
+    }
+  }))
+});
+
+for (const call of response.choices[0].message.tool_calls || []) {
+  await toolRegistry[call.function.name](JSON.parse(call.function.arguments));
+}
+\`\`\`
+
+It works. It is also too trusting.
+
+The model selected a tool name. The app executed that name. The schema allowed arbitrary properties. The first turn forced a tool call. If the message history includes untrusted project text, docs, RAG output, or tool output, the agent now has a path from text to action.
+
+That is not a model problem alone. That is application security.
+
+## What Ship Safe v9.5.2 now flags
+
+v9.5.2 adds Kimi K3 / OpenAI-compatible tool-call rules in \`AgenticSecurityAgent\`.
+
+### 1. Dynamic tool definitions loaded from prompt context
+
+Kimi K3 supports dynamic tool loading: a tool definition can appear in a message and become available from that point in the conversation.
+
+That can be useful for large agents. It can also become dangerous if the "dynamic" part comes from RAG content, repo docs, customer text, tool results, or any other untrusted source.
+
+Ship Safe flags patterns where tool definitions, function schemas, or tool registries appear to be sourced from prompt context instead of trusted code.
+
+The fix is simple in principle:
+
+- define sensitive tools statically,
+- keep tool schemas in reviewed code,
+- never let retrieved text introduce a new executable capability,
+- and require human review for any tool registry change.
+
+### 2. Tool call names executed without an allowlist
+
+The model should not be the authority for what code runs.
+
+If your app does this:
+
+\`\`\`js
+await toolRegistry[toolCall.function.name](args);
+\`\`\`
+
+you need an explicit allowlist before dispatch:
+
+\`\`\`js
+const ALLOWED_TOOLS = new Set(['readFile', 'searchDocs']);
+
+if (!ALLOWED_TOOLS.has(toolCall.function.name)) {
+  throw new Error('Tool not allowed');
+}
+\`\`\`
+
+The allowlist should be smaller than the registry. A model may know many tools exist; each agent state should expose only the tools needed for that turn.
+
+### 3. Forced tool calls on untrusted first turns
+
+\`tool_choice: "required"\` is not automatically unsafe. Kimi's docs show it as a supported way to require at least one tool call.
+
+The security problem appears when a required tool call is paired with untrusted input and broad tools.
+
+On a first turn, before you have classified the request, \`required\` removes the model's ability to say "no tool is needed." If the toolset includes file reads, network calls, shell execution, issue posting, refunds, deploys, or credentialed API calls, that is a risky default.
+
+Safer options:
+
+- use \`tool_choice: "auto"\` for untrusted first turns,
+- split read-only and write-capable tools,
+- require approval for destructive tools,
+- and use separate agents for planning versus execution.
+
+### 4. Tool-result replay without the assistant tool-call message
+
+Kimi's docs are explicit about multi-turn tool calls: preserve the complete assistant message returned by the API, not only \`content\`.
+
+That matters because the assistant message contains the tool-call IDs and the model's structured action request. If an application appends tool results without preserving the original assistant tool-call message, the conversation can become ambiguous or replayable.
+
+Ship Safe flags code that appears to append \`role: "tool"\` messages without the matching assistant tool-call history.
+
+The fix:
+
+- append the complete assistant message,
+- include one tool result per \`tool_call_id\`,
+- never accept tool-result messages from users,
+- and log the request, tool name, arguments, result hash, and approval state.
+
+## Why this belongs next to GPT-Red mode
+
+GPT-Red mode asks whether agent-readable content can create a real attack path.
+
+Kimi K3 long-context mode gives that red team more of the actual application boundary:
+
+- the instructions the agent reads,
+- the tools it can use,
+- the package scripts it might execute,
+- the CI workflows it may influence,
+- the deployment files that define blast radius,
+- and prior findings that describe known weak spots.
+
+That is closer to how agents fail in production. A prompt injection rarely lives alone. It sits in a repository, issue, document, webpage, or tool result. The impact depends on the surrounding capability.
+
+So Ship Safe v9.5.2 pairs two things:
+
+- Kimi K3 as a provider and long-context GPT-Red engine.
+- Deterministic rules that catch unsafe tool-call wiring even when no API key is configured.
+
+The API key improves the red-team pass. The static rules keep CI useful without one.
+
+## How to run it
+
+For the full Kimi K3 red-team pass:
+
+\`\`\`bash
+KIMI_API_KEY=sk-... npx ship-safe red-team . --gpt-red --provider kimi --model kimi-k3 --k3-long-context
+\`\`\`
+
+or:
+
+\`\`\`bash
+MOONSHOT_API_KEY=sk-... npx ship-safe red-team . --gpt-red --provider kimi --model kimi-k3 --k3-long-context
+\`\`\`
+
+For deterministic CI coverage without sending code to a provider:
+
+\`\`\`bash
+npx ship-safe red-team . --gpt-red --no-ai
+\`\`\`
+
+For a quick local check of only the new tool-call patterns, run the normal red-team command. The agentic security rules run as part of the standard scanner:
+
+\`\`\`bash
+npx ship-safe red-team .
+\`\`\`
+
+## What to fix first
+
+If Ship Safe flags Kimi K3 tool-call issues, prioritize in this order:
+
+1. Remove shell, network, credential, deploy, and write tools from broad agent states.
+2. Add explicit tool-name allowlists before dispatch.
+3. Replace \`additionalProperties: true\` with strict schemas.
+4. Avoid \`tool_choice: "required"\` on untrusted first turns.
+5. Preserve the complete assistant tool-call message before adding tool results.
+6. Treat RAG, docs, tool results, issue text, and web content as untrusted.
+7. Log every tool call and approval decision.
+
+You do not need to stop using tool calls. You need to make tool calls boring, explicit, narrow, logged, and reviewable.
+
+## The baseline changed
+
+Kimi K3 makes large-context, tool-using agents more practical. That is good for builders.
+
+It also means the security review has to move from "does the prompt look safe?" to "can untrusted context reach an unsafe tool?"
+
+That is the baseline Ship Safe v9.5.2 is built for.
+
+## FAQ
+
+### What is Kimi K3 security scanning?
+
+Kimi K3 security scanning means checking AI-agent code and configuration for risks created by long context, tool calls, dynamic tool loading, model-selected actions, and tool-result history. Ship Safe scans those patterns locally and can also run a Kimi-backed GPT-Red pass when a provider key is configured.
+
+### Does Ship Safe require a Kimi API key?
+
+No. Ship Safe's deterministic agent and tool-call security rules run without an API key. A \`KIMI_API_KEY\` or \`MOONSHOT_API_KEY\` is only needed for provider-backed Kimi K3 red-team analysis with \`--provider kimi --model kimi-k3 --k3-long-context\`.
+
+### What Kimi K3 tool-call risks does Ship Safe detect?
+
+Ship Safe v9.5.2 detects dynamic tool definitions loaded from prompt context, model-selected tool names executed without an allowlist, forced tool calls on untrusted first turns, and tool-result replay without preserving the assistant tool-call message.
+
+### How do I scan an AI agent that uses Kimi K3?
+
+Run \`npx ship-safe red-team . --gpt-red --provider kimi --model kimi-k3 --k3-long-context\` for a Kimi-backed red-team pass, or run \`npx ship-safe red-team . --gpt-red --no-ai\` for deterministic CI coverage without sending code to a provider.
+
+## Sources
+
+- [Kimi API Platform: Kimi K3 quickstart](https://platform.kimi.ai/docs/guide/kimi-k3-quickstart)
+- [Ship Safe v9.5.2 release](https://github.com/asamassekou10/ship-safe/releases/tag/v9.5.2)
+    `.trim(),
+  },
+  {
     slug: 'agentic-ransomware-jadepuffer-ai-threat-actor',
     title: 'Agentic Ransomware Is Here: What JadePuffer Means for Dev Teams',
     description: 'Security researchers reported an LLM-orchestrated ransomware operation called JadePuffer. The techniques were familiar, but the orchestration was new: credential hunting, lateral movement, retries, and destruction stitched together by an AI agent.',

@@ -45,6 +45,9 @@ Use `npx ship-safe red-team . --gpt-red --provider kimi --model kimi-k3 --k3-lon
 
 Ship Safe v9.5.2 adds Kimi K3 / OpenAI-compatible tool-call security rules for dynamic tool loading from prompt context, missing tool allowlists, forced tool calls on untrusted input, and replayed tool results without the assistant tool-call message.
 
+Related article: https://www.shipsafecli.com/blog/kimi-k3-agent-tool-call-security-ship-safe
+Summary: Kimi K3 security guidance for long-context AI agents, dynamic tool loading, tool_choice required, missing tool allowlists, and Ship Safe v9.5.2 red-team coverage.
+
 ## Canonical Links
 
 - Website: https://www.shipsafecli.com

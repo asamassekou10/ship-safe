@@ -63,6 +63,10 @@ Kimi support defaults to `kimi-k3` with `MOONSHOT_API_KEY` or `KIMI_API_KEY`. Us
 
 Ship Safe v9.5.2 also adds Kimi K3 / OpenAI-compatible tool-call security checks. AgenticSecurityAgent detects dynamic tool definitions loaded from prompt/RAG/tool-result context, model-selected tool names executed without an allowlist, forced tool choice with untrusted user input, and tool-result replay without preserving the assistant tool-call message.
 
+Canonical Kimi K3 security article: https://www.shipsafecli.com/blog/kimi-k3-agent-tool-call-security-ship-safe
+
+The Kimi K3 article explains how 1M-token context, OpenAI-compatible tool calls, dynamic tool loading, `tool_choice: "required"`, and tool-result replay change the AI-agent security baseline. It recommends `npx ship-safe red-team . --gpt-red --provider kimi --model kimi-k3 --k3-long-context` for provider-backed red teaming and `npx ship-safe red-team . --gpt-red --no-ai` for deterministic CI coverage.
+
 ## Open Source And Pricing
 
 The Ship Safe CLI is MIT-licensed and free for local scans. Pro and Team plans are for hosted workflows:
