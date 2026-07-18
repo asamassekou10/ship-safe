@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Hero from './Hero';
 import LazyVideo from './LazyVideo';
+import { CommandType, StatusSequence } from './HomepageMotion';
 import styles from './HomeRedesign.module.css';
 
 type HomeRedesignProps = {
@@ -36,11 +37,16 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
           <p>Start with a local scan. Add deeper context and automation only when you need it.</p>
         </header>
 
-        <article className={styles.storyRow}>
+        <article id="workflow-scan" className={styles.storyRow} data-workflow-step>
           <div className={styles.storyCopy} data-animate="left">
             <span className={styles.storyNumber}>01</span>
             <h3>Run it where you work.</h3>
             <p>Scan any repository from the terminal without creating an account or uploading the entire codebase.</p>
+            <div className={styles.storyCommand}>
+              <span>$</span>
+              <CommandType command="npx ship-safe scan" />
+            </div>
+            <StatusSequence items={['Scanning repository', 'Classifying findings', 'Report ready']} />
             <ul className={styles.storyPoints}>
               <li>One-command setup</li>
               <li>Local-first scanning</li>
@@ -60,18 +66,19 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
           </figure>
         </article>
 
-        <article className={`${styles.storyRow} ${styles.storyReverse}`}>
+        <article id="workflow-rank" className={`${styles.storyRow} ${styles.storyReverse}`} data-workflow-step>
           <div className={styles.storyCopy} data-animate="right">
             <span className={styles.storyNumber}>02</span>
             <h3>See what matters first.</h3>
             <p>Move past a flat list of warnings. Ship Safe groups findings by severity, confidence, and real exploitability.</p>
+            <StatusSequence items={['Finding detected', 'Context verified', 'Exploitability ranked']} tone="risk" />
             <ul className={styles.storyPoints}>
               <li>Prioritized findings</li>
               <li>Security score</li>
               <li>Clear remediation context</li>
             </ul>
           </div>
-          <figure className={styles.storyMedia} data-animate="left">
+          <figure className={`${styles.storyMedia} ${styles.riskMedia}`} data-animate="left">
             <Image
               src="/scan%20result.png"
               alt="Ship Safe scan results ranked by risk"
@@ -82,11 +89,12 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
           </figure>
         </article>
 
-        <article className={styles.storyRow}>
+        <article id="workflow-guard" className={styles.storyRow} data-workflow-step>
           <div className={styles.storyCopy} data-animate="left">
             <span className={styles.storyNumber}>03</span>
             <h3>Stop risky changes before merge.</h3>
             <p>PR Guardian puts the finding, affected code, and fix guidance inside the review your team is already reading.</p>
+            <StatusSequence items={['Change inspected', 'Risk blocked', 'Fix verified']} tone="success" />
             <ul className={styles.storyPoints}>
               <li>Pull-request checks</li>
               <li>Inline fix guidance</li>
@@ -94,7 +102,7 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
             </ul>
             <Link href="/docs" className={styles.textLink}>Explore PR Guardian <span aria-hidden="true">→</span></Link>
           </div>
-          <figure className={styles.storyMedia} data-animate="right">
+          <figure className={`${styles.storyMedia} ${styles.guardMedia}`} data-animate="right">
             <Image
               src="/PR%20Guardian.png"
               alt="Ship Safe PR Guardian configuration"
@@ -105,11 +113,12 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
           </figure>
         </article>
 
-        <article className={`${styles.storyRow} ${styles.storyReverse}`}>
+        <article id="workflow-intelligence" className={`${styles.storyRow} ${styles.storyReverse}`} data-workflow-step>
           <div className={styles.storyCopy} data-animate="right">
             <span className={styles.storyNumber}>04</span>
             <h3>Turn new threats into checks.</h3>
             <p>Security Intelligence connects advisories and exploit context to the technologies inside your stack.</p>
+            <StatusSequence items={['Threat signal received', 'Stack matched', 'Check generated']} />
             <ul className={styles.storyPoints}>
               <li>Threat-informed coverage</li>
               <li>Stack-aware relevance</li>
@@ -170,8 +179,9 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
             <p>Use Kimi K3-powered adversarial analysis to probe tool calls, long-context behavior, and agent boundaries.</p>
             <div className={styles.commandLine}>
               <span>$</span>
-              <code>npx ship-safe red-team . --gpt-red --provider kimi --model kimi-k3 --k3-long-context</code>
+              <CommandType command="npx ship-safe red-team . --gpt-red --provider kimi --model kimi-k3 --k3-long-context" />
             </div>
+            <StatusSequence items={['Attack surface mapped', 'Scenarios generated', 'Exploitability ranked']} tone="risk" />
             <Link href="/blog/kimi-k3-agent-tool-call-security-ship-safe" className={styles.textLink}>See how Kimi K3 works <span aria-hidden="true">→</span></Link>
           </div>
           <figure className={styles.redTeamMedia} data-animate="right">
@@ -193,7 +203,7 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
           <h2>Your first report is one command away.</h2>
           <div className={styles.commandLine}>
             <span>$</span>
-            <code>npx ship-safe scan</code>
+            <CommandType command="npx ship-safe scan" />
           </div>
           <p>No account required for local scans.</p>
           <div className={styles.heroActions}>
@@ -210,12 +220,12 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
           <p>The scanner stays free. Pro adds the hosted tools that help teams keep moving.</p>
         </div>
         <div className={styles.planGrid}>
-          <article className={styles.plan} data-animate>
+          <article className={styles.plan} data-animate data-delay="80">
             <div><span>Free CLI</span><strong>$0</strong></div>
             <p>Unlimited local scans and CI-ready security output.</p>
             <Link href="/docs" className={styles.secondaryCta}>Run locally</Link>
           </article>
-          <article className={`${styles.plan} ${styles.planFeatured}`} data-animate>
+          <article className={`${styles.plan} ${styles.planFeatured}`} data-animate data-delay="180">
             <div><span>Pro</span><strong>$9<small>/month</small></strong></div>
             <p>Hosted history, private repos, reports, and PR Guardian.</p>
             <Link href="/signup" className={styles.primaryCta}>Start Pro <span aria-hidden="true">→</span></Link>
@@ -244,11 +254,15 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
         </div>
       </section>
 
-      <section className={styles.finalCta}>
+      <section className={styles.finalCta} data-animate>
         <div className={styles.finalInner}>
           <span className={styles.sectionLabel}>// ready when you are</span>
           <h2>Find the risk before users do.</h2>
           <p>Run locally for free, then add the cloud when your team needs history and automation.</p>
+          <div className={styles.commandLine}>
+            <span>$</span>
+            <CommandType command="npx ship-safe scan" delay={240} />
+          </div>
           <div className={styles.heroActions}>
             <Link href="/signup" className={styles.primaryCta}>Start free scan <span aria-hidden="true">→</span></Link>
             <Link href="/pricing" className={styles.secondaryCta}>View pricing</Link>

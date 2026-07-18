@@ -1,7 +1,7 @@
 .page {
   position: relative;
   z-index: 1;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .sectionLabel {
@@ -149,6 +149,104 @@
   line-height: 1.65;
 }
 
+.storyCommand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: min(100%, 360px);
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #050607;
+  font-family: var(--font-mono);
+}
+
+.storyCommand > span {
+  color: var(--cyan);
+  font-weight: 900;
+}
+
+.typedCommand {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  color: var(--text);
+}
+
+.typedCommand > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.typedCommand > i {
+  width: 0.52em;
+  height: 1.05em;
+  margin-left: 0.2rem;
+  background: var(--cyan);
+  animation: commandCursor 0.85s steps(1, end) infinite;
+}
+
+.statusSequence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  width: 100%;
+}
+
+.statusSequence > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 28px;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 750;
+  opacity: 0.5;
+  transition: opacity 0.35s ease, color 0.35s ease, border-color 0.35s ease, transform 0.35s ease;
+}
+
+.statusSequence > span > i {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--text-dim);
+  transition: background 0.35s ease, box-shadow 0.35s ease;
+}
+
+.statusSequence > .statusComplete {
+  border-color: rgba(34, 211, 238, 0.24);
+  color: var(--text);
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.statusSequence > .statusComplete > i {
+  background: var(--cyan);
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.45);
+}
+
+.status_risk > .statusComplete {
+  border-color: rgba(239, 68, 68, 0.28);
+}
+
+.status_risk > .statusComplete > i {
+  background: #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.42);
+}
+
+.status_success > .statusComplete:last-child {
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.status_success > .statusComplete:last-child > i {
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.42);
+}
+
 .storyPoints {
   display: grid;
   gap: 0.65rem;
@@ -203,6 +301,59 @@
   background: var(--bg-card);
   box-shadow: 0 24px 70px -44px rgba(8, 145, 178, 0.38);
   overflow: hidden;
+}
+
+.storyMedia::before {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  top: -20%;
+  bottom: -20%;
+  left: -30%;
+  width: 18%;
+  pointer-events: none;
+  background: rgba(34, 211, 238, 0.08);
+  filter: blur(14px);
+  opacity: 0;
+  transform: skewX(-12deg);
+}
+
+.storyMedia:global(.visible)::before {
+  animation: storyScan 1.7s 0.25s ease-out both;
+}
+
+.riskMedia::after,
+.guardMedia::after {
+  position: absolute;
+  z-index: 3;
+  right: 0.8rem;
+  bottom: 0.8rem;
+  padding: 0.42rem 0.62rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, #050607 90%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.riskMedia::after {
+  content: 'risk ranked';
+  color: #f87171;
+}
+
+.guardMedia::after {
+  content: 'fix verified';
+  color: #4ade80;
+}
+
+.riskMedia:global(.visible)::after,
+.guardMedia:global(.visible)::after {
+  animation: mediaBadgeIn 0.45s 1.25s ease-out both;
 }
 
 .storyMedia img,
@@ -336,7 +487,11 @@
   font-family: var(--font-mono);
   font-size: 0.63rem;
   font-weight: 850;
+  animation: agentHandoff 4.5s ease-in-out infinite;
 }
+
+.agentSequence li:nth-child(2) > span { animation-delay: 1.5s; }
+.agentSequence li:nth-child(3) > span { animation-delay: 3s; }
 
 .agentSequence strong {
   color: var(--text);
@@ -607,6 +762,10 @@
   background: color-mix(in srgb, var(--bg-card) 90%, var(--cyan) 10%);
 }
 
+.planFeatured:global(.visible) {
+  animation: proPlanIn 0.8s 0.15s ease-out both;
+}
+
 .pricingLink {
   justify-self: center;
   color: var(--text-muted);
@@ -693,12 +852,29 @@
 }
 
 .finalCta {
+  position: relative;
   padding: 7rem 0 8rem;
   border-top: 1px solid var(--border);
   background: var(--bg-elevated);
+  overflow: hidden;
+}
+
+.finalCta::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 0 45%, rgba(34, 211, 238, 0.08) 50%, transparent 55% 100%);
+  transform: translateX(-110%);
+}
+
+.finalCta:global(.visible)::before {
+  animation: finalSweep 1.8s 0.2s ease-out both;
 }
 
 .finalInner {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -800,6 +976,11 @@
     font-size: 1.9rem;
   }
 
+  .statusSequence > span {
+    min-height: 26px;
+    font-size: 0.6rem;
+  }
+
   .storyMedia {
     border-radius: 6px;
   }
@@ -874,7 +1055,14 @@
 
   .hermesStatus i,
   .agentSequence::before,
-  .hermesMedia::after {
+  .agentSequence li > span,
+  .hermesMedia::after,
+  .typedCommand > i,
+  .storyMedia::before,
+  .riskMedia::after,
+  .guardMedia::after,
+  .planFeatured,
+  .finalCta::before {
     animation: none;
   }
 
@@ -899,4 +1087,45 @@
   25% { opacity: 1; }
   75% { opacity: 1; }
   85%, 100% { left: 115%; opacity: 0; }
+}
+
+@keyframes commandCursor {
+  0%, 46% { opacity: 1; }
+  47%, 100% { opacity: 0; }
+}
+
+@keyframes storyScan {
+  0% { left: -30%; opacity: 0; }
+  18% { opacity: 1; }
+  82% { opacity: 1; }
+  100% { left: 112%; opacity: 0; }
+}
+
+@keyframes mediaBadgeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes agentHandoff {
+  0%, 22%, 100% {
+    border-color: rgba(8, 145, 178, 0.35);
+    box-shadow: none;
+    color: var(--cyan);
+  }
+  8%, 14% {
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 5px rgba(34, 211, 238, 0.08), 0 0 18px rgba(34, 211, 238, 0.22);
+    color: var(--text);
+  }
+}
+
+@keyframes proPlanIn {
+  0% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
+  55% { box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.12), 0 20px 50px -36px rgba(34, 211, 238, 0.5); }
+  100% { box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.08); }
+}
+
+@keyframes finalSweep {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(110%); }
 }
