@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Hero from './Hero';
 import LazyVideo from './LazyVideo';
 import { CommandType, StatusSequence } from './HomepageMotion';
+import SocialProof from './SocialProof';
 import styles from './HomeRedesign.module.css';
 
 type HomeRedesignProps = {
@@ -253,6 +254,8 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
           </div>
         </div>
       </section>
+
+      <SocialProof />
 
       <section className={styles.finalCta} data-animate>
         <div className={styles.finalInner}>
