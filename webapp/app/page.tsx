@@ -7,23 +7,23 @@ import { getRepoStats } from '@/lib/stats';
 const ogImage = 'https://www.shipsafecli.com/og1.png';
 
 export const metadata: Metadata = {
-  title: 'Ship Safe — AI Agent Security Scanner for Developers',
+  title: 'Ship Safe CLI — AI Agent Security Scanner for Developers',
   description: '29 AI security agents scan your codebase for LLM vulnerabilities, MCP configuration security issues, RAG poisoning, Claude Managed Agent misconfigs, secrets, and dependency CVEs. OWASP Agentic AI Top 10 mapping, live advisory feeds. Free CLI.',
   keywords: ['AI agent security scanner', 'LLM vulnerability CLI', 'MCP configuration security', 'RAG poisoning prevention', 'prevent RAG poisoning', 'application security scanner', 'AI security agents', 'secret scanner', 'OWASP Agentic AI Top 10', 'memory poisoning detection', 'prompt injection scanner', 'DevSecOps tool', 'free security scanner', 'open source SAST'],
   alternates: {
     canonical: 'https://www.shipsafecli.com',
   },
   openGraph: {
-    title: 'Ship Safe — AI Agent Security Scanner for Developers',
+    title: 'Ship Safe CLI — AI Agent Security Scanner for Developers',
     description: '29 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
     type: 'website',
     url: 'https://www.shipsafecli.com',
-    siteName: 'Ship Safe',
+    siteName: 'Ship Safe CLI',
     images: [{ url: ogImage, width: 1200, height: 628, alt: 'Ship Safe - AI Agent Security Scanner' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Ship Safe — AI Agent Security Scanner for Developers',
+    title: 'Ship Safe CLI — AI Agent Security Scanner for Developers',
     description: '29 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
     images: [ogImage],
   },
@@ -34,7 +34,9 @@ const jsonLd = {
   '@graph': [
     {
       '@type': 'SoftwareApplication',
-      name: 'Ship Safe',
+      '@id': 'https://www.shipsafecli.com/#software',
+      name: 'Ship Safe CLI',
+      alternateName: ['Ship Safe', 'ship-safe'],
       applicationCategory: 'DeveloperApplication',
       operatingSystem: 'Windows, macOS, Linux',
       offers: {
@@ -45,11 +47,9 @@ const jsonLd = {
       description: '29 AI security agents scan your codebase for secrets, vulnerabilities, memory poisoning, Hermes Agent misconfigurations, and dependency CVEs in one command.',
       url: 'https://www.shipsafecli.com',
       downloadUrl: 'https://www.npmjs.com/package/ship-safe',
-      softwareVersion: '9.4.1',
+      softwareVersion: '9.5.2',
       author: {
-        '@type': 'Organization',
-        name: 'Ship Safe',
-        url: 'https://www.shipsafecli.com',
+        '@id': 'https://www.shipsafecli.com/#organization',
       },
     },
     {
@@ -68,7 +68,7 @@ const jsonLd = {
           name: 'Is my code sent to an LLM?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'Only if you use the agent command or omit --no-ai. When AI is used, only matched snippets are sent. Secret values are masked. The audit command with --no-ai is fully local.',
+            text: 'Only in provider-backed modes. Standard classification sends bounded finding metadata and matched excerpts; deep analysis and GPT-Red can send additional bounded repository context directly to the selected provider. Common credential patterns receive best-effort masking. Use --no-ai to keep scanning fully local.',
           },
         },
         {
@@ -131,7 +131,9 @@ const jsonLd = {
     },
     {
       '@type': 'Organization',
-      name: 'Ship Safe',
+      '@id': 'https://www.shipsafecli.com/#organization',
+      name: 'Ship Safe CLI',
+      alternateName: 'Ship Safe',
       url: 'https://www.shipsafecli.com',
       logo: 'https://www.shipsafecli.com/logo.png',
       sameAs: [

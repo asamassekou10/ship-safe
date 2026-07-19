@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     description: 'Check if your Lovable projects exposed credentials or sensitive data from chat histories.',
     type: 'website',
     url: 'https://www.shipsafecli.com/breach/lovable-2025',
-    siteName: 'Ship Safe',
+    siteName: 'Ship Safe CLI',
     images: [{ url: ogImage, width: 1200, height: 628, alt: 'Lovable Public Project Exposure Self-Audit' }],
   },
   twitter: {

@@ -1,0 +1,102 @@
+{
+  "version": "1.0.0",
+  "description": "Paired synthetic vulnerable and safe controls for deterministic Ship Safe CLI regression testing.",
+  "scenarios": [
+    {
+      "id": "sql-injection",
+      "category": "Injection",
+      "agent": "InjectionTester",
+      "expectedRule": "SQL_INJECTION_TEMPLATE_LITERAL",
+      "vulnerable": "vulnerable/sql-injection.js",
+      "safe": "safe/sql-injection.js"
+    },
+    {
+      "id": "jwt-none",
+      "category": "Authentication",
+      "agent": "AuthBypassAgent",
+      "expectedRule": "JWT_ALG_NONE",
+      "vulnerable": "vulnerable/jwt-none.js",
+      "safe": "safe/jwt-none.js"
+    },
+    {
+      "id": "user-controlled-ssrf",
+      "category": "SSRF",
+      "agent": "SSRFProber",
+      "expectedRule": "SSRF_USER_URL_FETCH",
+      "vulnerable": "vulnerable/ssrf.js",
+      "safe": "safe/ssrf.js"
+    },
+    {
+      "id": "api-mass-assignment",
+      "category": "API",
+      "agent": "APIFuzzer",
+      "expectedRule": "API_SPREAD_BODY",
+      "vulnerable": "vulnerable/api-mass-assignment.js",
+      "safe": "safe/api-mass-assignment.js"
+    },
+    {
+      "id": "llm-output-execution",
+      "category": "LLM",
+      "agent": "LLMRedTeam",
+      "expectedRule": "LLM_OUTPUT_TO_EVAL",
+      "vulnerable": "vulnerable/llm-output.js",
+      "safe": "safe/llm-output.js"
+    },
+    {
+      "id": "mcp-shell-tool",
+      "category": "MCP",
+      "agent": "MCPSecurityAgent",
+      "expectedRule": "MCP_TOOL_SHELL_EXEC",
+      "vulnerable": "vulnerable/mcp-shell.js",
+      "safe": "safe/mcp-shell.js"
+    },
+    {
+      "id": "agent-auto-approval",
+      "category": "Agentic AI",
+      "agent": "AgenticSecurityAgent",
+      "expectedRule": "AGENT_TOOL_NO_CONFIRMATION",
+      "vulnerable": "vulnerable/agent-auto-approval.js",
+      "safe": "safe/agent-auto-approval.js"
+    },
+    {
+      "id": "rag-user-upload",
+      "category": "RAG",
+      "agent": "RAGSecurityAgent",
+      "expectedRule": "RAG_USER_UPLOAD_TO_VECTORDB",
+      "vulnerable": "vulnerable/rag-upload.js",
+      "safe": "safe/rag-upload.js"
+    },
+    {
+      "id": "hermes-tool-dispatch",
+      "category": "Hermes",
+      "agent": "HermesSecurityAgent",
+      "expectedRule": "HERMES_FUNCTION_CALL_NO_ALLOWLIST",
+      "vulnerable": "vulnerable/hermes-tool.js",
+      "safe": "safe/hermes-tool.js"
+    },
+    {
+      "id": "unsafe-model-load",
+      "category": "Model supply chain",
+      "agent": "ModelScanAgent",
+      "expectedRule": "MODEL_TORCH_LOAD_UNSAFE",
+      "vulnerable": "vulnerable/model-load.py",
+      "safe": "safe/model-load.py"
+    },
+    {
+      "id": "install-script-exfiltration",
+      "category": "Package supply chain",
+      "agent": "InstallGuardAgent",
+      "expectedRule": "WORM_LIFECYCLE_EXFIL",
+      "vulnerable": "vulnerable/package.json",
+      "safe": "safe/package.json"
+    },
+    {
+      "id": "clickfix-lure",
+      "category": "Social engineering",
+      "agent": "ClickFixAgent",
+      "expectedRule": "CLICKFIX_PASTE_RUN",
+      "vulnerable": "vulnerable/clickfix.txt",
+      "safe": "safe/clickfix.txt"
+    }
+  ]
+}

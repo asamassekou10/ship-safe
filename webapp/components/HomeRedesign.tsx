@@ -17,7 +17,7 @@ const faqs = [
   },
   {
     q: 'Is my code sent to an LLM?',
-    a: 'Only when you enable AI analysis. Local scanning does not require sending your repository to an external model.',
+    a: <>Only in provider-backed modes. Use <code>--no-ai</code> to keep scanning fully local. See the <Link href="/security">security and data-flow details</Link>.</>,
   },
   {
     q: 'Is the CLI free?',

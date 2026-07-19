@@ -37,6 +37,7 @@
 import fs from 'fs';
 import path from 'path';
 import { createProvider, autoDetectProvider } from '../providers/llm-provider.js';
+import { redactForLLM } from '../utils/llm-redaction.js';
 
 // Lazy-import ScanPlaybook to avoid circular dep; only used when rootPath is known
 let _ScanPlaybook = null;
@@ -396,8 +397,8 @@ export class DeepAnalyzer {
         title: f.title,
         file: f.file ? path.basename(f.file) : 'unknown',
         line: f.line,
-        matched: (f.matched || '').slice(0, 200),
-        description: (f.description || '').slice(0, 120),
+        matched: redactForLLM(f.matched || '').slice(0, 200),
+        description: redactForLLM(f.description || '').slice(0, 120),
       }));
 
       const prompt = `Triage these ${items.length} security findings. For each, decide: "skip" (obvious false-positive), "review" (needs deeper analysis), or "escalate" (confirmed critical, clear user-input-to-dangerous-sink path).\n\nFindings:\n${JSON.stringify(items, null, 2)}`;
@@ -438,10 +439,10 @@ export class DeepAnalyzer {
         rule: f.rule,
         severity: f.severity,
         title: f.title,
-        description: f.description,
+        description: redactForLLM(f.description || ''),
         file: f.file ? path.basename(f.file) : 'unknown',
         line: f.line,
-        matched: (f.matched || '').slice(0, 200),
+        matched: redactForLLM(f.matched || '').slice(0, 200),
         codeContext: this._getFileContext(f),
       }));
 
@@ -488,10 +489,10 @@ export class DeepAnalyzer {
         rule: finding.rule,
         severity: finding.severity,
         title: finding.title,
-        description: finding.description,
+        description: redactForLLM(finding.description || ''),
         file: finding.file ? path.basename(finding.file) : 'unknown',
         line: finding.line,
-        matched: (finding.matched || '').slice(0, 400),
+        matched: redactForLLM(finding.matched || '').slice(0, 400),
         codeContext: this._getFileContext(finding), // Full context window
       };
 
@@ -576,10 +577,10 @@ export class DeepAnalyzer {
       rule: f.rule,
       severity: f.severity,
       title: f.title,
-      description: f.description,
+      description: redactForLLM(f.description || ''),
       file: f.file ? path.basename(f.file) : 'unknown',
       line: f.line,
-      matched: (f.matched || '').slice(0, 200),
+      matched: redactForLLM(f.matched || '').slice(0, 200),
       codeContext: this._getFileContext(f),
     }));
 
@@ -645,7 +646,7 @@ export class DeepAnalyzer {
         context = context.slice(0, this.maxFileChars) + '\n... (truncated)';
       }
 
-      return context;
+      return redactForLLM(context);
     } catch {
       return '';
     }

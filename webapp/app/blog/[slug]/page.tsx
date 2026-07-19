@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: post.description,
       type: 'article',
       url: `https://www.shipsafecli.com/blog/${post.slug}`,
-      siteName: 'Ship Safe',
+      siteName: 'Ship Safe CLI',
       publishedTime: post.date,
       authors: [post.author],
       tags: post.tags,

@@ -1,0 +1,1 @@
+Error 500: internal server error. Check the application logs and retry.

@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     description: 'Start scanning for LLM vulnerabilities, MCP misconfigs, secrets, and CVEs. Free to get started.',
     type: 'website',
     url: 'https://www.shipsafecli.com/signup',
-    siteName: 'Ship Safe',
+    siteName: 'Ship Safe CLI',
     images: [{ url: ogImage, width: 1200, height: 628, alt: 'Sign Up for Ship Safe' }],
   },
   twitter: {

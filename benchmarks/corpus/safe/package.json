@@ -1,0 +1,6 @@
+{
+  "name": "safe-install-fixture",
+  "scripts": {
+    "postinstall": "node ./scripts/build.js"
+  }
+}

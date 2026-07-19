@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     description: 'Vulnerability research, supply chain deep-dives, and practical security advice from the Ship Safe team.',
     type: 'website',
     url: 'https://www.shipsafecli.com/blog',
-    siteName: 'Ship Safe',
+    siteName: 'Ship Safe CLI',
     images: [{ url: ogImage, width: 1200, height: 628, alt: 'Ship Safe Blog' }],
   },
   twitter: {

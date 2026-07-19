@@ -32,6 +32,9 @@ jobs:
       - name: Run unit tests
         run: npm test
 
+      - name: Run deterministic security corpus
+        run: npm run benchmark:corpus
+
       - name: Run ship-safe on itself
         run: node cli/bin/ship-safe.js scan .
 

@@ -785,6 +785,20 @@ describe('AgenticSecurityAgent', async () => {
     } finally { cleanup(dir); }
   });
 
+  it('does not flag explicitly disabled auto-approval', async () => {
+    const { dir, file } = writeTempFile(`
+      const config = {
+        auto_approve: false,
+        auto_execute: false,
+        requireConfirmation: true,
+      };
+    `);
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(!findings.some(f => f.rule === 'AGENT_TOOL_NO_CONFIRMATION'), 'Should respect explicit human confirmation');
+    } finally { cleanup(dir); }
+  });
+
   it('detects user input in agent memory', async () => {
     const { dir, file } = writeTempFile(`
       memory.push(userMessage);
@@ -1177,7 +1191,11 @@ describe('DeepAnalyzer', async () => {
   it('static create() returns null when no provider available', () => {
     // Remove all API key env vars temporarily
     const saved = {};
-    for (const key of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY']) {
+    for (const key of [
+      'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY',
+      'GROQ_API_KEY', 'TOGETHER_API_KEY', 'MISTRAL_API_KEY', 'DEEPSEEK_API_KEY',
+      'XAI_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY',
+    ]) {
       saved[key] = process.env[key];
       delete process.env[key];
     }
@@ -1948,6 +1966,7 @@ describe('GPTRedAgent', async () => {
     fs.writeFileSync(file, [
       '# Agent Instructions',
       'Allowed tools: bash, readFile, writeFile, fetch, process.env',
+      'OPENAI_API_KEY=sk-example12345678901234567890',
       'Review setup docs before running commands.',
     ].join('\n'));
 
@@ -1958,6 +1977,8 @@ describe('GPTRedAgent', async () => {
       async complete(systemPrompt, userPrompt, options) {
         assert.match(systemPrompt, /Attacker/);
         assert.match(userPrompt, /attacker\/defender\/judge/i);
+        assert.doesNotMatch(userPrompt, /sk-example12345678901234567890/);
+        assert.match(userPrompt, /OPENAI_API_KEY=\[REDACTED\]/);
         assert.equal(options.jsonMode, true);
         return JSON.stringify({
           mode: 'ai-agent-red-team',

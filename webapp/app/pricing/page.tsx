@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     description: 'Run Ship Safe locally for free. Add the dashboard when you need scan history, PR checks, private repos, and team workflows.',
     type: 'website',
     url: 'https://www.shipsafecli.com/pricing',
-    siteName: 'Ship Safe',
+    siteName: 'Ship Safe CLI',
     images: [{ url: ogImage, width: 1200, height: 628, alt: 'Ship Safe Pricing' }],
   },
   twitter: {

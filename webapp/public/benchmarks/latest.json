@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "corpusVersion": "1.0.0",
+  "shipSafeVersion": "9.5.2",
+  "methodology": "First-party paired synthetic scenarios; one vulnerable and one safe control per target rule.",
+  "limitations": [
+    "This corpus measures deterministic scenario detection, not prevalence or performance on arbitrary production repositories.",
+    "Target-rule clean-control pass rate is not a real-world precision estimate.",
+    "The evaluation is maintained by the Ship Safe project and is not independent validation."
+  ],
+  "metrics": {
+    "scenarios": 12,
+    "detected": 12,
+    "scenarioRecall": 1,
+    "targetRuleCleanControls": 12,
+    "targetRuleCleanControlsPassed": 12,
+    "targetRuleCleanControlPassRate": 1
+  },
+  "scenarios": [
+    {
+      "id": "sql-injection",
+      "category": "Injection",
+      "agent": "InjectionTester",
+      "expectedRule": "SQL_INJECTION_TEMPLATE_LITERAL",
+      "detected": true,
+      "cleanControlPassed": true,
+      "vulnerableFindingRules": [
+        "SQL_INJECTION_TEMPLATE_LITERAL"
+      ],
+      "safeFindingRules": []
+    },
+    {
+      "id": "jwt-none",
+      "category": "Authentication",
+      "agent": "AuthBypassAgent",
+      "expectedRule": "JWT_ALG_NONE",
+      "detected": true,
+      "cleanControlPassed": true,
+      "vulnerableFindingRules": [
+        "JWT_ALG_NONE"
+      ],
+      "safeFindingRules": []
+    },
+    {
+      "id": "user-controlled-ssrf",
+      "category": "SSRF",
+      "agent": "SSRFProber",
+      "expectedRule": "SSRF_USER_URL_FETCH",
+      "detected": true,
+      "cleanControlPassed": true,
+      "vulnerableFindingRules": [
+        "SSRF_USER_URL_FETCH"
+      ],
+      "safeFindingRules": []
+    },
+    {
+      "id": "api-mass-assignment",
+      "category": "API",
+      "agent": "APIFuzzer",
+      "expectedRule": "API_SPREAD_BODY",
+      "detected": true,
+      "cleanControlPassed": true,
+      "vulnerableFindingRules": [
+        "API_SPREAD_BODY"
+      ],
+      "safeFindingRules": []
+    },
+    {
+      "id": "llm-output-execution",
+      "category": "LLM",
+      "agent": "LLMRedTeam",
+      "expectedRule": "LLM_OUTPUT_TO_EVAL",
+      "detected": true,
+      "cleanControlPassed": true,
+      "vulnerableFindingRules": [
+        "LLM_NO_OUTPUT_FILTER",
+        "LLM_OUTPUT_TO_EVAL"
+      ],
+      "safeFindingRules": [
+        "LLM_NO_OUTPUT_FILTER"
+      ]
+    },
+    {
+      "id": "mcp-shell-tool",
+      "category": "MCP",
+      "agent": "MCPSecurityAgent",
+      "expectedRule": "MCP_TOOL_SHELL_EXEC",
+      "detected": true,
+      "cleanControlPassed": true,
+      "vulnerableFindingRules": [
+        "MCP_SHADOW_CONFIG",
+        "MCP_TOOL_SHELL_EXEC"
+      ],
+      "safeFindingRules": [
+        "MCP_SHADOW_CONFIG"
+      ]
+    },
+    {
+      "id": "agent-auto-approval",
+      "category": "Agentic AI",
+      "agent": "AgenticSecurityAgent",
+      "expectedRule": "AGENT_TOOL_NO_CONFIRMATION",
+      "detected": true,
+      "cleanControlPassed": true,
+      "vulnerableFindingRules": [
+        "AGENT_TOOL_NO_CONFIRMATION"
+      ],
+      "safeFindingRules": []
+    },
+    {
+      "id": "rag-user-upload",
+      "category": "RAG",
+      "agent": "RAGSecurityAgent",
+      "expectedRule": "RAG_USER_UPLOAD_TO_VECTORDB",
+      "detected": true,
+      "cleanControlPassed": true,
+      "vulnerableFindingRules": [
+        "RAG_NO_TENANT_ISOLATION",
+        "RAG_UNSANITIZED_INGESTION",
+        "RAG_USER_UPLOAD_TO_VECTORDB"
+      ],
+      "safeFindingRules": [
+        "RAG_NO_TENANT_ISOLATION",
+        "RAG_UNSANITIZED_INGESTION"
+      ]
+    },
+    {
+      "id": "hermes-tool-dispatch",
+      "category": "Hermes",
+      "agent": "HermesSecurityAgent",
+      "expectedRule": "HERMES_FUNCTION_CALL_NO_ALLOWLIST",
+      "detected": true,
+      "cleanControlPassed": true,
+      "vulnerableFindingRules": [
+        "HERMES_FUNCTION_CALL_NO_ALLOWLIST"
+      ],
+      "safeFindingRules": []
+    },
+    {
+      "id": "unsafe-model-load",
+      "category": "Model supply chain",
+      "agent": "ModelScanAgent",
+      "expectedRule": "MODEL_TORCH_LOAD_UNSAFE",
+      "detected": true,
+      "cleanControlPassed": true,
+      "vulnerableFindingRules": [
+        "MODEL_TORCH_LOAD_UNSAFE"
+      ],
+      "safeFindingRules": []
+    },
+    {
+      "id": "install-script-exfiltration",
+      "category": "Package supply chain",
+      "agent": "InstallGuardAgent",
+      "expectedRule": "WORM_LIFECYCLE_EXFIL",
+      "detected": true,
+      "cleanControlPassed": true,
+      "vulnerableFindingRules": [
+        "WORM_LIFECYCLE_EXFIL"
+      ],
+      "safeFindingRules": []
+    },
+    {
+      "id": "clickfix-lure",
+      "category": "Social engineering",
+      "agent": "ClickFixAgent",
+      "expectedRule": "CLICKFIX_PASTE_RUN",
+      "detected": true,
+      "cleanControlPassed": true,
+      "vulnerableFindingRules": [
+        "CLICKFIX_PASTE_RUN"
+      ],
+      "safeFindingRules": []
+    }
+  ]
+}

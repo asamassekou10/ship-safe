@@ -106,7 +106,7 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
     <div className={styles.page}>
       <div className={styles.header}>
         <h1>New Scan</h1>
-        <p className={styles.subtitle}>Submit a repository to scan with all 24 security agents.</p>
+        <p className={styles.subtitle}>Submit a repository to scan with all 29 built-in security agents.</p>
       </div>
 
       {!isPaidPlan && (

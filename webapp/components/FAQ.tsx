@@ -8,7 +8,7 @@ const faqs = [
   },
   {
     q: 'Is my code sent to an LLM?',
-    a: 'Only if you use the agent command or omit --no-ai. When AI is used, only matched snippets (±2 lines) are sent. Secret values are masked — the LLM sees sk-proj-***Q3f5, not your actual key. The audit command with --no-ai is fully local.',
+    a: 'Only in provider-backed modes. Standard classification sends bounded finding metadata and matched excerpts; deep analysis and GPT-Red can send additional bounded repository context directly to your selected provider. Common credential patterns receive best-effort masking. Use --no-ai to keep scanning fully local.',
   },
   {
     q: 'How is this different from Semgrep or Snyk?',

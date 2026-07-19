@@ -12,6 +12,7 @@ import path from 'path';
 import fs from 'fs';
 import { BaseAgent, createFinding } from './base-agent.js';
 import { autoDetectProvider } from '../providers/llm-provider.js';
+import { redactForLLM } from '../utils/llm-redaction.js';
 
 const AGENT_READABLE_FILE_RE = /(?:^|\/)(?:README|AGENTS|CLAUDE|GEMINI|CONTRIBUTING|SECURITY|PROMPTS?)\.(?:md|mdx|txt)$/i;
 const AGENT_CONFIG_RE = /(?:^|\/)(?:\.cursorrules|\.windsurfrules|\.aider\.conf\.yml|openclaw(?:\.config)?\.json|mcp\.json|\.mcp\.json|hermes\.json|\.hermesrc|agent(?:s|-manifest)?\.(?:json|ya?ml|md)|\.claude\/.*|\.cursor\/rules\/.*|\.gemini\/.*|\.continue\/.*)/i;
@@ -160,7 +161,7 @@ function buildCandidateBundle(rootPath, candidates, options = {}) {
 
   for (const file of candidates.slice(0, maxFiles)) {
     try {
-      const content = fs.readFileSync(file, 'utf-8');
+      const content = redactForLLM(fs.readFileSync(file, 'utf-8'));
       if (!content) continue;
 
       const rel = path.relative(rootPath, file).replace(/\\/g, '/');

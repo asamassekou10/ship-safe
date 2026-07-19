@@ -59,7 +59,7 @@ const PATTERNS = [
   {
     rule: 'AGENT_TOOL_NO_CONFIRMATION',
     title: 'Agent: Destructive Tools Without Human Confirmation',
-    regex: /(?:auto_approve|auto_execute|requireConfirmation\s*[:=]\s*false|confirm\s*[:=]\s*false|human_in_loop\s*[:=]\s*false|humanInTheLoop\s*[:=]\s*false|approval\s*[:=]\s*false)/gi,
+    regex: /(?:auto_approve|auto_execute)\s*[:=]\s*true|(?:requireConfirmation|confirm|human_in_loop|humanInTheLoop|approval)\s*[:=]\s*false/gi,
     severity: 'high',
     cwe: 'CWE-862',
     owasp: 'A01:2021',

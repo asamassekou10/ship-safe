@@ -35,6 +35,7 @@ ship-safe-report.html
 # to verify that the scanner detects them correctly. Scanning them would produce
 # hundreds of expected findings by design.
 cli/__tests__/
+benchmarks/corpus/
 
 # Article assets contain intentional demo code showing vulnerable patterns
 # for educational purposes in blog posts and documentation.

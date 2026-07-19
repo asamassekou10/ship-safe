@@ -53,8 +53,10 @@ export default function PrivacyPage() {
           <section className={styles.section}>
             <h2>Code and Scan Data</h2>
             <p>
-              Ship Safe processes code, configuration, findings, and repository metadata to deliver security results.
-              We limit access to this data and use it to operate, secure, support, and improve Ship Safe.
+              Local CLI scans can run without sending repository content to Ship Safe. Provider-backed AI modes send bounded
+              context directly to the provider selected by the user, while hosted workflows process repository metadata,
+              findings, and reports as needed to provide those services. The current technical boundaries are documented on
+              the <Link href="/security">Security and Data Flow</Link> page.
             </p>
           </section>
 

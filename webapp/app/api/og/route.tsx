@@ -105,8 +105,8 @@ export async function GET(request: Request) {
                 strokeLinejoin="round"
               />
             </svg>
-            <span style={{ fontSize: '22px', fontWeight: 700, color: '#0891b2', letterSpacing: '-0.01em' }}>
-              Ship Safe
+            <span style={{ fontSize: '22px', fontWeight: 700, color: '#0891b2', letterSpacing: '0' }}>
+              Ship Safe CLI
             </span>
           </div>
 
@@ -161,7 +161,7 @@ export async function GET(request: Request) {
                 fontWeight: 800,
                 color: '#f1f5f9',
                 lineHeight: 1.1,
-                letterSpacing: '-0.03em',
+                letterSpacing: '0',
                 display: 'flex',
               }}
             >
@@ -196,7 +196,7 @@ export async function GET(request: Request) {
             {/* Decorative stat bar */}
             <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
               {[
-                { value: '18', label: 'agents' },
+                { value: '29', label: 'agents' },
                 { value: '80+', label: 'attack classes' },
                 { value: 'MIT', label: 'open source' },
               ].map((stat) => (

@@ -21,7 +21,7 @@ export const plans: Plan[] = [
     features: [
       'Unlimited cloud scans',
       'Private repos (GitHub, GitLab, upload)',
-      'All 24 security agents',
+      'All 29 built-in security agents',
       'AI deep analysis (bring your own API key)',
       'Scan history + score trends',
       'PDF reports (branded)',

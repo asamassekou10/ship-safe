@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     description: 'Harden your Hermes agent against tool poisoning, function-call injection, and memory attacks in one command.',
     type: 'website',
     url: 'https://www.shipsafecli.com/hermes',
-    siteName: 'Ship Safe',
+    siteName: 'Ship Safe CLI',
     images: [{ url: ogImage, width: 1200, height: 628, alt: 'Hermes Agent Security' }],
   },
   twitter: {

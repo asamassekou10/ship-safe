@@ -16,6 +16,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { redactForLLM } from '../utils/llm-redaction.js';
 
 // =============================================================================
 // PROVIDER INTERFACE
@@ -67,8 +68,8 @@ class BaseLLMProvider {
       rule: f.rule,
       severity: f.severity,
       title: f.title,
-      matched: f.matched?.slice(0, 100),
-      description: f.description,
+      matched: redactForLLM(f.matched || '').slice(0, 100),
+      description: redactForLLM(f.description || ''),
     }));
 
     return `Classify each finding as REAL or FALSE_POSITIVE. For REAL findings, provide a specific fix.

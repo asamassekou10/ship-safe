@@ -9,6 +9,8 @@
   "type": "module",
   "scripts": {
     "test": "node --test cli/__tests__/*.test.js",
+    "benchmark:corpus": "node benchmarks/run.mjs",
+    "benchmark:corpus:write": "node benchmarks/run.mjs --write",
     "lint": "eslint cli/",
     "lint:fix": "eslint cli/ --fix",
     "ship-safe": "node cli/bin/ship-safe.js"

@@ -26,8 +26,8 @@ const jetBrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Ship Safe — AI Agent Security Scanner for Developers',
-    template: '%s | Ship Safe',
+    default: 'Ship Safe CLI — AI Agent Security Scanner for Developers',
+    template: '%s | Ship Safe CLI',
   },
   description: 'AI agent security scanner that detects LLM vulnerabilities, MCP configuration security issues, RAG poisoning, secrets, and dependency CVEs. 29 agents, one command. Free CLI, no signup required.',
   metadataBase: new URL('https://www.shipsafecli.com'),
@@ -36,16 +36,16 @@ export const metadata: Metadata = {
     canonical: 'https://www.shipsafecli.com',
   },
   openGraph: {
-    title: 'Ship Safe — AI Agent Security Scanner for Developers',
+    title: 'Ship Safe CLI — AI Agent Security Scanner for Developers',
     description: '29 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
     type: 'website',
     url: 'https://www.shipsafecli.com',
-    siteName: 'Ship Safe',
+    siteName: 'Ship Safe CLI',
     images: [{ url: 'https://www.shipsafecli.com/og1.png', width: 1200, height: 628, alt: 'Ship Safe - AI Agent Security Scanner' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Ship Safe — AI Agent Security Scanner for Developers',
+    title: 'Ship Safe CLI — AI Agent Security Scanner for Developers',
     description: '29 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
     images: ['https://www.shipsafecli.com/og1.png'],
   },
@@ -60,7 +60,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="icon" type="image/png" href="/logo.png" />
         <link rel="apple-touch-icon" href="/logo.png" />
-        <link rel="alternate" type="text/plain" href="/llms.txt" title="Ship Safe AI-readable summary" />
+        <link rel="alternate" type="text/plain" href="/llms.txt" title="Ship Safe CLI AI-readable summary" />
       </head>
       <body>
         <ScrollProgress />

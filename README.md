@@ -2,7 +2,7 @@
   <img src=".github/assets/ship-safe-logo-2026.png" alt="Ship Safe Logo" width="180" />
 </p>
 <p align="center"><strong>Find risky code, AI-agent vulnerabilities, and supply-chain issues before they ship.</strong></p>
-<p align="center"><a href="https://shipsafecli.com">Website</a> · <a href="https://shipsafecli.com/docs">Docs</a> · <a href="https://shipsafecli.com/pricing">Pricing</a> · <a href="https://shipsafecli.com/blog">Blog</a></p>
+<p align="center"><a href="https://shipsafecli.com">Website</a> · <a href="https://shipsafecli.com/docs">Docs</a> · <a href="https://shipsafecli.com/security">Security & Data Flow</a> · <a href="https://shipsafecli.com/benchmarks">Benchmark</a> · <a href="https://shipsafecli.com/pricing">Pricing</a> · <a href="https://shipsafecli.com/blog">Blog</a></p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/ship-safe"><img src="https://badge.fury.io/js/ship-safe.svg" alt="npm version" /></a>
@@ -13,7 +13,7 @@
   <a href="https://github.com/sponsors/asamassekou10"><img src="https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github" alt="Sponsor" /></a>
 </p>
 
-## Ship Safe
+## Ship Safe CLI
 
 Ship Safe is an AI security scanner for modern software teams. It runs locally in your repo, finds issues across application code, AI agents, MCP configs, prompts, dependencies, CI/CD, secrets, and cloud-adjacent configuration, then helps you review and apply safe fixes.
 
@@ -24,6 +24,8 @@ npx ship-safe
 ```
 
 No signup. No API key required for scanning. Works offline for core checks. AI-backed red-team modes use your configured provider when available.
+
+Use `--no-ai` to guarantee a fully local scan. Provider-backed classification, deep analysis, and GPT-Red send bounded context directly to your selected provider after best-effort credential masking. See [Security & Data Flow](https://shipsafecli.com/security) for exact boundaries and context limits.
 
 <p align="center">
   <img src=".github/assets/demo-repl.gif" alt="Ship Safe REPL demo" width="800" />

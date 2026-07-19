@@ -1,6 +1,6 @@
 {
   "name": "ship-safe-webapp",
-  "version": "9.4.1",
+  "version": "9.5.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -27,7 +27,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^3.8.1",
-    "ship-safe": "^8.0.0",
+    "ship-safe": "^9.5.2",
     "stripe": "^20.4.1",
     "tar": "^7.5.12"
   },
@@ -38,5 +38,8 @@
     "@types/react-dom": "^19",
     "prisma": "^6.19.2",
     "typescript": "^5"
+  },
+  "overrides": {
+    "postcss": "^8.5.10"
   }
 }

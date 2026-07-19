@@ -1,4 +1,5 @@
 import Nav from '@/components/Nav';
+import Link from 'next/link';
 import styles from './docs.module.css';
 import type { Metadata } from 'next';
 
@@ -12,16 +13,16 @@ export const metadata: Metadata = {
     canonical: 'https://www.shipsafecli.com/docs',
   },
   openGraph: {
-    title: 'Ship Safe Documentation — v9.5.0',
+    title: 'Ship Safe CLI Documentation — v9.5.2',
     description: 'Every command, agent, and flag. LLM vulnerability CLI, MCP security configuration, RAG poisoning detection, CI/CD integration, and API reference.',
     type: 'website',
     url: 'https://www.shipsafecli.com/docs',
-    siteName: 'Ship Safe',
+    siteName: 'Ship Safe CLI',
     images: [{ url: ogImage, width: 1200, height: 628, alt: 'Ship Safe Documentation' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Ship Safe Documentation — v9.5.0',
+    title: 'Ship Safe CLI Documentation — v9.5.2',
     description: 'Every command, agent, and flag. LLM vulnerability CLI, MCP security configuration, RAG poisoning detection, CI/CD integration, and API reference.',
     images: [ogImage],
   },
@@ -390,7 +391,7 @@ jobs:
             {/* ── LLM ───────────────────────────────────────────────── */}
             <section id="llm">
               <h2>Multi-LLM Support</h2>
-              <p>AI classification and GPT-Red scenario mode are optional. All core commands work fully offline. Use <code>--provider &lt;name&gt;</code> or set the matching environment variable. Kimi defaults to <code>kimi-k3</code> for long-context AI-agent red teaming; add <code>--k3-long-context</code> to expand GPT-Red context with package, CI, deployment, docs, and prior findings. Ship Safe also scans Kimi K3/OpenAI-compatible tool-call code for dynamic tool loading, missing allowlists, forced tool calls on untrusted input, and tool-result replay issues.</p>
+              <p>AI classification and GPT-Red scenario mode are optional. All core commands work fully offline. Use <code>--provider &lt;name&gt;</code> or set the matching environment variable. Kimi defaults to <code>kimi-k3</code> for long-context AI-agent red teaming; add <code>--k3-long-context</code> to expand GPT-Red context with package, CI, deployment, docs, and prior findings. Ship Safe also scans Kimi K3/OpenAI-compatible tool-call code for dynamic tool loading, missing allowlists, forced tool calls on untrusted input, and tool-result replay issues. Review the exact context limits and provider boundaries on the <Link href="/security">Security and Data Flow</Link> page.</p>
               <div className={styles.tableWrap}>
                 <table>
                   <thead><tr><th>Provider</th><th>Env Variable</th><th>Flag</th><th>Default Model</th></tr></thead>
