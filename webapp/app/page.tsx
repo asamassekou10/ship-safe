@@ -139,6 +139,8 @@ const jsonLd = {
       sameAs: [
         'https://github.com/asamassekou10/ship-safe',
         'https://www.npmjs.com/package/ship-safe',
+        'https://www.linkedin.com/company/ship-safe',
+        'https://x.com/shipsafeAI',
       ],
     },
   ],

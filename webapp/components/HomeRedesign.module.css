@@ -896,6 +896,43 @@
   line-height: 1.6;
 }
 
+.socialLinks {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 0.25rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.socialLinks a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  color: inherit;
+  font-weight: 750;
+  text-decoration: none;
+  transition: color 0.18s ease;
+}
+
+.socialLinks svg {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
+}
+
+.socialLinks a:hover {
+  color: var(--cyan);
+}
+
+.socialLinks > span {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
 @media (max-width: 900px) {
   .productJourney {
     width: min(100% - 2rem, 1200px);
