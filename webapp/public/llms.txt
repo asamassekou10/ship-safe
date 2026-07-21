@@ -62,3 +62,4 @@ Summary: Kimi K3 security guidance for long-context AI agents, dynamic tool load
 - Security and data flow: https://www.shipsafecli.com/security
 - Reproducible benchmark and limitations: https://www.shipsafecli.com/benchmarks
 - Machine-readable benchmark result: https://www.shipsafecli.com/benchmarks/latest.json
+- Web app guide: https://www.shipsafecli.com/app/guide

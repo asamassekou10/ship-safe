@@ -86,6 +86,19 @@ Core scans can be forced fully offline with `npx ship-safe audit . --no-ai`. Pro
 
 Canonical data-flow disclosure: https://www.shipsafecli.com/security
 
+## Web App Guide
+
+The public Ship Safe web app guide explains how first-time users move from account setup to action:
+
+- Configure profile, AI model provider, GitHub integration, alerts, and CI API keys
+- Run a baseline repository scan
+- Review dashboard risk trends and repository posture
+- Triage findings by severity and evidence
+- Copy a recommended fix, create a GitHub issue, investigate with an agent, rescan, and mark findings fixed
+- Enable repository monitoring, PR Guardian, intelligence summaries, and Hermes agents
+
+Canonical web app guide: https://www.shipsafecli.com/app/guide
+
 ## Comparison Positioning
 
 Ship Safe is not only a traditional SAST scanner. Its main differentiation is coverage for AI-native attack surfaces: MCP servers, agent configs, LLM tool use, RAG poisoning, memory poisoning, managed-agent permissions, and AI-assisted CI/CD workflows.
@@ -102,6 +115,7 @@ Ship Safe CLI can complement Semgrep, CodeQL, Trivy, Gitleaks, and other establi
 - Security and data flow: https://www.shipsafecli.com/security
 - Reproducible benchmark and limitations: https://www.shipsafecli.com/benchmarks
 - Machine-readable benchmark result: https://www.shipsafecli.com/benchmarks/latest.json
+- Web app guide: https://www.shipsafecli.com/app/guide
 - Blog: https://www.shipsafecli.com/blog
 - Hermes agent security: https://www.shipsafecli.com/hermes
 - OpenClaw security: https://www.shipsafecli.com/openclaw
