@@ -1,0 +1,74 @@
+.page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 3rem 1.25rem;
+  background: var(--bg);
+}
+
+.frame { width: min(100%, 720px); }
+
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  margin-bottom: 3rem;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.brand img { border-radius: 7px; }
+
+.header { text-align: center; margin-bottom: 2rem; }
+.eyebrow { display: block; margin-bottom: 0.65rem; color: var(--cyan); font: 700 0.7rem/1 var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
+.header h1 { max-width: 680px; margin: 0 auto 0.7rem; font-size: 2rem; line-height: 1.15; letter-spacing: 0; }
+.header p { color: var(--text-muted); font-size: 0.92rem; }
+
+.goalArea { display: flex; flex-direction: column; align-items: center; }
+.goals { width: 100%; display: flex; flex-direction: column; gap: 0.7rem; }
+
+.goal {
+  width: 100%;
+  min-height: 104px;
+  display: grid;
+  grid-template-columns: 44px 1fr 24px;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text);
+  font-family: var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+
+.goal:hover { border-color: var(--border-hover); background: var(--bg-elevated); transform: translateY(-1px); }
+.goal:disabled { cursor: wait; opacity: 0.65; transform: none; }
+.goalPrimary { border-color: var(--cyan-dim); box-shadow: inset 3px 0 0 var(--cyan); }
+
+.goalIcon { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 8px; color: var(--cyan); background: var(--bg); }
+.goalCopy { min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.goalCopy strong { font-size: 0.94rem; }
+.goalCopy > span { color: var(--text-muted); font-size: 0.82rem; line-height: 1.45; }
+.goalCopy small { margin-top: 0.15rem; color: var(--text-dim); font: 500 0.68rem/1.3 var(--font-mono); }
+.goalArrow { justify-self: end; color: var(--text-dim); font-size: 1.1rem; }
+.goal:hover .goalArrow { color: var(--cyan); }
+
+.skip { margin-top: 1.25rem; border: 0; background: none; color: var(--text-muted); font: 600 0.8rem/1 var(--font-sans); cursor: pointer; }
+.skip:hover { color: var(--text); }
+.error { margin-top: 0.8rem; color: var(--red); font-size: 0.8rem; }
+.privacy { margin: 2rem auto 0; max-width: 520px; color: var(--text-dim); font-size: 0.74rem; text-align: center; }
+
+@media (max-width: 560px) {
+  .page { align-items: start; padding-top: 2rem; }
+  .brand { justify-content: flex-start; margin-bottom: 2.5rem; }
+  .header { text-align: left; }
+  .header h1 { font-size: 1.65rem; }
+  .goal { grid-template-columns: 40px 1fr 18px; min-height: 112px; padding: 0.9rem; gap: 0.75rem; }
+  .goalIcon { width: 40px; height: 40px; }
+}

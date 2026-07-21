@@ -178,6 +178,32 @@
 .tab:hover { color: var(--text); }
 .tabActive { color: var(--text); border-bottom-color: var(--cyan); font-weight: 600; }
 
+.activityTabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin: 1.15rem 0 0;
+  padding: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-card);
+}
+
+.activityTabs button {
+  min-height: 30px;
+  padding: 0 0.8rem;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-dim);
+  font: 600 0.72rem/1 var(--font-sans);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.activityTabs button:hover { color: var(--text); }
+.activityTabs .activityTabActive { background: var(--bg-elevated); color: var(--text); }
+
 .tabContent { display: flex; flex-direction: column; gap: 1.5rem; }
 
 /* ── Stats ───────────────────────────────────────────────── */

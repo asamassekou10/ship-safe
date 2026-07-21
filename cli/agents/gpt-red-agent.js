@@ -19,6 +19,8 @@ const AGENT_CONFIG_RE = /(?:^|\/)(?:\.cursorrules|\.windsurfrules|\.aider\.conf\
 const RAG_DOC_RE = /(?:^|\/)(?:docs|knowledge|rag|content|prompts|instructions|playbooks|runbooks)\/.*\.(?:md|mdx|txt|json|ya?ml)$/i;
 
 const UNTRUSTED_TEXT_RE = /(?:ignore\s+(?:all\s+)?(?:previous|prior|above)\s+instructions|disregard\s+(?:all\s+)?(?:previous|prior|above)|override\s+(?:system|previous|all)\s+(?:instructions|prompt|rules)|reveal\s+(?:the\s+)?(?:system\s+prompt|developer\s+message|hidden\s+instructions)|send\s+(?:all\s+)?(?:files|code|secrets|tokens|keys|env|\.env)|exfiltrate|upload\s+(?:all\s+)?(?:files|code|secrets|tokens|keys)|curl\s+https?:\/\/|wget\s+https?:\/\/|webhook\.site|requestbin\.com|pipedream\.net|ngrok\.(?:io|app)|canarytokens\.com)/i;
+// Unicode tag characters are intentionally matched as a range of invisible code points.
+// eslint-disable-next-line no-misleading-character-class
 const HIDDEN_TEXT_RE = /[\u{E0001}-\u{E007F}]|[\u200B\u200C\u200D\uFEFF\u2060]{4,}|<!--[\s\S]{0,500}?(?:ignore|override|execute|send|exfiltrate|upload|curl|wget)[\s\S]{0,500}?-->/iu;
 
 const TOOL_CAPABILITY_RE = /(?:tools?|functions?|actions?|capabilities|permissions?|allow(?:ed)?|always_allow|auto_approve|auto_execute|dangerously-skip-permissions|workspace-write|danger-full-access|filesystem|readFile|writeFile|shell|bash|exec|spawn|curl|wget|fetch|http|network|mcpServers?)/i;

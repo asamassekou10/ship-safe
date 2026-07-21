@@ -2,6 +2,7 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { track } from '@vercel/analytics/react';
 import styles from './scan.module.css';
 
 type ScanMethod = 'github' | 'url' | 'upload';
@@ -15,6 +16,7 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
   const [error, setError] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [options, setOptions] = useState({
@@ -52,6 +54,7 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
     try {
       if (method === 'upload') {
         if (!file) { setError('Please select a ZIP file.'); setScanning(false); return; }
+        track('Scan Started', { method, advanced: showAdvanced, deepAnalysis: options.deep });
         const formData = new FormData();
         formData.append('file', file);
         formData.append('method', 'upload');
@@ -65,6 +68,7 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
           return;
         }
 
+        track('Scan Submitted', { method: 'upload' });
         router.push(`/app/scans/${data.id}`);
         return;
       }
@@ -76,6 +80,7 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
         if (ghMatch) repoValue = ghMatch[1].replace(/\.git$/, '');
       }
 
+      track('Scan Started', { method, advanced: showAdvanced, deepAnalysis: options.deep });
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -92,6 +97,7 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
         setScanning(false);
         return;
       }
+      track('Scan Submitted', { method, deepAnalysis: options.deep });
       router.push(`/app/scans/${data.id}`);
     } catch {
       setError('Network error. Please try again.');
@@ -106,7 +112,7 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
     <div className={styles.page}>
       <div className={styles.header}>
         <h1>New Scan</h1>
-        <p className={styles.subtitle}>Submit a repository to scan with all 29 built-in security agents.</p>
+        <p className={styles.subtitle}>Choose a repository. Ship Safe applies the recommended security checks automatically.</p>
       </div>
 
       {!isPaidPlan && (
@@ -132,6 +138,7 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
         {(['github', 'url', 'upload'] as ScanMethod[]).map(m => (
           <button
             key={m}
+            type="button"
             className={`${styles.methodTab} ${method === m ? styles.active : ''}`}
             onClick={() => setMethod(m)}
           >
@@ -208,21 +215,33 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
           </div>
         )}
 
-        {(method === 'github' || method === 'url') && (
-          <div className={styles.field}>
-            <label>Branch</label>
-            <input
-              type="text"
-              value={branch}
-              onChange={e => setBranch(e.target.value)}
-              className={styles.input}
-              placeholder="main"
-            />
+        <div className={styles.recommendedSummary}>
+          <span className={styles.recommendedIcon}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m5 12 4 4L19 6"/></svg>
+          </span>
+          <div>
+            <strong>Recommended scan</strong>
+            <span>Exploitability analysis, secret verification, and dependency CVEs</span>
           </div>
-        )}
+        </div>
 
-        {/* Scan options */}
-        <div className={styles.optionsGrid}>
+        <button type="button" className={styles.advancedToggle} onClick={() => setShowAdvanced(value => !value)} aria-expanded={showAdvanced}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9 7 7M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>
+          Advanced settings
+          <svg className={showAdvanced ? styles.advancedChevronOpen : styles.advancedChevron} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+
+        {showAdvanced && (
+          <div className={styles.advancedPanel}>
+            {(method === 'github' || method === 'url') && (
+              <div className={styles.field}>
+                <label>Branch</label>
+                <input type="text" value={branch} onChange={e => setBranch(e.target.value)} className={styles.input} placeholder="main" />
+                <span className={styles.fieldNote}>Leave empty to use the repository&apos;s default branch.</span>
+              </div>
+            )}
+
+            <div className={styles.optionsGrid}>
           <label className={styles.optionCard}>
             <input type="checkbox" checked={options.deep} onChange={() => toggleOption('deep')} />
             <div>
@@ -251,11 +270,10 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
               <span className={styles.optionDesc}>CycloneDX software bill of materials</span>
             </div>
           </label>
-        </div>
+            </div>
 
-        {/* AI Options */}
-        {options.deep && (
-          <div className={styles.aiOptionsWrap}>
+            {options.deep && (
+              <div className={styles.aiOptionsWrap}>
             <button
               type="button"
               className={styles.aiOptionsToggle}
@@ -307,6 +325,8 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
                 </div>
               </div>
             )}
+              </div>
+            )}
           </div>
         )}
 
@@ -340,7 +360,7 @@ export default function NewScan({ freeScansUsed, freeScansLimit }: { freeScansUs
       {/* CLI tip */}
       <div className={styles.cliTip}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-        Prefer the CLI? <code>npx ship-safe audit .</code> runs locally with no limits, forever free.
+        Prefer local-only scanning? <code>npx ship-safe audit .</code> runs from your terminal.
       </div>
     </div>
   );

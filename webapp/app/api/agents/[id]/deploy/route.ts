@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { decryptAgentEnvVars } from '@/lib/agent-secrets';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -44,7 +45,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
   if (!agent) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   // Block deploy if no LLM key — agent won't function without one
-  const envVars = agent.envVars as Record<string, string>;
+  const envVars = decryptAgentEnvVars(agent.envVars);
   const hasLLMKey = LLM_KEYS.some(k => envVars[k]?.trim());
   if (!hasLLMKey) {
     return NextResponse.json({
@@ -89,7 +90,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
         tools:          agent.tools,
         memoryProvider: agent.memoryProvider,
         maxDepth:       agent.maxDepth,
-        envVars:        agent.envVars,
+        envVars,
       }),
       signal: AbortSignal.timeout(10_000),
     });

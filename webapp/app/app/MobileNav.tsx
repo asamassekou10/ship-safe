@@ -1,9 +1,12 @@
 'use client';
-import { useState, useEffect } from 'react';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import styles from './app.layout.module.css';
+import NavLinks from './NavLinks';
+import ActivityInbox from './ActivityInbox';
 
 interface Props {
   userName: string;
@@ -11,26 +14,6 @@ interface Props {
   plan: string;
   isAdmin: boolean;
 }
-
-const NAV = [
-  { href: '/app',              label: 'Dashboard',    exact: true,  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
-  { href: '/app/scan',         label: 'New Scan',     exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> },
-  { href: '/app/repos',        label: 'Repos',        exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg> },
-  { href: '/app/guardian',     label: 'PR Guardian',  exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg> },
-  { href: '/app/agents',       label: 'Agents',       exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/><circle cx="19" cy="9" r="2"/><path d="M19 15c2.5 0 4 1.5 4 3.5"/></svg> },
-  { href: '/app/agent-teams',  label: 'Agent Teams',  exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="7" r="3"/><circle cx="18" cy="7" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6h1"/><path d="M12 20c0-3.3 2.7-6 6-6h1M21 20"/><line x1="18" y1="12" x2="18" y2="18"/><line x1="15" y1="15" x2="21" y2="15"/></svg> },
-  { href: '/app/intelligence', label: 'Intelligence', exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 2 5-7"/><circle cx="7" cy="14" r="1"/><circle cx="10" cy="11" r="1"/><circle cx="13" cy="13" r="1"/><circle cx="18" cy="6" r="1"/></svg> },
-  { href: '/app/content-agent', label: 'Content', exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg> },
-  { href: '/app/findings',     label: 'Findings',     exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> },
-  { href: '/app/deploy',       label: 'Hermes Setup',  exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> },
-  { href: '/app/history',      label: 'History',      exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
-  { href: '/app/compare',      label: 'Compare',      exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg> },
-  { href: '/app/team',         label: 'Team',         exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
-  { href: '/app/policies',     label: 'Policies',     exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> },
-  { href: '/app/settings',     label: 'Settings',     exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
-];
-
-const ADMIN_NAV = { href: '/app/admin', label: 'Admin', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> };
 
 export default function MobileNav({ userName, userImage, plan, isAdmin }: Props) {
   const [open, setOpen] = useState(false);
@@ -42,81 +25,46 @@ export default function MobileNav({ userName, userImage, plan, isAdmin }: Props)
     return () => { document.body.style.overflow = ''; };
   }, [open]);
 
-  // Close drawer on navigation
   useEffect(() => { close(); }, [pathname]);
-
-  const navItems = isAdmin ? [...NAV, ADMIN_NAV] : NAV;
-
-  function isActive(item: { href: string; exact?: boolean }) {
-    return item.exact ? pathname === item.href : pathname.startsWith(item.href);
-  }
 
   return (
     <>
-      {/* Fixed mobile header */}
       <header className={styles.mobileHeader}>
         <Link href="/" className={styles.logo}>
           <img src="/logo.png" alt="ship-safe" width={22} height={22} className={styles.logoImg} />
           <span>ship-safe</span>
         </Link>
-        <button
-          className={styles.hamburger}
-          onClick={() => setOpen(v => !v)}
-          aria-label={open ? 'Close menu' : 'Open menu'}
-          aria-expanded={open}
-        >
-          {open
-            ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-          }
-        </button>
+        <div className={styles.mobileHeaderActions}>
+          <ActivityInbox mobile />
+          <button className={styles.hamburger} onClick={() => setOpen(value => !value)} aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open}>
+            {open
+              ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18M3 12h18M3 18h18"/></svg>}
+          </button>
+        </div>
       </header>
 
-      {/* Backdrop */}
       {open && <div className={styles.drawerOverlay} onClick={close} aria-hidden="true" />}
 
-      {/* Drawer */}
-      <nav className={`${styles.drawer} ${open ? styles.drawerOpen : ''}`} aria-label="Mobile navigation">
-        <div className={styles.drawerNav}>
-          {navItems.map(item => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`${styles.navItem} ${isActive(item) ? styles.active : ''}`}
-            >
-              {item.icon}
-              {item.label}
-            </Link>
-          ))}
-        </div>
-
+      <div className={`${styles.drawer} ${open ? styles.drawerOpen : ''}`}>
+        <div className={styles.drawerNav}><NavLinks isAdmin={isAdmin} onNavigate={close} /></div>
         <div className={styles.sidebarBottom}>
           <div className={styles.planBadge}>
             {plan === 'free' ? (
-              <>
-                <span className={styles.planName}>No active plan</span>
-                <Link href="/app/checkout?plan=pro" className={styles.upgradeCta} onClick={close}>Upgrade to Pro →</Link>
-              </>
+              <><span className={styles.planName}>Free plan</span><Link href="/app/checkout?plan=pro" className={styles.upgradeCta} onClick={close}>View Pro plan</Link></>
             ) : (
-              <>
-                <span className={styles.planName}>{plan.charAt(0).toUpperCase() + plan.slice(1)} Plan</span>
-                <span className={styles.planScans}>Unlimited scans</span>
-              </>
+              <><span className={styles.planName}>{plan.charAt(0).toUpperCase() + plan.slice(1)} plan</span><span className={styles.planScans}>Unlimited scans</span></>
             )}
           </div>
           <div className={styles.userRow}>
             {userImage && <img src={userImage} alt="" width={24} height={24} className={styles.avatar} />}
             <span className={styles.userName}>{userName}</span>
-            <button
-              onClick={() => signOut({ callbackUrl: '/' })}
-              style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', marginLeft: 'auto', padding: '0.2rem 0.4rem', borderRadius: '4px' }}
-              title="Sign out"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <button onClick={() => signOut({ callbackUrl: '/' })} className={styles.mobileSignOut} title="Sign out" aria-label="Sign out">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
             </button>
           </div>
         </div>
-      </nav>
+      </div>
     </>
   );
 }

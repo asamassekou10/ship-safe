@@ -6,6 +6,22 @@
   flex-wrap: wrap;
 }
 
+.repoContext {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid rgba(8, 145, 178, 0.25);
+  border-radius: 8px;
+  background: rgba(8, 145, 178, 0.05);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.repoContext strong { color: var(--text); }
+.repoContext a { color: var(--cyan); font-weight: 700; text-decoration: none; }
+
 /* Filter tabs */
 .filterTabs {
   display: flex;
@@ -93,6 +109,7 @@
 
 @media (max-width: 600px) {
   .toolbar { flex-direction: column; align-items: flex-start; }
+  .repoContext { align-items: flex-start; flex-direction: column; }
   .filterTabs { flex-wrap: wrap; }
   .sortRow { flex-wrap: wrap; }
 }

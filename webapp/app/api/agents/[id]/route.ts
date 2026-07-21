@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { encryptAgentEnvVars, maskAgentSecrets, mergeAgentEnvVarUpdate } from '@/lib/agent-secrets';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -58,7 +59,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   if (!agent) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const isOwner = agent.userId === session.user.id;
-  return NextResponse.json({ agent, isOwner });
+  return NextResponse.json({ agent: maskAgentSecrets(agent), isOwner });
 }
 
 /** PATCH /api/agents/[id] */
@@ -86,12 +87,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     for (const [k, v] of Object.entries(envVars).slice(0, 50)) {
       if (!BLOCKED_KEYS.has(k) && typeof v === 'string') safe[k] = v.slice(0, 1024);
     }
-    data.envVars = safe;
+    data.envVars = encryptAgentEnvVars(mergeAgentEnvVarUpdate(existing.envVars, safe));
   }
   if (['github', 'gitlab', 'none'].includes(ciProvider)) data.ciProvider = ciProvider;
 
   const agent = await prisma.agent.update({ where: { id }, data });
-  return NextResponse.json({ agent });
+  return NextResponse.json({ agent: maskAgentSecrets(agent) });
 }
 
 /** DELETE /api/agents/[id] */

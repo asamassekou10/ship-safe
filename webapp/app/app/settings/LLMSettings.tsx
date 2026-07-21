@@ -191,7 +191,7 @@ export default function LLMSettings() {
       <div className={s.llmRow}>
         <div className={s.llmRowLabel}>
           <span className={s.llmLabel}>API Keys</span>
-          <span className={s.llmHint}>Stored securely · used for scans and team runs</span>
+          <span className={s.llmHint}>Encrypted at rest. Saved values cannot be revealed.</span>
         </div>
         <div className={s.llmKeyList}>
           {ALL_KEYS.map(({ key, label, placeholder }) => {

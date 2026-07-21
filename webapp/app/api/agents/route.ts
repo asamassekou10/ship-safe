@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { encryptAgentEnvVars, maskAgentSecrets } from '@/lib/agent-secrets';
 
 function toSlug(name: string, suffix?: string) {
   const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
@@ -33,7 +34,7 @@ export async function GET() {
     },
   });
 
-  return NextResponse.json({ agents });
+  return NextResponse.json({ agents: agents.map(maskAgentSecrets) });
 }
 
 /** POST /api/agents — create a new agent */
@@ -66,6 +67,17 @@ export async function POST(req: NextRequest) {
     slug = toSlug(name.trim(), Date.now().toString(36));
   }
 
+  const safeEnvVars: Record<string, string> = {};
+  if (envVars && typeof envVars === 'object' && !Array.isArray(envVars)) {
+    const blockedKeys = new Set(['__proto__', 'constructor', 'prototype']);
+    for (const [key, value] of Object.entries(envVars).slice(0, 50)) {
+      const normalizedKey = key.trim().slice(0, 100);
+      if (normalizedKey && !blockedKeys.has(normalizedKey) && typeof value === 'string') {
+        safeEnvVars[normalizedKey] = value.slice(0, 4096);
+      }
+    }
+  }
+
   const agent = await prisma.agent.create({
     data: {
       userId: session.user.id,
@@ -78,11 +90,11 @@ export async function POST(req: NextRequest) {
         : 'builtin',
       maxDepth: typeof maxDepth === 'number' ? Math.min(Math.max(maxDepth, 1), 2) : 2,
       skills: Array.isArray(skills) ? skills : [],
-      envVars: typeof envVars === 'object' && !Array.isArray(envVars) ? envVars : {},
+      envVars: encryptAgentEnvVars(safeEnvVars),
       ciProvider: ['github', 'gitlab', 'none'].includes(ciProvider) ? ciProvider : 'none',
       status: 'draft',
     },
   });
 
-  return NextResponse.json({ agent }, { status: 201 });
+  return NextResponse.json({ agent: maskAgentSecrets(agent) }, { status: 201 });
 }

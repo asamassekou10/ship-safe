@@ -82,8 +82,14 @@ stripe-cli-config.toml
 
 # Generic credential files
 *credentials*
+!webapp/lib/llm-credentials.ts
+!webapp/lib/llm-credentials.test.ts
+!webapp/scripts/migrate-llm-credentials.ts
 *secrets*
 !cli/utils/secrets-verifier.js
+!webapp/lib/agent-secrets.ts
+!webapp/lib/agent-secrets.test.ts
+!webapp/scripts/migrate-agent-secrets.ts
 *.secrets.json
 config/secrets.yml
 secrets.yml
@@ -280,3 +286,5 @@ demo-recordings/
 # Re-ignore OS junk that the wildcard above un-ignored
 webapp/public/.DS_Store
 **/.DS_Store
+.vercel
+.env*

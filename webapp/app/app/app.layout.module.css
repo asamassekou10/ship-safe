@@ -21,6 +21,10 @@
 .sidebarTop {
   padding: 1.25rem 1.25rem 1rem;
   border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .logo {
@@ -39,8 +43,27 @@
   padding: 0.75rem 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.65rem;
   flex: 1;
+}
+
+.navSection,
+.navGroups,
+.navFooterLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.navGroups {
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--border);
+}
+
+.navFooterLinks {
+  margin-top: auto;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--border);
 }
 
 .navItem {
@@ -57,6 +80,50 @@
 }
 .navItem:hover { background: var(--bg-elevated); color: var(--text); text-decoration: none; }
 .navItem.active { background: var(--cyan-glow); color: var(--cyan); }
+
+.navItemNested {
+  min-height: 34px;
+  padding: 0.45rem 0.65rem 0.45rem 2rem;
+  font-size: 0.82rem;
+}
+
+.navItemNested svg { width: 14px; height: 14px; }
+
+.navGroup { display: flex; flex-direction: column; }
+
+.navGroupButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  font: 500 0.875rem/1 var(--font-sans);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+}
+
+.navGroupButton:hover { background: var(--bg-elevated); color: var(--text); }
+.navGroupActive { color: var(--cyan); }
+.navGroupButton span { flex: 1; }
+
+.navChevron {
+  color: var(--text-dim);
+  transition: transform 0.18s ease;
+}
+
+.navChevronOpen { transform: rotate(90deg); }
+
+.navChildren {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.15rem 0 0.35rem;
+}
 
 .sidebarBottom {
   padding: 1rem 0.75rem;
@@ -173,6 +240,107 @@
 }
 .hamburger:hover { background: var(--bg-elevated); }
 
+.mobileHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.activityRoot { position: relative; }
+.activityButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.activityButton:hover { color: var(--text); background: var(--bg-elevated); border-color: var(--border-hover); }
+.activityBadge {
+  position: absolute;
+  top: -5px;
+  right: -6px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 2px solid var(--bg-card);
+  border-radius: 9px;
+  background: var(--red);
+  color: #fff;
+  font: 700 0.6rem/13px var(--font-mono);
+}
+.activityPanel {
+  position: fixed;
+  z-index: 90;
+  top: 4.1rem;
+  left: 12.1rem;
+  width: min(390px, calc(100vw - 2rem));
+  overflow: hidden;
+  border: 1px solid var(--border-hover);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.38);
+}
+.activityHeader {
+  min-height: 66px;
+  padding: 0.9rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.activityHeader > div { display: flex; flex-direction: column; gap: 0.15rem; }
+.activityHeader strong { font-size: 0.88rem; color: var(--text); }
+.activityHeader span { font-size: 0.7rem; color: var(--text-dim); }
+.activityHeader button {
+  border: 0;
+  background: transparent;
+  color: var(--cyan);
+  font: 600 0.72rem/1 var(--font-sans);
+  cursor: pointer;
+}
+.activityList { max-height: 360px; overflow-y: auto; }
+.activityItem {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 0.7rem;
+  align-items: start;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.activityItem:hover { background: var(--bg-elevated); text-decoration: none; }
+.activityDot { width: 7px; height: 7px; margin-top: 0.32rem; border-radius: 50%; background: var(--text-dim); }
+.activityDot_critical { background: var(--red); box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.1); }
+.activityDot_high { background: #fb923c; }
+.activityDot_medium { background: #facc15; }
+.activityDot_info { background: var(--cyan); }
+.activityCopy { min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.activityCopy strong { overflow: hidden; color: var(--text); font-size: 0.78rem; font-weight: 650; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.activityCopy span { overflow: hidden; color: var(--text-dim); font-size: 0.68rem; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.activityItem time { color: var(--text-dim); font: 500 0.64rem/1.4 var(--font-mono); }
+.activityEmpty { padding: 2rem 1rem; color: var(--text-dim); font-size: 0.78rem; text-align: center; }
+.activityFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 1rem;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.activityFooter:hover { color: var(--cyan); text-decoration: none; }
+
 /* ── Drawer ────────────────────────────────────────────── */
 .drawerOverlay {
   position: fixed;
@@ -204,15 +372,32 @@
 .drawerOpen { transform: translateX(0); }
 
 .drawerNav {
-  padding: 0.75rem;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
   flex: 1;
 }
+
+.mobileSignOut {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-left: auto;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.mobileSignOut:hover { background: var(--bg-elevated); color: var(--text); }
 
 @media (max-width: 640px) {
   .sidebar { display: none; }
   .mobileHeader { display: flex; }
   .main { padding-top: 56px; }
+  .activityRootMobile .activityPanel { top: 3.5rem; left: auto; right: 0.75rem; }
+  .activityRootMobile .activityBadge { border-color: var(--nav-bg-scrolled); }
 }

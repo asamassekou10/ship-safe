@@ -10,6 +10,7 @@ import { join } from 'path';
 import * as tar from 'tar';
 // Direct import forces nft to trace ship-safe and all its transitive deps
 import { auditCommand } from 'ship-safe';
+import { readLLMSettings } from '@/lib/llm-credentials';
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
 
   // Merge per-scan aiOptions with the user's saved llmSettings (body takes precedence)
   const savedUser = await prisma.user.findUnique({ where: { id: userId }, select: { llmSettings: true } });
-  const saved = (savedUser?.llmSettings as Record<string, unknown> | null) ?? {};
+  const saved = readLLMSettings(savedUser?.llmSettings);
   const effectiveProvider = ((aiOptions.provider || saved.provider) as string) || '';
   const effectiveThink    = !!(aiOptions.think ?? saved.think);
 

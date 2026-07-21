@@ -19,8 +19,9 @@
 
 .header {
   display: flex;
-  flex-direction: column;
-  gap: 0.32rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .title {
@@ -41,6 +42,39 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: lowercase;
+}
+
+.newScanBtn,
+.secondaryBtn,
+.viewReportBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0.48rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid var(--cyan);
+  background: var(--cyan);
+  color: #001014;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: transform 0.15s ease, box-shadow 0.18s ease;
+}
+
+.newScanBtn:hover,
+.secondaryBtn:hover,
+.viewReportBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 7px 18px -10px rgba(8, 145, 178, 0.65);
+}
+
+.secondaryBtn,
+.viewReportBtn {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text);
 }
 
 /* ── Summary tiles ─────────────────────────── */
@@ -178,6 +212,13 @@
   box-shadow: var(--ring-1);
 }
 
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
 .filterGroup {
   display: flex;
   align-items: center;
@@ -264,6 +305,13 @@
 
 .emptyTitle { color: var(--text); font-size: 1rem; font-weight: 700; }
 .emptyDesc  { color: var(--text-muted); font-size: 0.9rem; }
+
+.emptyActions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
 
 /* ── Finding cards ─────────────────────────── */
 
@@ -352,6 +400,22 @@
   cursor: pointer;
 }
 
+.sourceBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid rgba(8, 145, 178, 0.25);
+  background: rgba(8, 145, 178, 0.07);
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
 .findingBody {
   display: flex;
   flex-direction: column;
@@ -421,6 +485,18 @@
 .dot { color: var(--text-dim); }
 
 .findingTime { color: var(--text-muted); }
+
+.findingFooter .ghBtn,
+.findingFooter .viewReportBtn {
+  margin-left: auto;
+}
+
+.findingFooter .viewReportBtn {
+  min-height: 28px;
+  padding: 0.28rem 0.55rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+}
 
 /* ── GitHub issue modal ────────────────────── */
 
@@ -556,12 +632,16 @@
 
 @media (max-width: 640px) {
   .page { padding: 1.2rem; gap: 1.1rem; }
+  .header { align-items: flex-start; }
   .summaryRow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .filterBar { flex-direction: column; align-items: stretch; gap: 0.55rem; }
+  .filters { align-items: flex-start; gap: 0.65rem; }
+  .filterGroup { width: 100%; }
   .findingTop { flex-wrap: wrap; }
   .findingTitle { width: 100%; order: 3; }
   .metaKey { min-width: 56px; }
   .summaryCount { font-size: 1.35rem; }
+  .findingFooter { flex-wrap: wrap; }
 }
 
 @media (prefers-reduced-motion: reduce) {

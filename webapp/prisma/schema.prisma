@@ -18,6 +18,7 @@ model User {
   plan          String    @default("free") // free | pro | team | enterprise
   accounts      Account[]
   scans         Scan[]
+  scanFindingStates ScanFindingState[]
   payments      Payment[]
   apiKeys       ApiKey[]
   memberships   OrgMember[]
@@ -31,6 +32,9 @@ model User {
   intelligenceItems IntelligenceItem[]
   emailEvents   EmailEvent[]
   lifecycleOptOut Boolean @default(false) // opted out of lifecycle/marketing emails
+  onboardingCompleted Boolean @default(false)
+  onboardingGoal String? // scan | agent | guardian
+  lastActivityReadAt DateTime?
   llmSettings   Json?     // { provider, model, think, apiKeys: { DEEPSEEK_API_KEY, OPENAI_API_KEY, ... } }
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -123,12 +127,28 @@ model Scan {
   prCommented Boolean   @default(false)
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   org         Org?      @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  findingStates ScanFindingState[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([orgId, createdAt(sort: Desc)])
   @@index([repo, createdAt(sort: Desc)])
+}
+
+model ScanFindingState {
+  id         String   @id @default(cuid())
+  scanId     String
+  userId     String
+  findingKey String
+  status     String   @default("open") // open | acknowledged | fixed | false_positive
+  scan       Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([scanId, findingKey])
+  @@index([userId, status])
 }
 
 // ── Monitored Repos & Scheduled Scans ────────────────────

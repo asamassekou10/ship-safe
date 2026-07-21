@@ -1,0 +1,1 @@
+ALTER TABLE "User" ADD COLUMN "lastActivityReadAt" TIMESTAMP(3);

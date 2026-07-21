@@ -9,6 +9,7 @@ import MobileNav from './MobileNav';
 import NavLinks from './NavLinks';
 import { ToastProvider } from './Toast';
 import KeyboardShortcuts from './KeyboardShortcuts';
+import ActivityInbox from './ActivityInbox';
 
 export const metadata: Metadata = {
   title: 'Dashboard — Ship Safe',
@@ -41,6 +42,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <img src="/logo.png" alt="ship-safe" width={24} height={24} className={styles.logoImg} />
             <span>ship-safe</span>
           </Link>
+          <ActivityInbox />
         </div>
 
         <NavLinks isAdmin={isAdmin} />
@@ -48,8 +50,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className={styles.sidebarBottom}>
           {plan === 'free' ? (
             <div className={styles.planBadge}>
-              <span className={styles.planName}>No active plan</span>
-              <Link href="/app/checkout?plan=pro" className={styles.upgradeCta}>Upgrade to Pro →</Link>
+              <span className={styles.planName}>Free plan</span>
+              <Link href="/app/checkout?plan=pro" className={styles.upgradeCta}>View Pro plan</Link>
             </div>
           ) : (
             <div className={styles.planBadge}>

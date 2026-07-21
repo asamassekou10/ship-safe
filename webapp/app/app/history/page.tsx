@@ -31,25 +31,27 @@ type Sort = 'newest' | 'oldest' | 'score_desc' | 'score_asc';
 const FILTER_LABELS: Record<Filter, string> = {
   all: 'All',
   running: 'Running',
-  done: 'Passed',
+  done: 'Completed',
   failed: 'Failed',
 };
 
 export default async function History({
   searchParams,
 }: {
-  searchParams: Promise<{ cursor?: string; filter?: string; sort?: string }>;
+  searchParams: Promise<{ cursor?: string; filter?: string; sort?: string; repo?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
 
   const params = await searchParams;
   const cursor = params.cursor;
+  const repo = params.repo?.trim() || undefined;
   const filter = (['all', 'running', 'done', 'failed'].includes(params.filter ?? '') ? params.filter : 'all') as Filter;
   const sort = (['newest', 'oldest', 'score_desc', 'score_asc'].includes(params.sort ?? '') ? params.sort : 'newest') as Sort;
 
   const where = {
     userId: session.user.id,
+    ...(repo ? { repo } : {}),
     ...(filter !== 'all' ? { status: filter } : {}),
   };
 
@@ -66,7 +68,7 @@ export default async function History({
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       select: { id: true, repo: true, branch: true, status: true, score: true, grade: true, findings: true, createdAt: true, aiProvider: true },
     }),
-    prisma.scan.count({ where: { userId: session.user.id } }),
+    prisma.scan.count({ where: { userId: session.user.id, ...(repo ? { repo } : {}) } }),
   ]);
 
   const hasMore = scans.length > PAGE_SIZE;
@@ -75,6 +77,7 @@ export default async function History({
 
   function filterHref(f: Filter) {
     const p = new URLSearchParams();
+    if (repo) p.set('repo', repo);
     if (f !== 'all') p.set('filter', f);
     if (sort !== 'newest') p.set('sort', sort);
     const s = p.toString();
@@ -83,24 +86,44 @@ export default async function History({
 
   function sortHref(s: Sort) {
     const p = new URLSearchParams();
+    if (repo) p.set('repo', repo);
     if (filter !== 'all') p.set('filter', filter);
     if (s !== 'newest') p.set('sort', s);
     const str = p.toString();
     return `/app/history${str ? `?${str}` : ''}`;
   }
 
+  function pageHref(nextCursor?: string) {
+    const p = new URLSearchParams();
+    if (repo) p.set('repo', repo);
+    if (filter !== 'all') p.set('filter', filter);
+    if (sort !== 'newest') p.set('sort', sort);
+    if (nextCursor) p.set('cursor', nextCursor);
+    const value = p.toString();
+    return `/app/history${value ? `?${value}` : ''}`;
+  }
+
   return (
     <div className={dashStyles.page}>
       <div className={dashStyles.header}>
         <div>
-          <h1>Scan History</h1>
-          <p className={dashStyles.subtitle}>{totalScans} scan{totalScans !== 1 ? 's' : ''} total</p>
+          <h1>{repo ? `${repo} history` : 'Scan History'}</h1>
+          <p className={dashStyles.subtitle}>
+            {totalScans} scan{totalScans !== 1 ? 's' : ''}{repo ? ' for this repository' : ' total'}
+          </p>
         </div>
         <Link href="/app/scan" className="btn btn-primary">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           New Scan
         </Link>
       </div>
+
+      {repo && (
+        <div className={styles.repoContext}>
+          <span>Showing scans for <strong>{repo}</strong></span>
+          <Link href="/app/history">Clear repository filter</Link>
+        </div>
+      )}
 
       {/* Filters + sort */}
       <div className={styles.toolbar}>
@@ -190,13 +213,13 @@ export default async function History({
 
           <div className={styles.pagination}>
             {cursor ? (
-              <Link href={`/app/history${filter !== 'all' ? `?filter=${filter}` : ''}`} className="btn btn-ghost" style={{ fontSize: '0.82rem' }}>
+              <Link href={pageHref()} className="btn btn-ghost" style={{ fontSize: '0.82rem' }}>
                 ← First page
               </Link>
             ) : <span />}
             {nextCursor && (
               <Link
-                href={`/app/history?cursor=${nextCursor}${filter !== 'all' ? `&filter=${filter}` : ''}${sort !== 'newest' ? `&sort=${sort}` : ''}`}
+                href={pageHref(nextCursor)}
                 className="btn btn-ghost"
                 style={{ fontSize: '0.82rem' }}
               >

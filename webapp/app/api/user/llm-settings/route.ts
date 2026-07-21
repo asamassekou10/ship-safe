@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { maskLLMSettings, secureLLMSettings } from '@/lib/llm-credentials';
 
 export async function GET() {
   const session = await auth();
@@ -11,7 +12,7 @@ export async function GET() {
     select: { llmSettings: true },
   });
 
-  return NextResponse.json({ llmSettings: user?.llmSettings ?? null });
+  return NextResponse.json({ llmSettings: maskLLMSettings(user?.llmSettings) });
 }
 
 export async function POST(req: NextRequest) {
@@ -27,21 +28,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid provider' }, { status: 400 });
   }
 
-  // Only store known API key names
-  const ALLOWED_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'XAI_API_KEY', 'GOOGLE_API_KEY'];
-  const safeKeys: Record<string, string> = {};
-  if (apiKeys && typeof apiKeys === 'object') {
-    for (const [k, v] of Object.entries(apiKeys)) {
-      if (ALLOWED_KEYS.includes(k) && typeof v === 'string') safeKeys[k] = v;
-    }
-  }
-
-  const llmSettings = { provider, model, think: !!think, swarm: !!swarm, apiKeys: safeKeys };
+  const existing = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { llmSettings: true },
+  });
+  const llmSettings = secureLLMSettings({ provider, model, think: !!think, swarm: !!swarm, apiKeys }, existing?.llmSettings);
 
   await prisma.user.update({
     where: { id: session.user.id },
     data: { llmSettings },
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, llmSettings: maskLLMSettings(llmSettings) });
 }

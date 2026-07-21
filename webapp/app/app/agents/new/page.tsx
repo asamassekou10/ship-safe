@@ -1,356 +1,265 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { track } from '@vercel/analytics/react';
 import styles from './new.module.css';
-import TEMPLATES from '@/lib/agent-templates';
+import TEMPLATES, { type AgentTemplateIcon } from '@/lib/agent-templates';
 
 const HERMES_TOOLS = [
-  { name: 'web_search',     label: 'Web Search',     desc: 'Search the internet' },
-  { name: 'terminal',       label: 'Terminal',        desc: 'Run shell commands' },
-  { name: 'read_file',      label: 'Read File',       desc: 'Read local files' },
-  { name: 'write_file',     label: 'Write File',      desc: 'Write to local files' },
-  { name: 'list_files',     label: 'List Files',      desc: 'Browse directory trees' },
-  { name: 'grep_codebase',  label: 'Grep Codebase',   desc: 'Search code by pattern' },
-  { name: 'browser',        label: 'Browser',         desc: 'Control a headless browser' },
-  { name: 'delegate_task',  label: 'Delegate Task',   desc: 'Spawn sub-agents (MAX_DEPTH 2)' },
+  { name: 'web_search', label: 'Web search' },
+  { name: 'terminal', label: 'Terminal' },
+  { name: 'read_file', label: 'Read files' },
+  { name: 'write_file', label: 'Write files' },
+  { name: 'list_files', label: 'List files' },
+  { name: 'grep_codebase', label: 'Search code' },
+  { name: 'browser', label: 'Browser' },
+  { name: 'delegate_task', label: 'Sub-agents' },
 ];
+
+const PROVIDERS = [
+  { key: 'ANTHROPIC_API_KEY', label: 'Anthropic' },
+  { key: 'OPENAI_API_KEY', label: 'OpenAI' },
+  { key: 'KIMI_API_KEY', label: 'Kimi' },
+  { key: 'MOONSHOT_API_KEY', label: 'Moonshot' },
+  { key: 'DEEPSEEK_API_KEY', label: 'DeepSeek' },
+  { key: 'OPENROUTER_API_KEY', label: 'OpenRouter' },
+  { key: 'XAI_API_KEY', label: 'xAI' },
+] as const;
 
 const MEMORY_OPTIONS = [
-  { value: 'builtin',   label: 'Built-in',  desc: 'MEMORY.md + USER.md (default)' },
-  { value: 'honcho',    label: 'Honcho',    desc: 'Cloud memory via Honcho API' },
-  { value: 'mem0',      label: 'Mem0',      desc: 'Cloud memory via Mem0 API' },
-  { value: 'hindsight', label: 'Hindsight', desc: 'Cloud memory via Hindsight' },
-  { value: 'none',      label: 'None',      desc: 'Stateless — no memory' },
+  { value: 'builtin', label: 'Built-in memory' },
+  { value: 'none', label: 'Stateless' },
+  { value: 'honcho', label: 'Honcho' },
+  { value: 'mem0', label: 'Mem0' },
+  { value: 'hindsight', label: 'Hindsight' },
 ];
 
-const LLM_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'XAI_API_KEY'];
-
-type Step = 0 | 1 | 2 | 3;
-
+type Step = 0 | 1 | 2;
 interface EnvVar { key: string; value: string }
+
+function TemplateIcon({ icon }: { icon: AgentTemplateIcon }) {
+  const common = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8 };
+  if (icon === 'network') return <svg {...common}><circle cx="6" cy="12" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="m8 11 8-4M8 13l8 4"/></svg>;
+  if (icon === 'target') return <svg {...common}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M22 12h-3M12 22v-3M2 12h3"/></svg>;
+  if (icon === 'key') return <svg {...common}><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8M15 8l2 2M17 6l2 2"/></svg>;
+  if (icon === 'package') return <svg {...common}><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12v9"/></svg>;
+  if (icon === 'api') return <svg {...common}><path d="M8 9 4 12l4 3M16 9l4 3-4 3M14 5l-4 14"/></svg>;
+  return <svg {...common}><path d="M12 3 4 7v5c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V7l-8-4Z"/><path d="m9 12 2 2 4-4"/></svg>;
+}
 
 export default function NewAgentPage() {
   const router = useRouter();
+  const [step, setStep] = useState<Step>(0);
+  const [templateId, setTemplateId] = useState('');
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [selectedTools, setTools] = useState<string[]>(['read_file', 'grep_codebase']);
+  const [memoryProvider, setMemoryProvider] = useState('builtin');
+  const [maxDepth, setMaxDepth] = useState(2);
+  const [ciProvider, setCiProvider] = useState<'github' | 'gitlab' | 'none'>('none');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [providerKey, setProviderKey] = useState<(typeof PROVIDERS)[number]['key']>('ANTHROPIC_API_KEY');
+  const [apiKey, setApiKey] = useState('');
+  const [extraEnv, setExtraEnv] = useState<EnvVar[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
-  // Step 1 — Identity
-  const [name, setName]         = useState('');
-  const [description, setDesc]  = useState('');
-  const [ciProvider, setCI]     = useState<'github' | 'gitlab' | 'none'>('github');
-
-  // Step 2 — Config
-  const [selectedTools, setTools] = useState<string[]>(['web_search', 'read_file']);
-  const [customTool, setCustom]   = useState('');
-  const [memoryProvider, setMem]  = useState('builtin');
-  const [maxDepth, setDepth]      = useState(2);
-
-  // Step 3 — Env vars (pre-filled with required LLM key)
-  const [envVars, setEnvVars] = useState<EnvVar[]>([
-    { key: 'ANTHROPIC_API_KEY', value: '' },
-  ]);
-
-  const [step, setStep]       = useState<Step>(0);
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState('');
-
-  function toggleTool(name: string) {
-    setTools(prev => prev.includes(name) ? prev.filter(t => t !== name) : [...prev, name]);
+  function chooseTemplate(id: string) {
+    const template = TEMPLATES.find(item => item.id === id);
+    if (!template) return;
+    setTemplateId(template.id);
+    setName(template.name);
+    setDescription(template.description);
+    setTools(template.tools);
+    setMemoryProvider(template.memoryProvider);
+    setMaxDepth(template.maxDepth);
+    track('Agent Template Selected', { template: template.id });
+    setStep(1);
   }
 
-  function addCustomTool() {
-    const t = customTool.trim().toLowerCase().replace(/\s+/g, '_');
-    if (!t || selectedTools.includes(t)) return;
-    setTools(prev => [...prev, t]);
-    setCustom('');
+  function startBlank() {
+    setTemplateId('custom');
+    setName('');
+    setDescription('');
+    setTools(['read_file', 'grep_codebase']);
+    track('Agent Template Selected', { template: 'custom' });
+    setStep(1);
   }
 
-  function updateEnv(i: number, field: 'key' | 'value', val: string) {
-    setEnvVars(prev => prev.map((e, idx) => idx === i ? { ...e, [field]: val } : e));
+  function toggleTool(tool: string) {
+    setTools(previous => previous.includes(tool) ? previous.filter(item => item !== tool) : [...previous, tool]);
   }
 
-  function addEnvRow() { setEnvVars(prev => [...prev, { key: '', value: '' }]); }
-  function removeEnvRow(i: number) { setEnvVars(prev => prev.filter((_, idx) => idx !== i)); }
+  function updateExtraEnv(index: number, field: keyof EnvVar, value: string) {
+    setExtraEnv(previous => previous.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item));
+  }
 
-  async function save() {
-    setError('');
+  async function createAgent() {
     setSaving(true);
+    setError('');
     try {
-      const envObj = Object.fromEntries(
-        envVars.filter(e => e.key.trim()).map(e => [e.key.trim(), e.value])
-      );
-      const res = await fetch('/api/agents', {
+      const envVars = Object.fromEntries([
+        ...extraEnv.filter(item => item.key.trim()).map(item => [item.key.trim(), item.value]),
+        [providerKey, apiKey.trim()],
+      ]);
+      const response = await fetch('/api/agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name, description, ciProvider,
-          tools: selectedTools.map(n => ({ name: n })),
-          memoryProvider, maxDepth,
-          envVars: envObj,
+          name,
+          description,
+          tools: selectedTools.map(tool => ({ name: tool })),
+          memoryProvider,
+          maxDepth,
+          ciProvider,
+          envVars,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create agent');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error === '__AGENT_LIMIT__' ? data.message : data.error || 'Unable to create agent');
+      track('Agent Created', { template: templateId || 'custom', provider: providerKey });
       router.push(`/app/agents/${data.agent.id}`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to create agent');
       setSaving(false);
     }
   }
 
-  function applyTemplate(templateId: string) {
-    const tpl = TEMPLATES.find(t => t.id === templateId);
-    if (!tpl) { setStep(1); return; }
-    setName(tpl.name);
-    setDesc(tpl.description);
-    setTools(tpl.tools);
-    setMem(tpl.memoryProvider);
-    setDepth(tpl.maxDepth);
-    setStep(1);
-  }
-
-  const canStep1 = name.trim().length >= 2;
-  const hasLLMKey = envVars.some(
-    e => LLM_KEYS.includes(e.key.trim().toUpperCase()) && e.value.trim().length > 0
-  );
+  const selectedTemplate = TEMPLATES.find(item => item.id === templateId);
+  const canContinue = name.trim().length >= 2 && selectedTools.length > 0;
 
   return (
     <div className={styles.page}>
-      <div className={styles.header}>
-        <a href="/app/agents" className={styles.back}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
-          Agents
-        </a>
-        <h1>New Agent</h1>
-        <p className={styles.subtitle}>Configure a Hermes agent — you can deploy it in the next step.</p>
-      </div>
+      <header className={styles.header}>
+        <Link href="/app/agents" className={styles.back}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6"/></svg>
+          AI Agents
+        </Link>
+        <h1>Create an agent</h1>
+        <p>Start with a focused security job. You can tune and deploy it after creation.</p>
+      </header>
 
-      {/* Step indicator */}
-      <div className={styles.steps}>
-        {(['Template', 'Identity', 'Configuration', 'Environment'] as const).map((label, i) => {
-          const n = i as Step;
-          return (
-            <div key={label} className={`${styles.stepItem} ${step === n ? styles.stepActive : step > n ? styles.stepDone : ''}`}>
-              <div className={styles.stepNum}>{step > n ? '✓' : n + 1}</div>
-              <span>{label}</span>
-            </div>
-          );
-        })}
-      </div>
+      <nav className={styles.steps} aria-label="Agent setup progress">
+        {['Choose a job', 'Confirm details', 'Connect provider'].map((label, index) => (
+          <button
+            key={label}
+            type="button"
+            disabled={index > step}
+            className={`${styles.step} ${step === index ? styles.stepActive : ''} ${step > index ? styles.stepDone : ''}`}
+            onClick={() => index < step && setStep(index as Step)}
+          >
+            <span>{step > index ? '✓' : index + 1}</span>{label}
+          </button>
+        ))}
+      </nav>
 
-      <div className={styles.card}>
-        {/* ── Step 0: Template picker ──────────────────────────── */}
-        {step === 0 && (
-          <div className={styles.stepBody}>
-            <div className={styles.field}>
-              <label className={styles.label}>Start from a template</label>
-              <span className={styles.hint}>Pick a pre-configured security agent or start from scratch.</span>
-            </div>
-            <div className={styles.templateGrid}>
-              {TEMPLATES.map(tpl => (
-                <button
-                  key={tpl.id}
-                  type="button"
-                  className={styles.templateCard}
-                  onClick={() => applyTemplate(tpl.id)}
-                >
-                  <span className={styles.templateIcon}>{tpl.icon}</span>
-                  <span className={styles.templateName}>{tpl.name}</span>
-                  <span className={styles.templateDesc}>{tpl.description}</span>
-                  <span className={styles.templateHint}>{tpl.promptHint}</span>
-                </button>
-              ))}
-            </div>
-            <div className={styles.actions}>
-              <button className={styles.ghostBtn} type="button" onClick={() => setStep(1)}>
-                Skip — start from scratch →
-              </button>
-            </div>
+      {step === 0 && (
+        <section className={styles.panel}>
+          <div className={styles.sectionHeading}>
+            <div><h2>What should this agent protect?</h2><p>Each template starts with a focused tool set and safe defaults.</p></div>
           </div>
-        )}
-
-        {/* ── Step 1: Identity ────────────────────────────────── */}
-        {step === 1 && (
-          <div className={styles.stepBody}>
-            <div className={styles.field}>
-              <label className={styles.label}>Agent name <span className={styles.req}>*</span></label>
-              <input
-                className={styles.input}
-                placeholder="my-research-agent"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                maxLength={80}
-                autoFocus
-              />
-              <span className={styles.hint}>Used as the agent&apos;s ID and subdomain slug.</span>
-            </div>
-
-            <div className={styles.field}>
-              <label className={styles.label}>Description</label>
-              <textarea
-                className={styles.textarea}
-                placeholder="What does this agent do?"
-                value={description}
-                onChange={e => setDesc(e.target.value)}
-                maxLength={300}
-                rows={3}
-              />
-            </div>
-
-            <div className={styles.field}>
-              <label className={styles.label}>CI provider</label>
-              <select className={styles.select} value={ciProvider} onChange={e => setCI(e.target.value as typeof ciProvider)}>
-                <option value="github">GitHub Actions</option>
-                <option value="gitlab">GitLab CI</option>
-                <option value="none">None</option>
-              </select>
-              <span className={styles.hint}>Generates a workflow file that runs Ship Safe on every push.</span>
-            </div>
-
-            <div className={styles.actions}>
-              <button className={styles.ghostBtn} onClick={() => setStep(0)} type="button">← Templates</button>
-              <button className={styles.primaryBtn} onClick={() => setStep(2)} disabled={!canStep1}>
-                Continue →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── Step 2: Configuration ───────────────────────────── */}
-        {step === 2 && (
-          <div className={styles.stepBody}>
-            <div className={styles.field}>
-              <label className={styles.label}>Tools</label>
-              <span className={styles.hint}>Select the tools this agent is allowed to use.</span>
-              <div className={styles.toolGrid}>
-                {HERMES_TOOLS.map(t => (
-                  <label key={t.name} className={`${styles.toolChip} ${selectedTools.includes(t.name) ? styles.toolSelected : ''}`}>
-                    <input type="checkbox" checked={selectedTools.includes(t.name)} onChange={() => toggleTool(t.name)} className={styles.sr} />
-                    <span className={styles.toolName}>{t.label}</span>
-                    <span className={styles.toolDesc}>{t.desc}</span>
-                  </label>
-                ))}
-              </div>
-              <div className={styles.customToolRow}>
-                <input
-                  className={styles.input}
-                  placeholder="custom_tool_name"
-                  value={customTool}
-                  onChange={e => setCustom(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addCustomTool()}
-                />
-                <button className={styles.addBtn} onClick={addCustomTool} type="button">Add</button>
-              </div>
-              {selectedTools.filter(t => !HERMES_TOOLS.find(h => h.name === t)).map(t => (
-                <span key={t} className={styles.customTag}>
-                  {t}
-                  <button onClick={() => setTools(prev => prev.filter(x => x !== t))} className={styles.tagRemove}>×</button>
+          <div className={styles.templateGrid}>
+            {TEMPLATES.map(template => (
+              <button key={template.id} type="button" className={styles.templateCard} onClick={() => chooseTemplate(template.id)}>
+                <span className={styles.templateIcon}><TemplateIcon icon={template.icon} /></span>
+                <span className={styles.templateContent}>
+                  <strong>{template.name}</strong>
+                  <span>{template.description}</span>
                 </span>
+                <svg className={styles.arrow} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+            ))}
+          </div>
+          <button type="button" className={styles.textButton} onClick={startBlank}>Start with a blank agent</button>
+        </section>
+      )}
+
+      {step === 1 && (
+        <section className={styles.panel}>
+          <div className={styles.sectionHeading}>
+            <div><h2>Confirm the agent</h2><p>Keep the job narrow. Focused agents produce clearer findings.</p></div>
+            {selectedTemplate && <span className={styles.templateLabel}>{selectedTemplate.name}</span>}
+          </div>
+
+          <div className={styles.fieldGrid}>
+            <label><span>Name</span><input value={name} onChange={event => setName(event.target.value)} maxLength={80} autoFocus /></label>
+            <label className={styles.fullField}><span>Description</span><textarea value={description} onChange={event => setDescription(event.target.value)} rows={3} maxLength={300} /></label>
+          </div>
+
+          {selectedTemplate && (
+            <div className={styles.recommendedPrompt}>
+              <span>Suggested first task</span>
+              <p>{selectedTemplate.promptHint}</p>
+            </div>
+          )}
+
+          <details className={styles.advanced} open={advancedOpen} onToggle={event => setAdvancedOpen(event.currentTarget.open)}>
+            <summary>Advanced configuration</summary>
+            <div className={styles.advancedBody}>
+              <div className={styles.configGroup}>
+                <span>Allowed tools</span>
+                <div className={styles.toolGrid}>
+                  {HERMES_TOOLS.map(tool => (
+                    <label key={tool.name} className={selectedTools.includes(tool.name) ? styles.optionSelected : ''}>
+                      <input type="checkbox" checked={selectedTools.includes(tool.name)} onChange={() => toggleTool(tool.name)} />
+                      {tool.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className={styles.configRow}>
+                <label><span>Memory</span><select value={memoryProvider} onChange={event => setMemoryProvider(event.target.value)}>{MEMORY_OPTIONS.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+                <label><span>Delegation depth</span><select value={maxDepth} onChange={event => setMaxDepth(Number(event.target.value))}><option value={1}>No sub-agents</option><option value={2}>Allow one level</option></select></label>
+                <label><span>CI workflow</span><select value={ciProvider} onChange={event => setCiProvider(event.target.value as typeof ciProvider)}><option value="none">None</option><option value="github">GitHub Actions</option><option value="gitlab">GitLab CI</option></select></label>
+              </div>
+            </div>
+          </details>
+
+          {selectedTools.length === 0 && <p className={styles.warning}>Select at least one tool.</p>}
+          <div className={styles.actions}><button className={styles.secondaryButton} onClick={() => setStep(0)}>Back</button><button className={styles.primaryButton} disabled={!canContinue} onClick={() => setStep(2)}>Connect provider</button></div>
+        </section>
+      )}
+
+      {step === 2 && (
+        <section className={styles.panel}>
+          <div className={styles.sectionHeading}>
+            <div><h2>Connect an AI provider</h2><p>This key is required when the agent runs. You can replace it later.</p></div>
+          </div>
+
+          <div className={styles.providerRow}>
+            <label><span>Provider</span><select value={providerKey} onChange={event => setProviderKey(event.target.value as typeof providerKey)}>{PROVIDERS.map(provider => <option key={provider.key} value={provider.key}>{provider.label}</option>)}</select></label>
+            <label className={styles.keyField}><span>API key</span><input type="password" value={apiKey} onChange={event => setApiKey(event.target.value)} placeholder="Paste provider key" autoComplete="off" /></label>
+          </div>
+
+          <details className={styles.advanced}>
+            <summary>Additional environment variables</summary>
+            <div className={styles.envList}>
+              {extraEnv.map((item, index) => (
+                <div key={index} className={styles.envRow}>
+                  <input value={item.key} onChange={event => updateExtraEnv(index, 'key', event.target.value)} placeholder="VARIABLE_NAME" />
+                  <input type="password" value={item.value} onChange={event => updateExtraEnv(index, 'value', event.target.value)} placeholder="value" />
+                  <button type="button" aria-label="Remove variable" onClick={() => setExtraEnv(previous => previous.filter((_, itemIndex) => itemIndex !== index))}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16M9 7V4h6v3M8 11v7M12 11v7M16 11v7M6 7l1 14h10l1-14"/></svg>
+                  </button>
+                </div>
               ))}
+              <button type="button" className={styles.textButton} onClick={() => setExtraEnv(previous => [...previous, { key: '', value: '' }])}>Add variable</button>
             </div>
+          </details>
 
-            <div className={styles.field}>
-              <label className={styles.label}>Memory provider</label>
-              <div className={styles.memGrid}>
-                {MEMORY_OPTIONS.map(o => (
-                  <label key={o.value} className={`${styles.memChip} ${memoryProvider === o.value ? styles.memSelected : ''}`}>
-                    <input type="radio" name="mem" value={o.value} checked={memoryProvider === o.value} onChange={() => setMem(o.value)} className={styles.sr} />
-                    <span className={styles.memLabel}>{o.label}</span>
-                    <span className={styles.memDesc}>{o.desc}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className={styles.field}>
-              <label className={styles.label}>Max delegation depth</label>
-              <div className={styles.depthRow}>
-                <button className={styles.depthBtn} onClick={() => setDepth(1)} disabled={maxDepth === 1} type="button">1</button>
-                <button className={styles.depthBtn} onClick={() => setDepth(2)} disabled={maxDepth === 2} type="button">2</button>
-                <span className={styles.depthNote}>
-                  {maxDepth === 1 ? 'No sub-agents' : 'Parent → child (Hermes MAX_DEPTH)'}
-                </span>
-              </div>
-            </div>
-
-            <div className={styles.actions}>
-              <button className={styles.ghostBtn} onClick={() => setStep(1)} type="button">← Back</button>
-              <button className={styles.primaryBtn} onClick={() => setStep(3)} disabled={selectedTools.length === 0} type="button">
-                Continue →
-              </button>
-            </div>
+          <div className={styles.review}>
+            <div><span>Agent</span><strong>{name}</strong></div>
+            <div><span>Tools</span><strong>{selectedTools.length}</strong></div>
+            <div><span>Memory</span><strong>{MEMORY_OPTIONS.find(item => item.value === memoryProvider)?.label}</strong></div>
+            <div><span>Deployment</span><strong>Draft first</strong></div>
           </div>
-        )}
 
-        {/* ── Step 3: Env vars + review ───────────────────────── */}
-        {step === 3 && (
-          <div className={styles.stepBody}>
-            <div className={styles.llmBanner}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              <div>
-                <strong>LLM API key required.</strong> Add at least one key below. Supported providers:
-                {' '}<code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code>, <code>DEEPSEEK_API_KEY</code>, <code>MOONSHOT_API_KEY</code>, <code>KIMI_API_KEY</code>, <code>XAI_API_KEY</code>.
-              </div>
-            </div>
-
-            <div className={styles.field}>
-              <label className={styles.label}>Environment variables</label>
-              <span className={styles.hint}>API keys and secrets your tools need. Stored securely in your agent config.</span>
-              <div className={styles.envList}>
-                {envVars.map((e, i) => (
-                  <div key={i} className={styles.envRow}>
-                    <input
-                      className={styles.input}
-                      placeholder="VARIABLE_NAME"
-                      value={e.key}
-                      onChange={ev => updateEnv(i, 'key', ev.target.value)}
-                    />
-                    <input
-                      className={styles.input}
-                      placeholder="value"
-                      value={e.value}
-                      onChange={ev => updateEnv(i, 'value', ev.target.value)}
-                      type="password"
-                    />
-                    <button className={styles.removeBtn} onClick={() => removeEnvRow(i)} type="button" title="Remove">×</button>
-                  </div>
-                ))}
-              </div>
-              <button className={styles.ghostBtn} onClick={addEnvRow} type="button">+ Add variable</button>
-            </div>
-
-            <div className={styles.review}>
-              <div className={styles.reviewTitle}>Review</div>
-              <div className={styles.reviewGrid}>
-                <span className={styles.reviewKey}>Name</span>
-                <span className={styles.reviewVal}>{name}</span>
-                <span className={styles.reviewKey}>Tools</span>
-                <span className={styles.reviewVal}>{selectedTools.join(', ')}</span>
-                <span className={styles.reviewKey}>Memory</span>
-                <span className={styles.reviewVal}>{memoryProvider}</span>
-                <span className={styles.reviewKey}>Max depth</span>
-                <span className={styles.reviewVal}>{maxDepth}</span>
-                <span className={styles.reviewKey}>CI</span>
-                <span className={styles.reviewVal}>{ciProvider}</span>
-              </div>
-            </div>
-
-            {!hasLLMKey && (
-              <div className={styles.keyWarning}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                Add an LLM API key above before creating the agent.
-              </div>
-            )}
-
-            {error && <div className={styles.error}>{error}</div>}
-
-            <div className={styles.actions}>
-              <button className={styles.ghostBtn} onClick={() => setStep(2)} type="button">← Back</button>
-              <button className={styles.primaryBtn} onClick={save} disabled={saving || !hasLLMKey} type="button">
-                {saving ? 'Saving…' : 'Create Agent'}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+          {error && <p className={styles.error} role="alert">{error}</p>}
+          {!apiKey.trim() && <p className={styles.warning}>Add a provider API key to create this agent.</p>}
+          <div className={styles.actions}><button className={styles.secondaryButton} onClick={() => setStep(1)}>Back</button><button className={styles.primaryButton} disabled={!apiKey.trim() || saving} onClick={createAgent}>{saving ? 'Creating...' : 'Create agent'}</button></div>
+        </section>
+      )}
     </div>
   );
 }

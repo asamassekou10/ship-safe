@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { track } from '@vercel/analytics/react';
 import styles from './onboarding.module.css';
 
 interface Props {
@@ -27,19 +28,20 @@ export default function OnboardingChecklist({ hasScanned, hasMonitoredRepo, hasS
   ];
 
   const completed = steps.filter(s => s.done).length;
+  const nextStep = steps.find(step => !step.done);
 
   function dismiss() {
     localStorage.setItem(DISMISS_KEY, '1');
     setDismissed(true);
   }
 
-  if (dismissed || completed === steps.length) return null;
+  if (dismissed || completed === steps.length || !nextStep) return null;
 
   return (
     <div className={styles.checklist}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <span className={styles.title}>Get started with Ship Safe</span>
+          <span className={styles.title}>Recommended next step</span>
           <div className={styles.progressRow}>
             <div className={styles.progressTrack}>
               <div className={styles.progressFill} style={{ width: `${(completed / steps.length) * 100}%` }} />
@@ -51,31 +53,15 @@ export default function OnboardingChecklist({ hasScanned, hasMonitoredRepo, hasS
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
       </div>
-      <div className={styles.steps}>
-        {steps.map(step => (
-          <Link
-            key={step.id}
-            href={step.done ? '#' : step.href}
-            className={`${styles.step} ${step.done ? styles.stepDone : ''}`}
-            onClick={step.done ? e => e.preventDefault() : undefined}
-          >
-            <div className={styles.check}>
-              {step.done ? (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-              ) : (
-                <span className={styles.checkEmpty} />
-              )}
-            </div>
-            <div className={styles.stepBody}>
-              <div className={styles.stepLabel}>{step.label}</div>
-              <div className={styles.stepDesc}>{step.desc}</div>
-            </div>
-            {!step.done && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={styles.arrow}><path d="M9 18l6-6-6-6"/></svg>
-            )}
-          </Link>
-        ))}
-      </div>
+      <Link href={nextStep.href} className={styles.nextStep} onClick={() => track('Onboarding Next Step Clicked', { step: nextStep.id })}>
+        <div className={styles.nextStepNumber}>{completed + 1}</div>
+        <div className={styles.stepBody}>
+          <div className={styles.stepLabel}>{nextStep.label}</div>
+          <div className={styles.stepDesc}>{nextStep.desc}</div>
+        </div>
+        <span className={styles.nextAction}>Continue</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={styles.arrow}><path d="M9 18l6-6-6-6"/></svg>
+      </Link>
     </div>
   );
 }

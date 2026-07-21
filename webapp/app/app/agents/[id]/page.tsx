@@ -84,6 +84,7 @@ interface Agent {
 }
 
 type Tab = 'overview' | 'deployments' | 'logs' | 'triggers' | 'findings' | 'runs' | 'settings';
+type PrimaryTab = 'overview' | 'activity' | 'triggers' | 'findings' | 'settings';
 
 function timeAgo(date: string) {
   const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -554,26 +555,65 @@ export default function AgentDetailPage() {
 
       {/* ── Tabs ───────────────────────────────────────────── */}
       <div className={styles.tabs}>
-        {(['overview', 'deployments', 'logs', 'triggers', 'findings', 'runs', 'settings'] as Tab[]).map(t => (
+        {([
+          { id: 'overview', label: 'Overview' },
+          { id: 'activity', label: 'Activity' },
+          { id: 'triggers', label: 'Automation' },
+          { id: 'findings', label: 'Findings' },
+          { id: 'settings', label: 'Settings' },
+        ] as Array<{ id: PrimaryTab; label: string }>).map(item => {
+          const active = item.id === 'activity'
+            ? tab === 'runs' || tab === 'deployments' || tab === 'logs'
+            : tab === item.id;
+          return (
           <button
-            key={t}
-            className={`${styles.tab} ${tab === t ? styles.tabActive : ''}`}
+            key={item.id}
+            className={`${styles.tab} ${active ? styles.tabActive : ''}`}
             onClick={() => {
-              setTab(t);
-              if (t === 'logs' && isLive && !logsOpen) openLogs();
-              if (t !== 'logs') closeLogs();
+              setTab(item.id === 'activity' ? 'runs' : item.id);
+              closeLogs();
             }}
           >
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-            {t === 'triggers' && triggers.length > 0 && (
+            {item.label}
+            {item.id === 'triggers' && triggers.length > 0 && (
               <span className={styles.triggerCount}>{triggers.length}</span>
             )}
-            {t === 'findings' && findings.filter(f => f.status === 'open').length > 0 && (
+            {item.id === 'findings' && findings.filter(f => f.status === 'open').length > 0 && (
               <span className={styles.findingCount}>{findings.filter(f => f.status === 'open').length}</span>
             )}
           </button>
-        ))}
+          );
+        })}
       </div>
+
+      {(tab === 'runs' || tab === 'deployments' || tab === 'logs') && (
+        <div className={styles.activityTabs} aria-label="Activity views">
+          <button
+            type="button"
+            className={tab === 'runs' ? styles.activityTabActive : ''}
+            onClick={() => { closeLogs(); setTab('runs'); }}
+          >
+            Runs
+          </button>
+          <button
+            type="button"
+            className={tab === 'deployments' ? styles.activityTabActive : ''}
+            onClick={() => { closeLogs(); setTab('deployments'); }}
+          >
+            Deployments
+          </button>
+          <button
+            type="button"
+            className={tab === 'logs' ? styles.activityTabActive : ''}
+            onClick={() => {
+              if (isLive) openLogs();
+              else setTab('logs');
+            }}
+          >
+            Live logs
+          </button>
+        </div>
+      )}
 
       {/* ── Overview ───────────────────────────────────────── */}
       {tab === 'overview' && (
@@ -990,7 +1030,7 @@ export default function AgentDetailPage() {
             <div className={styles.editField}>
               <label className={styles.editLabel}>Environment variables</label>
               <div className={styles.editHint}>
-                Use <code>ANTHROPIC_API_KEY</code> or <code>OPENROUTER_API_KEY</code>.
+                Values are encrypted at rest and cannot be revealed after saving. Leave a masked value unchanged to keep it. Use <code>ANTHROPIC_API_KEY</code> or <code>OPENROUTER_API_KEY</code>.
                 Plain <code>OPENAI_API_KEY</code> is not supported by Hermes — use{' '}
                 <a href="https://openrouter.ai" target="_blank" rel="noopener">OpenRouter</a> instead.
               </div>

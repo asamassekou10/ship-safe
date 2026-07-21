@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { decryptAgentEnvVars, encryptAgentEnvVars, maskAgentSecrets } from '@/lib/agent-secrets';
+import { readLLMSettings } from '@/lib/llm-credentials';
 
 const AGENT_NAME = 'Ship Safe Content Research Agent';
 const AGENT_SLUG_PREFIX = 'ship-safe-content-research';
@@ -13,13 +15,9 @@ function toSlug(name: string, suffix?: string) {
 }
 
 function apiKeysFromSettings(settings: unknown) {
-  const apiKeys = settings && typeof settings === 'object' && 'apiKeys' in settings
-    ? (settings as { apiKeys?: Record<string, unknown> }).apiKeys
-    : undefined;
+  const apiKeys = readLLMSettings(settings).apiKeys;
 
   const envVars: Record<string, string> = {};
-  if (!apiKeys) return envVars;
-
   for (const key of LLM_KEYS) {
     const value = apiKeys[key];
     if (typeof value === 'string' && value.trim()) envVars[key] = value.trim();
@@ -47,7 +45,7 @@ export async function GET() {
     },
   });
 
-  return NextResponse.json({ agent });
+  return NextResponse.json({ agent: agent ? maskAgentSecrets(agent) : null });
 }
 
 export async function POST() {
@@ -84,7 +82,7 @@ export async function POST() {
         memoryProvider: 'builtin',
         maxDepth: 2,
         skills: ['content-research', 'fact-checking', 'seo-briefing'],
-        envVars: { ...(existing.envVars as Record<string, string>), ...envVars },
+        envVars: encryptAgentEnvVars({ ...decryptAgentEnvVars(existing.envVars), ...envVars }),
       },
       include: {
         deployments: {
@@ -94,7 +92,7 @@ export async function POST() {
         },
       },
     });
-    return NextResponse.json({ agent, created: false });
+    return NextResponse.json({ agent: maskAgentSecrets(agent), created: false });
   }
 
   let slug = AGENT_SLUG_PREFIX;
@@ -111,7 +109,7 @@ export async function POST() {
       memoryProvider: 'builtin',
       maxDepth: 2,
       skills: ['content-research', 'fact-checking', 'seo-briefing'],
-      envVars,
+      envVars: encryptAgentEnvVars(envVars),
       ciProvider: 'none',
       status: 'draft',
     },
@@ -124,5 +122,5 @@ export async function POST() {
     },
   });
 
-  return NextResponse.json({ agent, created: true }, { status: 201 });
+  return NextResponse.json({ agent: maskAgentSecrets(agent), created: true }, { status: 201 });
 }

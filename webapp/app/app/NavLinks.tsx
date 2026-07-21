@@ -1,47 +1,110 @@
 'use client';
+
+import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import styles from './app.layout.module.css';
 
-const NAV = [
-  { href: '/app',          label: 'Dashboard',  exact: true,  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
-  { href: '/app/scan',     label: 'New Scan',   exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> },
-  { href: '/app/repos',    label: 'Repos',      exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg> },
-  { href: '/app/guardian', label: 'PR Guardian', exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg> },
-  { href: '/app/agents',      label: 'Agents',       exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/><circle cx="19" cy="9" r="2"/><path d="M19 15c2.5 0 4 1.5 4 3.5"/></svg> },
-  { href: '/app/agent-teams', label: 'Agent Teams',  exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="7" r="3"/><circle cx="18" cy="7" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6h1"/><path d="M12 20c0-3.3 2.7-6 6-6h1M21 20"/><line x1="18" y1="12" x2="18" y2="18"/><line x1="15" y1="15" x2="21" y2="15"/></svg> },
-  { href: '/app/intelligence', label: 'Intelligence', exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 2 5-7"/><circle cx="7" cy="14" r="1"/><circle cx="10" cy="11" r="1"/><circle cx="13" cy="13" r="1"/><circle cx="18" cy="6" r="1"/></svg> },
-  { href: '/app/content-agent', label: 'Content', exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg> },
-  { href: '/app/findings',    label: 'Findings',     exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> },
-  { href: '/app/deploy',   label: 'Hermes Setup',  exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> },
-  { href: '/app/history',  label: 'History',    exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
-  { href: '/app/compare', label: 'Compare',    exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg> },
-  { href: '/app/team',     label: 'Team',       exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
-  { href: '/app/policies', label: 'Policies',   exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> },
-  { href: '/app/settings', label: 'Settings',   exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
+type NavItem = { href: string; label: string; icon: ReactNode; exact?: boolean };
+type NavGroup = { id: string; label: string; icon: ReactNode; items: NavItem[] };
+
+const icon = {
+  home: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
+  scan: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>,
+  shield: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>,
+  agent: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="7" width="16" height="13" rx="3"/><path d="M9 3h6M12 3v4M8 12h.01M16 12h.01M8 16h8"/></svg>,
+  finding: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>,
+  repo: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3h7a2 2 0 0 1 2 2v16a3 3 0 0 0-3-3H3zM21 3h-7a2 2 0 0 0-2 2v16a3 3 0 0 1 3-3h6z"/></svg>,
+  team: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="7" r="3"/><circle cx="18" cy="7" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6h1M12 20c0-3.3 2.7-6 6-6h1"/></svg>,
+  chart: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18M7 14l3-3 3 2 5-7"/></svg>,
+  history: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/></svg>,
+  policy: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3h12v18H6zM9 8h6M9 12h6M9 16h4"/></svg>,
+  bolt: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+  doc: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h8"/></svg>,
+  more: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>,
+  settings: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9 7 7M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>,
+};
+
+const primary: NavItem[] = [
+  { href: '/app', label: 'Home', exact: true, icon: icon.home },
+  { href: '/app/scan', label: 'New scan', icon: icon.scan },
 ];
 
-const ADMIN = { href: '/app/admin', label: 'Admin', exact: false, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> };
+const groups: NavGroup[] = [
+  { id: 'security', label: 'Security', icon: icon.shield, items: [
+    { href: '/app/findings', label: 'Findings', icon: icon.finding },
+    { href: '/app/repos', label: 'Repositories', icon: icon.repo },
+    { href: '/app/guardian', label: 'PR Guardian', icon: icon.shield },
+  ] },
+  { id: 'agents', label: 'Agents', icon: icon.agent, items: [
+    { href: '/app/agents', label: 'My agents', icon: icon.agent },
+    { href: '/app/agent-teams', label: 'Agent teams', icon: icon.team },
+    { href: '/app/intelligence', label: 'Intelligence', icon: icon.chart },
+  ] },
+  { id: 'more', label: 'More', icon: icon.more, items: [
+    { href: '/app/history', label: 'Scan history', icon: icon.history },
+    { href: '/app/compare', label: 'Compare scans', icon: icon.chart },
+    { href: '/app/policies', label: 'Policies', icon: icon.policy },
+    { href: '/app/deploy', label: 'Hermes setup', icon: icon.bolt },
+    { href: '/app/content-agent', label: 'Content agent', icon: icon.doc },
+  ] },
+];
 
-export default function NavLinks({ isAdmin }: { isAdmin: boolean }) {
+const footer: NavItem[] = [
+  { href: '/app/team', label: 'Team', icon: icon.team },
+  { href: '/app/settings', label: 'Settings', icon: icon.settings },
+];
+
+function isActive(pathname: string, item: NavItem) {
+  return item.exact ? pathname === item.href : pathname.startsWith(item.href);
+}
+
+export default function NavLinks({ isAdmin, onNavigate }: { isAdmin: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const items = isAdmin ? [...NAV, ADMIN] : NAV;
+  const activeGroup = groups.find(group => group.items.some(item => isActive(pathname, item)))?.id;
+  const [openGroup, setOpenGroup] = useState<string | null>(activeGroup ?? null);
+
+  useEffect(() => {
+    if (activeGroup) setOpenGroup(activeGroup);
+  }, [activeGroup]);
+
+  const renderItem = (item: NavItem, nested = false) => (
+    <Link
+      key={item.href}
+      href={item.href}
+      onClick={onNavigate}
+      className={`${styles.navItem} ${nested ? styles.navItemNested : ''} ${isActive(pathname, item) ? styles.active : ''}`}
+    >
+      {item.icon}<span>{item.label}</span>
+    </Link>
+  );
 
   return (
-    <nav className={styles.nav}>
-      {items.map(item => {
-        const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`${styles.navItem} ${active ? styles.active : ''}`}
-          >
-            {item.icon}
-            {item.label}
-          </Link>
-        );
-      })}
+    <nav className={styles.nav} aria-label="Product navigation">
+      <div className={styles.navSection}>{primary.map(item => renderItem(item))}</div>
+      <div className={styles.navGroups}>
+        {groups.map(group => {
+          const open = openGroup === group.id;
+          return (
+            <div key={group.id} className={styles.navGroup}>
+              <button
+                type="button"
+                className={`${styles.navGroupButton} ${activeGroup === group.id ? styles.navGroupActive : ''}`}
+                aria-expanded={open}
+                onClick={() => setOpenGroup(current => current === group.id ? null : group.id)}
+              >
+                {group.icon}<span>{group.label}</span>
+                <svg className={`${styles.navChevron} ${open ? styles.navChevronOpen : ''}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+              {open && <div className={styles.navChildren}>{group.items.map(item => renderItem(item, true))}</div>}
+            </div>
+          );
+        })}
+      </div>
+      <div className={styles.navFooterLinks}>
+        {footer.map(item => renderItem(item))}
+        {isAdmin && renderItem({ href: '/app/admin', label: 'Admin', icon: icon.shield })}
+      </div>
     </nav>
   );
 }

@@ -5,144 +5,193 @@ import { redirect } from 'next/navigation';
 import styles from './agents.module.css';
 import type { Metadata } from 'next';
 
-export const metadata: Metadata = { title: 'Agents — Ship Safe' };
+export const metadata: Metadata = { title: 'AI Agents — Ship Safe' };
 
 function timeAgo(date: Date | string) {
-  const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
+  const seconds = Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 1000));
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
 }
 
-function statusLabel(status: string) {
-  if (status === 'deployed') return { label: 'Live', cls: 'statusLive' };
-  if (status === 'stopped')  return { label: 'Stopped', cls: 'statusStopped' };
-  if (status === 'failed')   return { label: 'Failed', cls: 'statusFailed' };
-  return { label: 'Draft', cls: 'statusDraft' };
+function health(status: string, deploymentStatus?: string, runStatus?: string) {
+  if (status === 'failed' || deploymentStatus === 'failed' || runStatus === 'error') {
+    return { label: 'Needs attention', tone: 'danger' };
+  }
+  if (deploymentStatus === 'pending') return { label: 'Deploying', tone: 'progress' };
+  if (status === 'deployed' && deploymentStatus === 'running') return { label: 'Active', tone: 'success' };
+  if (status === 'stopped') return { label: 'Paused', tone: 'muted' };
+  return { label: 'Setup needed', tone: 'warning' };
 }
 
 export default async function AgentsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
 
+  const userId = session.user.id;
   const plan = (session.user as Record<string, unknown>).plan as string ?? 'free';
   const isPaid = plan === 'pro' || plan === 'team' || plan === 'enterprise';
   const freeAgentLimit = 1;
 
-  const agents = await prisma.agent.findMany({
-    where: { userId: session.user.id },
-    orderBy: { createdAt: 'desc' },
-    include: {
-      deployments: {
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-        select: { status: true, securityScore: true, createdAt: true, subdomain: true },
+  const [agents, openFindingCounts, recentRuns] = await Promise.all([
+    prisma.agent.findMany({
+      where: { userId },
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        deployments: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { id: true, status: true, securityScore: true, createdAt: true, subdomain: true },
+        },
+        _count: { select: { triggers: true } },
       },
-    },
+    }),
+    prisma.finding.groupBy({
+      by: ['agentId'],
+      where: { agent: { userId }, status: 'open' },
+      _count: { _all: true },
+    }),
+    prisma.agentRun.findMany({
+      where: { deployment: { agent: { userId } } },
+      orderBy: { startedAt: 'desc' },
+      take: 100,
+      select: {
+        id: true,
+        status: true,
+        startedAt: true,
+        _count: { select: { findings: true } },
+        deployment: { select: { agentId: true } },
+      },
+    }),
+  ]);
+
+  const openByAgent = new Map(openFindingCounts.map(item => [item.agentId, item._count._all]));
+  const latestRunByAgent = new Map<string, (typeof recentRuns)[number]>();
+  for (const run of recentRuns) {
+    if (!latestRunByAgent.has(run.deployment.agentId)) latestRunByAgent.set(run.deployment.agentId, run);
+  }
+
+  const agentRows = agents.map(agent => {
+    const deployment = agent.deployments[0];
+    const run = latestRunByAgent.get(agent.id);
+    return {
+      agent,
+      deployment,
+      run,
+      openFindings: openByAgent.get(agent.id) ?? 0,
+      health: health(agent.status, deployment?.status, run?.status),
+    };
   });
 
+  const activeCount = agentRows.filter(row => row.health.tone === 'success').length;
+  const attentionCount = agentRows.filter(row => row.health.tone === 'danger').length;
+  const setupCount = agentRows.filter(row => row.health.tone === 'warning').length;
+  const totalOpenFindings = agentRows.reduce((total, row) => total + row.openFindings, 0);
   const atAgentLimit = !isPaid && agents.length >= freeAgentLimit;
+
+  const attentionAgent = agentRows.find(row => row.health.tone === 'danger');
+  const findingAgent = agentRows.find(row => row.openFindings > 0);
+  const setupAgent = agentRows.find(row => row.health.tone === 'warning' || row.health.tone === 'muted');
+  const nextAction = attentionAgent
+    ? { label: 'Agent health', title: `${attentionAgent.agent.name} needs attention`, detail: 'Review its latest deployment and run status before the next trigger fires.', href: `/app/agents/${attentionAgent.agent.id}`, cta: 'Review agent' }
+    : findingAgent
+      ? { label: 'Security finding', title: `${findingAgent.openFindings} open finding${findingAgent.openFindings === 1 ? '' : 's'} from ${findingAgent.agent.name}`, detail: 'Triage the latest agent findings and assign a resolution state.', href: '/app/findings', cta: 'Open security inbox' }
+      : setupAgent
+        ? { label: 'Finish setup', title: `Put ${setupAgent.agent.name} to work`, detail: 'Complete deployment, then add a webhook or schedule so the agent runs automatically.', href: `/app/agents/${setupAgent.agent.id}`, cta: 'Continue setup' }
+        : { label: 'Automation', title: 'Your agents are ready', detail: 'Open an agent to run it now, review activity, or adjust its triggers.', href: agentRows[0] ? `/app/agents/${agentRows[0].agent.id}` : '/app/agents/new', cta: agentRows[0] ? 'Open agent' : 'Create agent' };
 
   return (
     <div className={styles.page}>
-      <div className={styles.header}>
+      <header className={styles.header}>
         <div>
-          <h1>Agents</h1>
-          <p className={styles.subtitle}>Build, configure, and deploy Hermes agents from one place.</p>
+          <h1>AI Agents</h1>
+          <p>Deploy focused security agents and keep their work moving.</p>
         </div>
         {atAgentLimit ? (
-          <Link href="/app/checkout?plan=pro" className={styles.newBtn} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }} title="Upgrade to Pro for unlimited agents">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            Upgrade for more
-          </Link>
+          <Link href="/app/checkout?plan=pro" className={styles.secondaryButton}>View Pro plan</Link>
         ) : (
-          <Link href="/app/agents/new" className={styles.newBtn}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            New Agent
-          </Link>
+          <Link href="/app/agents/new" className={styles.primaryButton}>New agent</Link>
         )}
-      </div>
+      </header>
 
-      {!isPaid && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.6rem 0.9rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, marginBottom: '1rem', fontSize: '0.83rem', color: 'var(--text-muted)' }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          Free plan: {agents.length}/{freeAgentLimit} agent used.{' '}
-          <Link href="/app/checkout?plan=pro" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>Upgrade to Pro</Link>
-          {' '}for unlimited agents.
-        </div>
+      {agents.length > 0 && (
+        <>
+          <section className={styles.nextAction}>
+            <div>
+              <span>{nextAction.label}</span>
+              <h2>{nextAction.title}</h2>
+              <p>{nextAction.detail}</p>
+            </div>
+            <Link href={nextAction.href} className={styles.primaryButton}>{nextAction.cta}</Link>
+          </section>
+
+          <section className={styles.summary} aria-label="Agent health summary">
+            <div><strong>{activeCount}</strong><span>Active</span></div>
+            <div><strong className={attentionCount > 0 ? styles.dangerText : ''}>{attentionCount}</strong><span>Need attention</span></div>
+            <div><strong className={setupCount > 0 ? styles.warningText : ''}>{setupCount}</strong><span>Need setup</span></div>
+            <div><strong className={totalOpenFindings > 0 ? styles.dangerText : ''}>{totalOpenFindings}</strong><span>Open findings</span></div>
+          </section>
+        </>
       )}
 
-      {/* How it works */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '2rem' }}>
-        {[
-          { step: '1', title: 'Create', body: 'Define your agent\'s name, system prompt, and tools. This sets its personality and capabilities — e.g. "Penetration Tester specialising in web APIs".' },
-          { step: '2', title: 'Deploy', body: 'Start the agent from the Deploy tab. The orchestrator spins up a Hermes container on your VPS and gives it a live port.' },
-          { step: '3', title: 'Run', body: 'Chat with it directly, fire it via webhook, or schedule it with a cron trigger. Every run is saved with full message history and any findings it surfaces.' },
-        ].map(({ step, title, body }) => (
-          <div key={step} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1rem 1.1rem', display: 'flex', gap: '0.75rem' }}>
-            <div style={{ flexShrink: 0, width: 24, height: 24, borderRadius: '50%', background: 'rgba(34,211,238,0.1)', border: '1px solid rgba(34,211,238,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, color: 'var(--cyan)', marginTop: '0.1rem' }}>{step}</div>
-            <div>
-              <div style={{ fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.25rem' }}>{title}</div>
-              <div style={{ fontSize: '0.77rem', color: 'var(--text-dim)', lineHeight: 1.5 }}>{body}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
       {agents.length === 0 ? (
-        <div className={styles.empty}>
+        <section className={styles.empty}>
           <div className={styles.emptyIcon}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-            </svg>
+            <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 3 4 7v5c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V7l-8-4Z"/><path d="M9 12h6M12 9v6"/></svg>
           </div>
-          <div className={styles.emptyTitle}>No agents yet</div>
-          <div className={styles.emptyDesc}>Create your first Hermes agent. Define its tools, memory, and delegation settings — then deploy it to a live URL.</div>
-          <Link href="/app/agents/new" className={styles.emptyCta}>Create your first agent →</Link>
-        </div>
+          <h2>Create a focused security agent</h2>
+          <p>Start from a tested template, connect an AI provider, and deploy when you are ready.</p>
+          <Link href="/app/agents/new" className={styles.primaryButton}>Choose a template</Link>
+        </section>
       ) : (
-        <div className={styles.grid}>
-          {agents.map(agent => {
-            const lastDeploy = agent.deployments[0];
-            const { label, cls } = statusLabel(agent.status);
+        <section className={styles.agentList} aria-label="Your AI agents">
+          {agentRows.map(({ agent, deployment, run, openFindings, health: agentHealth }) => {
             const tools = (agent.tools as Array<{ name: string }>) ?? [];
+            const scoreTone = deployment?.securityScore == null
+              ? 'muted'
+              : deployment.securityScore >= 80 ? 'success' : deployment.securityScore >= 60 ? 'warning' : 'danger';
             return (
-              <Link key={agent.id} href={`/app/agents/${agent.id}`} className={styles.card}>
-                <div className={styles.cardTop}>
-                  <div className={styles.cardName}>{agent.name}</div>
-                  <span className={`${styles.statusBadge} ${styles[cls]}`}>{label}</span>
+              <article key={agent.id} className={styles.agentRow}>
+                <div className={styles.agentMain}>
+                  <div className={styles.agentHeading}>
+                    <Link href={`/app/agents/${agent.id}`}>{agent.name}</Link>
+                    <span className={`${styles.healthBadge} ${styles[`tone_${agentHealth.tone}`]}`}>{agentHealth.label}</span>
+                  </div>
+                  <p>{agent.description || 'No description added yet.'}</p>
+                  <div className={styles.agentMeta}>
+                    <span>{tools.length} tool{tools.length === 1 ? '' : 's'}</span>
+                    <span>{agent._count.triggers} trigger{agent._count.triggers === 1 ? '' : 's'}</span>
+                    <span>{run ? `Last run ${timeAgo(run.startedAt)}` : 'No runs yet'}</span>
+                    {run && <span className={`${styles.runStatus} ${styles[`tone_${run.status === 'error' ? 'danger' : run.status === 'running' ? 'progress' : 'success'}`]}`}>{run.status}</span>}
+                  </div>
                 </div>
-                {agent.description && (
-                  <div className={styles.cardDesc}>{agent.description}</div>
-                )}
-                <div className={styles.cardMeta}>
-                  <span className={styles.metaItem}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                    {tools.length} tool{tools.length !== 1 ? 's' : ''}
-                  </span>
-                  <span className={styles.metaItem}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-                    {agent.memoryProvider}
-                  </span>
-                  {lastDeploy && (
-                    <span className={styles.metaItem}>
-                      {timeAgo(lastDeploy.createdAt)}
-                    </span>
+
+                <div className={styles.agentSignals}>
+                  {deployment?.securityScore != null && (
+                    <div className={`${styles.signal} ${styles[`tone_${scoreTone}`]}`}>
+                      <strong>{deployment.securityScore}</strong><span>Security</span>
+                    </div>
                   )}
-                  {lastDeploy?.securityScore != null && (
-                    <span className={styles.scoreChip} style={{ color: lastDeploy.securityScore >= 80 ? 'var(--green)' : lastDeploy.securityScore >= 60 ? 'var(--yellow)' : 'var(--red)' }}>
-                      {lastDeploy.securityScore}/100
-                    </span>
-                  )}
+                  <div className={`${styles.signal} ${openFindings > 0 ? styles.tone_danger : ''}`}>
+                    <strong>{openFindings}</strong><span>Open</span>
+                  </div>
                 </div>
-                {lastDeploy?.subdomain && (
-                  <div className={styles.cardUrl}>{lastDeploy.subdomain}.shipsafecli.com</div>
-                )}
-              </Link>
+
+                <div className={styles.agentActions}>
+                  {agent.status === 'deployed' && deployment?.status === 'running' && (
+                    <Link href={`/app/agents/${agent.id}/console`} className={styles.secondaryButton}>Open console</Link>
+                  )}
+                  <Link href={`/app/agents/${agent.id}`} className={styles.primaryButton}>Manage</Link>
+                </div>
+              </article>
             );
           })}
-        </div>
+        </section>
+      )}
+
+      {atAgentLimit && (
+        <p className={styles.planNote}>Free includes one agent. Your existing agent remains fully manageable.</p>
       )}
     </div>
   );

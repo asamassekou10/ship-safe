@@ -25,9 +25,12 @@ export default async function Dashboard() {
   const freeLimit = parseInt(process.env.FREE_SCAN_LIMIT ?? '3', 10);
   const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
-  // Redirect brand-new users to onboarding
+  const onboardingState = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { onboardingCompleted: true },
+  });
   const everScanned = await prisma.scan.count({ where: { userId }, take: 1 });
-  if (everScanned === 0) redirect('/app/onboarding');
+  if (everScanned === 0 && !onboardingState?.onboardingCompleted) redirect('/app/onboarding');
 
   const [
     recentScans, totalScans, scansThisMonth, aggFindings, monitoredRepoCount, notification, orgMembership,
@@ -73,11 +76,18 @@ export default async function Dashboard() {
   const totalFindings = aggFindings._sum.findings ?? 0;
   const uniqueRepos = new Set(recentScans.map(s => s.repo)).size;
   const freeExhausted = !isPaid && scansThisMonth >= freeLimit;
-  const freeScansLeft = Math.max(0, freeLimit - scansThisMonth);
 
   const findingSummary = { critical: 0, high: 0, medium: 0, low: 0, info: 0 } as Record<string, number>;
   for (const c of openFindingCounts) findingSummary[c.severity] = (findingSummary[c.severity] ?? 0) + c._count._all;
   const totalOpenFindings = Object.values(findingSummary).reduce((a, b) => a + b, 0);
+  const latestScan = recentScans[0];
+  const nextAction = totalOpenFindings > 0
+    ? { eyebrow: 'Agent finding', title: `Review ${totalOpenFindings} open finding${totalOpenFindings === 1 ? '' : 's'}`, description: 'Triage the highest-severity agent findings and decide what should be fixed first.', href: '/app/findings', cta: 'Open findings' }
+    : latestScan?.findings
+      ? { eyebrow: 'Latest scan', title: `Review ${latestScan.findings} finding${latestScan.findings === 1 ? '' : 's'} in ${latestScan.repo}`, description: 'Start with the highest-risk result, then rescan to verify the fix.', href: '/app/findings', cta: 'Open security inbox' }
+      : monitoredRepoCount === 0
+        ? { eyebrow: 'Continuous protection', title: 'Monitor your first repository', description: 'Schedule scans so regressions and new dependency risks return to one place.', href: '/app/repos', cta: 'Add repository' }
+        : { eyebrow: 'Security check', title: 'Run a fresh scan', description: 'Check your latest code and compare it with the previous result.', href: '/app/scan', cta: 'Start scan' };
 
   function timeAgo(date: Date) {
     const diff = Date.now() - new Date(date).getTime();
@@ -93,6 +103,17 @@ export default async function Dashboard() {
     <div className={styles.page}>
       <Suspense fallback={null}><UpgradeToast /></Suspense>
 
+      <div className={styles.header}>
+        <div>
+          <h1>Home</h1>
+          <p className={styles.subtitle}>What needs attention now</p>
+        </div>
+        <Link href="/app/scan" className={styles.primaryCta}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+          New scan
+        </Link>
+      </div>
+
       <OnboardingChecklist
         hasScanned={totalScans > 0}
         hasMonitoredRepo={monitoredRepoCount > 0}
@@ -100,42 +121,31 @@ export default async function Dashboard() {
         hasTeam={orgMembership > 0}
       />
 
-      {!isPaid && (
+      <section className={styles.nextAction}>
+        <div className={styles.nextActionCopy}>
+          <span className={styles.nextActionEyebrow}>{nextAction.eyebrow}</span>
+          <h2>{nextAction.title}</h2>
+          <p>{nextAction.description}</p>
+        </div>
+        <Link href={nextAction.href} className={styles.primaryCta}>{nextAction.cta} →</Link>
+      </section>
+
+      {freeExhausted && (
         <div className={styles.upgradeCard}>
           <div className={styles.upgradeLeft}>
-            {freeExhausted ? (
-              <>
-                <h3>You&apos;ve used all {freeLimit} free scans this month</h3>
-                <p>Resets on the 1st. Upgrade to Pro for unlimited scans, all agents, teams, and API access — $9/month, cancel anytime.</p>
-              </>
-            ) : (
-              <>
-                <h3>{freeScansLeft} free scan{freeScansLeft !== 1 ? 's' : ''} left this month</h3>
-                <p>Free plan includes {freeLimit} cloud scans/month and 1 agent. Upgrade to Pro for unlimited everything.</p>
-              </>
-            )}
+            <h3>You&apos;ve used all {freeLimit} free scans this month</h3>
+            <p>Your allowance resets on the first of next month. Pro includes unlimited cloud scans.</p>
           </div>
-          <Link href="/app/checkout?plan=pro" className={styles.primaryCta}>Upgrade to Pro →</Link>
+          <Link href="/app/checkout?plan=pro" className={styles.secondaryCta}>View Pro plan</Link>
         </div>
       )}
-
-      <div className={styles.header}>
-        <div>
-          <h1>Dashboard</h1>
-          <p className={styles.subtitle}>Your security overview</p>
-        </div>
-        <Link href="/app/scan" className={styles.primaryCta}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
-          New Scan
-        </Link>
-      </div>
 
       {/* Stats row */}
       <div className={styles.statsRow}>
         {[
           { label: 'Avg Score', value: totalScans > 0 ? String(avgScore) : '—', unit: totalScans > 0 ? '/100' : '', color: totalScans > 0 ? scoreColor(avgScore) : 'var(--text-dim)' },
           { label: 'Total Scans', value: String(totalScans), unit: '', color: 'var(--cyan)' },
-          { label: 'Open Findings', value: String(totalFindings), unit: '', color: totalFindings > 0 ? 'var(--red)' : 'var(--green)' },
+          { label: 'Findings Detected', value: String(totalFindings), unit: '', color: totalFindings > 0 ? 'var(--red)' : 'var(--green)' },
           { label: 'Repos Scanned', value: String(uniqueRepos), unit: '', color: 'var(--green)' },
         ].map(s => (
           <div key={s.label} className={styles.statCard}>

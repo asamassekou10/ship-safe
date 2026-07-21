@@ -18,6 +18,7 @@
 import { prisma } from '@/lib/prisma';
 import { collectAgentRun, FindingEntry, DelegationEntry } from '@/lib/fire-agent-run';
 import { saveFindings } from '@/lib/save-findings';
+import { decryptAgentEnvVars } from '@/lib/agent-secrets';
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
@@ -405,7 +406,7 @@ async function _fireTeamRun(teamRunId: string): Promise<void> {
   if (!leadDeployment?.port) { await failRun('Lead agent is not currently running. Deploy it first.'); return; }
 
   // Detect and record which LLM provider the lead agent is configured with
-  const leadEnvVars = (lead.agent.envVars as Record<string, string>) ?? {};
+  const leadEnvVars = decryptAgentEnvVars(lead.agent.envVars);
   const aiProvider  = detectProviderFromEnvVars(leadEnvVars);
   if (aiProvider) {
     await prisma.teamRun.update({ where: { id: teamRunId }, data: { aiProvider } });
