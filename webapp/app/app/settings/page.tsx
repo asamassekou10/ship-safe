@@ -42,7 +42,7 @@ export default async function Settings() {
       </div>
 
       {/* Profile */}
-      <div className={styles.section}>
+      <div id="profile" className={styles.section}>
         <h2>Profile</h2>
         <div className={s.profileCard}>
           {user.image && (
@@ -59,7 +59,7 @@ export default async function Settings() {
       </div>
 
       {/* Plan */}
-      <div className={styles.section}>
+      <div id="plan" className={styles.section}>
         <h2>Plan</h2>
         <div className={s.planCard}>
           <div>
@@ -100,7 +100,7 @@ export default async function Settings() {
         </div>
       )}
       {/* AI Models */}
-      <div className={styles.section}>
+      <div id="ai-models" className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2>AI Models</h2>
         </div>
@@ -108,7 +108,7 @@ export default async function Settings() {
       </div>
 
       {/* Notifications */}
-      <div className={styles.section}>
+      <div id="notifications" className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2>Notifications</h2>
         </div>
@@ -116,7 +116,7 @@ export default async function Settings() {
       </div>
 
       {/* Agent Alerts & Integrations */}
-      <div className={styles.section}>
+      <div id="integrations" className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2>Agent Alerts &amp; Integrations</h2>
         </div>
@@ -125,7 +125,7 @@ export default async function Settings() {
 
       {/* API Keys */}
       {(user.plan === 'pro' || user.plan === 'team' || user.plan === 'enterprise') && (
-        <div className={styles.section}>
+        <div id="api-keys" className={styles.section}>
           <div className={styles.sectionHeader}>
             <h2>API Keys</h2>
           </div>

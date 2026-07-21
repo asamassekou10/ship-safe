@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { track } from '@vercel/analytics/react';
+import { useSearchParams } from 'next/navigation';
 import styles from './findings.module.css';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -38,12 +39,16 @@ function timeAgo(date: string) {
 }
 
 export default function FindingsPage() {
+  const searchParams = useSearchParams();
+  const initialSeverity = searchParams.get('severity') ?? '';
+  const initialStatus = searchParams.get('status') ?? 'open';
+  const initialSource = searchParams.get('source');
   const [findings,  setFindings]  = useState<Finding[]>([]);
   const [summary,   setSummary]   = useState<Summary>({ critical: 0, high: 0, medium: 0, low: 0, info: 0 });
   const [loading,   setLoading]   = useState(true);
-  const [severity,  setSeverity]  = useState('');
-  const [status,    setStatus]    = useState('open');
-  const [source,    setSource]    = useState<'all' | 'scan' | 'agent'>('all');
+  const [severity,  setSeverity]  = useState(SEVERITIES.includes(initialSeverity as typeof SEVERITIES[number]) ? initialSeverity : '');
+  const [status,    setStatus]    = useState(STATUSES.includes(initialStatus as typeof STATUSES[number]) ? initialStatus : 'open');
+  const [source,    setSource]    = useState<'all' | 'scan' | 'agent'>(initialSource === 'scan' || initialSource === 'agent' ? initialSource : 'all');
 
   // Trend stats
   interface DailyPoint { date: string; critical: number; high: number; medium: number; low: number; info: number }

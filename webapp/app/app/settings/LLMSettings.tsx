@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { track } from '@vercel/analytics/react';
 import s from './settings.module.css';
 
 const PROVIDERS = [
@@ -77,6 +78,7 @@ export default function LLMSettings() {
   const [saving, setSaving]   = useState(false);
   const [saved, setSaved]     = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState('');
 
   useEffect(() => {
     fetch('/api/user/llm-settings')
@@ -99,13 +101,33 @@ export default function LLMSettings() {
 
   async function save() {
     setSaving(true);
-    await fetch('/api/user/llm-settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    setSaving(false);
-    setSaved(true);
+    setError('');
+    try {
+      const response = await fetch('/api/user/llm-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => null);
+        throw new Error(result?.error || 'Could not save AI settings.');
+      }
+
+      setSaved(true);
+      track('LLM Provider Configured', {
+        provider: data.provider,
+        model: data.model || 'default',
+        think: data.think,
+        swarm: data.swarm,
+        hasApiKey: Object.values(data.apiKeys).some(Boolean),
+      });
+    } catch (saveError) {
+      setSaved(false);
+      setError(saveError instanceof Error ? saveError.message : 'Could not save AI settings.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   const models = MODELS_BY_PROVIDER[data.provider] ?? [];
@@ -219,6 +241,7 @@ export default function LLMSettings() {
         <button className={s.llmSaveBtn} onClick={save} disabled={saving}>
           {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save AI Settings'}
         </button>
+        {error && <p className={s.error}>{error}</p>}
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { track } from '@vercel/analytics/react';
 import s from './settings.module.css';
 
 type Plan = 'pro' | 'team';
@@ -16,6 +17,7 @@ export default function UpgradeButton() {
   async function handleUpgrade(plan: Plan) {
     setError('');
     setLoading(plan);
+    track('Checkout Started', { plan, source: 'settings' });
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST',
@@ -24,14 +26,17 @@ export default function UpgradeButton() {
       });
       const data = await res.json();
       if (!res.ok) {
+        track('Checkout Failed', { plan, source: 'settings' });
         setError(data.error || 'Something went wrong. Please try again.');
         setLoading(null);
         return;
       }
       if (data.url) {
+        track('Checkout Session Created', { plan, source: 'settings' });
         window.location.href = data.url;
       }
     } catch {
+      track('Checkout Failed', { plan, source: 'settings' });
       setError('Network error. Please try again.');
       setLoading(null);
     }

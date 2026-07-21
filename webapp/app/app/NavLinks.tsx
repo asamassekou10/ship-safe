@@ -51,6 +51,7 @@ const groups: NavGroup[] = [
 ];
 
 const footer: NavItem[] = [
+  { href: '/app/guide', label: 'Guide', icon: icon.doc },
   { href: '/app/team', label: 'Team', icon: icon.team },
   { href: '/app/settings', label: 'Settings', icon: icon.settings },
 ];

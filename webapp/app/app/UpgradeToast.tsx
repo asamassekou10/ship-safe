@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { track } from '@vercel/analytics/react';
 
 export default function UpgradeToast() {
   const searchParams = useSearchParams();
@@ -12,6 +13,7 @@ export default function UpgradeToast() {
     const upgraded = searchParams.get('upgraded');
     if (upgraded) {
       setPlan(upgraded);
+      track('Upgrade Completed', { plan: upgraded });
       // Remove the query param without a full reload
       const params = new URLSearchParams(searchParams.toString());
       params.delete('upgraded');

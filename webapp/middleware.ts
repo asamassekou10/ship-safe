@@ -5,6 +5,15 @@ import type { NextRequest } from 'next/server';
 // Full auth validation happens in API routes / server components via auth().
 // This avoids pulling Prisma into the Edge Runtime (1MB limit).
 export function middleware(req: NextRequest) {
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set('x-ship-safe-pathname', req.nextUrl.pathname);
+
+  if (req.nextUrl.pathname === '/app/guide') {
+    return NextResponse.next({
+      request: { headers: requestHeaders },
+    });
+  }
+
   const token =
     req.cookies.get('authjs.session-token')?.value || // ship-safe-ignore — reading Auth.js session cookies, not setting them; httpOnly/Secure flags are managed by Auth.js
     req.cookies.get('__Secure-authjs.session-token')?.value; // ship-safe-ignore — reading Auth.js session cookies, not setting them
@@ -15,7 +24,9 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  return NextResponse.next({
+    request: { headers: requestHeaders },
+  });
 }
 
 export const config = {

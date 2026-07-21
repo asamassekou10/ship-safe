@@ -25,12 +25,12 @@ function timeAgo(date: Date) {
   return `${days}d ago`;
 }
 
-type Filter = 'all' | 'running' | 'done' | 'failed';
+type Filter = 'all' | 'active' | 'done' | 'failed';
 type Sort = 'newest' | 'oldest' | 'score_desc' | 'score_asc';
 
 const FILTER_LABELS: Record<Filter, string> = {
   all: 'All',
-  running: 'Running',
+  active: 'Active',
   done: 'Completed',
   failed: 'Failed',
 };
@@ -46,13 +46,13 @@ export default async function History({
   const params = await searchParams;
   const cursor = params.cursor;
   const repo = params.repo?.trim() || undefined;
-  const filter = (['all', 'running', 'done', 'failed'].includes(params.filter ?? '') ? params.filter : 'all') as Filter;
+  const filter = (['all', 'active', 'done', 'failed'].includes(params.filter ?? '') ? params.filter : 'all') as Filter;
   const sort = (['newest', 'oldest', 'score_desc', 'score_asc'].includes(params.sort ?? '') ? params.sort : 'newest') as Sort;
 
   const where = {
     userId: session.user.id,
     ...(repo ? { repo } : {}),
-    ...(filter !== 'all' ? { status: filter } : {}),
+    ...(filter === 'active' ? { status: { in: ['pending', 'running'] } } : filter !== 'all' ? { status: filter } : {}),
   };
 
   const orderBy = sort === 'oldest'     ? { createdAt: 'asc' as const }
@@ -68,7 +68,7 @@ export default async function History({
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       select: { id: true, repo: true, branch: true, status: true, score: true, grade: true, findings: true, createdAt: true, aiProvider: true },
     }),
-    prisma.scan.count({ where: { userId: session.user.id, ...(repo ? { repo } : {}) } }),
+    prisma.scan.count({ where }),
   ]);
 
   const hasMore = scans.length > PAGE_SIZE;
@@ -128,13 +128,13 @@ export default async function History({
       {/* Filters + sort */}
       <div className={styles.toolbar}>
         <div className={styles.filterTabs}>
-          {(['all', 'running', 'done', 'failed'] as Filter[]).map(f => (
+          {(['all', 'active', 'done', 'failed'] as Filter[]).map(f => (
             <Link
               key={f}
               href={filterHref(f)}
               className={`${styles.filterTab} ${filter === f ? styles.filterTabActive : ''}`}
             >
-              {f === 'running' && (
+              {f === 'active' && (
                 <span className={styles.runningDot} />
               )}
               {f === 'failed' && (

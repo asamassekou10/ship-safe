@@ -5,19 +5,25 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from './prisma';
 import { sendWelcome } from './lifecycle-emails';
 
+const providers = [
+  ...(process.env.GITHUB_ID && process.env.GITHUB_SECRET
+    ? [GitHub({
+        clientId: process.env.GITHUB_ID,
+        clientSecret: process.env.GITHUB_SECRET,
+        authorization: { params: { scope: 'read:user user:email repo' } },
+      })]
+    : []),
+  ...(process.env.GOOGLE_ID && process.env.GOOGLE_SECRET
+    ? [Google({
+        clientId: process.env.GOOGLE_ID,
+        clientSecret: process.env.GOOGLE_SECRET,
+      })]
+    : []),
+];
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  providers: [
-    GitHub({
-      clientId: process.env.GITHUB_ID!,
-      clientSecret: process.env.GITHUB_SECRET!,
-      authorization: { params: { scope: 'read:user user:email repo' } },
-    }),
-    Google({
-      clientId: process.env.GOOGLE_ID!,
-      clientSecret: process.env.GOOGLE_SECRET!,
-    }),
-  ],
+  providers,
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/login',

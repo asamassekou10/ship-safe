@@ -1,7 +1,8 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { track } from '@vercel/analytics/react';
 import { useToast } from '@/app/app/Toast';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
@@ -22,7 +23,11 @@ interface Finding {
   fix?: string;
   cwe?: string;
   owasp?: string;
+  findingKey?: string;
+  workflowStatus?: FindingStatus;
 }
+
+type FindingStatus = 'open' | 'acknowledged' | 'fixed' | 'false_positive';
 
 interface DepVuln {
   severity: string;
@@ -97,6 +102,32 @@ const SEV_COLORS: Record<string, string> = {
   medium: '#d97706',
   low: '#16a34a',
 };
+
+function getFailureGuidance(error: string) {
+  const normalized = error.toLowerCase();
+  if (/not found|repository.*does not exist/.test(normalized)) {
+    return {
+      title: 'Repository could not be reached',
+      description: 'Confirm the owner/repository name. For a private repository, reconnect GitHub so Ship Safe can read it.',
+    };
+  }
+  if (/auth|permission|access|private|401|403/.test(normalized)) {
+    return {
+      title: 'Repository access needs attention',
+      description: 'Reconnect GitHub or confirm that your account can read this repository, then try the scan again.',
+    };
+  }
+  if (/timeout|timed out|network|fetch|connect|dns/.test(normalized)) {
+    return {
+      title: 'The scan lost its connection',
+      description: 'This is usually temporary. Try the scan again; if it repeats, run locally and share the diagnostic output.',
+    };
+  }
+  return {
+    title: 'The scanner stopped before finishing',
+    description: 'Try the scan again with the same settings. If it repeats, run Ship Safe locally to get a more detailed diagnostic.',
+  };
+}
 
 function CatIcon({ k }: { k: string }) {
   const p = 'currentColor';
@@ -392,6 +423,9 @@ export default function ScanDetail() {
   const [rescanning, setRescanning] = useState(false);
   const [scoreTrend, setScoreTrend] = useState<{ score: number; date: string }[]>([]);
   const [badgeCopied, setBadgeCopied] = useState(false);
+  const [issueFinding, setIssueFinding] = useState<Finding | null>(null);
+  const [issueCreating, setIssueCreating] = useState(false);
+  const trackedTerminalView = useRef(false);
   const { toast } = useToast();
 
   // Investigate modal
@@ -452,6 +486,7 @@ export default function ScanDetail() {
         return;
       }
       toast('New scan started', 'success');
+      track('Scan Retried', { previousStatus: scan.status });
       router.push(`/app/scans/${data.id}`);
     } catch {
       toast('Network error. Please try again.', 'error');
@@ -467,6 +502,14 @@ export default function ScanDetail() {
         const data = await res.json();
         setScan(data);
         if (data.status === 'done' || data.status === 'failed') {
+          if (!trackedTerminalView.current) {
+            trackedTerminalView.current = true;
+            track('Scan Result Viewed', {
+              status: data.status,
+              findings: data.findings ?? 0,
+              hasScore: data.score !== null,
+            });
+          }
           clearInterval(interval);
           if (data.status === 'done' && data.repo) {
             fetch(`/api/scans?repo=${encodeURIComponent(data.repo)}&limit=10`)
@@ -513,6 +556,8 @@ export default function ScanDetail() {
   );
 
   const report = scan.report;
+  const scanError = report && typeof report === 'object' && 'error' in report ? String(report.error) : '';
+  const failureGuidance = getFailureGuidance(scanError);
   const findings = report?.findings ?? [];
   const depVulns = report?.depVulns ?? [];
   const remediation = report?.remediationPlan ?? [];
@@ -540,6 +585,72 @@ export default function ScanDetail() {
     navigator.clipboard.writeText(badgeMarkdown);
     setBadgeCopied(true);
     setTimeout(() => setBadgeCopied(false), 2000);
+  }
+
+  async function updateFindingStatus(finding: Finding, status: FindingStatus) {
+    if (!finding.findingKey || !scan) return;
+    const previousStatus = finding.workflowStatus ?? 'open';
+    setScan(current => current?.report ? {
+      ...current,
+      report: {
+        ...current.report,
+        findings: current.report.findings?.map(item => item.findingKey === finding.findingKey
+          ? { ...item, workflowStatus: status }
+          : item),
+      },
+    } : current);
+
+    const response = await fetch('/api/findings/scan-state', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scanId: scan.id, findingKey: finding.findingKey, status }),
+    });
+    if (!response.ok) {
+      setScan(current => current?.report ? {
+        ...current,
+        report: {
+          ...current.report,
+          findings: current.report.findings?.map(item => item.findingKey === finding.findingKey
+            ? { ...item, workflowStatus: previousStatus }
+            : item),
+        },
+      } : current);
+      const data = await response.json().catch(() => ({}));
+      toast(data.error || 'Could not update finding status', 'error');
+      return;
+    }
+    toast(`Finding marked ${status.replace('_', ' ')}`, 'success');
+  }
+
+  async function copyFindingFix(finding: Finding) {
+    if (!finding.fix) return;
+    await navigator.clipboard.writeText(finding.fix);
+    toast('Recommended fix copied', 'success');
+  }
+
+  async function createGitHubIssue() {
+    if (!issueFinding?.findingKey || !scan) return;
+    setIssueCreating(true);
+    try {
+      const response = await fetch('/api/findings/scan-github-issue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scanId: scan.id, findingKey: issueFinding.findingKey }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        toast(data.error || 'Could not create GitHub issue', 'error');
+        if (data.setupUrl) router.push(data.setupUrl);
+        return;
+      }
+      toast(`GitHub issue #${data.number} created`, 'success');
+      setIssueFinding(null);
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch {
+      toast('Network error. Please try again.', 'error');
+    } finally {
+      setIssueCreating(false);
+    }
   }
 
   return (
@@ -622,8 +733,21 @@ export default function ScanDetail() {
       {/* Failed */}
       {scan.status === 'failed' && (
         <div className={s.failedBanner}>
-          <strong>Scan failed.</strong>
-          {report && typeof report === 'object' && 'error' in report && <p>{String(report.error)}</p>}
+          <div className={s.failedSummary}>
+            <div>
+              <strong>{failureGuidance.title}</strong>
+              <p>{failureGuidance.description}</p>
+            </div>
+            <button className="btn btn-primary" onClick={handleRescan} disabled={rescanning}>
+              {rescanning ? 'Starting…' : 'Try scan again'}
+            </button>
+          </div>
+          {scanError && (
+            <details className={s.failureDetails}>
+              <summary>Technical details</summary>
+              <pre>{scanError}</pre>
+            </details>
+          )}
         </div>
       )}
 
@@ -828,7 +952,7 @@ export default function ScanDetail() {
                 <div className={s.findingsList}>
                   {filtered.map((f, i) => (
                     <div
-                      key={i}
+                      key={f.findingKey ?? `${f.file}:${f.line}:${f.rule}:${i}`}
                       className={`${s.findingCard} ${s[`sev_${f.severity}`]}`}
                       onClick={() => toggleFinding(i)}
                     >
@@ -854,6 +978,32 @@ export default function ScanDetail() {
                             {f.cwe && <span className={s.findingTag}>CWE-{f.cwe}</span>}
                             {f.owasp && <span className={s.findingTag}>{f.owasp}</span>}
                             <span className={s.findingTag}>{categories?.[f.category]?.label ?? f.category}</span>
+                          </div>
+                          <div className={s.findingWorkflow} onClick={event => event.stopPropagation()}>
+                            <label className={s.workflowStatus}>
+                              <span>Status</span>
+                              <select
+                                value={f.workflowStatus ?? 'open'}
+                                onChange={event => updateFindingStatus(f, event.target.value as FindingStatus)}
+                              >
+                                <option value="open">Open</option>
+                                <option value="acknowledged">Acknowledged</option>
+                                <option value="fixed">Fixed</option>
+                                <option value="false_positive">False positive</option>
+                              </select>
+                            </label>
+                            <div className={s.workflowActions}>
+                              {f.fix && (
+                                <button type="button" onClick={() => copyFindingFix(f)}>
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                                  Copy fix
+                                </button>
+                              )}
+                              <button type="button" onClick={() => setIssueFinding(f)}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+                                Create issue
+                              </button>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -1030,6 +1180,36 @@ export default function ScanDetail() {
                   disabled={investigating || !selectedAgentId}
                 >
                   {investigating ? 'Starting…' : 'Start Investigation →'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {issueFinding && (
+        <div className={s.investigateOverlay} onClick={() => !issueCreating && setIssueFinding(null)}>
+          <div className={s.investigateModal} onClick={event => event.stopPropagation()}>
+            <div className={s.investigateHeader}>
+              <span className={s.investigateTitle}>Create GitHub issue</span>
+              <button className={s.investigateClose} onClick={() => setIssueFinding(null)} disabled={issueCreating}>×</button>
+            </div>
+            <div className={s.investigateBody}>
+              <p className={s.investigateDesc}>
+                Ship Safe will create an issue in <strong>{scan.repo}</strong> with the evidence, location, rule, and recommended fix.
+              </p>
+              <div className={s.issuePreview}>
+                <span className={`${s.severityBadge} ${s[`severity_${issueFinding.severity}`]}`}>{issueFinding.severity}</span>
+                <strong>{issueFinding.title}</strong>
+                {issueFinding.file && <code>{issueFinding.file}{issueFinding.line ? `:${issueFinding.line}` : ''}</code>}
+              </div>
+              <p className={s.issueNote}>
+                Requires a GitHub token in <Link href="/app/settings#integrations">Settings</Link>. Nothing is created until you confirm.
+              </p>
+              <div className={s.investigateActions}>
+                <button className={`btn btn-ghost ${s.actionBtn}`} onClick={() => setIssueFinding(null)} disabled={issueCreating}>Cancel</button>
+                <button className={`btn btn-primary ${s.actionBtn}`} onClick={createGitHubIssue} disabled={issueCreating}>
+                  {issueCreating ? 'Creating…' : 'Create GitHub issue'}
                 </button>
               </div>
             </div>

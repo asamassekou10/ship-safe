@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { track } from '@vercel/analytics/react';
 import styles from './checkout.module.css';
 
 export default function CheckoutButton({ plan }: { plan: 'pro' | 'team' }) {
@@ -10,6 +11,7 @@ export default function CheckoutButton({ plan }: { plan: 'pro' | 'team' }) {
   async function handleCheckout() {
     setLoading(true);
     setError(null);
+    track('Checkout Started', { plan, source: 'checkout_page' });
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST',
@@ -18,12 +20,15 @@ export default function CheckoutButton({ plan }: { plan: 'pro' | 'team' }) {
       });
       const data = await res.json();
       if (data.url) {
+        track('Checkout Session Created', { plan, source: 'checkout_page' });
         window.location.href = data.url;
       } else {
+        track('Checkout Failed', { plan, source: 'checkout_page' });
         setError('Could not create checkout session. Please try again.');
         setLoading(false);
       }
     } catch {
+      track('Checkout Failed', { plan, source: 'checkout_page' });
       setError('Something went wrong. Please try again.');
       setLoading(false);
     }

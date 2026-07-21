@@ -147,6 +147,19 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.oauthBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+  transform: none;
+}
+
+.configNotice {
+  margin: 0.9rem 0 0;
+  color: rgba(248, 113, 113, 0.82);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
 .terms {
   margin: 1.1rem auto 0;
   max-width: 330px;

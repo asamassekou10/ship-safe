@@ -1,8 +1,8 @@
 'use client';
 import Link from 'next/link';
-import { signIn } from 'next-auth/react';
+import { getProviders, signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import styles from './auth.module.css';
 
 function Spinner() {
@@ -19,6 +19,16 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/app';
   const [loading, setLoading] = useState<'github' | 'google' | null>(null);
+  const [available, setAvailable] = useState<{ github: boolean; google: boolean } | null>(null);
+
+  useEffect(() => {
+    getProviders()
+      .then(providers => setAvailable({
+        github: Boolean(providers?.github),
+        google: Boolean(providers?.google),
+      }))
+      .catch(() => setAvailable({ github: false, google: false }));
+  }, []);
 
   function handleSignIn(provider: 'github' | 'google') {
     setLoading(provider);
@@ -46,7 +56,7 @@ function LoginForm() {
           <button
             className={styles.oauthBtn}
             onClick={() => handleSignIn('github')}
-            disabled={loading !== null}
+            disabled={loading !== null || !available?.github}
           >
             {loading === 'github' ? <Spinner /> : (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -58,7 +68,7 @@ function LoginForm() {
           <button
             className={styles.oauthBtn}
             onClick={() => handleSignIn('google')}
-            disabled={loading !== null}
+            disabled={loading !== null || !available?.google}
           >
             {loading === 'google' ? <Spinner /> : (
               <svg width="18" height="18" viewBox="0 0 24 24">
@@ -71,6 +81,10 @@ function LoginForm() {
             {loading === 'google' ? 'Signing in...' : 'Google'}
           </button>
         </div>
+
+        {available && !available.github && !available.google && (
+          <p className={styles.configNotice}>OAuth is not configured for this environment.</p>
+        )}
 
         <div className={styles.footerLine}>
           <span>Don&apos;t have an account?</span>

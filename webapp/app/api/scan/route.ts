@@ -39,7 +39,8 @@ export async function POST(req: NextRequest) {
   // Merge per-scan aiOptions with the user's saved llmSettings (body takes precedence)
   const savedUser = await prisma.user.findUnique({ where: { id: userId }, select: { llmSettings: true } });
   const saved = readLLMSettings(savedUser?.llmSettings);
-  const effectiveProvider = ((aiOptions.provider || saved.provider) as string) || '';
+  const requestedProvider = ((aiOptions.provider || saved.provider) as string) || '';
+  const effectiveProvider = requestedProvider === 'auto' ? '' : requestedProvider;
   const effectiveThink    = !!(aiOptions.think ?? saved.think);
 
   if (!repo) {
@@ -114,14 +115,15 @@ async function runAuditCapture(
   (process as any).exit = () => {};
 
   try {
+    const noAi = options.noAi ?? options.deep === false;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (auditCommand as (path: string, opts: Record<string, unknown>) => Promise<void>)(scanDir, {
       json: true,
       deep: options.deep ?? true,
       deps: options.deps !== false,
-      noAi: options.noAi ?? false,
+      noAi,
       cache: false,
-      ...(aiOpts.provider ? { provider: aiOpts.provider } : {}),
+      ...(!noAi && aiOpts.provider ? { provider: aiOpts.provider } : {}),
       think: aiOpts.think ?? false,
     });
   } finally {

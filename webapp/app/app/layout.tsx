@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import styles from './app.layout.module.css';
 import type { Metadata } from 'next';
 import SignOutButton from './SignOutButton';
@@ -16,7 +17,17 @@ export const metadata: Metadata = {
 };
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const requestHeaders = await headers();
+  const pathname = requestHeaders.get('x-ship-safe-pathname');
   const session = await auth();
+  if (!session?.user && pathname === '/app/guide') {
+    return (
+      <main className={styles.publicMain}>
+        {children}
+      </main>
+    );
+  }
+
   if (!session?.user) redirect('/login');
 
   const user = await prisma.user.findUnique({
