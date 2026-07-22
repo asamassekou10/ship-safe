@@ -851,6 +851,55 @@
   line-height: 1.65;
 }
 
+.contributorSection {
+  padding: 5.5rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.contributorInner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2rem;
+  align-items: center;
+  width: min(1000px, calc(100% - 3rem));
+  margin: 0 auto;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-card) 82%, transparent);
+}
+
+.contributorCopy {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.contributorCopy h2 {
+  max-width: 18ch;
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(1.7rem, 3vw, 2.55rem);
+  font-weight: 620;
+  letter-spacing: 0;
+  line-height: 1.06;
+}
+
+.contributorCopy p {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.62;
+}
+
+.contributorActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.7rem;
+  min-width: min(100%, 300px);
+}
+
 .finalCta {
   position: relative;
   padding: 7rem 0 8rem;
@@ -943,7 +992,8 @@
   .storyReverse,
   .hermesInner,
   .redTeamInner,
-  .faqInner {
+  .faqInner,
+  .contributorInner {
     grid-template-columns: 1fr;
   }
 
@@ -985,6 +1035,14 @@
 
   .faqHead h2 {
     max-width: none;
+  }
+
+  .contributorInner {
+    width: min(100% - 2rem, 1000px);
+  }
+
+  .contributorActions {
+    justify-content: flex-start;
   }
 }
 
@@ -1061,6 +1119,14 @@
   }
 
   .faqInner {
+    width: min(100% - 1.5rem, 1000px);
+  }
+
+  .contributorSection {
+    padding: 4.5rem 0;
+  }
+
+  .contributorInner {
     width: min(100% - 1.5rem, 1000px);
   }
 

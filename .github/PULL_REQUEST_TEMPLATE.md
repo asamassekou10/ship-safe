@@ -6,6 +6,8 @@ Brief description of the changes.
 
 - [ ] Bug fix
 - [ ] New feature
+- [ ] New security agent
+- [ ] New security rule
 - [ ] New secret detection pattern
 - [ ] New security config/checklist
 - [ ] Documentation update
@@ -14,10 +16,12 @@ Brief description of the changes.
 ## Checklist
 
 - [ ] I've tested my changes locally
-- [ ] I've added comments explaining *why* (not just *what*)
+- [ ] I've added or updated tests when behavior changed
+- [ ] I've explained security impact and remediation in finding copy/docs
 - [ ] I've updated documentation if needed
 - [ ] My code follows the project's style
-- [ ] I've checked for false positives (for new patterns)
+- [ ] I've checked for false positives for new detectors
+- [ ] I did not add real secrets, tokens, customer data, or private repo URLs
 
 ## Testing Done
 
@@ -25,7 +29,8 @@ Describe how you tested your changes:
 
 ```bash
 # Commands you ran
-npx ship-safe scan .
+npm test
+node cli/bin/ship-safe.js scan . --no-ai
 ```
 
 ## Related Issues

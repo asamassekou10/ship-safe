@@ -1,14 +1,29 @@
 # Contributing to Ship Safe
 
-First off, thanks for taking the time to contribute! This project exists because of people like you.
+Thanks for helping build Ship Safe. The best contributions make local-first security stronger for developers using AI agents, MCP servers, LLM tool calls, cloud dashboards, and CI.
 
 ## Quick Links
 
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Security Policy](SECURITY.md)
 - [Issue Tracker](https://github.com/asamassekou10/ship-safe/issues)
+- [Good first issues](https://github.com/asamassekou10/ship-safe/contribute)
+- [Add an Agent](docs/adding-an-agent.md)
+- [Add a Security Rule](docs/adding-a-security-rule.md)
 
 ## How Can I Contribute?
+
+### Pick a Contribution Lane
+
+| Lane | Good first contribution | Where to start |
+|------|-------------------------|----------------|
+| Security agents | Add one focused detector or improve an existing one | `cli/agents/`, [docs/adding-an-agent.md](docs/adding-an-agent.md) |
+| MCP and AI rules | Detect unsafe tool permissions, prompt-controlled tools, or risky agent config | `cli/agents/mcp-security-agent.js`, `cli/agents/agentic-security-agent.js` |
+| Fixtures and tests | Add vulnerable examples and regression coverage | `cli/__tests__/` |
+| Docs and examples | Explain setup, CI, red team, Kimi K3, or dashboard workflows | `README.md`, `docs/`, `webapp/app/app/guide/` |
+| Web dashboard | Improve scan history, findings, actions, onboarding, and reports | `webapp/app/`, `webapp/components/` |
+
+If you are new, look for issues labeled `good first issue`, `help wanted`, `docs`, `agent`, `security rule`, `tests`, or `webapp`.
 
 ### Reporting Bugs
 
@@ -33,11 +48,13 @@ Have an idea? Open an issue with:
 
 #### What We're Looking For
 
-- **New secret patterns** - Add detection for more API key formats
-- **Stack-specific configs** - Supabase, Firebase, Vercel, etc.
-- **Security checklists** - Deployment checklists for specific platforms
-- **Snippets** - Copy-paste security code for common patterns
-- **Bug fixes** - Always welcome!
+- **New AI and MCP checks** - Tool-call abuse, prompt-controlled tools, unsafe transports, risky agent memory, agentic supply-chain issues
+- **New secret patterns** - Add detection for more API key formats with low false positives
+- **Stack-specific configs** - Supabase, Firebase, Vercel, Stripe, GitHub Actions, Docker, Kubernetes
+- **Vulnerable fixtures** - Small examples that prove a detector catches a real issue
+- **Dashboard UX improvements** - Better scan triage, actions, onboarding, account setup, and reports
+- **Docs and examples** - Clear workflows for local scanning, CI, red team, and web app usage
+- **Bug fixes** - Always welcome
 
 #### Pull Request Process
 
@@ -46,18 +63,31 @@ Have an idea? Open an issue with:
 3. **Test locally**:
    ```bash
    npm install
-   node cli/bin/ship-safe.js scan .
-   node cli/bin/ship-safe.js checklist --no-interactive
+   npm test
+   node cli/bin/ship-safe.js scan . --no-ai
    ```
 4. **Update documentation** if needed
 5. **Open a PR** with a clear description
 
 #### Code Style
 
-- **Comments are mandatory** - Every security pattern needs a "why it matters" explanation
-- **Keep it simple** - This is for indie hackers who move fast
-- **Educational tone** - Explain, don't just implement
-- **No external services** - Everything should work offline
+- **Explain the risk** - Every security pattern needs a short "why it matters" explanation
+- **Keep checks focused** - Prefer one precise detector over a broad noisy rule
+- **Minimize false positives** - A finding should have clear evidence, not vibes
+- **Respect local-first scanning** - Core checks must work without network calls or API keys
+- **Mask secrets in output** - Never print full credentials in findings, logs, tests, or docs
+- **Use the standard finding shape** - Include file, line, severity, rule, title, description, confidence, and fix guidance when possible
+
+### Pull Request Checklist
+
+Before opening a PR, please confirm:
+
+- [ ] The change is scoped to one problem
+- [ ] `npm test` passes
+- [ ] `node cli/bin/ship-safe.js scan . --no-ai` runs
+- [ ] New detector behavior has a test or fixture when practical
+- [ ] Documentation changed if the user-facing behavior changed
+- [ ] No real secrets, tokens, customer data, or private repo URLs were added
 
 ### Adding Secret Patterns
 
@@ -116,5 +146,6 @@ npm run ship-safe scan .
 Contributors are recognized in:
 - GitHub contributors page
 - Release notes for significant contributions
+- Social posts for major new agents, rules, integrations, or docs
 
-Thank you for helping make the indie web more secure!
+Thank you for helping make AI-assisted development safer.

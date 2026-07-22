@@ -257,6 +257,37 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
 
       <SocialProof />
 
+      <section className={styles.contributorSection} aria-labelledby="contributor-title">
+        <div className={styles.contributorInner} data-animate>
+          <div className={styles.contributorCopy}>
+            <span className={styles.sectionLabel}>// open source builders</span>
+            <h2 id="contributor-title">Help build security for AI-assisted development.</h2>
+            <p>
+              Ship Safe is MIT open source. Add agents, MCP rules, fixtures, docs,
+              CI examples, and dashboard improvements with a focused contributor path.
+            </p>
+          </div>
+          <div className={styles.contributorActions}>
+            <a
+              href="https://github.com/asamassekou10/ship-safe/contribute"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.primaryCta}
+            >
+              Pick a good first issue <span aria-hidden="true">→</span>
+            </a>
+            <a
+              href="https://github.com/asamassekou10/ship-safe/blob/main/CONTRIBUTING.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.secondaryCta}
+            >
+              Read contributor guide
+            </a>
+          </div>
+        </div>
+      </section>
+
       <section className={styles.finalCta} data-animate>
         <div className={styles.finalInner}>
           <span className={styles.sectionLabel}>// ready when you are</span>

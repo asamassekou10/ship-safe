@@ -2,7 +2,7 @@
   <img src=".github/assets/ship-safe-logo-2026.png" alt="Ship Safe Logo" width="180" />
 </p>
 <p align="center"><strong>Find risky code, AI-agent vulnerabilities, and supply-chain issues before they ship.</strong></p>
-<p align="center"><a href="https://shipsafecli.com">Website</a> · <a href="https://shipsafecli.com/docs">Docs</a> · <a href="https://shipsafecli.com/security">Security & Data Flow</a> · <a href="https://shipsafecli.com/benchmarks">Benchmark</a> · <a href="https://shipsafecli.com/pricing">Pricing</a> · <a href="https://shipsafecli.com/blog">Blog</a></p>
+<p align="center"><a href="https://shipsafecli.com">Website</a> · <a href="https://shipsafecli.com/docs">Docs</a> · <a href="https://shipsafecli.com/security">Security & Data Flow</a> · <a href="https://shipsafecli.com/benchmarks">Benchmark</a> · <a href="https://shipsafecli.com/pricing">Pricing</a> · <a href="https://shipsafecli.com/blog">Blog</a> · <a href="https://github.com/asamassekou10/ship-safe/contribute">Contribute</a></p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/ship-safe"><img src="https://badge.fury.io/js/ship-safe.svg" alt="npm version" /></a>
@@ -240,8 +240,22 @@ docs/
 
 ## Contributing
 
-1. Fork · add your pattern, agent, or config · open a PR
-2. See [CONTRIBUTING.md](./CONTRIBUTING.md)
+Ship Safe is open source, and the best contributions are small, focused improvements that make AI-assisted development safer.
+
+Good first areas:
+
+- Add a focused security agent for an AI, MCP, CI, cloud, or supply-chain risk
+- Add a precise security rule to an existing agent
+- Add vulnerable fixtures and regression tests
+- Improve web app onboarding, scan triage, reports, or dashboard visualizations
+- Write examples for local scans, CI gates, red-team workflows, and team setup
+
+Start here:
+
+- [Good first issues](https://github.com/asamassekou10/ship-safe/contribute)
+- [Contributor guide](./CONTRIBUTING.md)
+- [Add an agent](./docs/adding-an-agent.md)
+- [Add a security rule](./docs/adding-a-security-rule.md)
 
 ---
 
