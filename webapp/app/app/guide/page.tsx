@@ -152,7 +152,7 @@ export default function GuidePage() {
             ))}
           </ol>
           <figure className={styles.mediaFrame}>
-            <video controls muted playsInline preload="metadata" poster="/guide/account-setup.jpg">
+            <video controls autoPlay loop muted playsInline preload="auto" poster="/guide/account-setup.jpg">
               <source src="/guide/account-setup-walkthrough.mp4" type="video/mp4" />
             </video>
             <figcaption>Profile, AI model, GitHub integration, and notification setup without exposing secret values.</figcaption>
@@ -195,7 +195,7 @@ export default function GuidePage() {
           <Link href="/app/scan">Create a scan <span aria-hidden="true">→</span></Link>
         </div>
         <figure className={styles.mediaFrame}>
-          <video controls muted playsInline preload="metadata" poster="/guide/scan-wide-00-repository.jpg">
+          <video controls autoPlay loop muted playsInline preload="auto" poster="/guide/scan-wide-00-repository.jpg">
             <source src="/guide/real-repository-scan.mp4" type="video/mp4" />
             Your browser does not support the Ship Safe repository scan walkthrough.
           </video>
@@ -210,7 +210,7 @@ export default function GuidePage() {
           <p>Filter first, inspect the evidence, apply the smallest safe change, and rescan before closing the finding.</p>
         </div>
         <figure className={styles.wideMedia}>
-          <video controls muted playsInline preload="metadata" poster="/guide/findings-inbox.jpg">
+          <video controls autoPlay loop muted playsInline preload="auto" poster="/guide/findings-inbox.jpg">
             <source src="/guide/security-workflow-walkthrough.mp4" type="video/mp4" />
           </video>
         </figure>
@@ -232,7 +232,7 @@ export default function GuidePage() {
         </div>
         <div className={styles.actionLayout}>
           <figure className={styles.mediaFrame}>
-            <video controls muted playsInline preload="metadata" poster="/guide/finding-actions.jpg">
+            <video controls autoPlay loop muted playsInline preload="auto" poster="/guide/finding-actions.jpg">
               <source src="/guide/finding-actions-walkthrough.mp4" type="video/mp4" />
             </video>
             <figcaption>Expand a finding, preserve its triage state, and preview a GitHub issue before creating it.</figcaption>
@@ -257,7 +257,7 @@ export default function GuidePage() {
           <p>Repository monitoring watches the default branch. PR Guardian adds a security decision before risky code merges.</p>
         </div>
         <figure className={styles.wideMedia}>
-          <video controls muted playsInline preload="metadata" poster="/guide/repository-monitoring.jpg">
+          <video controls autoPlay loop muted playsInline preload="auto" poster="/guide/repository-monitoring.jpg">
             <source src="/guide/continuous-protection-walkthrough.mp4" type="video/mp4" />
           </video>
           <figcaption>Move from a recurring repository schedule to controlled PR Guardian automation.</figcaption>
@@ -276,7 +276,7 @@ export default function GuidePage() {
         </div>
         <div className={styles.videoGrid}>
           <article>
-            <video controls muted playsInline preload="metadata" poster="/app intelligence.png">
+            <video controls autoPlay loop muted playsInline preload="auto" poster="/app intelligence.png">
               <source src="/demo-app-intelligence-web.mp4" type="video/mp4" />
             </video>
             <div>
@@ -287,7 +287,7 @@ export default function GuidePage() {
             </div>
           </article>
           <article>
-            <video controls muted playsInline preload="metadata" poster="/Agent Team.png">
+            <video controls autoPlay loop muted playsInline preload="auto" poster="/Agent Team.png">
               <source src="/demo-hermes-agents-web.mp4" type="video/mp4" />
             </video>
             <div>

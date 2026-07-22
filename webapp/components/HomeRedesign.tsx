@@ -269,6 +269,7 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
           <div className={styles.heroActions}>
             <Link href="/signup" className={styles.primaryCta}>Start free scan <span aria-hidden="true">→</span></Link>
             <Link href="/pricing" className={styles.secondaryCta}>View pricing</Link>
+            <Link href="/app/guide" className={styles.secondaryCta}>Read the guide</Link>
           </div>
           <nav className={styles.socialLinks} aria-label="Ship Safe social profiles">
             <a href="https://www.linkedin.com/company/ship-safe" target="_blank" rel="noopener noreferrer">

@@ -52,6 +52,7 @@ export default function Nav() {
           <a href="/#features">Features</a>
           <Link href="/pricing">Pricing</Link>
           <Link href="/docs">Docs</Link>
+          <Link href="/app/guide">Guide</Link>
           <Link href="/blog">Blog</Link>
           <Link href="/signup" className={styles.navCta}>Get started</Link>
           <button
@@ -111,6 +112,7 @@ export default function Nav() {
         <a href="/#features" onClick={close}>Features</a>
         <Link href="/pricing" onClick={close}>Pricing</Link>
         <Link href="/docs" onClick={close}>Docs</Link>
+        <Link href="/app/guide" onClick={close}>Guide</Link>
         <Link href="/blog" onClick={close}>Blog</Link>
         <div className={styles.mobileDivider} />
         <Link href="/login" onClick={close} className={styles.mobileLink}>Log in</Link>
