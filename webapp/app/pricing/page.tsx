@@ -1,10 +1,10 @@
 import Nav from '@/components/Nav';
-import Link from 'next/link';
 import { pricingFaq } from '@/data/plans';
 import AnimatedCheck from '@/components/AnimatedCheck';
 import MagneticButton from '@/components/MagneticButton';
 import CursorGlow from '@/components/CursorGlow';
 import ScrollAnimator from '@/components/ScrollAnimator';
+import TrackedLink from '@/components/TrackedLink';
 import styles from './pricing.module.css';
 import type { Metadata } from 'next';
 
@@ -138,11 +138,11 @@ export default function Pricing() {
             </p>
             <div className={styles.heroActions}>
               <MagneticButton>
-                <Link href="/signup" className={styles.primaryCta}>
+                <TrackedLink href="/signup" event="Pricing CTA Clicked" payload={{ item: 'start_free_scan', section: 'hero' }} className={styles.primaryCta}>
                   Start free scan <span aria-hidden="true">→</span>
-                </Link>
+                </TrackedLink>
               </MagneticButton>
-              <Link href="#plans" className={styles.secondaryCta}>Compare plans</Link>
+              <TrackedLink href="#plans" event="Pricing CTA Clicked" payload={{ item: 'compare_plans', section: 'hero' }} className={styles.secondaryCta}>Compare plans</TrackedLink>
             </div>
           </div>
         </section>
@@ -173,14 +173,14 @@ export default function Pricing() {
                 <div className={styles.planCtaSlot}>
                   {plan.featured ? (
                     <MagneticButton className={styles.ctaMagnet}>
-                      <Link href={plan.ctaHref} className={styles.primaryCta}>
+                      <TrackedLink href={plan.ctaHref} event="Pricing Plan CTA Clicked" payload={{ plan: plan.name, featured: plan.featured }} className={styles.primaryCta}>
                         {plan.cta} <span aria-hidden="true">→</span>
-                      </Link>
+                      </TrackedLink>
                     </MagneticButton>
                   ) : (
-                    <Link href={plan.ctaHref} className={styles.secondaryCta}>
+                    <TrackedLink href={plan.ctaHref} event="Pricing Plan CTA Clicked" payload={{ plan: plan.name, featured: plan.featured }} className={styles.secondaryCta}>
                       {plan.cta}
-                    </Link>
+                    </TrackedLink>
                   )}
                 </div>
 
@@ -203,7 +203,7 @@ export default function Pricing() {
               <strong>Need SSO, on-prem, or custom policies?</strong>
               <span>Enterprise includes Team plus SAML, SLA, deployment support, and volume pricing.</span>
             </div>
-            <a href="mailto:hello@shipsafecli.com" className={styles.secondaryCta}>Contact us</a>
+            <TrackedLink href="mailto:hello@shipsafecli.com" event="Pricing CTA Clicked" payload={{ item: 'contact_enterprise', section: 'enterprise' }} className={styles.secondaryCta}>Contact us</TrackedLink>
           </div>
         </section>
 
@@ -245,11 +245,11 @@ export default function Pricing() {
             </div>
             <div className={styles.actions}>
               <MagneticButton>
-                <Link href="/signup" className={styles.primaryCta}>
+                <TrackedLink href="/signup" event="Pricing CTA Clicked" payload={{ item: 'start_free', section: 'final' }} className={styles.primaryCta}>
                   Start free <span aria-hidden="true">→</span>
-                </Link>
+                </TrackedLink>
               </MagneticButton>
-              <Link href="#plans" className={styles.secondaryCta}>Compare plans</Link>
+              <TrackedLink href="#plans" event="Pricing CTA Clicked" payload={{ item: 'compare_plans', section: 'final' }} className={styles.secondaryCta}>Compare plans</TrackedLink>
             </div>
           </div>
         </section>

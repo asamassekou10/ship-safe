@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import NumberFlow from '@number-flow/react';
 import { MeshGradient } from '@paper-design/shaders-react';
+import { track } from '@vercel/analytics/react';
 import MagneticButton from './MagneticButton';
 import { formatNumber } from '@/lib/stats';
 import styles from './Hero.module.css';
@@ -222,11 +223,21 @@ export default function Hero({ stars, downloads }: Props) {
             transition={{ duration: 0.5, delay: 0.7 }}
           >
             <MagneticButton>
-              <Link href="/signup" className={styles.primaryCta}>
+              <Link
+                href="/signup"
+                className={styles.primaryCta}
+                onClick={() => track('Homepage CTA Clicked', { item: 'start_free_scan', section: 'hero' })}
+              >
                 Start free scan <span aria-hidden="true">→</span>
               </Link>
             </MagneticButton>
-            <Link href="#get-started" className={styles.secondaryCta}>Run locally</Link>
+            <Link
+              href="#get-started"
+              className={styles.secondaryCta}
+              onClick={() => track('Homepage CTA Clicked', { item: 'run_locally', section: 'hero' })}
+            >
+              Run locally
+            </Link>
           </motion.div>
 
           <motion.div

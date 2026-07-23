@@ -230,8 +230,11 @@
   margin-bottom: 1rem;
 }
 
-.ctaCode {
-  display: inline-block;
+.ctaCode,
+.ctaCodeButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.9rem;
   background: var(--code-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -241,6 +244,20 @@
   margin-bottom: 1rem;
 }
 
+.ctaCodeButton {
+  color: var(--text);
+  cursor: pointer;
+}
+
+.ctaCodeButton span {
+  color: var(--accent);
+  font-family: var(--font-inter);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 .cta p {
   color: var(--text-muted);
   margin-bottom: 1.5rem;
@@ -248,6 +265,7 @@
 
 .ctaLinks {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   justify-content: center;
 }

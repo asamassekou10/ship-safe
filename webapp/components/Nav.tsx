@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
+import { track } from '@vercel/analytics/react';
 import styles from './Nav.module.css';
 
 export default function Nav() {
@@ -49,12 +50,12 @@ export default function Nav() {
 
         {/* Desktop links */}
         <div className={styles.navLinks}>
-          <a href="/#features">Features</a>
-          <Link href="/pricing">Pricing</Link>
-          <Link href="/docs">Docs</Link>
-          <Link href="/app/guide">Guide</Link>
-          <Link href="/blog">Blog</Link>
-          <Link href="/signup" className={styles.navCta}>Get started</Link>
+          <a href="/#features" onClick={() => track('Nav CTA Clicked', { item: 'features' })}>Features</a>
+          <Link href="/pricing" onClick={() => track('Nav CTA Clicked', { item: 'pricing' })}>Pricing</Link>
+          <Link href="/docs" onClick={() => track('Nav CTA Clicked', { item: 'docs' })}>Docs</Link>
+          <Link href="/app/guide" onClick={() => track('Nav CTA Clicked', { item: 'guide' })}>Guide</Link>
+          <Link href="/blog" onClick={() => track('Nav CTA Clicked', { item: 'blog' })}>Blog</Link>
+          <Link href="/signup" className={styles.navCta} onClick={() => track('Nav CTA Clicked', { item: 'get_started' })}>Get started</Link>
           <button
             className={styles.themeToggle}
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -87,6 +88,7 @@ export default function Nav() {
             rel="noopener noreferrer"
             className={styles.navGithub}
             aria-label="Ship Safe on GitHub"
+            onClick={() => track('Nav CTA Clicked', { item: 'github' })}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
@@ -109,20 +111,20 @@ export default function Nav() {
 
       {/* Mobile drawer */}
       <div className={`${styles.mobileMenu} ${menuOpen ? styles.mobileMenuOpen : ''}`}>
-        <a href="/#features" onClick={close}>Features</a>
-        <Link href="/pricing" onClick={close}>Pricing</Link>
-        <Link href="/docs" onClick={close}>Docs</Link>
-        <Link href="/app/guide" onClick={close}>Guide</Link>
-        <Link href="/blog" onClick={close}>Blog</Link>
+        <a href="/#features" onClick={() => { track('Nav CTA Clicked', { item: 'features_mobile' }); close(); }}>Features</a>
+        <Link href="/pricing" onClick={() => { track('Nav CTA Clicked', { item: 'pricing_mobile' }); close(); }}>Pricing</Link>
+        <Link href="/docs" onClick={() => { track('Nav CTA Clicked', { item: 'docs_mobile' }); close(); }}>Docs</Link>
+        <Link href="/app/guide" onClick={() => { track('Nav CTA Clicked', { item: 'guide_mobile' }); close(); }}>Guide</Link>
+        <Link href="/blog" onClick={() => { track('Nav CTA Clicked', { item: 'blog_mobile' }); close(); }}>Blog</Link>
         <div className={styles.mobileDivider} />
-        <Link href="/login" onClick={close} className={styles.mobileLink}>Log in</Link>
-        <Link href="/signup" onClick={close} className={styles.mobileCta}>Get started</Link>
+        <Link href="/login" onClick={() => { track('Nav CTA Clicked', { item: 'login_mobile' }); close(); }} className={styles.mobileLink}>Log in</Link>
+        <Link href="/signup" onClick={() => { track('Nav CTA Clicked', { item: 'get_started_mobile' }); close(); }} className={styles.mobileCta}>Get started</Link>
         <a
           href="https://github.com/asamassekou10/ship-safe"
           target="_blank"
           rel="noopener noreferrer"
           className={styles.mobileGithub}
-          onClick={close}
+          onClick={() => { track('Nav CTA Clicked', { item: 'github_mobile' }); close(); }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />

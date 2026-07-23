@@ -4,6 +4,7 @@ import Hero from './Hero';
 import LazyVideo from './LazyVideo';
 import { CommandType, StatusSequence } from './HomepageMotion';
 import SocialProof from './SocialProof';
+import TrackedLink from './TrackedLink';
 import styles from './HomeRedesign.module.css';
 
 type HomeRedesignProps = {
@@ -208,8 +209,8 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
           </div>
           <p>No account required for local scans.</p>
           <div className={styles.heroActions}>
-            <Link href="/docs" className={styles.primaryCta}>Open setup docs <span aria-hidden="true">→</span></Link>
-            <Link href="/signup" className={styles.secondaryCta}>Save scan history</Link>
+            <TrackedLink href="/docs" event="Homepage CTA Clicked" payload={{ item: 'open_setup_docs', section: 'quick_start' }} className={styles.primaryCta}>Open setup docs <span aria-hidden="true">→</span></TrackedLink>
+            <TrackedLink href="/signup" event="Homepage CTA Clicked" payload={{ item: 'save_scan_history', section: 'quick_start' }} className={styles.secondaryCta}>Save scan history</TrackedLink>
           </div>
         </div>
       </section>
@@ -224,15 +225,15 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
           <article className={styles.plan} data-animate data-delay="80">
             <div><span>Free CLI</span><strong>$0</strong></div>
             <p>Unlimited local scans and CI-ready security output.</p>
-            <Link href="/docs" className={styles.secondaryCta}>Run locally</Link>
+            <TrackedLink href="/docs" event="Homepage CTA Clicked" payload={{ item: 'run_locally', section: 'pricing_teaser' }} className={styles.secondaryCta}>Run locally</TrackedLink>
           </article>
           <article className={`${styles.plan} ${styles.planFeatured}`} data-animate data-delay="180">
             <div><span>Pro</span><strong>$9<small>/month</small></strong></div>
             <p>Hosted history, private repos, reports, and PR Guardian.</p>
-            <Link href="/signup" className={styles.primaryCta}>Start Pro <span aria-hidden="true">→</span></Link>
+            <TrackedLink href="/signup" event="Homepage CTA Clicked" payload={{ item: 'start_pro', section: 'pricing_teaser' }} className={styles.primaryCta}>Start Pro <span aria-hidden="true">→</span></TrackedLink>
           </article>
         </div>
-        <Link href="/pricing" className={styles.pricingLink}>Compare every plan and feature <span aria-hidden="true">→</span></Link>
+        <TrackedLink href="/pricing" event="Homepage CTA Clicked" payload={{ item: 'compare_plans', section: 'pricing_teaser' }} className={styles.pricingLink}>Compare every plan and feature <span aria-hidden="true">→</span></TrackedLink>
       </section>
 
       <section className={styles.faqSection}>
@@ -268,22 +269,26 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
             </p>
           </div>
           <div className={styles.contributorActions}>
-            <a
+            <TrackedLink
               href="https://github.com/asamassekou10/ship-safe/contribute"
               target="_blank"
               rel="noopener noreferrer"
+              event="Contributor CTA Clicked"
+              payload={{ item: 'good_first_issue', section: 'homepage' }}
               className={styles.primaryCta}
             >
               Pick a good first issue <span aria-hidden="true">→</span>
-            </a>
-            <a
+            </TrackedLink>
+            <TrackedLink
               href="https://github.com/asamassekou10/ship-safe/blob/main/CONTRIBUTING.md"
               target="_blank"
               rel="noopener noreferrer"
+              event="Contributor CTA Clicked"
+              payload={{ item: 'contributor_guide', section: 'homepage' }}
               className={styles.secondaryCta}
             >
               Read contributor guide
-            </a>
+            </TrackedLink>
           </div>
         </div>
       </section>
@@ -298,20 +303,20 @@ export default function HomeRedesign({ stars, downloads }: HomeRedesignProps) {
             <CommandType command="npx ship-safe scan" delay={240} />
           </div>
           <div className={styles.heroActions}>
-            <Link href="/signup" className={styles.primaryCta}>Start free scan <span aria-hidden="true">→</span></Link>
-            <Link href="/pricing" className={styles.secondaryCta}>View pricing</Link>
-            <Link href="/app/guide" className={styles.secondaryCta}>Read the guide</Link>
+            <TrackedLink href="/signup" event="Homepage CTA Clicked" payload={{ item: 'start_free_scan', section: 'final' }} className={styles.primaryCta}>Start free scan <span aria-hidden="true">→</span></TrackedLink>
+            <TrackedLink href="/pricing" event="Homepage CTA Clicked" payload={{ item: 'view_pricing', section: 'final' }} className={styles.secondaryCta}>View pricing</TrackedLink>
+            <TrackedLink href="/app/guide" event="Homepage CTA Clicked" payload={{ item: 'read_guide', section: 'final' }} className={styles.secondaryCta}>Read the guide</TrackedLink>
           </div>
           <nav className={styles.socialLinks} aria-label="Ship Safe social profiles">
-            <a href="https://www.linkedin.com/company/ship-safe" target="_blank" rel="noopener noreferrer">
+            <TrackedLink href="https://www.linkedin.com/company/ship-safe" target="_blank" rel="noopener noreferrer" event="Social CTA Clicked" payload={{ item: 'linkedin', section: 'final' }}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.2 3.5A2.2 2.2 0 1 1 5.2 8a2.2 2.2 0 0 1 0-4.5ZM3.3 9.6h3.8V21H3.3V9.6Zm6.2 0h3.6v1.6h.1c.5-.9 1.7-2 3.6-2 3.9 0 4.6 2.5 4.6 5.9V21h-3.8v-5.2c0-1.3 0-2.9-1.8-2.9s-2.1 1.4-2.1 2.8V21H9.5V9.6Z" /></svg>
               LinkedIn
-            </a>
+            </TrackedLink>
             <span aria-hidden="true" />
-            <a href="https://x.com/shipsafeAI" target="_blank" rel="noopener noreferrer">
+            <TrackedLink href="https://x.com/shipsafeAI" target="_blank" rel="noopener noreferrer" event="Social CTA Clicked" payload={{ item: 'x', section: 'final' }}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.9 3H22l-6.8 7.8L23.2 21H17l-4.9-6.4L6.5 21H3.4l7.2-8.2L2.8 3h6.4l4.4 5.8L18.9 3Zm-1.1 16h1.7L8.3 4.9H6.5L17.8 19Z" /></svg>
               X
-            </a>
+            </TrackedLink>
           </nav>
         </div>
       </section>

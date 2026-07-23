@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { posts, getPostBySlug, getAllSlugs } from '@/data/blog';
 import styles from './post.module.css';
 import ShareButtons from './ShareButtons';
+import BlogFooterCta from './BlogFooterCta';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
@@ -345,15 +346,7 @@ export default async function BlogPost({ params }: Props) {
               </div>
             )}
 
-            <div className={styles.cta}>
-              <h3>Scan your project now</h3>
-              <pre className={styles.ctaCode}><code>npx ship-safe audit .</code></pre>
-              <p>29 agents. 80+ attack classes. Free and open source.</p>
-              <div className={styles.ctaLinks}>
-                <a href="https://github.com/asamassekou10/ship-safe" className="btn btn-primary">View on GitHub</a>
-                <Link href="/pricing" className="btn btn-ghost">See pricing</Link>
-              </div>
-            </div>
+            <BlogFooterCta slug={slug} />
 
             {morePosts.length > 0 && (
               <div className={styles.morePosts}>

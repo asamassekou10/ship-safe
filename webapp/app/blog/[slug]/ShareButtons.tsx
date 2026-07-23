@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { track } from '@vercel/analytics/react';
 import styles from './share.module.css';
 
 export default function ShareButtons({ title, url }: { title: string; url: string }) {
@@ -8,6 +9,7 @@ export default function ShareButtons({ title, url }: { title: string; url: strin
   function copyLink() {
     navigator.clipboard.writeText(url);
     setCopied(true);
+    track('Blog Link Copied', { url });
     setTimeout(() => setCopied(false), 2000);
   }
 
@@ -23,6 +25,7 @@ export default function ShareButtons({ title, url }: { title: string; url: strin
           target="_blank"
           rel="noopener noreferrer"
           className={styles.btn}
+          onClick={() => track('Blog Shared', { channel: 'x', url })}
         >
           {/* X (Twitter) */}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -36,6 +39,7 @@ export default function ShareButtons({ title, url }: { title: string; url: strin
           target="_blank"
           rel="noopener noreferrer"
           className={styles.btn}
+          onClick={() => track('Blog Shared', { channel: 'linkedin', url })}
         >
           {/* LinkedIn */}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -49,6 +53,7 @@ export default function ShareButtons({ title, url }: { title: string; url: strin
           target="_blank"
           rel="noopener noreferrer"
           className={styles.btn}
+          onClick={() => track('Blog Shared', { channel: 'hacker_news', url })}
         >
           {/* Hacker News */}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
