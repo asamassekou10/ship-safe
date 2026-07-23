@@ -87,7 +87,7 @@ export default function PrivacyPage() {
           <section className={styles.section}>
             <h2>Contact</h2>
             <p>
-              Privacy questions can be sent to <span className={styles.contact}>support@shipsafecli.com</span>.
+              Privacy questions can be sent to <span className={styles.contact}>hello@shipsafecli.com</span>.
             </p>
           </section>
         </article>

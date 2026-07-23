@@ -75,7 +75,7 @@ export default function TermsPage() {
           <section className={styles.section}>
             <h2>Contact</h2>
             <p>
-              Questions about these terms can be sent to <span className={styles.contact}>support@shipsafecli.com</span>.
+              Questions about these terms can be sent to <span className={styles.contact}>hello@shipsafecli.com</span>.
             </p>
           </section>
         </article>

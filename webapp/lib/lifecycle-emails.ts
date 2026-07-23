@@ -29,6 +29,7 @@ export interface LifecycleUser {
 
 const USER_SELECT = { id: true, email: true, name: true, plan: true, lifecycleOptOut: true } as const;
 const DAY = 24 * 60 * 60 * 1000;
+const DEFAULT_REPLY_TO = 'hello@shipsafecli.com';
 
 // ── Unsubscribe tokens ───────────────────────────────────────────────────────
 
@@ -71,7 +72,7 @@ async function send(to: string, subject: string, html: string): Promise<boolean>
         to: [to],
         subject,
         html,
-        reply_to: process.env.EMAIL_REPLY_TO || undefined,
+        reply_to: process.env.EMAIL_REPLY_TO || DEFAULT_REPLY_TO,
       }),
     });
     if (!res.ok) console.error('[lifecycle] Resend responded', res.status, await res.text().catch(() => ''));
@@ -109,6 +110,7 @@ ${inner}
       <hr style="border:none;border-top:1px solid ${BORDER};margin:22px 0 14px;" />
       <p style="font-size:12px;line-height:1.6;color:${MUTED};margin:0;">
         Ship Safe &middot; <a href="https://www.shipsafecli.com" style="color:${CYAN};text-decoration:none;">shipsafecli.com</a><br/>
+        Reply to this email if you need help.<br/>
         You're getting this because you signed up for Ship Safe. <a href="${unsubUrl(userId)}" style="color:${MUTED};">Unsubscribe</a>.
       </p>
     </div>

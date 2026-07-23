@@ -20,6 +20,8 @@ interface ScanResult {
 
 /* ── Email (Resend-compatible HTTP API) ───────────────── */
 
+const DEFAULT_REPLY_TO = 'hello@shipsafecli.com';
+
 async function sendEmail(to: string, subject: string, html: string) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return;
@@ -28,10 +30,11 @@ async function sendEmail(to: string, subject: string, html: string) {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: process.env.EMAIL_FROM || 'Ship Safe <noreply@shipsafecli.com>',
+      from: process.env.EMAIL_FROM || 'Ship Safe <hello@shipsafecli.com>',
       to: [to],
       subject,
       html,
+      reply_to: process.env.EMAIL_REPLY_TO || DEFAULT_REPLY_TO,
     }),
   }).catch(console.error);
 }
@@ -230,9 +233,10 @@ export async function notifyGuardianComplete(run: GuardianResult) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: process.env.EMAIL_FROM || 'Ship Safe <noreply@shipsafecli.com>',
+          from: process.env.EMAIL_FROM || 'Ship Safe <hello@shipsafecli.com>',
           to: [user.email],
           subject: `${statusEmoji} PR Guardian: ${run.prTitle || `PR #${run.prNumber}`} — ${run.status}`,
+          reply_to: process.env.EMAIL_REPLY_TO || DEFAULT_REPLY_TO,
           html: `<div style="font-family:system-ui;background:#09090b;color:#fafafa;padding:2rem;border-radius:12px;max-width:560px">
             <h2 style="margin:0 0 1rem;font-size:1.1rem">PR Guardian — ${run.status.charAt(0).toUpperCase() + run.status.slice(1)}</h2>
             <p style="margin:0.5rem 0;font-size:0.9rem"><strong>Repo:</strong> ${run.repo}</p>
