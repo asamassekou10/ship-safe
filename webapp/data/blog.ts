@@ -14,6 +14,106 @@ export interface BlogPost {
 
 const manualPosts: BlogPost[] = [
   {
+    slug: 'open-source-ai-security-contributors',
+    title: 'Help Build Ship Safe: Open-Source Security for AI-Assisted Development',
+    description: 'Ship Safe is looking for contributors to help build local-first AI security: MCP rules, agent red-team fixtures, secret detection, CI gates, dashboard UX, and docs.',
+    date: '2026-07-22T12:00:00-05:00',
+    author: 'Ship Safe Team',
+    tags: ['open source', 'AI security', 'contributors', 'DevSecOps', 'MCP security'],
+    keywords: ['open source AI security', 'AI security contributors', 'MCP security', 'AI agent security', 'DevSecOps open source', 'security scanner contributors', 'Ship Safe contributors', 'good first issue security'],
+    content: `
+AI-assisted development is changing the security surface of modern software.
+
+Developers are no longer shipping only application code. They are shipping agents, MCP servers, prompts, tool calls, generated configs, CI automations, and increasingly complex dependency chains. That means the security layer has to understand more than routes, packages, and secrets. It has to understand the tools developers now build with.
+
+Ship Safe is an open-source scanner built for that world.
+
+The CLI runs locally, finds risky code and AI-agent security issues, and helps developers move from finding to fix without leaving their workflow. It scans application code, secrets, dependencies, CI/CD, MCP configs, agent-readable docs, prompt surfaces, and tool-call patterns. The web app adds scan history, triage, reports, and team workflows for people who need a shared dashboard.
+
+We are making the contributor path clearer because this problem is moving fast, and the best coverage will come from builders who are seeing these risks in real projects.
+
+## What we are looking for
+
+Good first contribution areas include:
+
+- MCP and tool-call security rules
+- AI-agent red-team fixtures
+- secret detection patterns
+- CI/CD security checks
+- dashboard UX improvements
+- docs and onboarding guides
+- custom security agents
+
+The most useful contributions are usually small and focused. A precise detector with a vulnerable fixture and a safe fixture is better than a broad rule that creates noise. A clear CI example is better than a giant guide no one can finish. A dashboard empty state that helps a first-time user take the next step is a real product improvement.
+
+## Why AI security needs open-source contributors
+
+AI coding tools, MCP servers, and agent frameworks are evolving faster than traditional scanner rules. New risks show up in ordinary places:
+
+- a project-local MCP config that starts a command server
+- a tool list loaded from prompt-controlled content
+- an agent instruction file that asks a coding assistant to run a shell command
+- a CI workflow that gives an AI reviewer write permissions
+- a model or package suggested by an assistant but controlled by someone else
+- a secret passed into a tool process that did not need it
+
+These are not abstract model-lab problems. They land in repositories, pull requests, docs, configs, and build pipelines. That is exactly where Ship Safe works.
+
+## Where to start
+
+We opened a first batch of good-first issues for contributors:
+
+- Add MCP env secret passthrough detection
+- Detect unpinned AI GitHub Actions with broad permissions
+- Improve Supabase and Auth0 secret patterns
+- Add agent config injection regression fixtures
+- Add GitLab CI security gate examples
+- Add Kimi K3 tool-call security fixtures
+- Improve dashboard empty states for first-time users
+- Document project-local custom agent plugins
+
+Start here:
+
+[Pick a good first issue](https://github.com/asamassekou10/ship-safe/contribute)
+
+If you want context before contributing, these pages are useful:
+
+- [Ship Safe docs](https://www.shipsafecli.com/docs)
+- [Web app guide](https://www.shipsafecli.com/app/guide)
+- [Security and data flow](https://www.shipsafecli.com/security)
+- [Benchmarks](https://www.shipsafecli.com/benchmarks)
+- [Kimi K3 tool-call security](https://www.shipsafecli.com/blog/kimi-k3-agent-tool-call-security-ship-safe)
+
+## What a good contribution looks like
+
+A strong security rule should include:
+
+- a stable rule id
+- a clear title
+- severity based on likely impact
+- confidence based on signal strength
+- evidence that is useful but does not expose full secrets
+- fix guidance that names the safer configuration or code pattern
+- regression tests for both risky and safe cases
+
+A strong documentation contribution should make one workflow easier: local scanning, CI setup, web app onboarding, PR review, red-team mode, custom agents, or team account setup.
+
+A strong dashboard contribution should help users answer one question faster: what happened, what matters, what should I do next, and how do I prove it is fixed?
+
+## The mission
+
+Ship Safe exists because developers are moving faster with AI, but the security model around AI-assisted development is still catching up.
+
+We want local-first scanning to stay easy. We want teams to understand when code leaves their machine and when it does not. We want AI-agent security to be practical enough to run before a pull request, not only after an incident.
+
+If you want to work on open-source security tooling at the intersection of AI agents, MCP, DevSecOps, and developer workflows, come build with us.
+
+Pick a good first issue:
+
+[https://github.com/asamassekou10/ship-safe/contribute](https://github.com/asamassekou10/ship-safe/contribute)
+`,
+  },
+  {
     slug: 'ship-safe-v9-5-0-securing-the-ai-development-toolchain',
     title: 'The Attack Surface Moved Into Your AI Toolchain. We Shipped Five Agents For It.',
     description: 'Through the first half of 2026, the highest-velocity attacks stopped targeting production apps and started targeting the developer AI toolchain — coding agents, package registries, model hubs, and MCP servers. Ship Safe v9.5.0 adds coverage for five of them.',
