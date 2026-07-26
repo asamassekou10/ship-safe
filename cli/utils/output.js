@@ -178,6 +178,7 @@ export function vulnRecommendations() {
   console.log();
   console.log(chalk.white('1.') + ' Fix the flagged code patterns (see "Why" descriptions above)');
   console.log(chalk.white('2.') + ' Use  # ship-safe-ignore  on lines that are safe (e.g. internal tools, controlled input)');
+  console.log(chalk.gray('    Critical findings are always reported — a suppression comment cannot hide one.'));
   console.log(chalk.white('3.') + ' Run  npx ship-safe checklist  for a full launch-day security review');
   console.log();
 }
