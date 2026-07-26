@@ -16,11 +16,28 @@ RUN apt-get update -qq && \
       git curl build-essential && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Hermes agent from GitHub — pinned to HERMES_SHA when provided
+# Install Hermes agent from a pinned source checkout.
+#
+# NOT `pip install git+https://...`: upstream's setup.py raises on any
+# wheel/sdist build outside a Nix sandbox, so that form has been dead since
+# 2026-07-23. Their guard exempts editable installs by design, and the runtime
+# resolves bundled assets (locales, skills, optional-mcps, web_dist, tui_dist,
+# plugin manifests) from the source-checkout layout — so the checkout has to
+# stay on disk rather than being discarded after install.
+#
+# Single-commit fetch rather than a clone: we always build one pinned revision,
+# so there is no reason to carry history. Works for both a full SHA and the
+# `HEAD` default. Git metadata is dropped once the install is done — it is ~82MB
+# and nothing at runtime reads it.
 ARG HERMES_SHA=HEAD
-RUN pip install --no-cache-dir \
-    "git+https://github.com/NousResearch/hermes-agent.git@${HERMES_SHA}" \
-    flask gunicorn
+RUN git init -q /opt/hermes && \
+    cd /opt/hermes && \
+    git remote add origin https://github.com/NousResearch/hermes-agent.git && \
+    git fetch -q --depth 1 origin "${HERMES_SHA}" && \
+    git checkout -q --detach FETCH_HEAD && \
+    pip install --no-cache-dir -e . && \
+    pip install --no-cache-dir flask gunicorn && \
+    rm -rf /opt/hermes/.git
 
 WORKDIR /app
 
