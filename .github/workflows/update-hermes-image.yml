@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '0 3 * * *'   # 03:00 UTC daily
   workflow_dispatch:       # allow manual trigger
+    inputs:
+      dry_run:
+        description: 'Build only — do not push the image or roll out to the VPS'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -78,7 +83,9 @@ jobs:
         with:
           context: ./vps
           file: ./vps/agent.Dockerfile
-          push: true
+          # Dry run builds the image and throws it away: proves the Dockerfile
+          # on a real runner without publishing or touching production.
+          push: ${{ inputs.dry_run != true }}
           build-args: |
             HERMES_SHA=${{ steps.upstream.outputs.sha }}
           tags: |
@@ -105,7 +112,7 @@ jobs:
   rollout:
     needs: check-and-build
     runs-on: ubuntu-latest
-    if: needs.check-and-build.outputs.rebuilt == 'true'
+    if: needs.check-and-build.outputs.rebuilt == 'true' && inputs.dry_run != true
 
     steps:
       - name: Trigger rolling restart
