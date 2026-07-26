@@ -74,5 +74,8 @@
     "@eslint/js": "^10.0.1",
     "eslint": "^10.3.0",
     "globals": "^17.6.0"
+  },
+  "overrides": {
+    "brace-expansion": "^5.0.8"
   }
 }
