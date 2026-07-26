@@ -177,11 +177,11 @@ ${button(dashboard, 'Open the dashboard →')}
 
     case 'reengage':
       return {
-        subject: 'Ship Safe is active again — v9.4.0',
+        subject: 'Ship Safe is active again — v9.5',
         html: shell(
           `<p style="${P}">Hi ${name},</p>
 <p style="${P}">You signed up for Ship Safe a little while back, and it went quiet for a bit. That's on me — and it's changed: we're shipping again.</p>
-<p style="${P}">The latest release (v9.4.0) adds a 24th agent that catches malicious game-engine supply-chain assets and cross-platform "ClickFix" paste-and-run lures, on top of the existing secrets, injection, and AI/LLM coverage.</p>
+<p style="${P}">The latest releases push into AI-toolchain security: <strong>29 agents</strong> now, including GPT-Red (an AI attacker/defender/judge red-team loop), hallucinated-package detection, ML model supply-chain scanning, and npm install-time worm hardening — on top of the existing secrets, injection, and AI/LLM coverage.</p>
 <p style="margin:0 0 12px;">If you've got a minute, a fresh scan takes one command:</p>
 ${terminal('npx ship-safe audit .')}
 ${button(dashboard, 'Open the dashboard →')}

@@ -3,16 +3,13 @@ import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import styles from './admin.module.css';
 import type { Metadata } from 'next';
+import { isAdmin } from '@/lib/is-admin';
+import { reengageEligibleCount } from '@/lib/lifecycle-emails';
+import ReengageBatch from './ReengageBatch';
 
 export const metadata: Metadata = {
   title: 'Admin — Ship Safe',
 };
-
-function isAdmin(email: string | null | undefined): boolean {
-  if (!email) return false;
-  const admins = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
-  return admins.includes(email.toLowerCase());
-}
 
 function timeAgo(date: Date) {
   const diff = Date.now() - new Date(date).getTime();
@@ -57,6 +54,7 @@ export default async function AdminPage() {
     signins7d,
     signins30d,
     recentSignins,
+    reengageEligible,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { createdAt: { gte: days7ago } } }),
@@ -116,6 +114,7 @@ export default async function AdminPage() {
         user: { select: { name: true, email: true, image: true, plan: true } },
       },
     }),
+    reengageEligibleCount(),
   ]);
 
   const paidRevenue = totalRevenue._sum.amount ?? 0;
@@ -187,6 +186,9 @@ export default async function AdminPage() {
           </div>
         ))}
       </div>
+
+      {/* Lifecycle: one-time re-engagement to the signup backlog */}
+      <ReengageBatch eligible={reengageEligible} />
 
       {/* Charts row */}
       <div className={styles.threeCol}>
