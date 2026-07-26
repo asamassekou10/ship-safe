@@ -9,8 +9,9 @@
  *        Bitbucket Pipelines, Azure DevOps.
  */
 
+import fs from 'fs';
 import path from 'path';
-import { BaseAgent } from './base-agent.js';
+import { BaseAgent, createFinding } from './base-agent.js';
 
 const PATTERNS = [
   // ── CICD-SEC-4: Poisoned Pipeline Execution ────────────────────────────────
@@ -265,9 +266,255 @@ const PATTERNS = [
   },
 ];
 
+// =============================================================================
+// UNGOVERNED CONTINUOUS INGESTION
+//
+// A pipeline that resolves a mutable third-party reference, builds it, and
+// deploys the result to running infrastructure with no human gate hands
+// upstream control of your production with under a day of latency.
+//
+// None of those steps is dangerous alone, which is why the line-by-line rules
+// above cannot see it: the finding is the *combination*, spread across a file.
+// This section extracts signals per workflow and scores the chain.
+// =============================================================================
+
+// (A) Mutable references. `branch` tracks a moving branch — anything upstream
+// merges ships. `release` tracks the newest published release, which still
+// auto-ingests but has a human publish step upstream, so it scores lower.
+// GitHub repo references, from either the API host or the web host, so the
+// owner can be identified wherever the URL is assembled.
+const GH_REPO_RE = /github\.com[/:](?:repos\/)?([\w.-]+)\/([\w.-]+)/gi;
+
+// Endpoints that name a moving target. Matched independently of the repo URL
+// because pipelines routinely build the URL from a variable
+// (`API="https://api.github.com/repos/o/r"` … `"$API/releases/latest"`), and a
+// regex expecting one contiguous string silently misses every such workflow.
+const MUTABLE_ENDPOINT_SIGNALS = [
+  { kind: 'branch',  re: /\/commits\/(?:main|master|HEAD)\b/gi },
+  { kind: 'release', re: /\/releases\/latest\b/gi },
+];
+
+// Mutable references that stand alone, with no GitHub repo URL involved.
+const MUTABLE_REF_SIGNALS = [
+  { kind: 'branch',  re: /\bgit\s+clone\b(?![^\n]*--branch\s+v?\d)[^\n]*github\.com\/([\w.-]+)\/([\w.-]+)/gi, owner: 1 },
+  { kind: 'branch',  re: /\bpip\s+install\b[^\n]*git\+https?:\/\/github\.com\/([\w.-]+)\/([\w.-]+?)(?:\.git)?(?:@(?:HEAD|main|master))?["'\s]/gi, owner: 1 },
+  { kind: 'branch',  re: /^\s*FROM\s+(?!scratch)([\w./-]+):latest\b/gim, owner: null },
+  { kind: 'branch',  re: /\bdocker\s+pull\b[^\n]*:latest\b/gi, owner: null },
+  { kind: 'branch',  re: /\bnpm\s+(?:i|install)\b[^\n]*@latest\b/gi, owner: null },
+];
+
+// (C) The artifact leaves CI and reaches something that serves traffic.
+const DEPLOY_SIGNALS = [
+  // `push: true`, and also `push: ${{ ... }}` — a push guarded by an
+  // expression still pushes on the default path. Only a literal `false` is
+  // conclusively not a publish.
+  /\bpush:\s*(?!false\b)(?:true\b|\$\{\{)/i,
+  /\bdocker\s+push\b/i,
+  /\bnpm\s+publish\b/i,
+  /\bkubectl\s+(?:apply|rollout|set\s+image)\b/i,
+  /\baws\s+ecs\s+update-service\b/i,
+  /\b(?:flyctl|fly)\s+deploy\b/i,
+  /\bvercel\b[^\n]*--prod\b/i,
+  /\b(?:ssh|scp)\s+[^\n]*@/i,
+  // A POST to something named like a deploy hook. Deliberately narrow: an
+  // arbitrary curl to an arbitrary host is not evidence of a deploy, and
+  // guessing costs more in false positives than it buys in coverage.
+  /\bcurl\b[^\n]*-X\s*POST[^\n]*(?:deploy|rollout|update-image|restart|release)\b/i,
+];
+
+// (D) Signals that a human stands between the build and production.
+const GATE_SIGNALS = [
+  /^\s*environment:\s*\S/im,          // GitHub environment — where approval rules live
+  /\bpeter-evans\/create-pull-request\b/i,
+  /\bgh\s+pr\s+create\b/i,
+  /\bcreate-pull-request\b/i,
+];
+
+// Targets that are not production. Deliberately anchored to places a target is
+// actually named — an `environment:`, an image tag, a job id. Matching these
+// words anywhere in the file is useless: `2>/dev/null` alone would downgrade a
+// genuine production deploy.
+const NON_PROD_SIGNALS = [
+  /^\s*environment:\s*['"]?(?:staging|dev|development|preview|sandbox|qa)\b/im,
+  /:(?:staging|dev|development|preview|sandbox|qa)\b(?![\w/-])/i,
+  /^\s*(?:deploy[-_])?(?:staging|dev|preview)\s*:\s*$/im,
+];
+
+/** Owner of the repo being scanned, so a workflow tracking its *own* HEAD is
+ *  not mistaken for third-party ingestion. Best-effort: absent this we treat
+ *  refs as third-party, which is the safe direction for a security check. */
+function selfOwner(rootPath) {
+  try {
+    const cfg = fs.readFileSync(path.join(rootPath, '.git', 'config'), 'utf-8');
+    const m = cfg.match(/url\s*=\s*[^\n]*github\.com[/:]([\w.-]+)\//i);
+    return m ? m[1].toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Extract the chain signals from one workflow file. */
+function extractChainSignals(rawContent, self) {
+  // Shell steps wrap long commands across lines with a trailing backslash, so
+  // a `curl ... \` and the URL it posts to land on different lines. Join those
+  // continuations first: without this, every multi-line deploy command is
+  // invisible to a single-line pattern. Line numbers are computed against the
+  // original text so findings still point at the real line.
+  const content = rawContent.replace(/\\\r?\n\s*/g, ' ');
+  const lineOf = (idx) => rawContent.slice(0, Math.min(idx, rawContent.length)).split('\n').length;
+  const refs = [];
+
+  // Which third-party repositories does this workflow talk to at all?
+  const thirdPartyRepos = [];
+  GH_REPO_RE.lastIndex = 0;
+  let r;
+  while ((r = GH_REPO_RE.exec(content)) !== null) {
+    const owner = (r[1] || '').toLowerCase();
+    // Tracking your own repository is ordinary; the risk is ingesting
+    // someone else's code. `actions/*` are handled by the pinning rules.
+    if (!owner || owner === self || owner === 'actions') continue;
+    thirdPartyRepos.push({ owner, repo: r[2], line: lineOf(r.index) });
+  }
+
+  // Pair a third-party repo with any moving-target endpoint in the same file.
+  // File-scoped rather than line-scoped so a URL split across a variable
+  // assignment and its use is still seen.
+  if (thirdPartyRepos.length > 0) {
+    for (const sig of MUTABLE_ENDPOINT_SIGNALS) {
+      sig.re.lastIndex = 0;
+      let m;
+      while ((m = sig.re.exec(content)) !== null) {
+        const repo = thirdPartyRepos[0];
+        refs.push({
+          kind: sig.kind,
+          owner: repo.owner,
+          line: lineOf(m.index),
+          matched: `${repo.owner}/${repo.repo}${m[0].trim()}`.slice(0, 160),
+        });
+      }
+    }
+  }
+
+  for (const sig of MUTABLE_REF_SIGNALS) {
+    sig.re.lastIndex = 0;
+    let m;
+    while ((m = sig.re.exec(content)) !== null) {
+      const owner = sig.owner ? (m[sig.owner] || '').toLowerCase() : null;
+      if (owner && self && owner === self) continue;
+      refs.push({ kind: sig.kind, owner, line: lineOf(m.index), matched: m[0].trim().slice(0, 160) });
+      if (!sig.re.global) break;
+    }
+  }
+
+  const deploys = [];
+  for (const re of DEPLOY_SIGNALS) {
+    const m = re.exec(content);
+    if (m) deploys.push({ line: content.slice(0, m.index).split('\n').length, matched: m[0].trim().slice(0, 160) });
+  }
+
+  return {
+    refs,
+    deploys,
+    scheduled: /^\s*schedule:/m.test(content) || /^\s*on:\s*\n(?:[^\n]*\n)*?\s*schedule:/m.test(content),
+    gated: GATE_SIGNALS.some(re => re.test(content)),
+    nonProd: NON_PROD_SIGNALS.some(re => re.test(content)),
+  };
+}
+
 export class CICDScanner extends BaseAgent {
   constructor() {
     super('CICDScanner', 'Detect CI/CD pipeline security issues (OWASP CI/CD Top 10)', 'cicd');
+  }
+
+  /**
+   * Score the ingestion chain for one workflow. Severity rises with how much
+   * of the chain is present, and drops when a human is in the loop or the
+   * target is not production.
+   */
+  scanIngestionChain(file, rootPath, self) {
+    const content = this.readFile(file);
+    if (!content) return [];
+
+    const s = extractChainSignals(content, self);
+    if (s.refs.length === 0) return [];
+
+    const findings = [];
+    const worst = s.refs.some(r => r.kind === 'branch') ? 'branch' : 'release';
+    const ref = s.refs.find(r => r.kind === worst);
+    const deploying = s.deploys.length > 0;
+    const unattended = s.scheduled && !s.gated;
+
+    if (deploying && unattended) {
+      // The full chain. A branch ref means any upstream merge reaches
+      // production; a release ref means any upstream publish does.
+      let severity = worst === 'branch' ? 'critical' : 'high';
+      if (s.nonProd) severity = severity === 'critical' ? 'high' : 'medium';
+
+      findings.push(createFinding({
+        file,
+        line: ref.line,
+        severity,
+        category: this.category,
+        rule: 'CICD_UNATTENDED_UPSTREAM_DEPLOY',
+        title: `Unattended deploy of a mutable ${worst === 'branch' ? 'upstream branch' : 'upstream release'}`,
+        description:
+          `This workflow resolves a mutable third-party reference (${ref.matched}), builds it, and ` +
+          `deploys the result on a schedule with no approval gate. Whatever upstream ${worst === 'branch' ? 'merges' : 'publishes'} ` +
+          `reaches production within one scheduled interval, with nobody reviewing it. A compromise of the ` +
+          `upstream repository is a compromise of your production.`,
+        matched: ref.matched,
+        confidence: 'medium',
+        cwe: 'CWE-1357',
+        owasp: 'CICD-SEC-3',
+        fix:
+          'Pin the upstream reference to a specific version or commit and update it deliberately. ' +
+          'If it must stay automatic, put the deploying job behind a GitHub `environment:` with required ' +
+          'reviewers so a human approves the rollout.',
+      }));
+    } else if (!s.gated) {
+      // Built but not shipped straight to production: lower stakes, still
+      // building code nobody pinned.
+      findings.push(createFinding({
+        file,
+        line: ref.line,
+        severity: worst === 'branch' ? 'medium' : 'low',
+        category: this.category,
+        rule: 'CICD_UNPINNED_UPSTREAM_BUILD',
+        title: `CI builds an unpinned third-party ${worst === 'branch' ? 'branch' : 'release'}`,
+        description:
+          `This workflow builds from a mutable third-party reference (${ref.matched}). The code being built ` +
+          `can change without any change on your side, so a passing build today says nothing about what runs tomorrow.`,
+        matched: ref.matched,
+        confidence: 'medium',
+        cwe: 'CWE-1357',
+        owasp: 'CICD-SEC-3',
+        fix: 'Pin the reference to a specific version or commit SHA and bump it deliberately.',
+      }));
+    }
+
+    // Independently useful: shipping to production on a schedule with nobody
+    // able to stop it, whatever the source of the artifact.
+    if (deploying && s.scheduled && !s.gated && !s.nonProd) {
+      const d = s.deploys[0];
+      findings.push(createFinding({
+        file,
+        line: d.line,
+        severity: 'medium',
+        category: this.category,
+        rule: 'CICD_NO_DEPLOY_APPROVAL',
+        title: 'Scheduled production deploy with no approval gate',
+        description:
+          'This workflow deploys on a schedule and no job declares a GitHub `environment:`, which is where ' +
+          'required reviewers and wait timers are configured. Every rollout is unattended.',
+        matched: d.matched,
+        confidence: 'medium',
+        cwe: 'CWE-284',
+        owasp: 'CICD-SEC-1',
+        fix: 'Add an `environment:` with required reviewers to the deploying job, or trigger rollout manually.',
+      }));
+    }
+
+    return findings;
   }
 
   async analyze(context) {
@@ -289,9 +536,14 @@ export class CICDScanner extends BaseAgent {
 
     if (ciFiles.length === 0) return [];
 
+    const self = selfOwner(rootPath);
+
     let findings = [];
     for (const file of ciFiles) {
       findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS));
+      // Whole-file pass: catches combinations the line rules structurally
+      // cannot see (see UNGOVERNED CONTINUOUS INGESTION above).
+      findings = findings.concat(this.scanIngestionChain(file, rootPath, self));
     }
     return findings;
   }
