@@ -368,7 +368,7 @@ export class AgenticSecurityAgent extends BaseAgent {
       const line = this.findLine(content, rule);
       const lines = content.split('\n');
       const matched = lines[line - 1] || '';
-      if (this.isSuppressed(matched)) continue;
+      if (this.isSuppressed(matched, rule.severity)) continue;
 
       const finding = createFinding({
         file,

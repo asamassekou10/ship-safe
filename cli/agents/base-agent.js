@@ -60,6 +60,35 @@ export function createFinding({
 }
 
 // =============================================================================
+// SUPPRESSION FLOOR
+// =============================================================================
+
+/**
+ * Severities an inline `ship-safe-ignore` comment cannot silence.
+ *
+ * The comment was designed for a human deciding a finding is a false positive.
+ * That assumption no longer holds on its own: the code under scan is often
+ * written by an AI agent, and an agent that can emit a line of source can emit
+ * `// ship-safe-ignore` on the line that matters — including via our own
+ * `ship_safe_suppress_finding` tool. Suppression is therefore attacker-writable
+ * for anything an agent touches.
+ *
+ * Critical findings (hardcoded secrets, RCE, confirmed injection) are the ones
+ * where a silent suppression is indistinguishable from a clean scan, so they
+ * are reported regardless. Everything below critical keeps working exactly as
+ * before, so existing suppressions are unaffected.
+ *
+ * An attempt to suppress a floor finding is itself recorded — someone marking a
+ * critical finding as safe is a signal, not a no-op.
+ */
+export const SUPPRESSION_FLOOR_SEVERITIES = new Set(['critical']);
+
+/** Whether a finding of this severity may be silenced by an inline comment. */
+export function isSuppressible(severity) {
+  return !SUPPRESSION_FLOOR_SEVERITIES.has(String(severity || '').toLowerCase());
+}
+
+// =============================================================================
 // BASE AGENT CLASS
 // =============================================================================
 
@@ -73,6 +102,10 @@ export class BaseAgent {
     this.name = name;
     this.description = description;
     this.category = category;
+    // Suppression accounting. A scan that silenced findings must never read
+    // the same as a scan that had none to report.
+    this.suppressedCount = 0;
+    this.floorSuppressionAttempts = 0;
   }
 
   /**
@@ -201,9 +234,25 @@ export class BaseAgent {
 
   /**
    * Check if a line has the ship-safe-ignore suppression comment.
+   *
+   * Pass the severity of the finding being considered so the floor can apply:
+   * a critical finding is reported even on a suppressed line (see
+   * SUPPRESSION_FLOOR_SEVERITIES). Called without a severity, behaviour is
+   * unchanged from before the floor existed.
+   *
+   * Either way the outcome is counted, so a report can state how much it was
+   * asked not to say.
    */
-  isSuppressed(line) {
-    return /ship-safe-ignore/i.test(line);
+  isSuppressed(line, severity = null) {
+    if (!/ship-safe-ignore/i.test(line)) return false;
+
+    if (severity !== null && !isSuppressible(severity)) {
+      this.floorSuppressionAttempts++;
+      return false;
+    }
+
+    this.suppressedCount++;
+    return true;
   }
 
   /**
@@ -219,17 +268,33 @@ export class BaseAgent {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (this.isSuppressed(line)) continue;
+      // Suppression is decided per pattern, not per line: the floor depends on
+      // the severity of the specific finding, which isn't known until we know
+      // which pattern matched.
+      const lineMarked = /ship-safe-ignore/i.test(line);
 
       for (const p of patterns) {
+        const severity = p.severity || 'medium';
+
+        // Collect matches first. Suppression is only meaningful for a pattern
+        // that actually fired, and it counts once per (line, rule) rather than
+        // once per match, so the tally reflects findings silenced.
         p.regex.lastIndex = 0;
-        let match;
-        while ((match = p.regex.exec(line)) !== null) {
+        const matches = [];
+        let m;
+        while ((m = p.regex.exec(line)) !== null) {
+          matches.push(m);
+          if (!p.regex.global) break;
+        }
+        if (matches.length === 0) continue;
+        if (lineMarked && this.isSuppressed(line, severity)) continue;
+
+        for (const match of matches) {
           const finding = createFinding({
             file: filePath,
             line: i + 1,
             column: match.index + 1,
-            severity: p.severity || 'medium',
+            severity,
             category: this.category,
             rule: p.rule,
             title: p.title,

@@ -331,7 +331,7 @@ export class MCPSecurityAgent extends BaseAgent {
     const secretPatterns = /(?:password|secret|token|apiKey|api_key)\s*[:=]\s*["'][^"']{8,}["']/gi;
     const lines = content.split('\n');
     for (let i = 0; i < lines.length; i++) {
-      if (this.isSuppressed(lines[i])) continue;
+      if (this.isSuppressed(lines[i], 'critical')) continue;
       secretPatterns.lastIndex = 0;
       if (secretPatterns.test(lines[i])) {
         findings.push({

@@ -119,36 +119,19 @@ export const HERMES_TOOLS = [
     },
   },
 
-  {
-    name: 'ship_safe_suppress_finding',
-    description:
-      'Suppress a known-safe finding by inserting an inline ship-safe-ignore comment ' +
-      'in the source file before the flagged line. Use only when the finding is a ' +
-      'confirmed false positive and you can document why it is safe.',
-    parameters: {
-      type: 'object',
-      properties: {
-        file: {
-          type: 'string',
-          description: 'Absolute path to the source file containing the finding.',
-        },
-        line: {
-          type: 'number',
-          description: 'Line number of the finding (1-based).',
-        },
-        reason: {
-          type: 'string',
-          description: 'Human-readable explanation of why this finding is safe to suppress.',
-        },
-      },
-      required: ['file', 'line', 'reason'],
-      additionalProperties: false,
-    },
-    handler: async ({ file, line, reason }) => {
-      const { mcpSuppressFinding } = await import('../commands/mcp.js');
-      return mcpSuppressFinding({ file, line, reason });
-    },
-  },
+  // NOTE: `ship_safe_suppress_finding` was removed.
+  //
+  // Its handler called `mcpSuppressFinding`, which mcp.js never exported, so
+  // every invocation threw — the tool was advertised to agents but had never
+  // worked. Rather than implement it, it is gone: suppression is written into
+  // the scanned source as an inline comment, which means an agent holding this
+  // tool can silence the findings covering its own output. That is the exact
+  // path the suppression floor in base-agent.js exists to constrain (critical
+  // findings are reported regardless, and suppressions are counted).
+  //
+  // If agent-driven suppression is wanted later, build it deliberately: scoped
+  // to non-critical findings, recorded in security memory rather than source,
+  // and attributable to the run that requested it.
 
   {
     name: 'ship_safe_memory_list',
@@ -187,7 +170,6 @@ const KNOWN_HASHES = {
   ship_safe_audit:             '4d282d29e44fcc01',
   ship_safe_scan_mcp:          'f967aea9626ca840',
   ship_safe_get_findings:      'c09c9447efd574b3',
-  ship_safe_suppress_finding:  '3b7339419fe52ac7',
   ship_safe_memory_list:       'c71c996716d1805b',
 };
 

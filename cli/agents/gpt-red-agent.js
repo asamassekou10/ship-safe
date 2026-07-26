@@ -293,12 +293,14 @@ export class GPTRedAgent extends BaseAgent {
 
       const lines = content.split('\n');
       const line = firstMatchLine(lines, hasHiddenInstruction ? HIDDEN_TEXT_RE : UNTRUSTED_TEXT_RE);
-      if (this.isSuppressed(lines[line - 1] || '')) continue;
 
       const capabilities = collectCapabilities(content);
       const rel = path.relative(rootPath, file).replace(/\\/g, '/');
       const attackPath = describeAttackPath(rel, capabilities);
       const severity = severityFor(capabilities, hasHiddenInstruction);
+      // After severityFor(): the suppression floor keys off severity, and this
+      // one is derived from the file's capabilities rather than fixed.
+      if (this.isSuppressed(lines[line - 1] || '', severity)) continue;
 
       const finding = createFinding({
         file,

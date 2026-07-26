@@ -151,6 +151,10 @@ export class Orchestrator {
             agent: agent.name,
             category: agent.category,
             findingCount: findings.length,
+            // How much this agent was asked not to report. A scan that silenced
+            // findings must not read like a scan that had none.
+            suppressedCount: agent.suppressedCount || 0,
+            floorSuppressionAttempts: agent.floorSuppressionAttempts || 0,
             success: true,
           });
           allFindings = allFindings.concat(findings);
@@ -267,7 +271,14 @@ export class Orchestrator {
       (sevOrder[a.severity] ?? 4) - (sevOrder[b.severity] ?? 4)
     );
 
-    return { recon, findings: allFindings, agentResults };
+    // Roll the suppression tally up to the scan level so callers (CLI output,
+    // JSON, CI gates) can show it without walking agentResults.
+    const suppression = {
+      suppressed: agentResults.reduce((n, a) => n + (a.suppressedCount || 0), 0),
+      floorAttempts: agentResults.reduce((n, a) => n + (a.floorSuppressionAttempts || 0), 0),
+    };
+
+    return { recon, findings: allFindings, agentResults, suppression };
   }
 
   /**

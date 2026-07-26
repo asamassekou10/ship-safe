@@ -745,8 +745,6 @@ export class AgentConfigScanner extends BaseAgent {
     // Check for large base64 blocks (60+ chars, not in code/URLs)
     const lines = content.split('\n');
     for (let i = 0; i < lines.length; i++) {
-      if (this.isSuppressed(lines[i])) continue;
-
       const b64Match = lines[i].match(/(?<![a-zA-Z0-9+/=])([A-Za-z0-9+/]{60,}={0,2})(?![a-zA-Z0-9+/=])/);
       if (b64Match) {
         // Try to decode and check for injection
@@ -760,6 +758,10 @@ export class AgentConfigScanner extends BaseAgent {
         } catch { /* not valid base64 */ }
 
         const severity = suspicious ? 'critical' : 'high';
+        // Checked here, not at the top of the loop: severity depends on what
+        // the block decodes to, and the suppression floor keys off severity.
+        if (this.isSuppressed(lines[i], severity)) continue;
+
         const desc = suspicious
           ? `Large base64-encoded block that decodes to suspicious content: "${decoded.substring(0, 80)}..."`
           : 'Large base64-encoded block in agent config file. May hide obfuscated instructions.';

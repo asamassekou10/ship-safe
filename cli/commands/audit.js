@@ -20,6 +20,7 @@ import fg from 'fast-glob';
 import { buildOrchestrator, buildOrchestratorAsync } from '../agents/index.js';
 import { LegalRiskAgent } from '../agents/legal-risk-agent.js';
 import { ScoringEngine } from '../agents/scoring-engine.js';
+import { isSuppressible } from '../agents/base-agent.js';
 import { PolicyEngine } from '../agents/policy-engine.js';
 import { HTMLReporter } from '../agents/html-reporter.js';
 import { SBOMGenerator } from '../agents/sbom-generator.js';
@@ -977,8 +978,12 @@ function scanFileForSecrets(filePath) {
     const lines = content.split('\n');
     for (let lineNum = 0; lineNum < lines.length; lineNum++) {
       const line = lines[lineNum];
-      if (/ship-safe-ignore/i.test(line)) continue;
+      // Suppression is decided per pattern so the floor can key off severity:
+      // a critical secret is reported even on a suppressed line, because the
+      // comment is writable by the same agent that wrote the leak.
+      const lineMarked = /ship-safe-ignore/i.test(line);
       for (const pattern of SECRET_PATTERNS) {
+        if (lineMarked && isSuppressible(pattern.severity)) continue;
         pattern.pattern.lastIndex = 0;
         let match;
         while ((match = pattern.pattern.exec(line)) !== null) {

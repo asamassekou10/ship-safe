@@ -619,7 +619,7 @@ export class ConfigAuditor extends BaseAgent {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (this.isSuppressed(line)) continue;
+      if (this.isSuppressed(line, 'critical')) continue;
 
       // Match: FROM docker:<version> or engine version references in comments/labels
       const versionMatch = line.match(/(?:docker|moby)[:\s]+(\d+)\.(\d+)\.(\d+)/i);
@@ -663,7 +663,7 @@ export class ConfigAuditor extends BaseAgent {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (this.isSuppressed(line)) continue;
+      if (this.isSuppressed(line, 'high')) continue;
 
       // Detect S3 Files / S3 NFS mount references
       const isS3Mount = /(?:s3[_-]?files|s3.*(?:nfs|mount|filesystem)|file_system_id.*s3|efs.*s3|mount.*s3:\/\/)/i.test(line);
