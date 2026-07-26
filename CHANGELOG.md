@@ -6,6 +6,67 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [9.6.0] — 2026-07-26 — Suppression Floor & Pipeline Ingestion
+
+Two changes here alter what existing scans report. Both are deliberate, and
+both can move a score that previously looked clean.
+
+### Changed
+- **`ship-safe-ignore` no longer silences `critical` findings.** The comment
+  was designed for a human deciding a finding is a false positive. That
+  assumption no longer holds on its own: the code being scanned is
+  increasingly written by an AI agent, and an agent that can emit a line of
+  source can emit the suppression comment on the line that matters.
+
+  A file containing a live AWS key and `eval(req.body.x)`, each with the
+  comment appended, previously scored **96.4/A**. It now scores **66.4/C**.
+
+  Everything below `critical` behaves exactly as before, so existing
+  suppressions on medium and high findings keep working. **If you rely on
+  `ship-safe-ignore` for a critical-severity false positive, that finding will
+  come back and your score will drop.**
+- Suppressions are now counted. Agents track how many findings a scan was
+  asked not to report, and the scan result carries a `suppression` summary, so
+  a run that silenced findings can no longer read like one that had none. An
+  attempt to suppress a `critical` is counted separately, since that is a
+  signal rather than a no-op.
+
+### Added
+- **Ungoverned continuous ingestion detection** (CICDScanner). A pipeline that
+  resolves a mutable third-party reference, builds it, and deploys the result
+  with no human gate hands upstream control of production with under a day of
+  latency. Every line of such a workflow is individually benign, so the
+  existing line-by-line rules could not see it; this adds the scanner's first
+  whole-file pass.
+  - `CICD_UNATTENDED_UPSTREAM_DEPLOY` — the full chain. `critical` when it
+    tracks a branch, `high` when it tracks a release.
+  - `CICD_UNPINNED_UPSTREAM_BUILD` — builds unpinned third-party code without
+    shipping it straight out.
+  - `CICD_NO_DEPLOY_APPROVAL` — scheduled production deploy where no job
+    declares an `environment:`, which is where required reviewers live.
+
+  A reference to your own repository never fires, a job that opens a pull
+  request is treated as already gated, non-production targets drop a band, and
+  pinned references are ignored.
+
+### Fixed
+- `GPTRedAgent` ignored `noAi`. It gated its provider on `options.ai === false`
+  only, which the `--no-ai` flag sets, but programmatic callers pass
+  `noAi: true` — so a scan requested as fully local could still send context to
+  a provider.
+- Removed `ship_safe_suppress_finding` from the Hermes tool registry. Its
+  handler called an export that never existed, so every invocation threw; and a
+  tool that writes suppression comments into scanned source hands an agent the
+  means to silence findings about its own output.
+- Pinned `brace-expansion` to 5.0.8 (GHSA-mh99-v99m-4gvg). Dev-only, so it
+  never reached the published package, but it failed the `npm audit` CI gate.
+
+### Tests
+- 284 tests, up from 265. New coverage for the suppression floor, the
+  ingestion chain rules, and their false-positive guards. The ingestion
+  fixtures are this repository's own workflow before and after remediation
+  rather than synthetic YAML.
+
 ## [9.5.2] — 2026-07-16 — Kimi K3 Tool-Call Security
 
 ### Added

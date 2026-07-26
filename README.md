@@ -222,6 +222,13 @@ No API key required for core scanning. AI classification and `red-team --gpt-red
 password = get_password()  # ship-safe-ignore
 ```
 
+`critical` findings are always reported. An inline comment cannot hide one, and
+an attempt to suppress one is recorded in the scan. The comment is meant for a
+human ruling out a false positive, and anything that can write a line of your
+source — including an AI agent — can write the comment too, so the highest
+severities do not honor it. Every suppression is counted, so a scan that
+silenced findings never reads like one that had none.
+
 ```gitignore
 # .ship-safeignore
 tests/fixtures/

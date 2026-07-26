@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     canonical: 'https://www.shipsafecli.com/docs',
   },
   openGraph: {
-    title: 'Ship Safe CLI Documentation — v9.5.2',
+    title: 'Ship Safe CLI Documentation — v9.6.0',
     description: 'Every command, agent, and flag. LLM vulnerability CLI, MCP security configuration, RAG poisoning detection, CI/CD integration, and API reference.',
     type: 'website',
     url: 'https://www.shipsafecli.com/docs',
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Ship Safe CLI Documentation — v9.5.2',
+    title: 'Ship Safe CLI Documentation — v9.6.0',
     description: 'Every command, agent, and flag. LLM vulnerability CLI, MCP security configuration, RAG poisoning detection, CI/CD integration, and API reference.',
     images: [ogImage],
   },
@@ -431,6 +431,13 @@ jobs:
               <h2>Suppressing Findings</h2>
               <p><strong>Inline:</strong> Add <code># ship-safe-ignore</code> on any line:</p>
               <pre><code>{`password = get_password()  # ship-safe-ignore`}</code></pre>
+              <p>
+                <strong>Critical findings are always reported.</strong> An inline comment cannot hide one,
+                and an attempt to suppress one is recorded in the scan. The comment exists for a human
+                ruling out a false positive, and anything that can write a line of your source &mdash;
+                including an AI agent &mdash; can write the comment too. Every suppression is counted,
+                so a scan that silenced findings never reads like one that had none.
+              </p>
               <p><strong>File-level:</strong> Create <code>.ship-safeignore</code> (gitignore syntax):</p>
               <pre><code>{`# Exclude test fixtures
 tests/fixtures/
