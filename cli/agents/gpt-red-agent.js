@@ -244,7 +244,10 @@ export class GPTRedAgent extends BaseAgent {
 
   async analyze(context) {
     const { rootPath, files, options = {}, sharedFindings = [] } = context;
-    const provider = options.ai === false ? null : resolveProvider(rootPath, options);
+    // Both flags mean "stay local": `--no-ai` sets `ai: false` via commander,
+    // while programmatic callers (webapp scan + cron) pass `noAi: true`.
+    const offlineOnly = options.ai === false || options.noAi === true;
+    const provider = offlineOnly ? null : resolveProvider(rootPath, options);
     const useK3LongContext = options.k3LongContext === true && isKimiK3Provider(provider);
     const candidates = files.filter(file => useK3LongContext ? isK3ContextFile(rootPath, file) : isCandidateFile(rootPath, file));
     const offlineFindings = this.runOfflineChecks(rootPath, candidates);
@@ -290,12 +293,14 @@ export class GPTRedAgent extends BaseAgent {
 
       const lines = content.split('\n');
       const line = firstMatchLine(lines, hasHiddenInstruction ? HIDDEN_TEXT_RE : UNTRUSTED_TEXT_RE);
-      if (this.isSuppressed(lines[line - 1] || '')) continue;
 
       const capabilities = collectCapabilities(content);
       const rel = path.relative(rootPath, file).replace(/\\/g, '/');
       const attackPath = describeAttackPath(rel, capabilities);
       const severity = severityFor(capabilities, hasHiddenInstruction);
+      // After severityFor(): the suppression floor keys off severity, and this
+      // one is derived from the file's capabilities rather than fixed.
+      if (this.isSuppressed(lines[line - 1] || '', severity)) continue;
 
       const finding = createFinding({
         file,

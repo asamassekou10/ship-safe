@@ -247,7 +247,7 @@ export class MemoryPoisoningAgent extends BaseAgent {
     for (const pattern of INJECTION_PATTERNS) {
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        if (this.isSuppressed(line)) continue;
+        if (this.isSuppressed(line, pattern.severity)) continue;
 
         pattern.regex.lastIndex = 0;
         const match = pattern.regex.exec(line);

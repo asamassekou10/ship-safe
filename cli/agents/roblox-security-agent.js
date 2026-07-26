@@ -175,9 +175,10 @@ export class RobloxSecurityAgent extends BaseAgent {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (this.isSuppressed(line)) continue;
 
       for (const p of LUAU_PATTERNS) {
+        // Per pattern, so the suppression floor sees the real severity.
+        if (this.isSuppressed(line, p.severity)) continue;
         p.regex.lastIndex = 0;
         let match;
         while ((match = p.regex.exec(line)) !== null) {
