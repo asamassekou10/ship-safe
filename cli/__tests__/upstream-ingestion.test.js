@@ -21,8 +21,13 @@ import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { fileURLToPath } from 'url';
 
 import { CICDScanner } from '../agents/cicd-scanner.js';
+
+// Not `import.meta.dirname` — that landed in Node 20.11 and this package
+// supports >=18, so it is undefined on the oldest version CI runs.
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 const CHAIN_RULES = /^(CICD_UNATTENDED_UPSTREAM_DEPLOY|CICD_UNPINNED_UPSTREAM_BUILD|CICD_NO_DEPLOY_APPROVAL)$/;
 
@@ -51,7 +56,7 @@ async function chainFindings(yaml, owner) {
 }
 
 function readFixture(name) {
-  return fs.readFileSync(path.join(import.meta.dirname, 'fixtures', name), 'utf-8');
+  return fs.readFileSync(path.join(HERE, 'fixtures', name), 'utf-8');
 }
 
 describe('ungoverned continuous ingestion — real workflows', () => {
