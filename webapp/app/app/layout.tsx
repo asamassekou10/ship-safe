@@ -10,6 +10,7 @@ import MobileNav from './MobileNav';
 import NavLinks from './NavLinks';
 import { ToastProvider } from './Toast';
 import KeyboardShortcuts from './KeyboardShortcuts';
+import { isAdmin as checkIsAdmin } from '@/lib/is-admin';
 import ActivityInbox from './ActivityInbox';
 
 export const metadata: Metadata = {
@@ -36,8 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   });
 
   const plan = user?.plan ?? 'free';
-  const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
-  const isAdmin = adminEmails.includes((session.user.email ?? '').toLowerCase());
+  const isAdmin = checkIsAdmin(session.user.email);
 
   return (
     <div className={styles.shell}>
