@@ -244,7 +244,10 @@ export class GPTRedAgent extends BaseAgent {
 
   async analyze(context) {
     const { rootPath, files, options = {}, sharedFindings = [] } = context;
-    const provider = options.ai === false ? null : resolveProvider(rootPath, options);
+    // Both flags mean "stay local": `--no-ai` sets `ai: false` via commander,
+    // while programmatic callers (webapp scan + cron) pass `noAi: true`.
+    const offlineOnly = options.ai === false || options.noAi === true;
+    const provider = offlineOnly ? null : resolveProvider(rootPath, options);
     const useK3LongContext = options.k3LongContext === true && isKimiK3Provider(provider);
     const candidates = files.filter(file => useK3LongContext ? isK3ContextFile(rootPath, file) : isCandidateFile(rootPath, file));
     const offlineFindings = this.runOfflineChecks(rootPath, candidates);
