@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      rebuilt: ${{ steps.build.outputs.rebuilt }}
+      rebuilt: ${{ steps.set-rebuilt.outputs.rebuilt }}
       sha: ${{ steps.upstream.outputs.sha }}
 
     steps:
