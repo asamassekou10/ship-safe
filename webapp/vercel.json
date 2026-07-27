@@ -11,9 +11,14 @@
   ],
   "redirects": [
     {
-      "source": "/(.*)",
-      "has": [{ "type": "host", "value": "shipsafecli.com" }],
-      "destination": "https://www.shipsafecli.com/$1",
+      "source": "/((?!api/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "(?:www\\.)?shipsafecli\\.com"
+        }
+      ],
+      "destination": "https://shipsafe.sh/$1",
       "permanent": true
     }
   ],
@@ -21,8 +26,14 @@
     {
       "source": "/og-shipsafe.jpg",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" },
-        { "key": "Access-Control-Allow-Origin", "value": "*" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, stale-while-revalidate=604800"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
       ]
     }
   ]
