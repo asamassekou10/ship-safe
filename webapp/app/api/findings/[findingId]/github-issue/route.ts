@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { CANONICAL_URL } from '@/lib/site';
 
 type Params = { params: Promise<{ findingId: string }> };
 
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     finding.remediation ? `### Remediation\n${finding.remediation}` : null,
     '',
     `---`,
-    `*Automatically created from [Ship Safe Findings](${process.env.AUTH_URL || 'https://www.shipsafecli.com'}/app/findings)*`,
+    `*Automatically created from [Ship Safe Findings](${process.env.AUTH_URL || CANONICAL_URL}/app/findings)*`,
   ].filter(Boolean).join('\n');
 
   const ghRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {

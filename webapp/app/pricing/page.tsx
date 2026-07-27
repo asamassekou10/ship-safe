@@ -7,21 +7,22 @@ import ScrollAnimator from '@/components/ScrollAnimator';
 import TrackedLink from '@/components/TrackedLink';
 import styles from './pricing.module.css';
 import type { Metadata } from 'next';
+import { siteUrl, DEFAULT_REPLY_TO } from '@/lib/site';
 
-const ogImage = 'https://www.shipsafecli.com/og1.png';
+const ogImage = '/og1.png';
 
 export const metadata: Metadata = {
   title: 'Pricing',
   description: 'Ship Safe pricing: start free with the open-source CLI. Upgrade to Pro for scan history, PR checks, private repos, and hosted reports.',
   keywords: ['Ship Safe pricing', 'AI agent security scanner pricing', 'LLM vulnerability CLI cost', 'free security tool', 'DevSecOps pricing', 'application security cost'],
   alternates: {
-    canonical: 'https://www.shipsafecli.com/pricing',
+    canonical: '/pricing',
   },
   openGraph: {
     title: 'Start free. Upgrade when your team needs history — Ship Safe',
     description: 'Run Ship Safe locally for free. Add the dashboard when you need scan history, PR checks, private repos, and team workflows.',
     type: 'website',
-    url: 'https://www.shipsafecli.com/pricing',
+    url: siteUrl('/pricing'),
     siteName: 'Ship Safe CLI',
     images: [{ url: ogImage, width: 1200, height: 628, alt: 'Ship Safe Pricing' }],
   },
@@ -203,7 +204,7 @@ export default function Pricing() {
               <strong>Need SSO, on-prem, or custom policies?</strong>
               <span>Enterprise includes Team plus SAML, SLA, deployment support, and volume pricing.</span>
             </div>
-            <TrackedLink href="mailto:hello@shipsafecli.com" event="Pricing CTA Clicked" payload={{ item: 'contact_enterprise', section: 'enterprise' }} className={styles.secondaryCta}>Contact us</TrackedLink>
+            <TrackedLink href="mailto:{DEFAULT_REPLY_TO}" event="Pricing CTA Clicked" payload={{ item: 'contact_enterprise', section: 'enterprise' }} className={styles.secondaryCta}>Contact us</TrackedLink>
           </div>
         </section>
 

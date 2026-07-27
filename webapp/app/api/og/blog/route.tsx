@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og';
 import { getPostBySlug } from '@/data/blog';
+import { DISPLAY_HOST } from '@/lib/site';
 
 export const runtime = 'edge';
 
@@ -180,7 +181,7 @@ export async function GET(request: Request) {
             </div>
 
             <span style={{ fontSize: '14px', color: 'rgba(148,163,184,0.45)', letterSpacing: '0.02em' }}>
-              shipsafecli.com
+              {DISPLAY_HOST}
             </span>
           </div>
         </div>

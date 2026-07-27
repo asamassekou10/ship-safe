@@ -1,5 +1,6 @@
 import { prisma } from './prisma';
 import crypto from 'crypto';
+import { CANONICAL_URL } from './site';
 
 // ── GitHub App JWT ──────────────────────────────────────────
 
@@ -118,7 +119,7 @@ export async function postPRComment(
 
   const gradeEmoji = (grade ?? 'F') <= 'B' ? '✅' : (grade ?? 'F') <= 'C' ? '⚠️' : '🚨';
   const scoreColor = (score ?? 0) >= 80 ? '🟢' : (score ?? 0) >= 60 ? '🟡' : '🔴';
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.shipsafecli.com';
+  const appUrl = CANONICAL_URL;
 
   const body = [
     `## ${gradeEmoji} Ship Safe Security Scan`,
@@ -134,7 +135,7 @@ export async function postPRComment(
       ? `> ⚠️ This PR introduced or contains security findings. [View full report](${appUrl}/app/scans/${scanId})`
       : `> ✅ No security issues found. [View full report](${appUrl}/app/scans/${scanId})`,
     '',
-    `<sub>Scanned by [Ship Safe](https://www.shipsafecli.com) · [Dismiss](${appUrl}/app/scans/${scanId})</sub>`,
+    `<sub>Scanned by [Ship Safe](${CANONICAL_URL}) · [Dismiss](${appUrl}/app/scans/${scanId})</sub>`,
   ].join('\n');
 
   const [owner, repoName] = repo.split('/');

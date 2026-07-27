@@ -1,8 +1,9 @@
 import type { MetadataRoute } from 'next';
 import { posts } from '@/data/blog';
+import { CANONICAL_URL } from '@/lib/site';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://www.shipsafecli.com';
+  const baseUrl = CANONICAL_URL;
 
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);

@@ -15,6 +15,7 @@
  *   - Approval: tools/approval.py — dangerous command detection (33 patterns)
  *   - Config: ~/.hermes/config.yaml — YAML-based, NOT manifest-based
  */
+import { CANONICAL_URL, siteUrl } from './site';
 
 export interface HermesConfig {
   projectName: string;
@@ -47,7 +48,7 @@ export function generateAgentManifest(config: HermesConfig): string {
 
   return JSON.stringify(
     {
-      $schema: 'https://shipsafecli.com/schemas/agent-manifest.v1.json',
+      $schema: siteUrl('/schemas/agent-manifest.v1.json'),
       name: config.projectName || 'my-hermes-agent',
       version: '1.0.0',
       description: 'Ship Safe security manifest — tool allowlist + integrity hashes for Hermes',
@@ -250,7 +251,7 @@ jobs:
                 \`| \${score}/100 | \${grade} | \${findings} |\`,
                 '',
                 score < 70 ? '> ⚠️ Run \`npx ship-safe audit . --agentic 3\` locally to auto-fix findings.' : '> Security posture looks good.',
-                '_[Ship Safe](https://shipsafecli.com) · [Hermes Security](https://shipsafecli.com/hermes)_',
+                '_[Ship Safe](${CANONICAL_URL}) · [Hermes Security](${CANONICAL_URL}/hermes)_',
               ].join('\\n'),
             });
 
@@ -335,7 +336,7 @@ ${memoryNote}
 | Skills | \`skills/<category>/SKILL.md\` | Skill source validation |
 
 ---
-_[Ship Safe](https://shipsafecli.com) v9.3.2_
+_[Ship Safe](${CANONICAL_URL}) v9.3.2_
 `;
 }
 

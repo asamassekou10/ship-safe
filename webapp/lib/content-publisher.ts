@@ -1,6 +1,7 @@
 import type { ContentDraft } from '@prisma/client';
 import type { BlogPost } from '@/data/blog';
 import { getGitHubClient } from '@/lib/github';
+import { CANONICAL_URL } from './site';
 
 const DEFAULT_POSTS_PATH = 'webapp/data/generated-blog-posts.json';
 
@@ -82,7 +83,7 @@ export async function publishDraftToGitHubPr(draft: ContentDraft, userId: string
     throw new Error(err.message || `GitHub content update failed: ${updateRes.status}`);
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.shipsafecli.com';
+  const appUrl = CANONICAL_URL;
   const prRes = await client.fetch(`/repos/${owner}/${repoName}/pulls`, {
     method: 'POST',
     body: JSON.stringify({

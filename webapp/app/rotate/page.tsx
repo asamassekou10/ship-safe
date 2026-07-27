@@ -2,8 +2,9 @@ import Nav from '@/components/Nav';
 import type { Metadata } from 'next';
 import RotateWizard from './RotateWizard';
 import styles from './rotate.module.css';
+import { siteUrl } from '@/lib/site';
 
-const ogImage = 'https://www.shipsafecli.com/og1.png';
+const ogImage = '/og1.png';
 
 export const metadata: Metadata = {
   title: 'Credential Rotation Wizard — Ship Safe',
@@ -17,13 +18,13 @@ export const metadata: Metadata = {
     'rotate secrets across projects',
   ],
   alternates: {
-    canonical: 'https://www.shipsafecli.com/rotate',
+    canonical: '/rotate',
   },
   openGraph: {
     title: 'Credential Rotation Wizard — Ship Safe',
     description: 'Rotate credentials across all your Vercel projects after a breach. Discovers env var names, groups by issuer, generates a rotation plan.',
     type: 'website',
-    url: 'https://www.shipsafecli.com/rotate',
+    url: siteUrl('/rotate'),
     siteName: 'Ship Safe CLI',
     images: [{ url: ogImage, width: 1200, height: 628, alt: 'Credential Rotation Wizard' }],
   },

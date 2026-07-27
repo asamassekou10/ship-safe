@@ -3,8 +3,9 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import LovableChecker from './LovableChecker';
 import styles from '../vercel-april-2026/breach.module.css';
+import { siteUrl } from '@/lib/site';
 
-const ogImage = 'https://www.shipsafecli.com/og2.png';
+const ogImage = '/og2.png';
 
 export const metadata: Metadata = {
   title: 'Lovable Public Project Exposure — Self-Audit | Ship Safe',
@@ -18,13 +19,13 @@ export const metadata: Metadata = {
     'rotate credentials after Lovable',
   ],
   alternates: {
-    canonical: 'https://www.shipsafecli.com/breach/lovable-2025',
+    canonical: '/breach/lovable-2025',
   },
   openGraph: {
     title: 'Lovable Public Project Exposure — Self-Audit',
     description: 'Check if your Lovable projects exposed credentials or sensitive data from chat histories.',
     type: 'website',
-    url: 'https://www.shipsafecli.com/breach/lovable-2025',
+    url: siteUrl('/breach/lovable-2025'),
     siteName: 'Ship Safe CLI',
     images: [{ url: ogImage, width: 1200, height: 628, alt: 'Lovable Public Project Exposure Self-Audit' }],
   },

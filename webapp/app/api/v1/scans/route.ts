@@ -10,6 +10,7 @@ import { promisify } from 'util';
 import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { DISPLAY_HOST } from '@/lib/site';
 
 const execFileAsync = promisify(execFile);
 
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest) {
   if (!resolved) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { userId, plan } = resolved;
   if (!PAID_PLANS.includes(plan)) {
-    return NextResponse.json({ error: 'API access requires a Pro or Team plan. Upgrade at shipsafecli.com/pricing' }, { status: 403 });
+    return NextResponse.json({ error: 'API access requires a Pro or Team plan. Upgrade at ${DISPLAY_HOST}/pricing' }, { status: 403 });
   }
 
   const url = new URL(req.url);
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest) {
   const { userId, plan } = resolved;
   if (!PAID_PLANS.includes(plan)) {
     return NextResponse.json(
-      { error: 'API access requires a Pro or Team plan. Upgrade at shipsafecli.com/pricing' },
+      { error: 'API access requires a Pro or Team plan. Upgrade at ${DISPLAY_HOST}/pricing' },
       { status: 403 },
     );
   }

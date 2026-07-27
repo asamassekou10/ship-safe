@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: 'Privacy Policy',
   description: 'Ship Safe privacy policy covering account data, scan data, connected providers, and security workflows.',
   alternates: {
-    canonical: 'https://www.shipsafecli.com/privacy',
+    canonical: '/privacy',
   },
 };
 

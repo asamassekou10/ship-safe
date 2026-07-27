@@ -1,5 +1,6 @@
 import { prisma } from './prisma';
 import crypto from 'crypto';
+import { CANONICAL_URL, DEFAULT_REPLY_TO, DEFAULT_EMAIL_FROM } from './site';
 
 /* ── Types ────────────────────────────────────────────── */
 
@@ -20,7 +21,7 @@ interface ScanResult {
 
 /* ── Email (Resend-compatible HTTP API) ───────────────── */
 
-const DEFAULT_REPLY_TO = 'hello@shipsafecli.com';
+
 
 async function sendEmail(to: string, subject: string, html: string) {
   const apiKey = process.env.RESEND_API_KEY;
@@ -30,11 +31,11 @@ async function sendEmail(to: string, subject: string, html: string) {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: process.env.EMAIL_FROM || 'Ship Safe <hello@shipsafecli.com>',
+      from: DEFAULT_EMAIL_FROM,
       to: [to],
       subject,
       html,
-      reply_to: process.env.EMAIL_REPLY_TO || DEFAULT_REPLY_TO,
+      reply_to: DEFAULT_REPLY_TO,
     }),
   }).catch(console.error);
 }
@@ -64,7 +65,7 @@ function scanEmailHtml(scan: ScanResult): string {
           <tr><td style="padding: 8px 0; color: #71717a;">Code Vulns</td><td style="text-align: right; font-weight: 600;">${scan.vulns}</td></tr>
           <tr><td style="padding: 8px 0; color: #71717a;">CVEs</td><td style="text-align: right; font-weight: 600;">${scan.cves}</td></tr>
         </table>
-        <a href="${process.env.AUTH_URL || 'https://www.shipsafecli.com'}/app/scans/${scan.id}"
+        <a href="${process.env.AUTH_URL || CANONICAL_URL}/app/scans/${scan.id}"
            style="display: inline-block; margin-top: 20px; padding: 10px 24px; background: #22d3ee; color: #09090b; font-weight: 700; border-radius: 8px; text-decoration: none; font-size: 14px;">
           View Full Report
         </a>
@@ -104,7 +105,7 @@ async function sendSlack(webhookUrl: string, scan: ScanResult) {
           elements: [{
             type: 'button',
             text: { type: 'plain_text', text: 'View Report' },
-            url: `${process.env.AUTH_URL || 'https://www.shipsafecli.com'}/app/scans/${scan.id}`,
+            url: `${process.env.AUTH_URL || CANONICAL_URL}/app/scans/${scan.id}`,
           }],
         },
       ],
@@ -233,10 +234,10 @@ export async function notifyGuardianComplete(run: GuardianResult) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: process.env.EMAIL_FROM || 'Ship Safe <hello@shipsafecli.com>',
+          from: DEFAULT_EMAIL_FROM,
           to: [user.email],
           subject: `${statusEmoji} PR Guardian: ${run.prTitle || `PR #${run.prNumber}`} — ${run.status}`,
-          reply_to: process.env.EMAIL_REPLY_TO || DEFAULT_REPLY_TO,
+          reply_to: DEFAULT_REPLY_TO,
           html: `<div style="font-family:system-ui;background:#09090b;color:#fafafa;padding:2rem;border-radius:12px;max-width:560px">
             <h2 style="margin:0 0 1rem;font-size:1.1rem">PR Guardian — ${run.status.charAt(0).toUpperCase() + run.status.slice(1)}</h2>
             <p style="margin:0.5rem 0;font-size:0.9rem"><strong>Repo:</strong> ${run.repo}</p>
@@ -306,7 +307,7 @@ export async function notifyAgentFindings(opts: {
   });
   if (!settings) return;
 
-  const appUrl = process.env.AUTH_URL || 'https://www.shipsafecli.com';
+  const appUrl = process.env.AUTH_URL || CANONICAL_URL;
   const findingsUrl = `${appUrl}/app/agents/${agentId}?tab=findings`;
 
   // ── Slack ───────────────────────────────────────────────
@@ -474,7 +475,7 @@ export async function sendWeeklyDigests(frequency: 'weekly' | 'daily' = 'weekly'
           </table>
         </div>
         <div style="padding: 16px 24px; border-top: 1px solid #27272a; text-align: center;">
-          <a href="${process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.shipsafecli.com'}/app" style="display: inline-block; background: #0ea5e9; color: #fff; padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none;">View dashboard</a>
+          <a href="${CANONICAL_URL}/app" style="display: inline-block; background: #0ea5e9; color: #fff; padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none;">View dashboard</a>
         </div>
       </div>`;
 

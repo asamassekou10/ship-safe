@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: 'Terms of Service',
   description: 'Ship Safe terms of service for use of the website, dashboard, CLI, and related security tooling.',
   alternates: {
-    canonical: 'https://www.shipsafecli.com/terms',
+    canonical: '/terms',
   },
 };
 

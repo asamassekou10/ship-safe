@@ -1,8 +1,9 @@
 'use client';
 import { useState } from 'react';
 import styles from './BreachShare.module.css';
+import { siteUrl } from '@/lib/site';
 
-const URL = 'https://www.shipsafecli.com/breach/vercel-april-2026';
+const URL = siteUrl('/breach/vercel-april-2026');
 const TITLE = 'Vercel April 2026 Breach - Impact Checker';
 const EMAIL_SUBJECT = 'Check if your Vercel project was affected by the April 2026 breach';
 const EMAIL_BODY = `Hey,

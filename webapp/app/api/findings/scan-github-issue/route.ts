@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { scanFindingKey, scanReportFindings } from '@/lib/scan-findings';
+import { CANONICAL_URL } from '@/lib/site';
 
 function repositoryParts(value: string): { owner: string; repo: string } | null {
   const normalized = value
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
     typeof finding.fix === 'string' ? `### Recommended fix\n${finding.fix}` : null,
     '',
     '---',
-    `Created from [Ship Safe scan](${process.env.AUTH_URL || 'https://www.shipsafecli.com'}/app/scans/${scan.id}).`,
+    `Created from [Ship Safe scan](${process.env.AUTH_URL || CANONICAL_URL}/app/scans/${scan.id}).`,
   ].filter(Boolean).join('\n');
 
   const response = await fetch(`https://api.github.com/repos/${repository.owner}/${repository.repo}/issues`, {

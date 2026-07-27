@@ -1,5 +1,6 @@
 import type { BlogPost } from '@/data/blog';
 import { draftWithHermesProvider } from '@/lib/content-intelligence-providers';
+import { CANONICAL_URL } from './site';
 
 export interface ContentAgentSource {
   id: string;
@@ -59,7 +60,7 @@ const DEFAULT_MIN_SCORE = 24;
 
 export const defaultContentAgentConfig: ContentAgentConfig = {
   brandName: 'Ship Safe',
-  productUrl: 'https://www.shipsafecli.com',
+  productUrl: CANONICAL_URL,
   audience: 'developers and founders shipping AI-assisted SaaS products',
   primaryKeywords: [
     'AI agent security',

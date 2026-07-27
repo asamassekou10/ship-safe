@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { getGitHubClient } from '@/lib/github';
 import { appendTimeline } from './pipeline';
+import { CANONICAL_URL } from '../site';
 
 type Run = NonNullable<Awaited<ReturnType<typeof prisma.pRGuardianRun.findUnique>>>;
 
@@ -106,7 +107,7 @@ async function postSummaryComment(
 ${timelineText}
 
 ---
-<sub>Auto-managed by [Ship Safe PR Guardian](https://www.shipsafecli.com)</sub>`;
+<sub>Auto-managed by [Ship Safe PR Guardian](${CANONICAL_URL})</sub>`;
 
   await gh.fetch(`/repos/${owner}/${repo}/issues/${run.prNumber}/comments`, {
     method: 'POST',

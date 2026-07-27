@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import type { Metadata } from 'next';
 import Nav from '@/components/Nav';
+import { CANONICAL_URL } from '@/lib/site';
 
 type Props = { params: Promise<{ owner: string; repo: string }> };
 
@@ -28,7 +29,7 @@ export default async function BadgePage({ params }: Props) {
   if (!scan) notFound();
 
   const color = gradeColor[scan.grade ?? 'F'] ?? '#ef4444';
-  const badgeUrl = `https://www.shipsafecli.com/api/badge?score=${scan.score ?? 0}&grade=${encodeURIComponent(scan.grade ?? 'F')}`;
+  const badgeUrl = `${CANONICAL_URL}/api/badge?score=${scan.score ?? 0}&grade=${encodeURIComponent(scan.grade ?? 'F')}`;
 
   return (
     <>
@@ -60,12 +61,12 @@ export default async function BadgePage({ params }: Props) {
         <div style={{ background: '#0f172a', borderRadius: 12, padding: '1.25rem', marginBottom: '2rem', textAlign: 'left' }}>
           <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '0.75rem' }}>Add this badge to your README:</p>
           <code style={{ color: '#38bdf8', fontSize: '0.75rem', wordBreak: 'break-all', display: 'block' }}>
-            {`[![Ship Safe](${badgeUrl})](https://www.shipsafecli.com/badge/${fullName})`}
+            {`[![Ship Safe](${badgeUrl})](${CANONICAL_URL}/badge/${fullName})`}
           </code>
         </div>
 
         <a
-          href="https://www.shipsafecli.com"
+          href="${CANONICAL_URL}"
           style={{ display: 'inline-block', background: '#0ea5e9', color: '#fff', padding: '0.75rem 2rem', borderRadius: 8, fontWeight: 600, textDecoration: 'none' }}
         >
           Scan your repo — free

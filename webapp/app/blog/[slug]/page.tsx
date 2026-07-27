@@ -7,6 +7,7 @@ import ShareButtons from './ShareButtons';
 import BlogFooterCta from './BlogFooterCta';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { CANONICAL_URL, siteUrl } from '@/lib/site';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -21,20 +22,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = getPostBySlug(slug);
   if (!post) return {};
 
-  const ogImageUrl = `https://www.shipsafecli.com/api/og/blog?slug=${post.slug}`;
+  const ogImageUrl = `${CANONICAL_URL}/api/og/blog?slug=${post.slug}`;
 
   return {
     title: post.title,
     description: post.description,
     keywords: post.keywords,
     alternates: {
-      canonical: `https://www.shipsafecli.com/blog/${post.slug}`,
+      canonical: `${CANONICAL_URL}/blog/${post.slug}`,
     },
     openGraph: {
       title: post.title,
       description: post.description,
       type: 'article',
-      url: `https://www.shipsafecli.com/blog/${post.slug}`,
+      url: `${CANONICAL_URL}/blog/${post.slug}`,
       siteName: 'Ship Safe CLI',
       publishedTime: post.date,
       authors: [post.author],
@@ -217,7 +218,7 @@ export default async function BlogPost({ params }: Props) {
   if (!post) notFound();
 
   const morePosts = posts.filter((p) => p.slug !== slug).slice(0, 3);
-  const postUrl = `https://www.shipsafecli.com/blog/${post.slug}`;
+  const postUrl = `${CANONICAL_URL}/blog/${post.slug}`;
   const faqs = extractFaqs(post.content);
 
   const articleJsonLd = {
@@ -226,24 +227,24 @@ export default async function BlogPost({ params }: Props) {
     description: post.description,
     datePublished: post.date,
     dateModified: post.date,
-    image: `https://www.shipsafecli.com/api/og/blog?slug=${post.slug}`,
+    image: `${CANONICAL_URL}/api/og/blog?slug=${post.slug}`,
     author: {
       '@type': 'Person',
       name: post.author,
-      url: 'https://www.shipsafecli.com',
+      url: CANONICAL_URL,
     },
     publisher: {
       '@type': 'Organization',
       name: 'Ship Safe',
-      url: 'https://www.shipsafecli.com',
+      url: CANONICAL_URL,
       logo: {
         '@type': 'ImageObject',
-        url: 'https://www.shipsafecli.com/logo.png',
+        url: siteUrl('/logo.png'),
       },
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `https://www.shipsafecli.com/blog/${post.slug}`,
+      '@id': `${CANONICAL_URL}/blog/${post.slug}`,
     },
     keywords: post.keywords.join(', '),
   };

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { CANONICAL_URL } from '@/lib/site';
 
 const MAX_REPORT_BYTES = 512 * 1024; // 512 KB
 
@@ -29,6 +30,6 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const url = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.shipsafecli.com'}/share/${shared.token}`;
+  const url = `${process.env.NEXT_PUBLIC_APP_URL ?? CANONICAL_URL}/share/${shared.token}`;
   return NextResponse.json({ url, token: shared.token, expiresAt });
 }

@@ -3,8 +3,9 @@ import type { Metadata } from 'next';
 import BreachChecker from './BreachChecker';
 import BreachShare from './BreachShare';
 import styles from './breach.module.css';
+import { siteUrl } from '@/lib/site';
 
-const ogImage = 'https://www.shipsafecli.com/og2.png';
+const ogImage = '/og2.png';
 
 export const metadata: Metadata = {
   title: 'Vercel April 2026 Breach — Impact Checker | Ship Safe',
@@ -19,13 +20,13 @@ export const metadata: Metadata = {
     'GitHub Actions AI action pinning',
   ],
   alternates: {
-    canonical: 'https://www.shipsafecli.com/breach/vercel-april-2026',
+    canonical: '/breach/vercel-april-2026',
   },
   openGraph: {
     title: 'Vercel April 2026 Breach — Impact Checker',
     description: 'Check if your project was impacted by the Vercel April 2026 AI integration supply chain attack.',
     type: 'website',
-    url: 'https://www.shipsafecli.com/breach/vercel-april-2026',
+    url: siteUrl('/breach/vercel-april-2026'),
     siteName: 'Ship Safe CLI',
     images: [{ url: ogImage, width: 1200, height: 628, alt: 'Vercel April 2026 Breach Impact Checker' }],
   },

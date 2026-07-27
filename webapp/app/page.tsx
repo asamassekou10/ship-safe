@@ -3,21 +3,22 @@ import Nav from '@/components/Nav';
 import ScrollAnimator from '@/components/ScrollAnimator';
 import HomeRedesign from '@/components/HomeRedesign';
 import { getRepoStats } from '@/lib/stats';
+import { CANONICAL_URL, siteUrl } from '@/lib/site';
 
-const ogImage = 'https://www.shipsafecli.com/og1.png';
+const ogImage = '/og1.png';
 
 export const metadata: Metadata = {
   title: 'Ship Safe CLI — AI Agent Security Scanner for Developers',
   description: '29 AI security agents scan your codebase for LLM vulnerabilities, MCP configuration security issues, RAG poisoning, Claude Managed Agent misconfigs, secrets, and dependency CVEs. OWASP Agentic AI Top 10 mapping, live advisory feeds. Free CLI.',
   keywords: ['AI agent security scanner', 'LLM vulnerability CLI', 'MCP configuration security', 'RAG poisoning prevention', 'prevent RAG poisoning', 'application security scanner', 'AI security agents', 'secret scanner', 'OWASP Agentic AI Top 10', 'memory poisoning detection', 'prompt injection scanner', 'DevSecOps tool', 'free security scanner', 'open source SAST'],
   alternates: {
-    canonical: 'https://www.shipsafecli.com',
+    canonical: '/',
   },
   openGraph: {
     title: 'Ship Safe CLI — AI Agent Security Scanner for Developers',
     description: '29 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
     type: 'website',
-    url: 'https://www.shipsafecli.com',
+    url: CANONICAL_URL,
     siteName: 'Ship Safe CLI',
     images: [{ url: ogImage, width: 1200, height: 628, alt: 'Ship Safe - AI Agent Security Scanner' }],
   },
@@ -34,7 +35,7 @@ const jsonLd = {
   '@graph': [
     {
       '@type': 'SoftwareApplication',
-      '@id': 'https://www.shipsafecli.com/#software',
+      '@id': siteUrl('/#software'),
       name: 'Ship Safe CLI',
       alternateName: ['Ship Safe', 'ship-safe'],
       applicationCategory: 'DeveloperApplication',
@@ -45,11 +46,11 @@ const jsonLd = {
         priceCurrency: 'USD',
       },
       description: '29 AI security agents scan your codebase for secrets, vulnerabilities, memory poisoning, Hermes Agent misconfigurations, and dependency CVEs in one command.',
-      url: 'https://www.shipsafecli.com',
+      url: CANONICAL_URL,
       downloadUrl: 'https://www.npmjs.com/package/ship-safe',
       softwareVersion: '9.5.2',
       author: {
-        '@id': 'https://www.shipsafecli.com/#organization',
+        '@id': siteUrl('/#organization'),
       },
     },
     {
@@ -131,11 +132,11 @@ const jsonLd = {
     },
     {
       '@type': 'Organization',
-      '@id': 'https://www.shipsafecli.com/#organization',
+      '@id': siteUrl('/#organization'),
       name: 'Ship Safe CLI',
       alternateName: 'Ship Safe',
-      url: 'https://www.shipsafecli.com',
-      logo: 'https://www.shipsafecli.com/logo.png',
+      url: CANONICAL_URL,
+      logo: siteUrl('/logo.png'),
       sameAs: [
         'https://github.com/asamassekou10/ship-safe',
         'https://www.npmjs.com/package/ship-safe',
