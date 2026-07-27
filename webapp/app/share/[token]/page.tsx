@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import type { Metadata } from 'next';
 import Nav from '@/components/Nav';
+import { CANONICAL_URL } from '@/lib/site';
 
 type Props = { params: Promise<{ token: string }> };
 
@@ -45,7 +46,7 @@ export default async function SharePage({ params }: Props) {
           <div style={{ fontSize: '2rem', color, fontWeight: 700 }}>{shared.grade ?? 'F'}</div>
           <p style={{ color: '#94a3b8', marginTop: '0.5rem' }}>
             {shared.findings} finding{shared.findings !== 1 ? 's' : ''} ·{' '}
-            scanned with <a href="https://www.shipsafecli.com" style={{ color: '#38bdf8' }}>Ship Safe</a>
+            scanned with <a href="${CANONICAL_URL}" style={{ color: '#38bdf8' }}>Ship Safe</a>
           </p>
         </div>
 
@@ -68,7 +69,7 @@ export default async function SharePage({ params }: Props) {
 
         <div style={{ textAlign: 'center' }}>
           <a
-            href="https://www.shipsafecli.com"
+            href="${CANONICAL_URL}"
             style={{ display: 'inline-block', background: '#0ea5e9', color: '#fff', padding: '0.75rem 2rem', borderRadius: 8, fontWeight: 600, textDecoration: 'none' }}
           >
             Scan your own repo — free

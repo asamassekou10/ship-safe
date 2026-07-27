@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { siteUrl } from '@/lib/site';
 
 const privateAppPaths = [
   '/api/',
@@ -41,6 +42,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: privateAppPaths,
       },
     ],
-    sitemap: 'https://www.shipsafecli.com/sitemap.xml',
+    sitemap: siteUrl('/sitemap.xml'),
   };
 }

@@ -9,6 +9,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
 import s from './scan-detail.module.css';
+import { CANONICAL_URL } from '@/lib/site';
 
 /* ── Types ────────────────────────────────────────────── */
 
@@ -577,7 +578,7 @@ export default function ScanDetail() {
     .filter(f => f.severity === 'critical' || f.severity === 'high');
 
   const badgeMarkdown = scan.score !== null && scan.grade
-    ? `[![Ship Safe](https://www.shipsafecli.com/api/badge?score=${scan.score}&grade=${scan.grade})](https://www.shipsafecli.com)`
+    ? `[![Ship Safe](${CANONICAL_URL}/api/badge?score=${scan.score}&grade=${scan.grade})](${CANONICAL_URL})`
     : null;
 
   function copyBadge() {

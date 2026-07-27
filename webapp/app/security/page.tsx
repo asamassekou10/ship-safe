@@ -3,8 +3,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Nav from '@/components/Nav';
 import styles from './security.module.css';
+import { CANONICAL_URL, siteUrl } from '@/lib/site';
 
-const canonicalUrl = 'https://www.shipsafecli.com/security';
+const canonicalUrl = siteUrl('/security');
 const ogImage = '/api/og?title=Security%20and%20Data%20Flow&description=See%20what%20stays%20local%2C%20what%20reaches%20an%20AI%20provider%2C%20and%20how%20to%20force%20offline%20scanning.&label=Security&badge=v9.5.2';
 
 export const metadata: Metadata = {
@@ -55,10 +56,10 @@ const jsonLd = {
       datePublished: '2026-07-19',
       dateModified: '2026-07-19',
       url: canonicalUrl,
-      image: `https://www.shipsafecli.com${ogImage}`,
+      image: `${CANONICAL_URL}${ogImage}`,
       about: ['Local security scanning', 'AI provider data flow', 'Credential redaction', 'Offline code scanning'],
-      author: { '@type': 'Organization', name: 'Ship Safe CLI', url: 'https://www.shipsafecli.com' },
-      publisher: { '@type': 'Organization', name: 'Ship Safe CLI', url: 'https://www.shipsafecli.com' },
+      author: { '@type': 'Organization', name: 'Ship Safe CLI', url: CANONICAL_URL },
+      publisher: { '@type': 'Organization', name: 'Ship Safe CLI', url: CANONICAL_URL },
     },
     {
       '@type': 'FAQPage',
@@ -72,7 +73,7 @@ const jsonLd = {
     {
       '@type': 'BreadcrumbList',
       itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'Ship Safe CLI', item: 'https://www.shipsafecli.com' },
+        { '@type': 'ListItem', position: 1, name: 'Ship Safe CLI', item: CANONICAL_URL },
         { '@type': 'ListItem', position: 2, name: 'Security and Data Flow', item: canonicalUrl },
       ],
     },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyUnsubToken } from '@/lib/lifecycle-emails';
+import { CANONICAL_URL } from '@/lib/site';
 
 /**
  * GET /api/unsubscribe?u=<userId>&t=<token>
@@ -14,7 +15,7 @@ function page(title: string, message: string, status = 200): NextResponse {
 <div style="max-width:420px;text-align:center;padding:32px;">
 <h1 style="font-size:20px;margin:0 0 12px;">${title}</h1>
 <p style="color:#555;line-height:1.6;margin:0 0 20px;">${message}</p>
-<a href="https://www.shipsafecli.com" style="color:#0891b2;text-decoration:none;">← Back to Ship Safe</a>
+<a href="${CANONICAL_URL}" style="color:#0891b2;text-decoration:none;">← Back to Ship Safe</a>
 </div></body></html>`;
   return new NextResponse(html, { status, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 }

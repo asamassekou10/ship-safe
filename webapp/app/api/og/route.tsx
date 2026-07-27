@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { DISPLAY_HOST } from '@/lib/site';
 
 export const runtime = 'edge';
 
@@ -190,7 +191,7 @@ export async function GET(request: Request) {
             }}
           >
             <span style={{ fontSize: '15px', color: 'rgba(148,163,184,0.4)', letterSpacing: '0.02em' }}>
-              shipsafecli.com
+              {DISPLAY_HOST}
             </span>
 
             {/* Decorative stat bar */}

@@ -3,9 +3,10 @@ import Link from 'next/link';
 import Nav from '@/components/Nav';
 import results from '@/data/benchmark-results.json';
 import styles from './benchmarks.module.css';
+import { CANONICAL_URL, siteUrl } from '@/lib/site';
 
-const canonicalUrl = 'https://www.shipsafecli.com/benchmarks';
-const resultUrl = 'https://www.shipsafecli.com/benchmarks/latest.json';
+const canonicalUrl = siteUrl('/benchmarks');
+const resultUrl = siteUrl('/benchmarks/latest.json');
 const ogImage = '/api/og?title=Reproducible%20Security%20Benchmark&description=Inspect%2012%20paired%20vulnerable%20and%20safe%20controls%2C%20the%20methodology%2C%20and%20machine-readable%20results.&label=Benchmark&badge=Corpus%20v1.0.0';
 const scenarioRecall = Math.round(results.metrics.scenarioRecall * 100);
 const cleanControlRate = Math.round(results.metrics.targetRuleCleanControlPassRate * 100);
@@ -64,7 +65,7 @@ const jsonLd = {
       keywords: ['AI security', 'MCP security', 'agentic AI', 'SAST', 'security scanner benchmark'],
       measurementTechnique: 'Paired synthetic vulnerable and safe controls evaluated against labeled target rules in deterministic local mode.',
       variableMeasured: ['Scenario recall', 'Target-rule clean-control pass rate'],
-      creator: { '@type': 'Organization', name: 'Ship Safe CLI', url: 'https://www.shipsafecli.com' },
+      creator: { '@type': 'Organization', name: 'Ship Safe CLI', url: CANONICAL_URL },
       distribution: { '@type': 'DataDownload', encodingFormat: 'application/json', contentUrl: resultUrl },
     },
     {
@@ -79,7 +80,7 @@ const jsonLd = {
     {
       '@type': 'BreadcrumbList',
       itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'Ship Safe CLI', item: 'https://www.shipsafecli.com' },
+        { '@type': 'ListItem', position: 1, name: 'Ship Safe CLI', item: CANONICAL_URL },
         { '@type': 'ListItem', position: 2, name: 'Reproducible Security Benchmark', item: canonicalUrl },
       ],
     },

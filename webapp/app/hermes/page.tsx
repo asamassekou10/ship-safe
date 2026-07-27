@@ -6,21 +6,22 @@ import MagneticButton from '@/components/MagneticButton';
 import ScrollAnimator from '@/components/ScrollAnimator';
 import styles from './hermes.module.css';
 import type { Metadata } from 'next';
+import { siteUrl, DISPLAY_HOST } from '@/lib/site';
 
-const ogImage = 'https://www.shipsafecli.com/og1.png';
+const ogImage = '/og1.png';
 
 export const metadata: Metadata = {
   title: 'Hermes Agent Security — Ship Safe',
   description: 'Harden your Hermes agent against tool poisoning, function-call injection, and memory attacks. Answer 4 questions, get one setup command, deploy 29 security agents.',
   keywords: ['Hermes agent security', 'Hermes tool poisoning', 'function-call injection', 'LLM agent security', 'Hermes framework hardening', 'agentic security', 'AI agent security'],
   alternates: {
-    canonical: 'https://www.shipsafecli.com/hermes',
+    canonical: '/hermes',
   },
   openGraph: {
     title: 'Hermes Agent Security — Ship Safe',
     description: 'Harden your Hermes agent against tool poisoning, function-call injection, and memory attacks in one command.',
     type: 'website',
-    url: 'https://www.shipsafecli.com/hermes',
+    url: siteUrl('/hermes'),
     siteName: 'Ship Safe CLI',
     images: [{ url: ogImage, width: 1200, height: 628, alt: 'Hermes Agent Security' }],
   },
@@ -88,7 +89,7 @@ export default function HermesPage() {
             </p>
             <div className={styles.heroCommand}>
               <span>$</span>
-              <code>npx ship-safe init --hermes --from shipsafecli.com/s/&lt;token&gt;</code>
+              <code>npx ship-safe init --hermes --from {DISPLAY_HOST}/s/&lt;token&gt;</code>
             </div>
             <div className={styles.actions}>
               <MagneticButton>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { encodeConfig, type HermesConfig } from '@/lib/hermes-config-generator';
+import { CANONICAL_URL } from '@/lib/site';
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
   }));
 
   const token = encodeConfig(config);
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://shipsafecli.com';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? CANONICAL_URL;
   const url = `${baseUrl}/s/${token}`;
   const command = `npx ship-safe init --hermes --from ${url}`;
 

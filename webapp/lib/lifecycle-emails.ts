@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { prisma } from './prisma';
+import { CANONICAL_URL, DEFAULT_REPLY_TO, DEFAULT_EMAIL_FROM, DISPLAY_HOST } from './site';
 
 /**
  * Lifecycle emails
@@ -29,7 +30,7 @@ export interface LifecycleUser {
 
 const USER_SELECT = { id: true, email: true, name: true, plan: true, lifecycleOptOut: true } as const;
 const DAY = 24 * 60 * 60 * 1000;
-const DEFAULT_REPLY_TO = 'hello@shipsafecli.com';
+
 
 // ── Unsubscribe tokens ───────────────────────────────────────────────────────
 
@@ -48,7 +49,7 @@ export function verifyUnsubToken(userId: string, token: string): boolean {
 }
 
 function baseUrl(): string {
-  return process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://www.shipsafecli.com';
+  return process.env.NEXTAUTH_URL || CANONICAL_URL;
 }
 
 function unsubUrl(userId: string): string {
@@ -68,11 +69,11 @@ async function send(to: string, subject: string, html: string): Promise<boolean>
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: process.env.EMAIL_FROM_FOUNDER || process.env.EMAIL_FROM || 'Ship Safe <hello@shipsafecli.com>',
+        from: process.env.EMAIL_FROM_FOUNDER || DEFAULT_EMAIL_FROM,
         to: [to],
         subject,
         html,
-        reply_to: process.env.EMAIL_REPLY_TO || DEFAULT_REPLY_TO,
+        reply_to: DEFAULT_REPLY_TO,
       }),
     });
     if (!res.ok) console.error('[lifecycle] Resend responded', res.status, await res.text().catch(() => ''));
@@ -109,7 +110,7 @@ ${inner}
     <div style="padding:0 30px 26px;">
       <hr style="border:none;border-top:1px solid ${BORDER};margin:22px 0 14px;" />
       <p style="font-size:12px;line-height:1.6;color:${MUTED};margin:0;">
-        Ship Safe &middot; <a href="https://www.shipsafecli.com" style="color:${CYAN};text-decoration:none;">shipsafecli.com</a><br/>
+        Ship Safe &middot; <a href="${CANONICAL_URL}" style="color:${CYAN};text-decoration:none;">${DISPLAY_HOST}</a><br/>
         Reply to this email if you need help.<br/>
         You're getting this because you signed up for Ship Safe. <a href="${unsubUrl(userId)}" style="color:${MUTED};">Unsubscribe</a>.
       </p>

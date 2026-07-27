@@ -2,21 +2,22 @@ import Nav from '@/components/Nav';
 import Link from 'next/link';
 import styles from './docs.module.css';
 import type { Metadata } from 'next';
+import { CANONICAL_URL, siteUrl } from '@/lib/site';
 
-const ogImage = 'https://www.shipsafecli.com/og1.png';
+const ogImage = '/og1.png';
 
 export const metadata: Metadata = {
   title: 'Documentation',
   description: 'Complete Ship Safe documentation: LLM vulnerability CLI commands, MCP configuration security scanning, RAG poisoning detection, CI/CD integration, 29 agent reference, and API docs.',
   keywords: ['Ship Safe docs', 'LLM vulnerability CLI', 'MCP configuration security', 'RAG poisoning detection', 'AI agent security scanner', 'ship-safe commands', 'ship-safe agents', 'DevSecOps documentation', 'OWASP Agentic AI Top 10'],
   alternates: {
-    canonical: 'https://www.shipsafecli.com/docs',
+    canonical: '/docs',
   },
   openGraph: {
     title: 'Ship Safe CLI Documentation — v9.6.0',
     description: 'Every command, agent, and flag. LLM vulnerability CLI, MCP security configuration, RAG poisoning detection, CI/CD integration, and API reference.',
     type: 'website',
-    url: 'https://www.shipsafecli.com/docs',
+    url: siteUrl('/docs'),
     siteName: 'Ship Safe CLI',
     images: [{ url: ogImage, width: 1200, height: 628, alt: 'Ship Safe Documentation' }],
   },
@@ -33,8 +34,8 @@ const jsonLd = {
   '@type': 'TechArticle',
   headline: 'Ship Safe Documentation',
   description: 'Complete documentation for Ship Safe CLI security scanner.',
-  url: 'https://www.shipsafecli.com/docs',
-  author: { '@type': 'Organization', name: 'Ship Safe', url: 'https://www.shipsafecli.com' },
+  url: siteUrl('/docs'),
+  author: { '@type': 'Organization', name: 'Ship Safe', url: CANONICAL_URL },
 };
 
 export default function Docs() {

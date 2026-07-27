@@ -5,6 +5,7 @@ import AuroraBackground from '@/components/AuroraBackground';
 import ScrollProgress from '@/components/ScrollProgress';
 import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
+import { CANONICAL_URL } from '@/lib/site';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -30,24 +31,24 @@ export const metadata: Metadata = {
     template: '%s | Ship Safe CLI',
   },
   description: 'AI agent security scanner that detects LLM vulnerabilities, MCP configuration security issues, RAG poisoning, secrets, and dependency CVEs. 29 agents, one command. Free CLI, no signup required.',
-  metadataBase: new URL('https://www.shipsafecli.com'),
+  metadataBase: new URL(CANONICAL_URL),
   keywords: ['AI agent security scanner', 'LLM vulnerability CLI', 'MCP configuration security', 'RAG poisoning prevention', 'security scanner', 'secret detection', 'LLM security', 'prompt injection scanner', 'OWASP Agentic AI Top 10', 'DevSecOps', 'application security', 'dependency CVE scanner', 'open source SAST'],
   alternates: {
-    canonical: 'https://www.shipsafecli.com',
+    canonical: '/',
   },
   openGraph: {
     title: 'Ship Safe CLI — AI Agent Security Scanner for Developers',
     description: '29 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
     type: 'website',
-    url: 'https://www.shipsafecli.com',
+    url: CANONICAL_URL,
     siteName: 'Ship Safe CLI',
-    images: [{ url: 'https://www.shipsafecli.com/og1.png', width: 1200, height: 628, alt: 'Ship Safe - AI Agent Security Scanner' }],
+    images: [{ url: '/og1.png', width: 1200, height: 628, alt: 'Ship Safe - AI Agent Security Scanner' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Ship Safe CLI — AI Agent Security Scanner for Developers',
     description: '29 AI security agents detect LLM vulnerabilities, MCP misconfigurations, RAG poisoning, secrets, and CVEs. One command. Free and open source.',
-    images: ['https://www.shipsafecli.com/og1.png'],
+    images: ['/og1.png'],
   },
 };
 

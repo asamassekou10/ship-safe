@@ -5,21 +5,22 @@ import CursorGlow from '@/components/CursorGlow';
 import ScrollAnimator from '@/components/ScrollAnimator';
 import styles from './blog.module.css';
 import type { Metadata } from 'next';
+import { siteUrl } from '@/lib/site';
 
-const ogImage = 'https://www.shipsafecli.com/og2.png';
+const ogImage = '/og2.png';
 
 export const metadata: Metadata = {
   title: 'Blog',
   description: 'Security guides, vulnerability research, and best practices for developers. Learn how to find and fix security issues in your codebase.',
   keywords: ['application security blog', 'LLM vulnerability research', 'RAG poisoning prevention', 'MCP configuration security', 'AI agent security', 'DevSecOps blog', 'security best practices', 'code security guides'],
   alternates: {
-    canonical: 'https://www.shipsafecli.com/blog',
+    canonical: '/blog',
   },
   openGraph: {
     title: 'Security guides for developers — Ship Safe Blog',
     description: 'Vulnerability research, supply chain deep-dives, and practical security advice from the Ship Safe team.',
     type: 'website',
-    url: 'https://www.shipsafecli.com/blog',
+    url: siteUrl('/blog'),
     siteName: 'Ship Safe CLI',
     images: [{ url: ogImage, width: 1200, height: 628, alt: 'Ship Safe Blog' }],
   },

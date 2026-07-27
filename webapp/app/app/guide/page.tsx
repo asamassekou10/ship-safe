@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import styles from './guide.module.css';
+import { siteUrl } from '@/lib/site';
 
-const canonicalUrl = 'https://www.shipsafecli.com/app/guide';
+const canonicalUrl = siteUrl('/app/guide');
 const title = 'Ship Safe Web App Guide — Scan, Triage, and Fix Security Findings';
 const description = 'Step-by-step Ship Safe web app guide for setting up AI security scanning, running repository scans, triaging findings, creating GitHub issues, and enabling continuous protection.';
 
@@ -30,7 +31,7 @@ export const metadata: Metadata = {
     siteName: 'Ship Safe CLI',
     images: [
       {
-        url: 'https://www.shipsafecli.com/guide/dashboard-overview.jpg',
+        url: '/guide/dashboard-overview.jpg',
         width: 1280,
         height: 720,
         alt: 'Ship Safe web app dashboard and security findings guide',
@@ -41,7 +42,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title,
     description,
-    images: ['https://www.shipsafecli.com/guide/dashboard-overview.jpg'],
+    images: ['/guide/dashboard-overview.jpg'],
   },
 };
 
@@ -67,7 +68,7 @@ const guideJsonLd = {
   name: 'How to use the Ship Safe web app',
   description,
   url: canonicalUrl,
-  image: 'https://www.shipsafecli.com/guide/dashboard-overview.jpg',
+  image: siteUrl('/guide/dashboard-overview.jpg'),
   totalTime: 'PT15M',
   tool: [
     { '@type': 'HowToTool', name: 'Ship Safe web app' },
