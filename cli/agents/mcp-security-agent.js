@@ -310,6 +310,7 @@ export class MCPSecurityAgent extends BaseAgent {
       findings = findings.concat(this._checkMcpTyposquatting(file));
       findings = findings.concat(this._checkOverPermissioned(file));
       findings = findings.concat(this._checkAutoLaunchOnTrust(file, rootPath));
+      findings = findings.concat(this._checkEnvSecretPassthrough(file, rootPath));
     }
 
     // ── 5. Detect shadow MCP configs (not in version control) ───────────
@@ -427,6 +428,58 @@ export class MCPSecurityAgent extends BaseAgent {
         fix: 'Do not ship auto-launching MCP servers in a repo. Review the command, require explicit per-server approval, and never trust a repo-supplied server definition without inspecting what it runs.',
       });
     }
+    return findings;
+  }
+
+  /**
+   * Detect project-local MCP configs that pass secret-like environment variables
+   * into a tool process. A malicious or compromised server can read credentials
+   * that were never meant for it.
+   */
+  _checkEnvSecretPassthrough(filePath, rootPath) {
+    const rel = path.relative(rootPath, filePath).replace(/\\/g, '/');
+    const base = path.basename(filePath);
+    const isProjectLocal = base === '.mcp.json' || base === 'mcp.json'
+      || rel.endsWith('.cursor/mcp.json') || rel.endsWith('.vscode/mcp.json');
+    if (!isProjectLocal) return [];
+
+    const content = this.readFile(filePath);
+    if (!content) return [];
+    let config;
+    try { config = JSON.parse(content); } catch { return []; }
+
+    const servers = config.mcpServers || config.servers || (config.mcp && config.mcp.servers) || {};
+    const findings = [];
+    const operationalEnvNames = new Set([
+      'LOG_LEVEL', 'NODE_ENV', 'PORT', 'DEBUG', 'PATH', 'HOME', 'LANG', 'TZ',
+      'CI', 'TERM', 'SHELL', 'USER', 'TMPDIR', 'TMP', 'TEMP',
+    ]);
+    const secretEnvNameRe = /(?:^|_)(?:API[_-]?KEY|ACCESS[_-]?KEY|SECRET[_-]?ACCESS[_-]?KEY|AUTH[_-]?TOKEN|ACCESS[_-]?TOKEN|CLIENT[_-]?SECRET|PRIVATE[_-]?KEY|PASSWORD|PASSWD|CREDENTIAL|CREDENTIALS|PAT|GH_PAT|SECRET|TOKEN|PASSWORD|CREDENTIAL)(?:_|$)/i;
+
+    for (const [name, server] of Object.entries(servers)) {
+      const env = server?.env;
+      if (!env || typeof env !== 'object' || Array.isArray(env)) continue;
+
+      for (const key of Object.keys(env)) {
+        if (operationalEnvNames.has(key)) continue;
+        if (!secretEnvNameRe.test(key)) continue;
+
+        findings.push({
+          file: filePath, line: 1, column: 0,
+          severity: 'high',
+          category: this.category,
+          rule: 'MCP_ENV_SECRET_PASSTHROUGH',
+          title: `MCP: Server "${name}" passes secret env "${key}"`,
+          description: `Project-local ${base} passes "${key}" into the "${name}" MCP server process. A malicious or compromised server can read credentials that were never meant for the tool.`,
+          matched: key,
+          confidence: 'high',
+          cwe: 'CWE-200',
+          owasp: 'ASI06:2026',
+          fix: 'Remove secret env vars from MCP server config. Pass only operational settings (e.g. LOG_LEVEL). Use scoped, server-specific credentials if absolutely required.',
+        });
+      }
+    }
+
     return findings;
   }
 
