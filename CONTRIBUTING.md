@@ -25,6 +25,17 @@ Thanks for helping build Ship Safe. The best contributions make local-first secu
 
 If you are new, look for issues labeled `good first issue`, `help wanted`, `docs`, `agent`, `security rule`, `tests`, or `webapp`.
 
+### Working on an Assigned Issue
+
+If you ask to work on an issue, we are happy to assign it to you. A few small habits help everyone keep momentum:
+
+- Comment when you start so maintainers know the issue is active
+- Open a draft PR early if you can, even with a small first pass
+- Ask questions in the issue if you get blocked or are unsure about the approach
+- Share a quick update if the work takes more than a few days
+
+No pressure if life gets busy. Maintainers may check in after about a week just to see whether you still want the issue or need help.
+
 ### Reporting Bugs
 
 Found a bug? Please open an issue with:
