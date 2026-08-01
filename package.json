@@ -50,7 +50,7 @@
   "bugs": {
     "url": "https://github.com/asamassekou10/ship-safe/issues"
   },
-  "homepage": "https://github.com/asamassekou10/ship-safe#readme",
+  "homepage": "https://shipsafe.sh",
   "engines": {
     "node": ">=18.0.0"
   },

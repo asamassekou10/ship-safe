@@ -166,7 +166,7 @@ export function summary(stats) {
 
   console.log(chalk.gray(`  Files scanned: ${stats.filesScanned}`));
   console.log(chalk.cyan('='.repeat(60)));
-  console.log(chalk.gray(`  Cloud dashboard & team scanning: `) + chalk.cyan('https://shipsafecli.com'));
+  console.log(chalk.gray(`  Cloud dashboard & team scanning: `) + chalk.cyan('https://shipsafe.sh'));
 }
 
 /**
@@ -244,9 +244,9 @@ export function printBanner(version) {
   console.log(chalk.cyan('╚══════╝╚═╝  ╚═╝╚═╝╚═╝         ╚══════╝╚═╝  ╚═╝╚═╝     ╚══════╝'));
   console.log();
   if (version) {
-    console.log(chalk.gray(`  v${version} · 29 agents · 80+ attack classes · shipsafecli.com`));
+    console.log(chalk.gray(`  v${version} · 29 agents · 80+ attack classes · shipsafe.sh`));
   } else {
-    console.log(chalk.gray('  29 agents · 80+ attack classes · shipsafecli.com'));
+    console.log(chalk.gray('  29 agents · 80+ attack classes · shipsafe.sh'));
   }
   console.log();
 }

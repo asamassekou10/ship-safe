@@ -1,5 +1,5 @@
 # Example workflow — copy to YOUR repo at .github/workflows/security.yml
-# Full docs: https://shipsafecli.com/docs
+# Full docs: https://shipsafe.sh/docs
 
 name: Security Scan
 on:

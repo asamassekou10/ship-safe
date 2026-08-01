@@ -5,7 +5,7 @@
  *   ship-safe share [path]
  *
  * Reads the latest scan from .ship-safe/history.json (or runs a fresh scan),
- * uploads it to shipsafecli.com, and returns a shareable link valid for 7 days.
+ * uploads it to shipsafe.sh, and returns a shareable link valid for 7 days.
  */
 
 import fs from 'fs';
@@ -13,7 +13,7 @@ import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
 
-const SHARE_ENDPOINT = 'https://shipsafecli.com/api/share';
+const SHARE_ENDPOINT = 'https://shipsafe.sh/api/share';
 
 export async function shareCommand(targetPath = '.', options = {}) {
   const root = path.resolve(targetPath);
