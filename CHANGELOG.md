@@ -208,6 +208,10 @@ model supply chain.
   agentic editor. A malicious repo weaponizes this to run code on the trust
   prompt (Adversa, 2026). Excludes remote-only servers and the global
   `claude_desktop_config.json`. Maps to CWE-829, ASI06:2026.
+- **MCPSecurityAgent**: new `MCP_ENV_SECRET_PASSTHROUGH` (high) — a repo-local
+  MCP config passes secret-like environment variables (e.g. `OPENAI_API_KEY`,
+  `AWS_SECRET_ACCESS_KEY`) into a tool process. Benign operational vars like
+  `LOG_LEVEL` are excluded. Maps to CWE-200, ASI06:2026.
 
 ### Changed
 - Agent count 24 → 29 across CLI, README, docs, and marketing site.
