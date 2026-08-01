@@ -455,6 +455,7 @@ export class MCPSecurityAgent extends BaseAgent {
       'CI', 'TERM', 'SHELL', 'USER', 'TMPDIR', 'TMP', 'TEMP',
     ]);
     const secretEnvNameRe = /(?:^|_)(?:API[_-]?KEY|ACCESS[_-]?KEY|SECRET[_-]?ACCESS[_-]?KEY|AUTH[_-]?TOKEN|ACCESS[_-]?TOKEN|CLIENT[_-]?SECRET|PRIVATE[_-]?KEY|PASSWORD|PASSWD|CREDENTIAL|CREDENTIALS|PAT|GH_PAT|SECRET|TOKEN|PASSWORD|CREDENTIAL)(?:_|$)/i;
+    const connectionStringEnvNameRe = /(?:^|_)(?:DATABASE|POSTGRES(?:_PRISMA)?|REDIS|MONGODB|MYSQL|SUPABASE_DB|NEON_DATABASE|VERCEL_POSTGRES)_(?:URL|URI)$/i;
 
     for (const [name, server] of Object.entries(servers)) {
       const env = server?.env;
@@ -462,14 +463,21 @@ export class MCPSecurityAgent extends BaseAgent {
 
       for (const key of Object.keys(env)) {
         if (operationalEnvNames.has(key)) continue;
-        if (!secretEnvNameRe.test(key)) continue;
+        const isSecretName = secretEnvNameRe.test(key);
+        const isConnectionStringName = connectionStringEnvNameRe.test(key);
+        if (!isSecretName && !isConnectionStringName) continue;
+
+        const rule = isSecretName
+          ? 'MCP_ENV_SECRET_PASSTHROUGH'
+          : 'MCP_ENV_CONNECTION_STRING_PASSTHROUGH';
+        const secretKind = isConnectionStringName ? 'credential-bearing connection' : 'secret';
 
         findings.push({
           file: filePath, line: 1, column: 0,
           severity: 'high',
           category: this.category,
-          rule: 'MCP_ENV_SECRET_PASSTHROUGH',
-          title: `MCP: Server "${name}" passes secret env "${key}"`,
+          rule,
+          title: `MCP: Server "${name}" passes ${secretKind} env "${key}"`,
           description: `Project-local ${base} passes "${key}" into the "${name}" MCP server process. A malicious or compromised server can read credentials that were never meant for the tool.`,
           matched: key,
           confidence: 'high',

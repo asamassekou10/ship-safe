@@ -83,6 +83,74 @@ describe('MCPSecurityAgent — env secret passthrough', () => {
     } finally { cleanup(dir); }
   });
 
+  it('flags credential-bearing connection string env vars', async () => {
+    const dir = tmp();
+    try {
+      const connectionEnvNames = [
+        'DATABASE_URL',
+        'POSTGRES_URL',
+        'POSTGRES_PRISMA_URL',
+        'REDIS_URL',
+        'MONGODB_URI',
+        'MYSQL_URL',
+        'SUPABASE_DB_URL',
+        'NEON_DATABASE_URL',
+        'VERCEL_POSTGRES_URL',
+      ];
+      const env = Object.fromEntries(connectionEnvNames.map((name) => [name, `\${${name}}`]));
+      fs.writeFileSync(path.join(dir, '.mcp.json'), JSON.stringify({
+        mcpServers: { database: { command: 'node', args: ['server.js'], env } },
+      }));
+
+      const f = await scan(dir, ['.mcp.json']);
+      const hits = f.filter((x) => x.rule === 'MCP_ENV_CONNECTION_STRING_PASSTHROUGH');
+      assert.deepEqual(hits.map((x) => x.matched).sort(), connectionEnvNames.sort());
+      assert.ok(hits.every((x) => x.severity === 'high'));
+    } finally { cleanup(dir); }
+  });
+
+  it('does not flag non-secret operational URLs', async () => {
+    const dir = tmp();
+    try {
+      fs.writeFileSync(path.join(dir, '.mcp.json'), JSON.stringify({
+        mcpServers: {
+          example: {
+            command: 'node',
+            args: ['server.js'],
+            env: {
+              API_BASE_URL: 'https://api.example.com',
+              DOCS_URL: 'https://docs.example.com',
+              MCP_SERVER_URL: 'https://mcp.example.com',
+              PUBLIC_URL: 'https://example.com',
+            },
+          },
+        },
+      }));
+      const f = await scan(dir, ['.mcp.json']);
+      assert.equal(f.filter((x) => x.rule === 'MCP_ENV_CONNECTION_STRING_PASSTHROUGH').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('reports a connection env name without exposing its value', async () => {
+    const dir = tmp();
+    try {
+      const connectionString = 'postgres://user:do-not-print@example.com/db';
+      fs.writeFileSync(path.join(dir, '.mcp.json'), JSON.stringify({
+        mcpServers: {
+          database: {
+            command: 'node',
+            args: ['server.js'],
+            env: { DATABASE_URL: connectionString },
+          },
+        },
+      }));
+      const f = await scan(dir, ['.mcp.json']);
+      const hit = f.find((x) => x.rule === 'MCP_ENV_CONNECTION_STRING_PASSTHROUGH');
+      assert.equal(hit?.matched, 'DATABASE_URL');
+      assert.ok(!JSON.stringify(hit).includes(connectionString));
+    } finally { cleanup(dir); }
+  });
+
   it('flags secret env vars in .cursor/mcp.json', async () => {
     const dir = tmp();
     try {
