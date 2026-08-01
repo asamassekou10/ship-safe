@@ -1,6 +1,6 @@
 # Contributing to Ship Safe
 
-Thanks for helping build Ship Safe. The best contributions make local-first security stronger for developers using AI agents, MCP servers, LLM tool calls, cloud dashboards, and CI.
+Thanks for helping build Ship Safe. The best contributions make local-first security stronger for developers using AI agents, MCP servers, LLM tool calls, supply-chain checks, and CI.
 
 ## Quick Links
 
@@ -20,10 +20,15 @@ Thanks for helping build Ship Safe. The best contributions make local-first secu
 | Security agents | Add one focused detector or improve an existing one | `cli/agents/`, [docs/adding-an-agent.md](docs/adding-an-agent.md) |
 | MCP and AI rules | Detect unsafe tool permissions, prompt-controlled tools, or risky agent config | `cli/agents/mcp-security-agent.js`, `cli/agents/agentic-security-agent.js` |
 | Fixtures and tests | Add vulnerable examples and regression coverage | `cli/__tests__/` |
-| Docs and examples | Explain setup, CI, red team, Kimi K3, or dashboard workflows | `README.md`, `docs/`, `webapp/app/app/guide/` |
-| Web dashboard | Improve scan history, findings, actions, onboarding, and reports | `webapp/app/`, `webapp/components/` |
+| Docs and examples | Explain setup, CI, red team, Kimi K3, MCP, or agent workflows | `README.md`, `docs/` |
 
-If you are new, look for issues labeled `good first issue`, `help wanted`, `docs`, `agent`, `security rule`, `tests`, or `webapp`.
+If you are new, look for issues labeled `good first issue`, `help wanted`, `docs`, `agent`, `security rule`, or `tests`.
+
+### Public CLI and Private Cloud Boundary
+
+This public repo contains the MIT-licensed CLI, security agents, rules, fixtures, docs, examples, and CI integrations. Ship Safe Cloud, the hosted dashboard for billing, scan history, PR Guardian, teams, and commercial workflows, is developed in a private repository.
+
+Please keep public contributions focused on the CLI/security engine unless a maintainer explicitly links you to private cloud work.
 
 ### Working on an Assigned Issue
 
@@ -63,8 +68,7 @@ Have an idea? Open an issue with:
 - **New secret patterns** - Add detection for more API key formats with low false positives
 - **Stack-specific configs** - Supabase, Firebase, Vercel, Stripe, GitHub Actions, Docker, Kubernetes
 - **Vulnerable fixtures** - Small examples that prove a detector catches a real issue
-- **Dashboard UX improvements** - Better scan triage, actions, onboarding, account setup, and reports
-- **Docs and examples** - Clear workflows for local scanning, CI, red team, and web app usage
+- **Docs and examples** - Clear workflows for local scanning, CI, red team, MCP, and agent usage
 - **Bug fixes** - Always welcome
 
 #### Pull Request Process

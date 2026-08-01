@@ -101,6 +101,8 @@ The open-source CLI is the fastest way to scan any repo locally. Upgrade when yo
 
 Compare plans at [shipsafecli.com/pricing](https://shipsafecli.com/pricing).
 
+Ship Safe Cloud, the hosted dashboard for scan history, PR Guardian, billing, and team workflows, is developed in a private repository because it contains commercial product code and hosted infrastructure workflows. The public `ship-safe` repo remains focused on the MIT-licensed CLI, security agents, rules, fixtures, CI integrations, and documentation. See [Ship Safe Cloud](./docs/cloud.md) for the repo boundary.
+
 ---
 
 ## Security Agents
@@ -254,8 +256,7 @@ Good first areas:
 - Add a focused security agent for an AI, MCP, CI, cloud, or supply-chain risk
 - Add a precise security rule to an existing agent
 - Add vulnerable fixtures and regression tests
-- Improve web app onboarding, scan triage, reports, or dashboard visualizations
-- Write examples for local scans, CI gates, red-team workflows, and team setup
+- Write examples for local scans, CI gates, red-team workflows, and MCP/agent setup
 
 Start here:
 

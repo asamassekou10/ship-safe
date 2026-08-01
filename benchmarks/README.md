@@ -22,4 +22,4 @@ npm run benchmark:corpus:write
 - It does not measure vulnerability prevalence, production-repository precision, or comparative performance against another scanner.
 - It is not independent validation. Pinned third-party vulnerable repositories and externally reviewed labels are a separate future evaluation track.
 
-The machine-readable result is stored in `results/latest.json` and published at `https://www.shipsafecli.com/benchmarks/latest.json`. The website renders the same data from `webapp/data/benchmark-results.json`.
+The machine-readable result is stored in `results/latest.json`. Ship Safe Cloud imports the same result for the hosted benchmark page from its private repository.

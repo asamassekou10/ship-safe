@@ -70,10 +70,6 @@ if (process.argv.includes('--write')) {
   const serialized = `${JSON.stringify(result, null, 2)}\n`;
   fs.mkdirSync(path.join(here, 'results'), { recursive: true });
   fs.writeFileSync(path.join(here, 'results', 'latest.json'), serialized);
-  fs.writeFileSync(path.join(here, '..', 'webapp', 'data', 'benchmark-results.json'), serialized);
-  const publicResults = path.join(here, '..', 'webapp', 'public', 'benchmarks');
-  fs.mkdirSync(publicResults, { recursive: true });
-  fs.writeFileSync(path.join(publicResults, 'latest.json'), serialized);
 }
 
 console.log(JSON.stringify(result, null, 2));
