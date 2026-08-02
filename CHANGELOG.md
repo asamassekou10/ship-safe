@@ -6,6 +6,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [9.6.2] — 2026-08-02 — Privileged CI Handoff Detection
+
+### Added
+- Added structural CI/CD detection for privileged PR and artifact handoff
+  chains in `CICDScanner`:
+  - `CICD_PR_TARGET_UNSAFE_CHECKOUT` flags `pull_request_target` workflows
+    that check out PR-controlled code inside a privileged job.
+  - `CICD_PR_TARGET_EXECUTES_UNTRUSTED_CODE` flags privileged PR workflows
+    that run build, test, package-manager, or shell commands after checking
+    out PR-controlled code.
+  - `CICD_WORKFLOW_RUN_UNVERIFIED_ARTIFACT_EXEC` flags `workflow_run` jobs
+    that download and execute artifacts without a digest, signature, or
+    attestation check.
+
+### Tests
+- Added regression coverage for unsafe `pull_request_target` checkout,
+  privileged PR code execution, unverified `workflow_run` artifact execution,
+  verified artifact false-positive handling, and metadata-only
+  `pull_request_target` workflows.
+
+---
+
 ## [9.6.1] — 2026-08-01 — MCP & Kimi K3 Coverage Notes
 
 ### Added
