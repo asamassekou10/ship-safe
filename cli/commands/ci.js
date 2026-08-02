@@ -31,7 +31,8 @@ import {
   SKIP_EXTENSIONS,
   SKIP_FILENAMES,
   MAX_FILE_SIZE,
-  loadGitignorePatterns
+  loadGitignorePatterns,
+  loadShipSafeIgnorePatterns
 } from '../utils/patterns.js';
 import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import fg from 'fast-glob';
@@ -42,7 +43,9 @@ import fg from 'fast-glob';
 
 export async function ciCommand(targetPath = '.', options = {}) {
   const absolutePath = path.resolve(targetPath);
-  const threshold = options.threshold || 75;
+  // `?? 75`, not `|| 75`: `--threshold 0` is a legitimate request to report
+  // without gating, and `||` silently turned it back into the default.
+  const threshold = Number(options.threshold ?? 75);
   const failOn = options.failOn || null;
   const sarifPath = options.sarif || null;
 
@@ -326,6 +329,10 @@ async function findFiles(rootPath) {
   const globIgnore = Array.from(SKIP_DIRS).map(dir => `**/${dir}/**`);
   const gitignoreGlobs = loadGitignorePatterns(rootPath);
   globIgnore.push(...gitignoreGlobs);
+  // Honor .ship-safeignore. Without this, `ci` was the only command that
+  // ignored the user's own suppression config, which is exactly backwards for
+  // the command that gates their pipeline.
+  globIgnore.push(...loadShipSafeIgnorePatterns(rootPath));
 
   const files = await fg('**/*', {
     cwd: rootPath, absolute: true, onlyFiles: true, ignore: globIgnore, dot: true,

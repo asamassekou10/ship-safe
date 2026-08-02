@@ -888,6 +888,59 @@ const SECURITY_SENSITIVE_PATTERNS = new Set([
  * but ALWAYS scans security-sensitive files (.env, *.key, *.pem, etc.)
  * even if they appear in .gitignore.
  */
+/**
+ * Walk up from `start` looking for a file named `name`, at most 8 levels.
+ * Lets a scan of a subdirectory still find the repository-level config.
+ */
+export function findUpwards(start, name) {
+  let dir = path.resolve(start);
+  for (let i = 0; i < 8; i++) {
+    const candidate = path.join(dir, name);
+    if (fs.existsSync(candidate)) return candidate;
+    const parent = path.dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+  return null;
+}
+
+/**
+ * Glob patterns from the project's `.ship-safeignore`.
+ *
+ * Every command that discovers files must apply these. `ci` did not, which
+ * meant the one command built for automation was the only one that ignored
+ * the user's suppression config: on this repository it surfaced 23 findings
+ * from `cli/__tests__/`, whose fixtures are deliberately vulnerable and are
+ * excluded by that very file. Shared here so a fourth caller cannot drift
+ * the same way.
+ *
+ * Unlike .gitignore this is honored literally. A path the user explicitly
+ * excluded from security scanning stays excluded, including security-
+ * sensitive names.
+ */
+export function loadShipSafeIgnorePatterns(rootPath) {
+  const ignorePath = findUpwards(rootPath, '.ship-safeignore');
+  if (!ignorePath) return [];
+  try {
+    const globs = [];
+    const patterns = fs.readFileSync(ignorePath, 'utf-8')
+      .split('\n')
+      .map(l => l.trim())
+      .filter(l => l && !l.startsWith('#'));
+    for (const p of patterns) {
+      if (p.endsWith('/')) {
+        globs.push(`**/${p}**`);
+      } else {
+        globs.push(`**/${p}`);
+        globs.push(p);
+      }
+    }
+    return globs;
+  } catch {
+    return [];
+  }
+}
+
 export function loadGitignorePatterns(rootPath) {
   const gitignorePath = path.join(rootPath, '.gitignore');
   try {
