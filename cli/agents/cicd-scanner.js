@@ -421,6 +421,50 @@ function extractChainSignals(rawContent, self) {
   };
 }
 
+// =============================================================================
+// PRIVILEGED PR / ARTIFACT HANDOFFS
+//
+// GitHub's dangerous CI/CD cases usually appear as chains: a privileged event
+// runs, pulls in code or artifacts influenced by an untrusted PR, then executes
+// or deploys them. The line rules above catch many single bad statements; this
+// pass catches the handoff.
+// =============================================================================
+
+const PR_TARGET_EVENT_RE = /\bpull_request_target\b/;
+const UNSAFE_PR_CHECKOUT_RE =
+  /uses\s*:\s*actions\/checkout@[^\n]+[\s\S]{0,360}(?:\bref\s*:\s*\$\{\{\s*github\.event\.pull_request\.head\.(?:sha|ref)\s*\}\}|\brepository\s*:\s*\$\{\{\s*github\.event\.pull_request\.head\.repo\.full_name\s*\}\})/i;
+const UNSAFE_PR_GIT_RE =
+  /\bgit\s+(?:checkout|switch|fetch|clone)\b[^\n]*(?:github\.event\.pull_request\.head|github\.head_ref|GITHUB_HEAD_REF)/i;
+const TRUSTS_UNSAFE_CHECKOUT_ACTION_RE =
+  /\ballow-unsafe-pr-checkout\s*:\s*true\b/i;
+
+const CODE_EXEC_AFTER_CHECKOUT_RE =
+  /(?:^|\n)\s*-?\s*run\s*:\s*(?:[>|]\s*)?[\s\S]{0,700}\b(?:npm|pnpm|yarn|bun)\s+(?:ci|install|test|run|exec)|(?:^|\n)\s*-?\s*run\s*:\s*(?:[>|]\s*)?[\s\S]{0,700}\b(?:pip\s+install|pytest|python\s+setup\.py|make\b|bash\b|sh\b|chmod\s+\+x)/i;
+
+const WORKFLOW_RUN_RE = /\bworkflow_run\b[\s\S]{0,240}\bcompleted\b/i;
+const ARTIFACT_DOWNLOAD_RE =
+  /(?:uses\s*:\s*actions\/download-artifact@|gh\s+run\s+download|download-artifact\b)/i;
+const ARTIFACT_EXEC_RE =
+  /(?:^|\n)\s*-?\s*run\s*:\s*(?:[>|]\s*)?[\s\S]{0,900}\b(?:chmod\s+\+x|bash\s+\.?\/|sh\s+\.?\/|python\s+\.?\/|node\s+\.?\/|npm\s+(?:ci|install|test|run)|pnpm\s+(?:install|test|run)|yarn\s+(?:install|test|run)|bun\s+(?:install|test|run)|docker\s+load|kubectl\s+apply)\b/i;
+const ARTIFACT_VERIFY_RE =
+  /\b(?:sha256sum|shasum|openssl\s+dgst|cosign\s+verify|gh\s+attestation\s+verify|slsa-verifier|gitsign|artifact-digest|digest\s*:)\b/i;
+const PRIVILEGED_PERMISSION_RE =
+  /permissions\s*:\s*(?:write-all|[\s\S]{0,280}\b(?:contents|actions|packages|id-token|pull-requests)\s*:\s*write\b)/i;
+
+function firstMatchLine(rawContent, patterns) {
+  for (const re of patterns) {
+    re.lastIndex = 0;
+    const m = re.exec(rawContent);
+    if (m) {
+      return {
+        line: rawContent.slice(0, m.index).split('\n').length,
+        matched: m[0].trim().slice(0, 180),
+      };
+    }
+  }
+  return { line: 0, matched: '' };
+}
+
 export class CICDScanner extends BaseAgent {
   constructor() {
     super('CICDScanner', 'Detect CI/CD pipeline security issues (OWASP CI/CD Top 10)', 'cicd');
@@ -517,6 +561,89 @@ export class CICDScanner extends BaseAgent {
     return findings;
   }
 
+  scanPrivilegedHandoffs(file) {
+    const content = this.readFile(file);
+    if (!content) return [];
+
+    const findings = [];
+    const hasPrTarget = PR_TARGET_EVENT_RE.test(content);
+    const unsafeCheckout =
+      UNSAFE_PR_CHECKOUT_RE.test(content) ||
+      UNSAFE_PR_GIT_RE.test(content) ||
+      TRUSTS_UNSAFE_CHECKOUT_ACTION_RE.test(content);
+
+    if (hasPrTarget && unsafeCheckout) {
+      const hit = firstMatchLine(content, [
+        UNSAFE_PR_CHECKOUT_RE,
+        UNSAFE_PR_GIT_RE,
+        TRUSTS_UNSAFE_CHECKOUT_ACTION_RE,
+      ]);
+
+      findings.push(createFinding({
+        file,
+        line: hit.line,
+        severity: 'critical',
+        category: this.category,
+        rule: 'CICD_PR_TARGET_UNSAFE_CHECKOUT',
+        title: 'pull_request_target checks out untrusted PR code',
+        description:
+          '`pull_request_target` runs with base-repository privileges. This workflow then checks out code from the pull request head, which lets an external contributor place code inside a privileged job.',
+        matched: hit.matched,
+        confidence: 'high',
+        cwe: 'CWE-829',
+        owasp: 'CICD-SEC-4',
+        fix:
+          'Do not checkout or execute the PR head in `pull_request_target`. Use `pull_request` for untrusted code, or split the workflow so privileged jobs only consume reviewed, verified outputs.',
+      }));
+
+      if (CODE_EXEC_AFTER_CHECKOUT_RE.test(content)) {
+        const exec = firstMatchLine(content, [CODE_EXEC_AFTER_CHECKOUT_RE]);
+        findings.push(createFinding({
+          file,
+          line: exec.line,
+          severity: 'critical',
+          category: this.category,
+          rule: 'CICD_PR_TARGET_EXECUTES_UNTRUSTED_CODE',
+          title: 'Privileged PR workflow executes untrusted code',
+          description:
+            'This `pull_request_target` workflow checks out PR-controlled code and later runs package scripts, shell commands, or build/test commands. A malicious PR can execute with repository secrets and write-token permissions.',
+          matched: exec.matched,
+          confidence: 'high',
+          cwe: 'CWE-94',
+          owasp: 'CICD-SEC-4',
+          fix:
+            'Move code execution to a `pull_request` workflow with read-only permissions. Keep `pull_request_target` only for metadata actions such as labeling or commenting.',
+        }));
+      }
+    }
+
+    if (WORKFLOW_RUN_RE.test(content) && ARTIFACT_DOWNLOAD_RE.test(content) && ARTIFACT_EXEC_RE.test(content)) {
+      const verified = ARTIFACT_VERIFY_RE.test(content);
+      const privileged = PRIVILEGED_PERMISSION_RE.test(content);
+      if (!verified) {
+        const hit = firstMatchLine(content, [ARTIFACT_DOWNLOAD_RE, ARTIFACT_EXEC_RE]);
+        findings.push(createFinding({
+          file,
+          line: hit.line,
+          severity: privileged ? 'critical' : 'high',
+          category: this.category,
+          rule: 'CICD_WORKFLOW_RUN_UNVERIFIED_ARTIFACT_EXEC',
+          title: 'workflow_run executes an unverified artifact',
+          description:
+            '`workflow_run` can be used to hand off from an untrusted PR workflow into a privileged workflow. This job downloads an artifact and executes it without a digest, signature, or attestation check.',
+          matched: hit.matched,
+          confidence: 'high',
+          cwe: 'CWE-345',
+          owasp: 'CICD-SEC-9',
+          fix:
+            'Verify artifacts with a digest, signature, or `gh attestation verify` before execution. Avoid executing artifacts produced by untrusted PR workflows in privileged jobs.',
+        }));
+      }
+    }
+
+    return findings;
+  }
+
   async analyze(context) {
     const { rootPath, files } = context;
 
@@ -544,6 +671,7 @@ export class CICDScanner extends BaseAgent {
       // Whole-file pass: catches combinations the line rules structurally
       // cannot see (see UNGOVERNED CONTINUOUS INGESTION above).
       findings = findings.concat(this.scanIngestionChain(file, rootPath, self));
+      findings = findings.concat(this.scanPrivilegedHandoffs(file));
     }
     return findings;
   }
