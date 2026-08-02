@@ -311,6 +311,7 @@ export class MCPSecurityAgent extends BaseAgent {
       findings = findings.concat(this._checkOverPermissioned(file));
       findings = findings.concat(this._checkAutoLaunchOnTrust(file, rootPath));
       findings = findings.concat(this._checkEnvSecretPassthrough(file, rootPath));
+      findings = findings.concat(this._checkAllowlistBypass(file, rootPath));
     }
 
     // ── 5. Detect shadow MCP configs (not in version control) ───────────
@@ -480,6 +481,130 @@ export class MCPSecurityAgent extends BaseAgent {
       }
     }
 
+    return findings;
+  }
+
+  /**
+   * Detect MCP configs that weaken or bypass tool-call allowlists via wildcards,
+   * tool aliases, or nested permission blocks that expand access.
+   */
+  _checkAllowlistBypass(filePath, rootPath) {
+    const rel = path.relative(rootPath, filePath).replace(/\\/g, '/');
+    const base = path.basename(filePath);
+    const isProjectLocal = base === '.mcp.json' || base === 'mcp.json'
+      || rel.endsWith('.cursor/mcp.json') || rel.endsWith('.vscode/mcp.json');
+    if (!isProjectLocal) return [];
+
+    const content = this.readFile(filePath);
+    if (!content) return [];
+    let config;
+    try { config = JSON.parse(content); } catch { return []; }
+
+    const findings = [];
+    const allowlistKeys = new Set([
+      'allowedTools', 'toolAllowlist', 'allowedToolNames', 'permittedTools',
+      'toolPermissions', 'permissions', 'allowed_tools', 'tool_allowlist',
+    ]);
+    const aliasKeys = new Set(['toolAliases', 'aliases', 'tool_aliases']);
+
+    const walk = (node, pathParts = []) => {
+      if (node === null || typeof node !== 'object') return;
+
+      if (Array.isArray(node)) {
+        const hasWildcard = node.some(v => v === '*' || v === 'all' || v === 'any');
+        const parentKey = pathParts[pathParts.length - 1] || '';
+        if (hasWildcard && allowlistKeys.has(parentKey)) {
+          findings.push({
+            file: filePath, line: 1, column: 0,
+            severity: 'high',
+            category: this.category,
+            rule: 'MCP_ALLOWLIST_WILDCARD',
+            title: `MCP: Wildcard tool allowlist at ${pathParts.join('.')}`,
+            description: `Project-local ${base} sets "${parentKey}" to a wildcard (${JSON.stringify(node)}). Any tool the server exposes becomes callable, defeating allowlist-based tool restrictions.`,
+            matched: `${parentKey}: ${JSON.stringify(node)}`,
+            confidence: 'high',
+            cwe: 'CWE-269',
+            owasp: 'ASI03:2026',
+            fix: 'Replace the wildcard with an explicit list of required tool names. Never use "*" in tool allowlists.',
+          });
+        }
+        node.forEach((item, i) => walk(item, pathParts.concat(String(i))));
+        return;
+      }
+
+      for (const [key, value] of Object.entries(node)) {
+        const nextPath = pathParts.concat(key);
+
+        if (allowlistKeys.has(key)) {
+          if (value === '*' || value === 'all' || value === 'any') {
+            findings.push({
+              file: filePath, line: 1, column: 0,
+              severity: 'high',
+              category: this.category,
+              rule: 'MCP_ALLOWLIST_WILDCARD',
+              title: `MCP: Wildcard tool allowlist at ${nextPath.join('.')}`,
+              description: `Project-local ${base} sets "${key}" to "${value}". Any tool the server exposes becomes callable, defeating allowlist-based tool restrictions.`,
+              matched: `${key}: ${JSON.stringify(value)}`,
+              confidence: 'high',
+              cwe: 'CWE-269',
+              owasp: 'ASI03:2026',
+              fix: 'Replace the wildcard with an explicit list of required tool names. Never use "*" in tool allowlists.',
+            });
+          }
+        }
+
+        if (aliasKeys.has(key) && value && typeof value === 'object' && !Array.isArray(value)) {
+          const mappings = Object.entries(value).slice(0, 3).map(([from, to]) => `${from}→${to}`).join(', ');
+          findings.push({
+            file: filePath, line: 1, column: 0,
+            severity: 'high',
+            category: this.category,
+            rule: 'MCP_TOOL_ALIAS_BYPASS',
+            title: `MCP: Tool alias mapping at ${nextPath.join('.')}`,
+            description: `Project-local ${base} defines tool aliases (${mappings}${Object.keys(value).length > 3 ? ', …' : ''}). Aliases can route an allowlisted name to a different, more privileged tool and bypass name-based restrictions.`,
+            matched: mappings || key,
+            confidence: 'high',
+            cwe: 'CWE-863',
+            owasp: 'ASI03:2026',
+            fix: 'Remove tool aliases from MCP config. Validate the resolved tool name against an explicit allowlist at dispatch time.',
+          });
+        }
+
+        // Nested permission block inside a server entry that re-expands access.
+        if ((key === 'toolPolicy' || key === 'toolAccess')
+            && value && typeof value === 'object'
+            && pathParts.some(p => p === 'mcpServers' || p === 'servers')) {
+          const hasWildcard = (obj) => {
+            if (obj === '*' || obj === 'all' || obj === 'any') return true;
+            if (Array.isArray(obj)) return obj.some(hasWildcard);
+            if (obj && typeof obj === 'object') {
+              return Object.entries(obj).some(([k, v]) =>
+                allowlistKeys.has(k) ? hasWildcard(v) : false);
+            }
+            return false;
+          };
+          if (hasWildcard(value)) {
+            findings.push({
+              file: filePath, line: 1, column: 0,
+              severity: 'medium',
+              category: this.category,
+              rule: 'MCP_NESTED_PERMISSION_OVERRIDE',
+              title: `MCP: Nested permission override at ${nextPath.join('.')}`,
+              description: `Project-local ${base} nests a "${key}" block under a server entry with wildcard or "all" permissions. Nested blocks can override a parent allowlist and silently broaden tool access.`,
+              matched: `${key}: ${JSON.stringify(value).slice(0, 120)}`,
+              confidence: 'medium',
+              cwe: 'CWE-863',
+              owasp: 'ASI03:2026',
+              fix: 'Keep tool permissions at the top level with an explicit allowlist. Do not nest wildcard permission blocks inside individual server entries.',
+            });
+          }
+        }
+
+        walk(value, nextPath);
+      }
+    };
+
+    walk(config);
     return findings;
   }
 
