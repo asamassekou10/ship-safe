@@ -10,6 +10,7 @@ Thanks for helping build Ship Safe. The best contributions make local-first secu
 - [Good first issues](https://github.com/asamassekou10/ship-safe/contribute)
 - [Add an Agent](docs/adding-an-agent.md)
 - [Add a Security Rule](docs/adding-a-security-rule.md)
+- [Release Process](docs/releasing.md)
 
 ## How Can I Contribute?
 
