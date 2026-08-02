@@ -1,0 +1,81 @@
+name: Pending CI notice
+
+# Workflows on pull requests from forks wait for a maintainer to approve them.
+# Nothing surfaces that to either side: the contributor sees a pull request with
+# no checks and no explanation, and the held run is absent from the default runs
+# listing, so a maintainer only finds it by querying with an explicit status
+# filter. This posts a one-time comment on any pull request in that state, so the
+# contributor knows why it is quiet and the maintainer gets a notification.
+#
+# Runs on a schedule rather than on the pull request itself. A trigger that fires
+# for fork pull requests without approval would run in the base repository's
+# context with its secrets, which is the exact pattern this project's own
+# CI rules flag. A scheduled job needs no such privilege.
+
+on:
+  schedule:
+    - cron: '*/20 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: read          # list runs awaiting approval
+  pull-requests: write   # post the notice
+
+concurrency:
+  group: pending-ci-notice
+  cancel-in-progress: false
+
+jobs:
+  notice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Comment on pull requests whose CI is awaiting approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          MARKER='<!-- pending-ci-notice -->'
+
+          # Runs held for approval do not appear in the default listing; the
+          # status filter is the only way to see them.
+          SHAS="$(gh api "repos/$REPO/actions/runs?status=action_required&per_page=50" \
+                    --jq '.workflow_runs[].head_sha' | sort -u || true)"
+
+          if [ -z "$SHAS" ]; then
+            echo "No runs are awaiting approval."
+            exit 0
+          fi
+
+          for SHA in $SHAS; do
+            PR="$(gh api "repos/$REPO/commits/$SHA/pulls" \
+                    --jq '[.[] | select(.state == "open")][0].number // empty' 2>/dev/null || true)"
+
+            if [ -z "$PR" ]; then
+              echo "No open pull request for $SHA, skipping."
+              continue
+            fi
+
+            # One notice per pull request, however many runs are queued for it.
+            if gh api "repos/$REPO/issues/$PR/comments" --paginate --jq '.[].body' \
+                 | grep -qF "$MARKER"; then
+              echo "PR #$PR already has a notice."
+              continue
+            fi
+
+            echo "Notifying PR #$PR"
+            gh pr comment "$PR" --repo "$REPO" --body "$MARKER
+          Heads up: CI on this pull request is waiting for a maintainer to approve it.
+
+          That is the default for pull requests from forks and it is not a problem with your branch. There is nothing you need to do, and the checks will appear once a maintainer approves the run.
+
+          If you want to check your work in the meantime:
+
+          \`\`\`bash
+          node --test cli/__tests__/*.test.js
+          npx eslint cli/
+          \`\`\`"
+          done
