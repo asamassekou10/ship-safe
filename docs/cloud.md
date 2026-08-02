@@ -30,3 +30,5 @@ The cloud application includes authentication, billing, scan history, PR Guardia
 ## Contributing
 
 Public contributions should target this repository unless a maintainer explicitly invites you into private cloud work. Good public contributions include focused security rules, regression fixtures, docs, examples, and CI integrations.
+
+If an issue is about hosted dashboard UX, billing, account setup, private scan history, lifecycle email, or team administration, a maintainer may move it to the private cloud backlog. When possible, we will extract the open-source part of the work into a public CLI, rule, fixture, or docs issue.
