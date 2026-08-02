@@ -13,8 +13,11 @@ import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { fileURLToPath } from 'url';
 
 import { InstallGuardAgent } from '../agents/install-guard-agent.js';
+
+const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'install-guard');
 
 function tmp() { return fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-worm-')); }
 function cleanup(dir) { try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* */ } }
@@ -75,5 +78,54 @@ describe('InstallGuardAgent — binding.gyp', () => {
       const f = await new InstallGuardAgent().analyze({ rootPath: dir, files: [], recon: {}, options: {} });
       assert.equal(f.filter((x) => x.rule === 'WORM_BINDING_GYP').length, 0);
     } finally { cleanup(dir); }
+  });
+});
+
+describe('InstallGuardAgent - Python install hooks', () => {
+  it('flags credential access in setup.py without exposing credential values', async () => {
+    const rootPath = path.join(FIXTURES, 'malicious-setup');
+    const f = await new InstallGuardAgent().analyze({ rootPath, files: [], recon: {}, options: {} });
+    const finding = f.find((x) => x.rule === 'WORM_PYTHON_INSTALL_CRED_HARVEST');
+    assert.ok(finding);
+    assert.equal(finding.severity, 'critical');
+    assert.equal(finding.matched, 'credential-store access');
+    assert.ok(!JSON.stringify(finding).includes('credentials ='));
+  });
+
+  it('flags secret exfiltration, decoded execution, and home deletion in setup.py', async () => {
+    const rootPath = path.join(FIXTURES, 'malicious-setup');
+    const f = await new InstallGuardAgent().analyze({ rootPath, files: [], recon: {}, options: {} });
+    assert.ok(f.some((x) => x.rule === 'WORM_PYTHON_INSTALL_EXFIL'));
+    assert.ok(f.some((x) => x.rule === 'WORM_PYTHON_INSTALL_OBFUSCATED_EXEC'));
+    assert.ok(f.some((x) => x.rule === 'WORM_PYTHON_INSTALL_DESTRUCTIVE'));
+  });
+
+  it('scans a local PEP 517 backend declared by pyproject.toml', async () => {
+    const rootPath = path.join(FIXTURES, 'malicious-backend');
+    const f = await new InstallGuardAgent().analyze({ rootPath, files: [], recon: {}, options: {} });
+    assert.ok(f.some((x) => x.rule === 'WORM_PYTHON_INSTALL_EXFIL' && x.file.endsWith('backend.py')));
+  });
+
+  it('ignores a backend-path that escapes the project directory', async () => {
+    const parent = tmp();
+    const dir = path.join(parent, 'project');
+    fs.mkdirSync(dir);
+    try {
+      fs.writeFileSync(path.join(dir, 'pyproject.toml'), `
+[build-system]
+requires = []
+build-backend = "backend"
+backend-path = [".."]
+`);
+      fs.writeFileSync(path.join(parent, 'backend.py'), 'exec(base64.b64decode("eA=="))');
+      const f = await new InstallGuardAgent().analyze({ rootPath: dir, files: [], recon: {}, options: {} });
+      assert.equal(f.length, 0);
+    } finally { cleanup(parent); }
+  });
+
+  it('stays quiet on normal setuptools package metadata', async () => {
+    const rootPath = path.join(FIXTURES, 'safe-package');
+    const f = await new InstallGuardAgent().analyze({ rootPath, files: [], recon: {}, options: {} });
+    assert.equal(f.length, 0);
   });
 });
