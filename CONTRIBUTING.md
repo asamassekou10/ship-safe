@@ -151,6 +151,25 @@ node cli/bin/ship-safe.js init
 npm run ship-safe scan .
 ```
 
+## CI on Your Pull Request
+
+Workflows on pull requests from forks wait for a maintainer to approve them
+before they run. On your first pull request you will usually see no checks at
+all for a while. That is expected, it is not a problem with your branch, and
+there is nothing you need to do.
+
+This repository builds a security scanner, so running code from a fork
+automatically is a risk we would rather not take. The approval is a deliberate
+gate, not an oversight.
+
+Once approved you get the full matrix: Node 18, 20, and 22, plus the
+integration suite. Before pushing you can run the same checks locally:
+
+```bash
+node --test cli/__tests__/*.test.js
+npx eslint cli/
+```
+
 ## Community
 
 - Be respectful and inclusive

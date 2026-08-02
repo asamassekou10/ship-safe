@@ -1,7 +1,7 @@
 {
   "name": "ship-safe",
   "version": "9.6.2",
-  "description": "AI-powered multi-agent security platform. 29 agents scan 80+ attack classes including AI integration supply chain (Vercel-class attacks), Hermes Agent deployments (ASI-01–ASI-10), tool registry poisoning, function-call injection, skill permission drift, and agent attestation. Ship Safe × Hermes Agent.",
+  "description": "AI-powered multi-agent security platform. 29 agents scan 80+ attack classes including AI integration supply chain (Vercel-class attacks), Hermes Agent deployments (ASI-01\u2013ASI-10), tool registry poisoning, function-call injection, skill permission drift, and agent attestation. Ship Safe \u00d7 Hermes Agent.",
   "main": "cli/index.js",
   "bin": {
     "ship-safe": "cli/bin/ship-safe.js"
@@ -13,7 +13,8 @@
     "benchmark:corpus:write": "node benchmarks/run.mjs --write",
     "lint": "eslint cli/",
     "lint:fix": "eslint cli/ --fix",
-    "ship-safe": "node cli/bin/ship-safe.js"
+    "ship-safe": "node cli/bin/ship-safe.js",
+    "ci:pending": "gh api \"repos/asamassekou10/ship-safe/actions/runs?status=action_required&per_page=50\" --jq '.workflow_runs[] | \"\\(.created_at[0:16])  \\(.name)  [\\(.head_branch)]  run=\\(.id)  approve: gh api --method POST repos/asamassekou10/ship-safe/actions/runs/\\(.id)/approve\"'"
   },
   "keywords": [
     "security",
