@@ -111,6 +111,36 @@ jobs:
       - run: npm publish --provenance
 `;
 
+// UNSAFE: a comment merely discusses provenance/id-token, but the actual
+// config still uses a bare NPM_TOKEN with no id-token permission anywhere.
+// A naive regex match against raw file text (comments included) would be
+// fooled into silence by this. Should still trigger both
+// CICD_NPM_PUBLISH_NO_PROVENANCE... actually since the comment mentions
+// "trusted publishing", NO_PROVENANCE would be masked by design (the
+// mention could be genuine intent) — but MISSING_ID_TOKEN must still fire,
+// since intent without id-token: write is unsafe regardless of whether
+// the mention was in a comment or a real setting.
+const UNSAFE_PROVENANCE_MENTIONED_ONLY_IN_COMMENT = `
+name: Publish
+on:
+  release:
+    types: [published]
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f
+        with:
+          node-version: '20'
+      - run: npm ci
+      # We should eventually set up trusted publishing here, and add
+      # id-token: write once we do.
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: \${{ secrets.NPM_TOKEN }}
+`;
+
 // SAFE: no npm publish step at all — the rule should not fire on unrelated
 // workflows just because NPM_TOKEN or id-token appear elsewhere.
 const SAFE_NO_PUBLISH_STEP = `
@@ -196,6 +226,16 @@ describe('CICDScanner: npm publish provenance', () => {
     const npmRules = findings.filter(f => f.rule.startsWith('CICD_NPM_PUBLISH_'));
 
     assert.strictEqual(npmRules.length, 0);
+  });
+
+  test('does not let a comment-only mention of provenance mask NO_PROVENANCE', async () => {
+    // The word "trusted publishing" only appears inside a YAML comment here.
+    // Comments are stripped before matching, so this must be treated the
+    // same as if provenance were never mentioned at all.
+    const findings = await scanFixture(UNSAFE_PROVENANCE_MENTIONED_ONLY_IN_COMMENT);
+    const rule = findings.find(f => f.rule === 'CICD_NPM_PUBLISH_NO_PROVENANCE');
+
+    assert.ok(rule, 'a comment mentioning provenance must not silence the NO_PROVENANCE finding');
   });
 
   test('does not duplicate the existing write-all permission finding', async () => {

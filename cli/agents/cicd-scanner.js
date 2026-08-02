@@ -652,16 +652,29 @@ export class CICDScanner extends BaseAgent {
    * a long-lived NPM_TOKEN, and if provenance is intended, id-token: write
    * must actually be present or the publish step will fail (or worse,
    * silently skip provenance depending on npm version).
+   *
+   * YAML comments are stripped before matching — a comment merely
+   * discussing "trusted publishing" or "id-token: write" must not silence
+   * a real finding just because the words appear in prose.
    */
   scanNpmPublishProvenance(file) {
-    const content = this.readFile(file);
-    if (!content || !NPM_PUBLISH_RE.test(content)) return [];
+    const rawContent = this.readFile(file);
+    if (!rawContent) return [];
+
+    // Strip full-line and trailing YAML comments so prose mentions of the
+    // trigger phrases can't mask an actual missing configuration.
+    const content = rawContent
+      .split('\n')
+      .map(line => line.replace(/(^|\s)#.*$/, ''))
+      .join('\n');
+
+    if (!NPM_PUBLISH_RE.test(content)) return [];
 
     const findings = [];
-    const publishHit = firstMatchLine(content, [NPM_PUBLISH_RE]);
+    const publishHit = firstMatchLine(rawContent, [NPM_PUBLISH_RE]);
 
     if (PROVENANCE_DISABLED_RE.test(content)) {
-      const hit = firstMatchLine(content, [PROVENANCE_DISABLED_RE]);
+      const hit = firstMatchLine(rawContent, [PROVENANCE_DISABLED_RE]);
       findings.push(createFinding({
         file,
         line: hit.line,
