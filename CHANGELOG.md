@@ -6,6 +6,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- **MCP allowlist bypass detection** in `MCPSecurityAgent`:
+  - `MCP_ALLOWLIST_WILDCARD` flags wildcard tool allowlists (`["*"]`, `"all"`) in project-local MCP configs.
+  - `MCP_TOOL_ALIAS_BYPASS` flags tool alias mappings that can route allowlisted names to different tools.
+  - `MCP_NESTED_PERMISSION_OVERRIDE` flags nested permission blocks with wildcard expansion inside server entries.
+
+---
+
 ## [9.6.2] — 2026-08-02 — Privileged CI Handoff Detection
 
 ### Added
