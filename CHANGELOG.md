@@ -6,23 +6,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased]
+## [9.6.1] — 2026-08-01 — MCP & Kimi K3 Coverage Notes
 
 ### Added
-- **MCP env passthrough detection** — repo-local MCP configs that pass secret-like
-  environment variables (e.g. `OPENAI_API_KEY`, `AWS_ACCESS_KEY_ID`) directly
-  to MCP server processes are now flagged with `MCP_ENV_SECRET_PASSTHROUGH`.
-  Existing rules already covered token forwarding over non-localhost URLs; this
-  fills the gap for configs that stay local but still leak credentials.
-- **Kimi K3 tool-call fixture coverage** — regression tests now exercise Kimi K3
-  / OpenAI-compatible tool-call payloads end-to-end. Existing rules were only
-  validated against synthetic fixtures; these come from real payloads.
-
-### Fixed
-- None.
+- Added release notes for `MCP_ENV_SECRET_PASSTHROUGH`, which flags repo-local
+  MCP configs that pass secret-like environment variables such as
+  `OPENAI_API_KEY` or `AWS_ACCESS_KEY_ID` directly to MCP server processes.
+- Added release notes for Kimi K3 / OpenAI-compatible tool-call fixture
+  coverage so users can see that tool-call security regressions are exercised
+  against realistic payloads.
 
 ---
-
 
 ## [9.6.0] — 2026-07-26 — Suppression Floor & Pipeline Ingestion
 
