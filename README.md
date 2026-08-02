@@ -264,6 +264,7 @@ Start here:
 - [Contributor guide](./CONTRIBUTING.md)
 - [Add an agent](./docs/adding-an-agent.md)
 - [Add a security rule](./docs/adding-a-security-rule.md)
+- [Handle MCP environment variables safely](./docs/mcp-env-safety.md)
 - [Release process](./docs/releasing.md)
 
 ---
