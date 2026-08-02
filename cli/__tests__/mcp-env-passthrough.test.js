@@ -151,6 +151,30 @@ describe('MCPSecurityAgent — env secret passthrough', () => {
     } finally { cleanup(dir); }
   });
 
+  it('flags connection env vars in nested mcp.servers config', async () => {
+    const dir = tmp();
+    try {
+      const connectionString = 'redis://user:do-not-print@example.com:6379';
+      fs.writeFileSync(path.join(dir, '.mcp.json'), JSON.stringify({
+        mcp: {
+          servers: {
+            cache: {
+              command: 'node',
+              args: ['server.js'],
+              env: { REDIS_URL: connectionString },
+            },
+          },
+        },
+      }));
+
+      const f = await scan(dir, ['.mcp.json']);
+      const hit = f.find((x) => x.rule === 'MCP_ENV_CONNECTION_STRING_PASSTHROUGH');
+      assert.equal(hit?.severity, 'high');
+      assert.equal(hit?.matched, 'REDIS_URL');
+      assert.ok(!JSON.stringify(hit).includes(connectionString));
+    } finally { cleanup(dir); }
+  });
+
   it('flags secret env vars in .cursor/mcp.json', async () => {
     const dir = tmp();
     try {
