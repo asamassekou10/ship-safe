@@ -450,7 +450,11 @@ const ARTIFACT_VERIFY_RE =
   /\b(?:sha256sum|shasum|openssl\s+dgst|cosign\s+verify|gh\s+attestation\s+verify|slsa-verifier|gitsign|artifact-digest|digest\s*:)\b/i;
 const PRIVILEGED_PERMISSION_RE =
   /permissions\s*:\s*(?:write-all|[\s\S]{0,280}\b(?:contents|actions|packages|id-token|pull-requests)\s*:\s*write\b)/i;
-
+const NPM_PUBLISH_RE = /\bnpm\s+publish\b/i;
+const NPM_TOKEN_ENV_RE = /\bNPM_TOKEN\b/;
+const PROVENANCE_DISABLED_RE = /--provenance(?:=|\s+)false\b|provenance\s*:\s*false\b/i;
+const PROVENANCE_INTENDED_RE = /--provenance\b|trusted\s+publish(?:ing)?\b/i;
+const ID_TOKEN_WRITE_RE = /id-token\s*:\s*write\b/i;
 function firstMatchLine(rawContent, patterns) {
   for (const re of patterns) {
     re.lastIndex = 0;
@@ -643,7 +647,74 @@ export class CICDScanner extends BaseAgent {
 
     return findings;
   }
+/**
+   * npm publish workflows should prefer provenance/trusted publishing over
+   * a long-lived NPM_TOKEN, and if provenance is intended, id-token: write
+   * must actually be present or the publish step will fail (or worse,
+   * silently skip provenance depending on npm version).
+   */
+  scanNpmPublishProvenance(file) {
+    const content = this.readFile(file);
+    if (!content || !NPM_PUBLISH_RE.test(content)) return [];
 
+    const findings = [];
+    const publishHit = firstMatchLine(content, [NPM_PUBLISH_RE]);
+
+    if (PROVENANCE_DISABLED_RE.test(content)) {
+      const hit = firstMatchLine(content, [PROVENANCE_DISABLED_RE]);
+      findings.push(createFinding({
+        file,
+        line: hit.line,
+        severity: 'high',
+        category: this.category,
+        rule: 'CICD_NPM_PUBLISH_PROVENANCE_DISABLED',
+        title: 'CI/CD: npm publish with provenance explicitly disabled',
+        description:
+          'This workflow explicitly disables npm provenance. Provenance links a published package back to the exact workflow run and commit that built it, which is what lets consumers and npm verify supply-chain integrity.',
+        matched: hit.matched,
+        confidence: 'high',
+        cwe: 'CWE-345',
+        owasp: 'CICD-SEC-9',
+        fix: 'Remove the provenance=false flag/setting and publish with `npm publish --provenance` instead.',
+      }));
+    } else if (NPM_TOKEN_ENV_RE.test(content) && !PROVENANCE_INTENDED_RE.test(content)) {
+      findings.push(createFinding({
+        file,
+        line: publishHit.line,
+        severity: 'medium',
+        category: this.category,
+        rule: 'CICD_NPM_PUBLISH_NO_PROVENANCE',
+        title: 'CI/CD: npm publish uses NPM_TOKEN without provenance',
+        description:
+          'This workflow publishes to npm using a long-lived NPM_TOKEN secret, with no mention of provenance or trusted publishing. A leaked NPM_TOKEN can be used to publish malicious versions indefinitely, and consumers have no cryptographic way to verify the package actually came from this repository\'s CI.',
+        matched: publishHit.matched,
+        confidence: 'medium',
+        cwe: 'CWE-345',
+        owasp: 'CICD-SEC-6',
+        fix: 'Publish with `npm publish --provenance` (requires `id-token: write` permission), or migrate to npm trusted publishing to remove the long-lived token entirely.',
+      }));
+    }
+
+    if (PROVENANCE_INTENDED_RE.test(content) && !ID_TOKEN_WRITE_RE.test(content)) {
+      findings.push(createFinding({
+        file,
+        line: publishHit.line,
+        severity: 'medium',
+        category: this.category,
+        rule: 'CICD_NPM_PUBLISH_MISSING_ID_TOKEN',
+        title: 'CI/CD: npm provenance intended but id-token permission missing',
+        description:
+          'This workflow references provenance or trusted publishing, but no job declares `id-token: write`. Provenance/trusted publishing depends on an OIDC token that this permission grants; without it the publish step cannot generate a valid attestation.',
+        matched: publishHit.matched,
+        confidence: 'medium',
+        cwe: 'CWE-284',
+        owasp: 'CICD-SEC-2',
+        fix: 'Add `permissions: { id-token: write }` to the publish job.',
+      }));
+    }
+
+    return findings;
+  }
   async analyze(context) {
     const { rootPath, files } = context;
 
@@ -672,6 +743,7 @@ export class CICDScanner extends BaseAgent {
       // cannot see (see UNGOVERNED CONTINUOUS INGESTION above).
       findings = findings.concat(this.scanIngestionChain(file, rootPath, self));
       findings = findings.concat(this.scanPrivilegedHandoffs(file));
+      findings = findings.concat(this.scanNpmPublishProvenance(file));
     }
     return findings;
   }
