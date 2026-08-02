@@ -13,8 +13,11 @@ import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { fileURLToPath } from 'url';
 
 import { ModelScanAgent } from '../agents/model-scan-agent.js';
+
+const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'model-downloads');
 
 function tmp() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-model-'));
@@ -98,6 +101,37 @@ describe('ModelScanAgent — source loaders', () => {
       fs.writeFileSync(file, 'import torch\nm = torch.load("model.pt", weights_only=True)\n');
       const f = await scan(dir, [file]);
       assert.equal(f.filter((x) => x.rule === 'MODEL_TORCH_LOAD_UNSAFE').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('flags mutable Hugging Face references and remote code', async () => {
+    const file = path.join(FIXTURES, 'mutable.py');
+    const f = await scan(FIXTURES, [file]);
+    assert.ok(f.some((x) => x.rule === 'RAG_TRUST_REMOTE_CODE'));
+    assert.equal(f.filter((x) => x.rule === 'MODEL_MUTABLE_REMOTE_REFERENCE').length, 3);
+    assert.ok(f.some((x) => x.rule === 'MODEL_MUTABLE_RAW_URL'));
+    assert.ok(f.some((x) => x.rule === 'MODEL_MUTABLE_DOWNLOAD_PICKLE_LOAD' && x.severity === 'critical'));
+  });
+
+  it('keeps local and commit-pinned model references quiet', async () => {
+    const file = path.join(FIXTURES, 'safe.py');
+    const f = await scan(FIXTURES, [file]);
+    assert.equal(f.filter((x) => x.rule.startsWith('MODEL_MUTABLE_')).length, 0);
+  });
+
+  it('does not link an unrelated mutable download to a local pickle load', async () => {
+    const dir = tmp();
+    const file = path.join(dir, 'separate.py');
+    try {
+      fs.writeFileSync(file, `
+from huggingface_hub import snapshot_download
+import torch
+snapshot_download("acme/mutable-weights")
+model = torch.load("./local.pt", weights_only=True)
+`);
+      const f = await scan(dir, [file]);
+      assert.ok(f.some((x) => x.rule === 'MODEL_MUTABLE_REMOTE_REFERENCE'));
+      assert.ok(!f.some((x) => x.rule === 'MODEL_MUTABLE_DOWNLOAD_PICKLE_LOAD'));
     } finally { cleanup(dir); }
   });
 });

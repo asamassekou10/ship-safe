@@ -54,6 +54,15 @@ const ZIP_MAGIC = Buffer.from([0x50, 0x4b, 0x03, 0x04]); // PyTorch .pt is a zip
 // Source-level unsafe loaders.
 const SOURCE_PATTERNS = [
   {
+    regex: /trust_remote_code\s*=\s*True/g,
+    rule: 'RAG_TRUST_REMOTE_CODE',
+    title: 'Model loaded with trust_remote_code=True',
+    severity: 'high',
+    description: 'The model loader allows executable Python code from the remote model repository.',
+    cwe: 'CWE-829',
+    fix: 'Set trust_remote_code=False and use a model whose code has been reviewed and pinned.',
+  },
+  {
     regex: /torch\s*\.\s*load\s*\((?![^)]*weights_only\s*=\s*True)/g,
     rule: 'MODEL_TORCH_LOAD_UNSAFE',
     title: 'torch.load() without weights_only=True',
@@ -110,10 +119,180 @@ export class ModelScanAgent extends BaseAgent {
       const ext = path.extname(file).toLowerCase();
       if (ext === '.py' || ext === '.ipynb') {
         findings.push(...this.scanFileWithPatterns(file, SOURCE_PATTERNS));
+        findings.push(...this._scanRemoteModelSources(file));
       }
     }
 
     return findings;
+  }
+
+  _scanRemoteModelSources(file) {
+    const content = this.readFile(file);
+    if (!content) return [];
+
+    const findings = [];
+    const mutableDownloads = [];
+    const hubCalls = this._findCalls(
+      content,
+      /\b(?:[A-Za-z_][\w]*\.)*(from_pretrained|snapshot_download|hf_hub_download)\s*\(/g
+    );
+
+    for (const call of hubCalls) {
+      const reference = this._modelReference(call.args);
+      if (!reference || this._isLocalReference(reference, file)) continue;
+      if (this._hasPinnedRevision(call.args)) continue;
+
+      mutableDownloads.push(call);
+      findings.push(createFinding({
+        file,
+        line: this._lineAt(content, call.index),
+        severity: 'high',
+        category: 'supply-chain',
+        rule: 'MODEL_MUTABLE_REMOTE_REFERENCE',
+        title: 'Model download uses a mutable remote reference',
+        description: `The ${call.name} call downloads model code or weights without pinning revision to a full commit hash. The reviewed artifact can change later.`,
+        matched: `${call.name} without commit revision`,
+        confidence: 'high',
+        cwe: 'CWE-829',
+        fix: 'Set revision to the full commit hash of the reviewed model repository.',
+      }));
+    }
+
+    const rawCalls = this._findCalls(
+      content,
+      /\b((?:requests\.(?:get|post)|urllib\.request\.(?:urlopen|urlretrieve)|wget\.download|torch\.hub\.download_url_to_file))\s*\(/g
+    );
+    for (const call of rawCalls) {
+      const url = call.args.match(/["'](https?:\/\/[^"']+)["']/i)?.[1];
+      if (!url || !/\.(?:pkl|pickle|pt|pth|ckpt|bin|safetensors|gguf|onnx)(?:[?#]|$)/i.test(url)) continue;
+      if (this._hasImmutableUrl(url) || this._hasChecksumVerification(content, call)) continue;
+
+      mutableDownloads.push(call);
+      findings.push(createFinding({
+        file,
+        line: this._lineAt(content, call.index),
+        severity: 'high',
+        category: 'supply-chain',
+        rule: 'MODEL_MUTABLE_RAW_URL',
+        title: 'Model artifact URL has no immutable revision or checksum',
+        description: 'A model artifact is downloaded from a mutable URL without a commit-pinned path or checksum verification.',
+        matched: 'model URL without revision or checksum',
+        confidence: 'high',
+        cwe: 'CWE-494',
+        fix: 'Use an immutable commit-pinned URL and verify the artifact SHA-256 before loading it.',
+      }));
+    }
+
+    const pickleDownload = mutableDownloads.find((call) => this._feedsPickleLoader(content, call));
+    if (pickleDownload) {
+      findings.push(createFinding({
+        file,
+        line: this._lineAt(content, pickleDownload.index),
+        severity: 'critical',
+        category: 'supply-chain',
+        rule: 'MODEL_MUTABLE_DOWNLOAD_PICKLE_LOAD',
+        title: 'Mutable model download is loaded through pickle',
+        description: 'This source downloads a mutable remote model artifact and later loads a pickle-capable format, allowing the remote artifact to become code execution.',
+        matched: 'mutable download followed by pickle load',
+        confidence: 'high',
+        cwe: 'CWE-502',
+        fix: 'Pin and verify the download, use safetensors, and avoid pickle-capable loaders for remote artifacts.',
+      }));
+    }
+
+    return findings;
+  }
+
+  _findCalls(content, pattern) {
+    const calls = [];
+    let match;
+    while ((match = pattern.exec(content)) !== null) {
+      const open = pattern.lastIndex - 1;
+      let depth = 1;
+      let quote = null;
+      let escaped = false;
+      let end = open + 1;
+
+      for (; end < content.length && depth > 0; end++) {
+        const char = content[end];
+        if (quote) {
+          if (escaped) escaped = false;
+          else if (char === '\\') escaped = true;
+          else if (char === quote) quote = null;
+          continue;
+        }
+        if (char === '"' || char === "'") quote = char;
+        else if (char === '(') depth++;
+        else if (char === ')') depth--;
+      }
+      if (depth === 0) {
+        const linePrefix = content.slice(content.lastIndexOf('\n', match.index) + 1, match.index);
+        calls.push({
+          name: match[1],
+          index: match.index,
+          end,
+          assignedTo: linePrefix.match(/\b([A-Za-z_]\w*)\s*=\s*$/)?.[1] || null,
+          args: content.slice(open + 1, end - 1),
+        });
+      }
+    }
+    return calls;
+  }
+
+  _feedsPickleLoader(content, call) {
+    const loaders = String.raw`(?:torch\.load|pickle\.load|joblib\.load|dill\.load)`;
+    if (call.assignedTo) {
+      const variable = call.assignedTo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (new RegExp(String.raw`\b${loaders}\s*\(\s*${variable}\b`, 'i').test(content.slice(call.end))) {
+        return true;
+      }
+    }
+
+    const prefix = content.slice(Math.max(0, call.index - 120), call.index);
+    return new RegExp(String.raw`\b${loaders}\s*\(\s*$`, 'i').test(prefix);
+  }
+
+  _modelReference(args) {
+    return args.match(/\b(?:pretrained_model_name_or_path|repo_id)\s*=\s*["']([^"']+)["']/i)?.[1]
+      || args.match(/^\s*["']([^"']+)["']/)?.[1]
+      || null;
+  }
+
+  _isLocalReference(reference, sourceFile) {
+    if (/^(?:\.{0,2}[\\/]|~[\\/]|[A-Za-z]:[\\/]|file:\/\/)/i.test(reference)) return true;
+    if (path.isAbsolute(reference)) return true;
+    if (/^(?:models?|checkpoints?|weights?|artifacts?|outputs?)[\\/]/i.test(reference)) return true;
+    if (/\.(?:pkl|pickle|pt|pth|ckpt|bin|safetensors|gguf|onnx)$/i.test(reference)) return true;
+    return fs.existsSync(path.resolve(path.dirname(sourceFile), reference));
+  }
+
+  _hasPinnedRevision(args) {
+    const revision = args.match(/\brevision\s*=\s*["']([0-9a-f]+)["']/i)?.[1];
+    return Boolean(revision && (revision.length === 40 || revision.length === 64));
+  }
+
+  _hasImmutableUrl(url) {
+    return /\/(?:resolve|blob)\/(?:[0-9a-f]{40}|[0-9a-f]{64})\//i.test(url)
+      || /[?&](?:revision|rev)=(?:[0-9a-f]{40}|[0-9a-f]{64})(?:&|$)/i.test(url);
+  }
+
+  _hasChecksumVerification(content, call) {
+    if (call.name === 'torch.hub.download_url_to_file') {
+      return /\bhash_prefix\s*=\s*["'][0-9a-f]{8,64}["']/i.test(call.args);
+    }
+    if (!call.assignedTo) return false;
+
+    const variable = call.assignedTo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const following = content.slice(call.end, call.end + 1200);
+    const hashesDownloadedBytes = new RegExp(
+      String.raw`hashlib\.sha256\s*\(\s*${variable}\.(?:content|raw\.read\s*\(\s*\))\s*\)`,
+      'i'
+    ).test(following);
+    return hashesDownloadedBytes && /["'][0-9a-f]{64}["']/i.test(following);
+  }
+
+  _lineAt(content, index) {
+    return content.slice(0, index).split('\n').length;
   }
 
   _scanModelFile(file) {
