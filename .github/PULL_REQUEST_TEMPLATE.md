@@ -40,3 +40,10 @@ Fixes #(issue number)
 ## Additional Notes
 
 Any other context for reviewers.
+
+---
+
+> **First time contributing?** Workflows on fork pull requests wait for a
+> maintainer to approve them, so you may see no checks here at first. That is
+> expected and there is nothing you need to do. See
+> [CONTRIBUTING.md](../CONTRIBUTING.md#ci-on-your-pull-request).
