@@ -313,7 +313,7 @@ small{color:#64748b}
   ${roadmapHTML}
 
   <div class="footer">
-    Secured by <span class="powered">Ship Safe</span> · shipsafecli.com · <code>npx ship-safe red-team .</code>
+    Secured by <span class="powered">Ship Safe</span> · shipsafe.sh · <code>npx ship-safe red-team .</code>
   </div>
 </div>
 </body>

@@ -181,7 +181,7 @@ program
   .command('rotate [path]')
   .description('Revoke and rotate exposed secrets — opens provider dashboards with step-by-step guide')
   .option('--provider <name>', 'Only rotate secrets for a specific provider (e.g. github, stripe, openai)')
-  .option('--plan <file>', 'Execute a rotation plan downloaded from shipsafecli.com/rotate')
+  .option('--plan <file>', 'Execute a rotation plan downloaded from shipsafe.sh/rotate')
   .action(rotateCommand);
 
 // -----------------------------------------------------------------------------

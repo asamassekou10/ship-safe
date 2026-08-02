@@ -233,7 +233,7 @@ export async function vibeCheckCommand(targetPath = '.', options = {}) {
       A: 'brightgreen', B: 'blue', C: 'yellow', D: 'orange', F: 'red',
     }[scoreResult.grade.letter] || 'lightgrey';
     const badgeUrl = `https://img.shields.io/badge/ship--safe-${score}%2F100_${scoreResult.grade.letter}-${badgeColor}`;
-    const badgeMd = `[![Ship Safe Score](${badgeUrl})](https://shipsafecli.com)`;
+    const badgeMd = `[![Ship Safe Score](${badgeUrl})](https://shipsafe.sh)`;
 
     console.log(chalk.white.bold('  Markdown badge:'));
     console.log(chalk.cyan(`  ${badgeMd}`));

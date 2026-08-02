@@ -2,7 +2,7 @@
   <img src=".github/assets/ship-safe-logo-2026.png" alt="Ship Safe Logo" width="180" />
 </p>
 <p align="center"><strong>Find risky code, AI-agent vulnerabilities, and supply-chain issues before they ship.</strong></p>
-<p align="center"><a href="https://shipsafecli.com">Website</a> · <a href="https://shipsafecli.com/docs">Docs</a> · <a href="https://shipsafecli.com/security">Security & Data Flow</a> · <a href="https://shipsafecli.com/benchmarks">Benchmark</a> · <a href="https://shipsafecli.com/pricing">Pricing</a> · <a href="https://shipsafecli.com/blog">Blog</a> · <a href="https://github.com/asamassekou10/ship-safe/contribute">Contribute</a></p>
+<p align="center"><a href="https://shipsafe.sh">Website</a> · <a href="https://shipsafe.sh/docs">Docs</a> · <a href="https://shipsafe.sh/security">Security & Data Flow</a> · <a href="https://shipsafe.sh/benchmarks">Benchmark</a> · <a href="https://shipsafe.sh/pricing">Pricing</a> · <a href="https://shipsafe.sh/blog">Blog</a> · <a href="https://github.com/asamassekou10/ship-safe/contribute">Contribute</a></p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/ship-safe"><img src="https://badge.fury.io/js/ship-safe.svg" alt="npm version" /></a>
@@ -25,7 +25,7 @@ npx ship-safe
 
 No signup. No API key required for scanning. Works offline for core checks. AI-backed red-team modes use your configured provider when available.
 
-Use `--no-ai` to guarantee a fully local scan. Provider-backed classification, deep analysis, and GPT-Red send bounded context directly to your selected provider after best-effort credential masking. See [Security & Data Flow](https://shipsafecli.com/security) for exact boundaries and context limits.
+Use `--no-ai` to guarantee a fully local scan. Provider-backed classification, deep analysis, and GPT-Red send bounded context directly to your selected provider after best-effort credential masking. See [Security & Data Flow](https://shipsafe.sh/security) for exact boundaries and context limits.
 
 <p align="center">
   <img src=".github/assets/demo-repl.gif" alt="Ship Safe REPL demo" width="800" />
@@ -99,7 +99,9 @@ The open-source CLI is the fastest way to scan any repo locally. Upgrade when yo
 | Scan history, cloud dashboard, and PDF reports | Pro |
 | Shared workspace, PR Guardian, team reports, and collaboration | Team |
 
-Compare plans at [shipsafecli.com/pricing](https://shipsafecli.com/pricing).
+Compare plans at [shipsafe.sh/pricing](https://shipsafe.sh/pricing).
+
+Ship Safe Cloud, the hosted dashboard for scan history, PR Guardian, billing, and team workflows, is developed in a private repository because it contains commercial product code and hosted infrastructure workflows. The public `ship-safe` repo remains focused on the MIT-licensed CLI, security agents, rules, fixtures, CI integrations, and documentation. See [Ship Safe Cloud](./docs/cloud.md) for the repo boundary.
 
 ---
 
@@ -240,7 +242,7 @@ docs/
 ## Add a Badge
 
 ```markdown
-[![Ship Safe](https://img.shields.io/badge/Ship_Safe-A+-22c55e)](https://shipsafecli.com)
+[![Ship Safe](https://img.shields.io/badge/Ship_Safe-A+-22c55e)](https://shipsafe.sh)
 ```
 
 ---
@@ -254,8 +256,7 @@ Good first areas:
 - Add a focused security agent for an AI, MCP, CI, cloud, or supply-chain risk
 - Add a precise security rule to an existing agent
 - Add vulnerable fixtures and regression tests
-- Improve web app onboarding, scan triage, reports, or dashboard visualizations
-- Write examples for local scans, CI gates, red-team workflows, and team setup
+- Write examples for local scans, CI gates, red-team workflows, and MCP/agent setup
 
 Start here:
 
@@ -264,6 +265,7 @@ Start here:
 - [Add an agent](./docs/adding-an-agent.md)
 - [Add a security rule](./docs/adding-a-security-rule.md)
 - [Handle MCP environment variables safely](./docs/mcp-env-safety.md)
+- [Release process](./docs/releasing.md)
 
 ---
 
@@ -285,4 +287,4 @@ Ship Safe is MIT-licensed and free forever.
 
 ---
 
-**Ship fast. Ship safe.** — [shipsafecli.com](https://shipsafecli.com)
+**Ship fast. Ship safe.** — [shipsafe.sh](https://shipsafe.sh)

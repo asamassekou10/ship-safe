@@ -421,6 +421,54 @@ function extractChainSignals(rawContent, self) {
   };
 }
 
+// =============================================================================
+// PRIVILEGED PR / ARTIFACT HANDOFFS
+//
+// GitHub's dangerous CI/CD cases usually appear as chains: a privileged event
+// runs, pulls in code or artifacts influenced by an untrusted PR, then executes
+// or deploys them. The line rules above catch many single bad statements; this
+// pass catches the handoff.
+// =============================================================================
+
+const PR_TARGET_EVENT_RE = /\bpull_request_target\b/;
+const UNSAFE_PR_CHECKOUT_RE =
+  /uses\s*:\s*actions\/checkout@[^\n]+[\s\S]{0,360}(?:\bref\s*:\s*\$\{\{\s*github\.event\.pull_request\.head\.(?:sha|ref)\s*\}\}|\brepository\s*:\s*\$\{\{\s*github\.event\.pull_request\.head\.repo\.full_name\s*\}\})/i;
+const UNSAFE_PR_GIT_RE =
+  /\bgit\s+(?:checkout|switch|fetch|clone)\b[^\n]*(?:github\.event\.pull_request\.head|github\.head_ref|GITHUB_HEAD_REF)/i;
+const TRUSTS_UNSAFE_CHECKOUT_ACTION_RE =
+  /\ballow-unsafe-pr-checkout\s*:\s*true\b/i;
+
+const CODE_EXEC_AFTER_CHECKOUT_RE =
+  /(?:^|\n)\s*-?\s*run\s*:\s*(?:[>|]\s*)?[\s\S]{0,700}\b(?:npm|pnpm|yarn|bun)\s+(?:ci|install|test|run|exec)|(?:^|\n)\s*-?\s*run\s*:\s*(?:[>|]\s*)?[\s\S]{0,700}\b(?:pip\s+install|pytest|python\s+setup\.py|make\b|bash\b|sh\b|chmod\s+\+x)/i;
+
+const WORKFLOW_RUN_RE = /\bworkflow_run\b[\s\S]{0,240}\bcompleted\b/i;
+const ARTIFACT_DOWNLOAD_RE =
+  /(?:uses\s*:\s*actions\/download-artifact@|gh\s+run\s+download|download-artifact\b)/i;
+const ARTIFACT_EXEC_RE =
+  /(?:^|\n)\s*-?\s*run\s*:\s*(?:[>|]\s*)?[\s\S]{0,900}\b(?:chmod\s+\+x|bash\s+\.?\/|sh\s+\.?\/|python\s+\.?\/|node\s+\.?\/|npm\s+(?:ci|install|test|run)|pnpm\s+(?:install|test|run)|yarn\s+(?:install|test|run)|bun\s+(?:install|test|run)|docker\s+load|kubectl\s+apply)\b/i;
+const ARTIFACT_VERIFY_RE =
+  /\b(?:sha256sum|shasum|openssl\s+dgst|cosign\s+verify|gh\s+attestation\s+verify|slsa-verifier|gitsign|artifact-digest|digest\s*:)\b/i;
+const PRIVILEGED_PERMISSION_RE =
+  /permissions\s*:\s*(?:write-all|[\s\S]{0,280}\b(?:contents|actions|packages|id-token|pull-requests)\s*:\s*write\b)/i;
+const NPM_PUBLISH_RE = /\bnpm\s+publish\b/i;
+const NPM_TOKEN_ENV_RE = /\bNPM_TOKEN\b/;
+const PROVENANCE_DISABLED_RE = /--provenance(?:=|\s+)false\b|provenance\s*:\s*false\b/i;
+const PROVENANCE_INTENDED_RE = /--provenance\b|trusted\s+publish(?:ing)?\b/i;
+const ID_TOKEN_WRITE_RE = /id-token\s*:\s*write\b/i;
+function firstMatchLine(rawContent, patterns) {
+  for (const re of patterns) {
+    re.lastIndex = 0;
+    const m = re.exec(rawContent);
+    if (m) {
+      return {
+        line: rawContent.slice(0, m.index).split('\n').length,
+        matched: m[0].trim().slice(0, 180),
+      };
+    }
+  }
+  return { line: 0, matched: '' };
+}
+
 export class CICDScanner extends BaseAgent {
   constructor() {
     super('CICDScanner', 'Detect CI/CD pipeline security issues (OWASP CI/CD Top 10)', 'cicd');
@@ -517,6 +565,169 @@ export class CICDScanner extends BaseAgent {
     return findings;
   }
 
+  scanPrivilegedHandoffs(file) {
+    const content = this.readFile(file);
+    if (!content) return [];
+
+    const findings = [];
+    const hasPrTarget = PR_TARGET_EVENT_RE.test(content);
+    const unsafeCheckout =
+      UNSAFE_PR_CHECKOUT_RE.test(content) ||
+      UNSAFE_PR_GIT_RE.test(content) ||
+      TRUSTS_UNSAFE_CHECKOUT_ACTION_RE.test(content);
+
+    if (hasPrTarget && unsafeCheckout) {
+      const hit = firstMatchLine(content, [
+        UNSAFE_PR_CHECKOUT_RE,
+        UNSAFE_PR_GIT_RE,
+        TRUSTS_UNSAFE_CHECKOUT_ACTION_RE,
+      ]);
+
+      findings.push(createFinding({
+        file,
+        line: hit.line,
+        severity: 'critical',
+        category: this.category,
+        rule: 'CICD_PR_TARGET_UNSAFE_CHECKOUT',
+        title: 'pull_request_target checks out untrusted PR code',
+        description:
+          '`pull_request_target` runs with base-repository privileges. This workflow then checks out code from the pull request head, which lets an external contributor place code inside a privileged job.',
+        matched: hit.matched,
+        confidence: 'high',
+        cwe: 'CWE-829',
+        owasp: 'CICD-SEC-4',
+        fix:
+          'Do not checkout or execute the PR head in `pull_request_target`. Use `pull_request` for untrusted code, or split the workflow so privileged jobs only consume reviewed, verified outputs.',
+      }));
+
+      if (CODE_EXEC_AFTER_CHECKOUT_RE.test(content)) {
+        const exec = firstMatchLine(content, [CODE_EXEC_AFTER_CHECKOUT_RE]);
+        findings.push(createFinding({
+          file,
+          line: exec.line,
+          severity: 'critical',
+          category: this.category,
+          rule: 'CICD_PR_TARGET_EXECUTES_UNTRUSTED_CODE',
+          title: 'Privileged PR workflow executes untrusted code',
+          description:
+            'This `pull_request_target` workflow checks out PR-controlled code and later runs package scripts, shell commands, or build/test commands. A malicious PR can execute with repository secrets and write-token permissions.',
+          matched: exec.matched,
+          confidence: 'high',
+          cwe: 'CWE-94',
+          owasp: 'CICD-SEC-4',
+          fix:
+            'Move code execution to a `pull_request` workflow with read-only permissions. Keep `pull_request_target` only for metadata actions such as labeling or commenting.',
+        }));
+      }
+    }
+
+    if (WORKFLOW_RUN_RE.test(content) && ARTIFACT_DOWNLOAD_RE.test(content) && ARTIFACT_EXEC_RE.test(content)) {
+      const verified = ARTIFACT_VERIFY_RE.test(content);
+      const privileged = PRIVILEGED_PERMISSION_RE.test(content);
+      if (!verified) {
+        const hit = firstMatchLine(content, [ARTIFACT_DOWNLOAD_RE, ARTIFACT_EXEC_RE]);
+        findings.push(createFinding({
+          file,
+          line: hit.line,
+          severity: privileged ? 'critical' : 'high',
+          category: this.category,
+          rule: 'CICD_WORKFLOW_RUN_UNVERIFIED_ARTIFACT_EXEC',
+          title: 'workflow_run executes an unverified artifact',
+          description:
+            '`workflow_run` can be used to hand off from an untrusted PR workflow into a privileged workflow. This job downloads an artifact and executes it without a digest, signature, or attestation check.',
+          matched: hit.matched,
+          confidence: 'high',
+          cwe: 'CWE-345',
+          owasp: 'CICD-SEC-9',
+          fix:
+            'Verify artifacts with a digest, signature, or `gh attestation verify` before execution. Avoid executing artifacts produced by untrusted PR workflows in privileged jobs.',
+        }));
+      }
+    }
+
+    return findings;
+  }
+/**
+   * npm publish workflows should prefer provenance/trusted publishing over
+   * a long-lived NPM_TOKEN, and if provenance is intended, id-token: write
+   * must actually be present or the publish step will fail (or worse,
+   * silently skip provenance depending on npm version).
+   *
+   * YAML comments are stripped before matching — a comment merely
+   * discussing "trusted publishing" or "id-token: write" must not silence
+   * a real finding just because the words appear in prose.
+   */
+  scanNpmPublishProvenance(file) {
+    const rawContent = this.readFile(file);
+    if (!rawContent) return [];
+
+    // Strip full-line and trailing YAML comments so prose mentions of the
+    // trigger phrases can't mask an actual missing configuration.
+    const content = rawContent
+      .split('\n')
+      .map(line => line.replace(/(^|\s)#.*$/, ''))
+      .join('\n');
+
+    if (!NPM_PUBLISH_RE.test(content)) return [];
+
+    const findings = [];
+    const publishHit = firstMatchLine(rawContent, [NPM_PUBLISH_RE]);
+
+    if (PROVENANCE_DISABLED_RE.test(content)) {
+      const hit = firstMatchLine(rawContent, [PROVENANCE_DISABLED_RE]);
+      findings.push(createFinding({
+        file,
+        line: hit.line,
+        severity: 'high',
+        category: this.category,
+        rule: 'CICD_NPM_PUBLISH_PROVENANCE_DISABLED',
+        title: 'CI/CD: npm publish with provenance explicitly disabled',
+        description:
+          'This workflow explicitly disables npm provenance. Provenance links a published package back to the exact workflow run and commit that built it, which is what lets consumers and npm verify supply-chain integrity.',
+        matched: hit.matched,
+        confidence: 'high',
+        cwe: 'CWE-345',
+        owasp: 'CICD-SEC-9',
+        fix: 'Remove the provenance=false flag/setting and publish with `npm publish --provenance` instead.',
+      }));
+    } else if (NPM_TOKEN_ENV_RE.test(content) && !PROVENANCE_INTENDED_RE.test(content)) {
+      findings.push(createFinding({
+        file,
+        line: publishHit.line,
+        severity: 'medium',
+        category: this.category,
+        rule: 'CICD_NPM_PUBLISH_NO_PROVENANCE',
+        title: 'CI/CD: npm publish uses NPM_TOKEN without provenance',
+        description:
+          'This workflow publishes to npm using a long-lived NPM_TOKEN secret, with no mention of provenance or trusted publishing. A leaked NPM_TOKEN can be used to publish malicious versions indefinitely, and consumers have no cryptographic way to verify the package actually came from this repository\'s CI.',
+        matched: publishHit.matched,
+        confidence: 'medium',
+        cwe: 'CWE-345',
+        owasp: 'CICD-SEC-6',
+        fix: 'Publish with `npm publish --provenance` (requires `id-token: write` permission), or migrate to npm trusted publishing to remove the long-lived token entirely.',
+      }));
+    }
+
+    if (PROVENANCE_INTENDED_RE.test(content) && !ID_TOKEN_WRITE_RE.test(content)) {
+      findings.push(createFinding({
+        file,
+        line: publishHit.line,
+        severity: 'medium',
+        category: this.category,
+        rule: 'CICD_NPM_PUBLISH_MISSING_ID_TOKEN',
+        title: 'CI/CD: npm provenance intended but id-token permission missing',
+        description:
+          'This workflow references provenance or trusted publishing, but no job declares `id-token: write`. Provenance/trusted publishing depends on an OIDC token that this permission grants; without it the publish step cannot generate a valid attestation.',
+        matched: publishHit.matched,
+        confidence: 'medium',
+        cwe: 'CWE-284',
+        owasp: 'CICD-SEC-2',
+        fix: 'Add `permissions: { id-token: write }` to the publish job.',
+      }));
+    }
+
+    return findings;
+  }
   async analyze(context) {
     const { rootPath, files } = context;
 
@@ -544,6 +755,8 @@ export class CICDScanner extends BaseAgent {
       // Whole-file pass: catches combinations the line rules structurally
       // cannot see (see UNGOVERNED CONTINUOUS INGESTION above).
       findings = findings.concat(this.scanIngestionChain(file, rootPath, self));
+      findings = findings.concat(this.scanPrivilegedHandoffs(file));
+      findings = findings.concat(this.scanNpmPublishProvenance(file));
     }
     return findings;
   }

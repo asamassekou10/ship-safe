@@ -30,6 +30,7 @@ import { CICDScanner } from '../agents/cicd-scanner.js';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 const CHAIN_RULES = /^(CICD_UNATTENDED_UPSTREAM_DEPLOY|CICD_UNPINNED_UPSTREAM_BUILD|CICD_NO_DEPLOY_APPROVAL)$/;
+const HANDOFF_RULES = /^(CICD_PR_TARGET_UNSAFE_CHECKOUT|CICD_PR_TARGET_EXECUTES_UNTRUSTED_CODE|CICD_WORKFLOW_RUN_UNVERIFIED_ARTIFACT_EXEC)$/;
 
 /** Build a throwaway repo containing one workflow, owned by `owner`. */
 function workspace(yaml, owner = 'someone-else') {
@@ -50,6 +51,16 @@ async function chainFindings(yaml, owner) {
   try {
     const findings = await new CICDScanner().analyze({ rootPath: ws.dir, files: [ws.file] });
     return findings.filter(f => CHAIN_RULES.test(f.rule));
+  } finally {
+    ws.cleanup();
+  }
+}
+
+async function handoffFindings(yaml, owner) {
+  const ws = workspace(yaml, owner);
+  try {
+    const findings = await new CICDScanner().analyze({ rootPath: ws.dir, files: [ws.file] });
+    return findings.filter(f => HANDOFF_RULES.test(f.rule));
   } finally {
     ws.cleanup();
   }
@@ -182,5 +193,94 @@ jobs:
 `;
     const found = await chainFindings(yaml);
     assert.ok(!found.some(f => f.rule === 'CICD_UNATTENDED_UPSTREAM_DEPLOY'));
+  });
+});
+
+describe('privileged PR and artifact handoffs', () => {
+  it('flags pull_request_target when it checks out and runs PR-controlled code', async () => {
+    const yaml = `
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: \${{ github.event.pull_request.head.repo.full_name }}
+          ref: \${{ github.event.pull_request.head.sha }}
+      - run: npm ci && npm test
+`;
+    const found = await handoffFindings(yaml);
+    assert.ok(found.some(f => f.rule === 'CICD_PR_TARGET_UNSAFE_CHECKOUT'));
+    assert.ok(found.some(f => f.rule === 'CICD_PR_TARGET_EXECUTES_UNTRUSTED_CODE'));
+    assert.ok(found.every(f => f.severity === 'critical'));
+  });
+
+  it('flags workflow_run when it executes an artifact without verification', async () => {
+    const yaml = `
+on:
+  workflow_run:
+    workflows: ["PR build"]
+    types: [completed]
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pr-build
+      - run: |
+          chmod +x ./dist/release.sh
+          ./dist/release.sh
+`;
+    const found = await handoffFindings(yaml);
+    const artifact = found.find(f => f.rule === 'CICD_WORKFLOW_RUN_UNVERIFIED_ARTIFACT_EXEC');
+    assert.ok(artifact);
+    assert.equal(artifact.severity, 'critical');
+  });
+
+  it('does not flag workflow_run artifact execution when the artifact is verified first', async () => {
+    const yaml = `
+on:
+  workflow_run:
+    workflows: ["PR build"]
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pr-build
+      - run: |
+          echo "$EXPECTED_SHA  dist/release.sh" | sha256sum -c -
+          bash ./dist/release.sh
+`;
+    const found = await handoffFindings(yaml);
+    assert.ok(!found.some(f => f.rule === 'CICD_WORKFLOW_RUN_UNVERIFIED_ARTIFACT_EXEC'));
+  });
+
+  it('does not flag pull_request_target workflows that only touch metadata', async () => {
+    const yaml = `
+on:
+  pull_request_target:
+    types: [opened]
+permissions:
+  pull-requests: write
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/labeler@v5
+`;
+    assert.deepEqual(await handoffFindings(yaml), []);
   });
 });

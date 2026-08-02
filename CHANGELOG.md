@@ -6,6 +6,50 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- **MCP allowlist bypass detection** in `MCPSecurityAgent`:
+  - `MCP_ALLOWLIST_WILDCARD` flags wildcard tool allowlists (`["*"]`, `"all"`) in project-local MCP configs.
+  - `MCP_TOOL_ALIAS_BYPASS` flags tool alias mappings that can route allowlisted names to different tools.
+  - `MCP_NESTED_PERMISSION_OVERRIDE` flags nested permission blocks with wildcard expansion inside server entries.
+
+---
+
+## [9.6.2] — 2026-08-02 — Privileged CI Handoff Detection
+
+### Added
+- Added structural CI/CD detection for privileged PR and artifact handoff
+  chains in `CICDScanner`:
+  - `CICD_PR_TARGET_UNSAFE_CHECKOUT` flags `pull_request_target` workflows
+    that check out PR-controlled code inside a privileged job.
+  - `CICD_PR_TARGET_EXECUTES_UNTRUSTED_CODE` flags privileged PR workflows
+    that run build, test, package-manager, or shell commands after checking
+    out PR-controlled code.
+  - `CICD_WORKFLOW_RUN_UNVERIFIED_ARTIFACT_EXEC` flags `workflow_run` jobs
+    that download and execute artifacts without a digest, signature, or
+    attestation check.
+
+### Tests
+- Added regression coverage for unsafe `pull_request_target` checkout,
+  privileged PR code execution, unverified `workflow_run` artifact execution,
+  verified artifact false-positive handling, and metadata-only
+  `pull_request_target` workflows.
+
+---
+
+## [9.6.1] — 2026-08-01 — MCP & Kimi K3 Coverage Notes
+
+### Added
+- Added release notes for `MCP_ENV_SECRET_PASSTHROUGH`, which flags repo-local
+  MCP configs that pass secret-like environment variables such as
+  `OPENAI_API_KEY` or `AWS_ACCESS_KEY_ID` directly to MCP server processes.
+- Added release notes for Kimi K3 / OpenAI-compatible tool-call fixture
+  coverage so users can see that tool-call security regressions are exercised
+  against realistic payloads.
+
+---
+
 ## [9.6.0] — 2026-07-26 — Suppression Floor & Pipeline Ingestion
 
 Two changes here alter what existing scans report. Both are deliberate, and

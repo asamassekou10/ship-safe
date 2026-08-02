@@ -772,6 +772,81 @@ describe('AgenticSecurityAgent', async () => {
   const { AgenticSecurityAgent } = await import('../agents/agentic-security-agent.js');
   const agent = new AgenticSecurityAgent();
 
+  function assertAgenticFinding(findings, rule, severity) {
+    const finding = findings.find(f => f.rule === rule);
+    assert.ok(finding, `Should detect ${rule}`);
+    assert.equal(finding.severity, severity, `${rule} should be ${severity}`);
+    return finding;
+  }
+
+  async function analyzeAgenticFixture(content) {
+    const { dir, file } = writeTempFile(content);
+    try {
+      return await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+    } finally { cleanup(dir); }
+  }
+
+  const toolCallRuleIds = new Set([
+    'AGENT_DYNAMIC_TOOL_LOADING_FROM_CONTEXT',
+    'AGENT_TOOL_CALL_NO_ALLOWLIST',
+    'AGENT_TOOL_CHOICE_REQUIRED_UNTRUSTED',
+    'AGENT_TOOL_CALL_REPLAY_MISSING_ASSISTANT',
+  ]);
+  const additionalToolCallFixtures = [
+    {
+      name: 'Kimi K3 developer-message tool schema from request body',
+      rule: 'AGENT_DYNAMIC_TOOL_LOADING_FROM_CONTEXT',
+      severity: 'high',
+      code: `
+        async function completeWithUserTools(req) {
+          const messages = [{
+            role: 'developer',
+            content: 'Use these Kimi K3 tools only: ' + JSON.stringify(req.body.toolSchema),
+          }, {
+            role: 'user',
+            content: req.body.prompt,
+          }];
+          return client.chat.completions.create({ model: 'kimi-k3', messages });
+        }
+      `,
+    },
+    {
+      name: 'Moonshot tool call dispatch through executeTool',
+      rule: 'AGENT_TOOL_CALL_NO_ALLOWLIST',
+      severity: 'high',
+      code: `
+        const toolCall = moonshotResponse.choices[0].message.tool_calls[0];
+        const args = JSON.parse(toolCall.function.arguments);
+        return executeTool(toolCall.function.name, args);
+      `,
+    },
+    {
+      name: 'OpenAI Responses API forced named tool with user prompt',
+      rule: 'AGENT_TOOL_CHOICE_REQUIRED_UNTRUSTED',
+      severity: 'medium',
+      code: `
+        await client.responses.create({
+          model: 'kimi-k3',
+          input: request.body.message,
+          tools: [{ type: 'function', function: { name: 'lookup_order' } }],
+          tool_choice: { type: 'function', function: { name: 'lookup_order' } },
+        });
+      `,
+    },
+    {
+      name: 'OpenAI-compatible tool result replay from request body',
+      rule: 'AGENT_TOOL_CALL_REPLAY_MISSING_ASSISTANT',
+      severity: 'medium',
+      code: `
+        history.push({
+          role: 'tool',
+          toolCallId: request.body.toolCallId,
+          content: request.body.toolOutput,
+        });
+      `,
+    },
+  ];
+
   it('detects auto-execute without confirmation', async () => {
     const { dir, file } = writeTempFile(`
       const config = {
@@ -821,7 +896,7 @@ describe('AgenticSecurityAgent', async () => {
     } finally { cleanup(dir); }
   });
 
-  it('detects dynamic tool definitions loaded from prompt context', async () => {
+  it('detects Kimi K3 dynamic tool definitions loaded from prompt context', async () => {
     const { dir, file } = writeTempFile(`
       const messages = [{
         role: 'system',
@@ -830,22 +905,22 @@ describe('AgenticSecurityAgent', async () => {
     `);
     try {
       const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
-      assert.ok(findings.some(f => f.rule === 'AGENT_DYNAMIC_TOOL_LOADING_FROM_CONTEXT'), 'Should detect dynamic tool loading from untrusted context');
+      assertAgenticFinding(findings, 'AGENT_DYNAMIC_TOOL_LOADING_FROM_CONTEXT', 'high');
     } finally { cleanup(dir); }
   });
 
-  it('detects model-selected tool dispatch without allowlist', async () => {
+  it('detects OpenAI-compatible model-selected tool dispatch without allowlist', async () => {
     const { dir, file } = writeTempFile(`
       const toolCall = response.choices[0].message.tool_calls[0];
       return toolRegistry[toolCall.function.name](JSON.parse(toolCall.function.arguments));
     `);
     try {
       const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
-      assert.ok(findings.some(f => f.rule === 'AGENT_TOOL_CALL_NO_ALLOWLIST'), 'Should detect missing tool allowlist');
+      assertAgenticFinding(findings, 'AGENT_TOOL_CALL_NO_ALLOWLIST', 'high');
     } finally { cleanup(dir); }
   });
 
-  it('does not flag model-selected tool dispatch with an allowlist', async () => {
+  it('does not flag OpenAI-compatible model-selected tool dispatch with an allowlist', async () => {
     const { dir, file } = writeTempFile(`
       const allowedTools = new Set(['search']);
       const toolCall = response.choices[0].message.tool_calls[0];
@@ -854,11 +929,12 @@ describe('AgenticSecurityAgent', async () => {
     `);
     try {
       const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
-      assert.ok(!findings.some(f => f.rule === 'AGENT_TOOL_CALL_NO_ALLOWLIST'), 'Should respect explicit tool allowlist');
+      const toolCallFindings = findings.filter(f => toolCallRuleIds.has(f.rule));
+      assert.deepEqual(toolCallFindings, [], 'Should respect explicit tool allowlist');
     } finally { cleanup(dir); }
   });
 
-  it('detects forced tool choice with untrusted input', async () => {
+  it('detects Kimi K3 forced tool choice with untrusted input', async () => {
     const { dir, file } = writeTempFile(`
       await client.chat.completions.create({
         model: 'kimi-k3',
@@ -869,11 +945,11 @@ describe('AgenticSecurityAgent', async () => {
     `);
     try {
       const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
-      assert.ok(findings.some(f => f.rule === 'AGENT_TOOL_CHOICE_REQUIRED_UNTRUSTED'), 'Should detect forced tool choice on untrusted input');
+      assertAgenticFinding(findings, 'AGENT_TOOL_CHOICE_REQUIRED_UNTRUSTED', 'medium');
     } finally { cleanup(dir); }
   });
 
-  it('detects tool result replay without assistant tool-call message', async () => {
+  it('detects OpenAI-compatible tool result replay without assistant tool-call message', async () => {
     const { dir, file } = writeTempFile(`
       messages.push({
         role: 'tool',
@@ -883,8 +959,42 @@ describe('AgenticSecurityAgent', async () => {
     `);
     try {
       const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
-      assert.ok(findings.some(f => f.rule === 'AGENT_TOOL_CALL_REPLAY_MISSING_ASSISTANT'), 'Should detect missing assistant tool-call message');
+      assertAgenticFinding(findings, 'AGENT_TOOL_CALL_REPLAY_MISSING_ASSISTANT', 'medium');
     } finally { cleanup(dir); }
+  });
+
+  for (const { name, code, rule, severity } of additionalToolCallFixtures) {
+    it(`detects additional fixture: ${name}`, async () => {
+      const findings = await analyzeAgenticFixture(code);
+      assertAgenticFinding(findings, rule, severity);
+    });
+  }
+
+  it('does not flag allowlisted Kimi K3 dispatch with linked tool result replay', async () => {
+    const findings = await analyzeAgenticFixture(`
+      const allowedToolNames = ['search', 'lookup_order'];
+      const assistantMessage = kimiResponse.choices[0].message;
+      const toolCall = assistantMessage.tool_calls[0];
+
+      if (!allowedToolNames.includes(toolCall.function.name)) {
+        throw new Error('blocked tool');
+      }
+
+      conversation.push({
+        role: 'assistant',
+        content: assistantMessage.content,
+        tool_calls: assistantMessage.tool_calls,
+      });
+
+      conversation.push({
+        role: 'tool',
+        tool_call_id: toolCall.id,
+        content: await handlers[toolCall.function.name](JSON.parse(toolCall.function.arguments)),
+      });
+    `);
+
+    const toolCallFindings = findings.filter(f => toolCallRuleIds.has(f.rule));
+    assert.deepEqual(toolCallFindings, [], 'Should respect allowlists and assistant tool-call linkage');
   });
 });
 

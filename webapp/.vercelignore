@@ -1,7 +1,0 @@
-# Build cache — large and not needed at runtime.
-# Without this, the restored Vercel build cache gets swept into the
-# serverless function bundle and blows the 250 MB unzipped limit.
-.next/cache
-
-# TypeScript incremental build info — not needed at runtime
-tsconfig.tsbuildinfo

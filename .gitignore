@@ -6,6 +6,7 @@
 .ship-safe/
 ship-safe-report.html
 GitHub Star History*/
+webapp/
 # This file prevents you from accidentally committing sensitive data.
 # Copy this to your project root. Customize as needed.
 # =============================================================================

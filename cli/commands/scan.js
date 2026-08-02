@@ -458,7 +458,7 @@ function outputPretty(results, filesScanned, rootPath) {
     console.log(chalk.gray('Suppress a finding: add  # ship-safe-ignore  as a comment on that line'));
     console.log(chalk.gray('Exclude a path:     add it to .ship-safeignore'));
     console.log();
-    console.log(chalk.gray('Track findings over time: ') + chalk.cyan('https://shipsafecli.com'));
+    console.log(chalk.gray('Track findings over time: ') + chalk.cyan('https://shipsafe.sh'));
 
     if (secretResults.length > 0) output.recommendations();
     if (vulnResults.length > 0) output.vulnRecommendations();

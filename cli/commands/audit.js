@@ -457,7 +457,7 @@ export async function auditCommand(targetPath = '.', options = {}) {
     reporter.generateFullReport(scoreResult, filteredFindings, depVulns, recon, remediationPlan, absolutePath, htmlPath);
     console.log();
     console.log(chalk.cyan(`  Full report: ${chalk.white.bold(htmlPath)}`));
-    console.log(chalk.gray(`  Dashboard:   `) + chalk.cyan('https://shipsafecli.com/app'));
+    console.log(chalk.gray(`  Dashboard:   `) + chalk.cyan('https://shipsafe.sh/app'));
 
     // PDF export
     if (options.pdf) {
@@ -508,7 +508,7 @@ export async function auditCommand(targetPath = '.', options = {}) {
       console.log();
       console.log(chalk.yellow('  ┌─────────────────────────────────────────────────────────┐'));
       console.log(chalk.yellow('  │') + chalk.white.bold(`  ${fixable} critical/high finding${fixable === 1 ? '' : 's'} — fix them automatically`) + chalk.yellow('        │'));
-      console.log(chalk.yellow('  │') + chalk.cyan('  npx ship-safe agent .') + chalk.gray('  ·  ') + chalk.cyan('shipsafecli.com/pricing') + chalk.yellow('     │'));
+      console.log(chalk.yellow('  │') + chalk.cyan('  npx ship-safe agent .') + chalk.gray('  ·  ') + chalk.cyan('shipsafe.sh/pricing') + chalk.yellow('     │'));
       console.log(chalk.yellow('  └─────────────────────────────────────────────────────────┘'));
     }
 

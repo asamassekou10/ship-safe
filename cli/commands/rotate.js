@@ -12,7 +12,7 @@
  * USAGE:
  *   ship-safe rotate .                         Scan local files and rotate found secrets
  *   ship-safe rotate . --provider github        Only rotate GitHub tokens
- *   ship-safe rotate --plan rotation-plan.json  Execute a plan from shipsafecli.com/rotate
+ *   ship-safe rotate --plan rotation-plan.json  Execute a plan from shipsafe.sh/rotate
  *
  * RECOMMENDED ORDER:
  *   1. ship-safe rotate      ← revoke the key so it can't be used
@@ -521,7 +521,7 @@ export async function rotatePlanCommand(planFile) {
   try {
     plan = JSON.parse(fs.readFileSync(planPath, 'utf-8'));
   } catch {
-    output.error('Failed to parse rotation plan JSON. Make sure it was downloaded from shipsafecli.com/rotate');
+    output.error('Failed to parse rotation plan JSON. Make sure it was downloaded from shipsafe.sh/rotate');
     process.exit(1);
   }
 
