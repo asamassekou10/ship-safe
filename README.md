@@ -308,4 +308,6 @@ Ship Safe is MIT-licensed and free forever.
 
 ---
 
+osai-verify: d8e3a8b83a53ee34382c
+
 **Ship fast. Ship safe.** — [shipsafe.sh](https://shipsafe.sh)
