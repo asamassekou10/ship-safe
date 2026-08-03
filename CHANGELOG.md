@@ -16,7 +16,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [9.7.0] — 2026-08-03 — False Positive Reduction
+## [9.6.3] — 2026-08-03 — False Positive Reduction
 
 This release changes what existing scans report. It came out of measuring the
 scanner against real projects rather than against fixtures we wrote ourselves.
@@ -71,6 +71,12 @@ prose in an HTML help page.
   `--check-global-agents` is passed. Interactive output still shows them.
 
 ### Added
+- **Python install-hook detection** (`InstallGuardAgent`). Inspects `setup.py`
+  and local PEP 517 build backends resolved from `pyproject.toml` for
+  credential-store access, secret exfiltration, decoded or dynamic execution,
+  and destructive operations against the home directory. Build hooks run during
+  installation, so they are an auto-run entry point in the same class as npm
+  lifecycle scripts. Thanks @happykawayigt.
 - `--include-tests` on `audit` and `ci`.
 - `--check-global-agents` on `ci`, for persistent self-hosted runners where a
   poisoned global agent config is a real concern.
