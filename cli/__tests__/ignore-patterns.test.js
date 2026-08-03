@@ -21,7 +21,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-import { loadShipSafeIgnorePatterns, findUpwards } from '../utils/patterns.js';
+import { loadShipSafeIgnorePatterns, findUpwards, isTestFile, isExampleFile } from '../utils/patterns.js';
 
 function workspace(ignoreBody, extraDirs = []) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-ignore-'));
@@ -111,5 +111,37 @@ describe('ci --threshold', () => {
     assert.equal(resolve({ threshold: '0' }), 0);
     assert.equal(resolve({}), 75);
     assert.equal(resolve({ threshold: 60 }), 60);
+  });
+});
+
+describe('test and example path classification', () => {
+  it('recognises the common test layouts', () => {
+    for (const p of [
+      '/repo/test/app.js', '/repo/tests/thing.py', '/repo/__tests__/x.js',
+      '/repo/src/thing.test.ts', '/repo/src/thing.spec.jsx', '/repo/test_client.py',
+      '/repo/fixtures/data.json', '/repo/mocks/api.js', '/repo/src/x.stories.tsx',
+    ]) {
+      assert.equal(isTestFile(p), true, p);
+    }
+  });
+
+  it('recognises example and demo layouts', () => {
+    for (const p of ['/repo/examples/auth.js', '/repo/example/a.py', '/repo/samples/x.js', '/repo/demo/app.js']) {
+      assert.equal(isExampleFile(p), true, p);
+    }
+  });
+
+  it('does not misclassify production source', () => {
+    // `lib/` is where express's only two real findings lived, against 528 in
+    // `test/`. Misclassifying these would hide the findings that matter.
+    for (const p of [
+      '/repo/lib/router.js', '/repo/src/index.ts', '/repo/app/main.py',
+      '/repo/contest/app.js',      // contains "test" but is not a test dir
+      '/repo/src/latest.js',       // ends in "test" but is not a test file
+      '/repo/src/protester.py',
+    ]) {
+      assert.equal(isTestFile(p), false, p);
+      assert.equal(isExampleFile(p), false, p);
+    }
   });
 });

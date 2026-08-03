@@ -21,6 +21,7 @@ import chalk from 'chalk';
 import { ReconAgent } from './recon-agent.js';
 import { VerifierAgent } from './verifier-agent.js';
 import { DeepAnalyzer } from './deep-analyzer.js';
+import { isTestFile, isExampleFile } from '../utils/patterns.js';
 
 // =============================================================================
 // CONSTANTS
@@ -90,7 +91,18 @@ export class Orchestrator {
     if (reconSpinner) reconSpinner.succeed(chalk.green('Attack surface mapped'));
 
     // ── 2. Discover files once (shared across agents) ─────────────────────────
-    const files = await this.reconAgent.discoverFiles(absolutePath);
+    let files = await this.reconAgent.discoverFiles(absolutePath);
+
+    // Test, fixture, and example code is illustrative: it deliberately contains
+    // credential-shaped strings and minimal apps that skip production controls.
+    // `scan` has excluded it by default for a long time; the agent path did not,
+    // so a repository could be clean under one command and fail under another.
+    // Measured on express, requests, flask and chalk, 89% of all findings came
+    // from these paths, including 528 of express's 601 API_NO_SECURITY_HEADERS
+    // hits in `test/` against 2 in `lib/`.
+    if (!options.includeTests) {
+      files = files.filter(f => !isTestFile(f) && !isExampleFile(f));
+    }
 
     // ── 3. Filter agents if specific ones requested ───────────────────────────
     let agentsToRun = this.agents;

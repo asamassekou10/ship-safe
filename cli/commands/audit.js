@@ -33,7 +33,9 @@ import {
   SKIP_EXTENSIONS,
   SKIP_FILENAMES,
   MAX_FILE_SIZE,
-  loadGitignorePatterns
+  loadGitignorePatterns,
+  isTestFile,
+  isExampleFile
 } from '../utils/patterns.js';
 import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import { printBanner } from '../utils/output.js';
@@ -107,7 +109,7 @@ export async function auditCommand(targetPath = '.', options = {}) {
   let filesScanned = 0;
 
   try {
-    allFiles = await findFiles(absolutePath);
+    allFiles = await findFiles(absolutePath, { includeTests: options.includeTests });
     filesScanned = allFiles.length;
 
     // Determine which files need scanning (incremental if cache exists)
@@ -936,7 +938,7 @@ export function findUpwards(start, name) {
   return null;
 }
 
-async function findFiles(rootPath) {
+async function findFiles(rootPath, { includeTests = false } = {}) {
   const globIgnore = Array.from(SKIP_DIRS).map(dir => `**/${dir}/**`);
 
   // Respect .gitignore patterns
@@ -962,6 +964,11 @@ async function findFiles(rootPath) {
   });
 
   return files.filter(file => {
+    // Test and example code is illustrative by nature: it deliberately contains
+    // credential-shaped strings and minimal apps that skip production controls.
+    // `scan` has always excluded it; `audit` and `ci` did not, so the same repo
+    // could pass one command and fail another.
+    if (!includeTests && (isTestFile(file) || isExampleFile(file))) return false;
     const ext = path.extname(file).toLowerCase();
     if (SKIP_EXTENSIONS.has(ext)) return false;
     if (SKIP_FILENAMES.has(path.basename(file))) return false;

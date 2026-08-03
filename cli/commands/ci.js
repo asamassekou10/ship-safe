@@ -32,7 +32,9 @@ import {
   SKIP_FILENAMES,
   MAX_FILE_SIZE,
   loadGitignorePatterns,
-  loadShipSafeIgnorePatterns
+  loadShipSafeIgnorePatterns,
+  isTestFile,
+  isExampleFile
 } from '../utils/patterns.js';
 import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import fg from 'fast-glob';
@@ -57,7 +59,7 @@ export async function ciCommand(targetPath = '.', options = {}) {
   const startTime = Date.now();
 
   // ── Secret Scan ──────────────────────────────────────────────────────────
-  const allFiles = await findFiles(absolutePath);
+  const allFiles = await findFiles(absolutePath, { includeTests: options.includeTests });
   const secretFindings = [];
 
   for (const file of allFiles) {
@@ -122,6 +124,8 @@ export async function ciCommand(targetPath = '.', options = {}) {
   // ── Score ────────────────────────────────────────────────────────────────
   const scoringEngine = new ScoringEngine();
   const scoreResult = scoringEngine.compute(allFindings, depVulns);
+  // Round like audit does; without this the JSON emitted 29.900000000000006.
+  scoreResult.score = Math.round(scoreResult.score * 10) / 10;
   scoringEngine.saveToHistory(absolutePath, scoreResult);
 
   const duration = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -325,7 +329,7 @@ function postPRComment(scoreResult, findings, depVulns, rootPath, duration) {
   console.log(`[ship-safe] PR comment posted on #${prNumber}`);
 }
 
-async function findFiles(rootPath) {
+async function findFiles(rootPath, { includeTests = false } = {}) {
   const globIgnore = Array.from(SKIP_DIRS).map(dir => `**/${dir}/**`);
   const gitignoreGlobs = loadGitignorePatterns(rootPath);
   globIgnore.push(...gitignoreGlobs);
@@ -339,6 +343,9 @@ async function findFiles(rootPath) {
   });
 
   return files.filter(file => {
+    // Same reasoning as audit: test and example code is illustrative, and
+    // scoring a pipeline on it produces failures nobody can act on.
+    if (!includeTests && (isTestFile(file) || isExampleFile(file))) return false;
     const ext = path.extname(file).toLowerCase();
     if (SKIP_EXTENSIONS.has(ext)) return false;
     if (SKIP_FILENAMES.has(path.basename(file))) return false;
