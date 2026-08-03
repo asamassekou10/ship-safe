@@ -258,6 +258,20 @@ which ones and why.
 Corpus pinned by commit, reproducible with one command, limits documented:
 **[benchmarks/false-positives/](benchmarks/false-positives/)**
 
+### How does it compare to Semgrep, Gitleaks, Trivy, CodeQL?
+
+Run Ship Safe alongside them, not instead of them. CodeQL does interprocedural
+taint analysis Ship Safe does not attempt, Gitleaks is the specialist for
+secrets, and Trivy has a real CVE database behind it.
+
+Ship Safe covers a narrower question: what an AI coding agent just did to your
+repository, your CI, and your local tool configuration. MCP client config,
+agent memory poisoning, hallucinated-package imports and AIBOM are the areas
+where we found no equivalent public rules in the other four.
+
+Full coverage matrix, verified against their public registries, including where
+they beat us: **[docs/comparison.md](docs/comparison.md)**
+
 ---
 
 ## Add a Badge
