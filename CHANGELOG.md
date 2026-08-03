@@ -16,6 +16,90 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [9.6.3] — 2026-08-03 — False Positive Reduction
+
+This release changes what existing scans report. It came out of measuring the
+scanner against real projects rather than against fixtures we wrote ourselves.
+
+Four mature, heavily reviewed codebases scored like this before:
+
+| project  | findings | score |
+|----------|----------|-------|
+| express  | 811      | 31 / F |
+| requests | 110      | 30 / F |
+| flask    | 104      | 25 / F |
+| chalk    | 6        | 83.6 / B |
+
+Express, requests and flask are among the most audited code in open source.
+Fourteen criticals in requests were not real. After this release:
+
+| project  | findings | score |
+|----------|----------|-------|
+| express  | 28       | 59.5 / D |
+| requests | 17       | 70.9 / C |
+| flask    | 36       | 43.6 / D |
+| chalk    | 6        | 83.6 / B |
+
+Detection is unchanged. The regression corpus still reports 100% scenario
+recall and 100% clean-control pass, and a comparison against NodeGoat and DVWA
+confirmed no real detection was lost: every finding that disappeared was either
+in a test directory or a false positive, including one that fired on English
+prose in an HTML help page.
+
+### Changed
+- **`audit` and `ci` no longer scan test, fixture, and example paths by
+  default.** `scan` has excluded them for a long time, documented as reducing
+  false positives, but the other two commands did not, so the same repository
+  could be clean under one command and fail under another. 89% of all findings
+  across the four projects above came from these paths. Express alone produced
+  601 `API_NO_SECURITY_HEADERS` findings, of which 528 were in `test/`, 71 in
+  `examples/`, and 2 in `lib/`. Pass `--include-tests` to restore the previous
+  behaviour.
+- **`COOKIE_NO_HTTPONLY` now requires an actual cookie-set call.** It matched
+  the word "cookie" within 100 characters of an option name, so it fired on any
+  code that merely discusses cookie configuration. On Flask it flagged three
+  keys of a config dict that sets `SESSION_COOKIE_HTTPONLY: True` two lines
+  below, and a docstring describing the Domain parameter.
+- **Findings about the machine running the scan are separated from findings
+  about the repository.** `MCPSecurityAgent` reads globally configured agent
+  servers from the home directory, which is useful to a developer and
+  meaningless to a pipeline. Those findings previously moved the project's
+  score and, more seriously, were written into `--sarif` output: uploading that
+  to code scanning published the names of someone's personal agent servers into
+  a repository's security tab. They are now excluded from the score and from
+  every serialized format, and skipped entirely by `ci` unless
+  `--check-global-agents` is passed. Interactive output still shows them.
+
+### Added
+- **Python install-hook detection** (`InstallGuardAgent`). Inspects `setup.py`
+  and local PEP 517 build backends resolved from `pyproject.toml` for
+  credential-store access, secret exfiltration, decoded or dynamic execution,
+  and destructive operations against the home directory. Build hooks run during
+  installation, so they are an auto-run entry point in the same class as npm
+  lifecycle scripts. Thanks @happykawayigt.
+- `--include-tests` on `audit` and `ci`.
+- `--check-global-agents` on `ci`, for persistent self-hosted runners where a
+  poisoned global agent config is a real concern.
+- `scope` on findings, `'project'` by default. Environment-scoped findings
+  inherit the handling above, so future environment checks do not have to
+  reimplement it.
+
+### Fixed
+- `ci` ignored `.ship-safeignore`, so the command built for pipelines was the
+  only one that did not honour the user's own suppression config.
+- `--threshold 0` was falsy and silently became 75, making a report-only run
+  impossible to request.
+- `ci --json` emitted scores like `29.900000000000006`.
+
+### Known limits
+- Flask still scores D on 36 findings. The remainder is a mix rather than one
+  systemic cause.
+- PHP's positional `setcookie('id', $v, 3600, '/')` is matched by neither the
+  old nor the new cookie rule, since no literal option keyword appears.
+- The measurements above are findings on projects with no known active
+  vulnerabilities. That is a proxy for a false-positive rate, not a verified
+  one.
+
 ## [9.6.2] — 2026-08-02 — Privileged CI Handoff Detection
 
 ### Added
