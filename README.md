@@ -237,6 +237,27 @@ tests/fixtures/
 docs/
 ```
 
+### How noisy is it?
+
+Recall is the easy half of a scanner. A tool that flags everything catches
+everything and is useless, so we measure the other half: what Ship Safe says
+about code that is almost certainly fine.
+
+| project | findings | critical | grade |
+|---|---|---|---|
+| [express](https://github.com/expressjs/express) | 26 | 0 | C |
+| [requests](https://github.com/psf/requests) | 15 | 1 | C |
+| [flask](https://github.com/pallets/flask) | 30 | 2 | D |
+| [chalk](https://github.com/chalk/chalk) | 4 | 0 | B |
+
+Down from 1031 findings across the same four projects before v9.6.3, verified
+against NodeGoat and DVWA so the drop is reduced noise rather than lost
+detection. The 3 remaining criticals are false positives and the benchmark says
+which ones and why.
+
+Corpus pinned by commit, reproducible with one command, limits documented:
+**[benchmarks/false-positives/](benchmarks/false-positives/)**
+
 ---
 
 ## Add a Badge
