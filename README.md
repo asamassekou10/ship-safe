@@ -307,7 +307,4 @@ Ship Safe is MIT-licensed and free forever.
 [![Star History Chart](https://api.star-history.com/svg?repos=asamassekou10/ship-safe&type=Date)](https://star-history.com/#asamassekou10/ship-safe&Date)
 
 ---
-
-osai-verify: d8e3a8b83a53ee34382c
-
 **Ship fast. Ship safe.** — [shipsafe.sh](https://shipsafe.sh)
