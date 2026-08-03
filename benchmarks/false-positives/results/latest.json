@@ -1,0 +1,72 @@
+{
+  "tool": "ship-safe",
+  "version": "9.6.3",
+  "methodology": "Findings reported by `ship-safe ci --no-deps` against pinned checkouts. Clean corpus: mature projects with no known active vulnerabilities, where every finding is triage a user inherits. Vulnerable corpus: deliberately insecure applications, present so a reduction in noise cannot be mistaken for lost detection. Counts are a proxy for a false-positive rate, not a verified one.",
+  "clean": [
+    {
+      "id": "express",
+      "repo": "expressjs/express",
+      "commit": "a3714473feb3d2908add734d340e7755fd85e0a3",
+      "findings": 26,
+      "critical": 0,
+      "high": 9,
+      "score": 63.1,
+      "grade": "C"
+    },
+    {
+      "id": "requests",
+      "repo": "psf/requests",
+      "commit": "414f0513c33883adf6f2b46901d4f0b38a455851",
+      "findings": 15,
+      "critical": 1,
+      "high": 4,
+      "score": 74.5,
+      "grade": "C"
+    },
+    {
+      "id": "flask",
+      "repo": "pallets/flask",
+      "commit": "6a2f545bfd8ed31e19066a299296917e034aca58",
+      "findings": 30,
+      "critical": 2,
+      "high": 12,
+      "score": 54.1,
+      "grade": "D"
+    },
+    {
+      "id": "chalk",
+      "repo": "chalk/chalk",
+      "commit": "661317e6f91fe7c90306c2c48ea9354562ee9146",
+      "findings": 4,
+      "critical": 0,
+      "high": 4,
+      "score": 87.2,
+      "grade": "B"
+    }
+  ],
+  "vulnerable": [
+    {
+      "id": "NodeGoat",
+      "repo": "OWASP/NodeGoat",
+      "commit": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
+      "findings": 74,
+      "critical": 9,
+      "high": 18
+    },
+    {
+      "id": "DVWA",
+      "repo": "digininja/DVWA",
+      "commit": "d45ba3c4e7efa7f023f25f58ab4af9912c887057",
+      "findings": 83,
+      "critical": 6,
+      "high": 55
+    }
+  ],
+  "summary": {
+    "cleanProjects": 4,
+    "cleanFindings": 75,
+    "cleanCriticalFindings": 3,
+    "vulnerableProjects": 2,
+    "vulnerableFindings": 157
+  }
+}

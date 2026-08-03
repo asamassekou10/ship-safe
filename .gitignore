@@ -289,3 +289,6 @@ webapp/public/.DS_Store
 **/.DS_Store
 .vercel
 .env*
+
+# Benchmark corpus checkouts (pinned in corpus.json, fetched with --clone)
+benchmarks/*/corpus-src/
