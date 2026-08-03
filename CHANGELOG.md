@@ -16,6 +16,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [9.6.4] — 2026-08-03 — Upload Rule Scoping
+
+### Fixed
+- **`API_PATH_IN_FILENAME` no longer fires on Python or Ruby.** The rule targets
+  Express file uploads, but `path.join` was unanchored, so it matched the
+  substring inside Python's `os.path.join(self.root_path, filename)`. Combined
+  with a bare `filename` alternative, it reported **critical** on Flask's own
+  config loader (`src/flask/config.py:204,290`). The pattern now refuses a
+  preceding identifier or dot, and requires a property access such as
+  `file.originalname` or `req.body.name` rather than any variable named
+  `filename`. All four Express attack shapes still match; verified against
+  NodeGoat and DVWA, whose findings are unchanged.
+
+  Our own [false-positive benchmark](benchmarks/false-positives/) surfaced this,
+  which is what it is for. Clean-corpus criticals drop from 3 to 1, and flask
+  from 30 findings / 2 critical to 28 / 0.
+
+- **Dev dependency `brace-expansion` 5.0.8 → 5.0.9** ([GHSA-rgw5-rvv9-x895]
+  (https://github.com/advisories/GHSA-rgw5-rvv9-x895)). Transitive under eslint,
+  devDependencies only, so no published release was affected.
+
+- **GPT-Red test no longer makes live API calls.** A test asserting offline
+  behaviour did not pin itself offline, so any contributor with a provider key
+  in their environment got a spurious failure and a real API charge from
+  `npm test`.
+
+---
+
 ## [9.6.3] — 2026-08-03 — False Positive Reduction
 
 This release changes what existing scans report. It came out of measuring the

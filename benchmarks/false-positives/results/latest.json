@@ -27,10 +27,10 @@
       "id": "flask",
       "repo": "pallets/flask",
       "commit": "6a2f545bfd8ed31e19066a299296917e034aca58",
-      "findings": 30,
-      "critical": 2,
+      "findings": 28,
+      "critical": 0,
       "high": 12,
-      "score": 54.1,
+      "score": 54.5,
       "grade": "D"
     },
     {
@@ -64,8 +64,8 @@
   ],
   "summary": {
     "cleanProjects": 4,
-    "cleanFindings": 75,
-    "cleanCriticalFindings": 3,
+    "cleanFindings": 73,
+    "cleanCriticalFindings": 1,
     "vulnerableProjects": 2,
     "vulnerableFindings": 157
   }

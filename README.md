@@ -247,13 +247,13 @@ about code that is almost certainly fine.
 |---|---|---|---|
 | [express](https://github.com/expressjs/express) | 26 | 0 | C |
 | [requests](https://github.com/psf/requests) | 15 | 1 | C |
-| [flask](https://github.com/pallets/flask) | 30 | 2 | D |
+| [flask](https://github.com/pallets/flask) | 28 | 0 | D |
 | [chalk](https://github.com/chalk/chalk) | 4 | 0 | B |
 
 Down from 1031 findings across the same four projects before v9.6.3, verified
 against NodeGoat and DVWA so the drop is reduced noise rather than lost
-detection. The 3 remaining criticals are false positives and the benchmark says
-which ones and why.
+detection. The 1 remaining critical is a false positive and the benchmark says
+which and why.
 
 Corpus pinned by commit, reproducible with one command, limits documented:
 **[benchmarks/false-positives/](benchmarks/false-positives/)**
