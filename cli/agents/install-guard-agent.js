@@ -39,9 +39,12 @@ const EXFIL = /(?:curl|wget|fetch|Invoke-RestMethod|http[s]?:\/\/)[^\n]{0,120}(?
 const PY_CREDENTIAL_ACCESS = /(?:\b(?:open|io\.open)\s*\([\s\S]{0,240}?(?:\.pypirc|\.netrc|\.aws|\.ssh|\.git-credentials|GOOGLE_APPLICATION_CREDENTIALS)|(?:\.pypirc|\.netrc|\.aws|\.ssh|\.git-credentials|GOOGLE_APPLICATION_CREDENTIALS)[\s\S]{0,180}?\.(?:open|read_text|read_bytes)\s*\(|\bos\.(?:getenv\s*\(|environ\s*\[)[\s\S]{0,100}?(?:AWS_SECRET_ACCESS_KEY|GITHUB_TOKEN|PYPI_TOKEN|AZURE_CLIENT_SECRET|GOOGLE_APPLICATION_CREDENTIALS))/i;
 const PY_NETWORK = /\b(?:requests|httpx)\.(?:post|put|patch)\s*\(|\burllib\.request\.(?:urlopen|Request)\s*\(|\bsocket\.(?:create_connection|socket)\s*\(|\b(?:os\.system|subprocess\.(?:run|call|Popen|check_call|check_output))\s*\([\s\S]{0,180}?\b(?:curl|wget)\b/i;
 const PY_SECRET_SOURCE = /\bos\.(?:environ|getenv)\b|\b(?:token|secret|password|credential)s?\b|\.pypirc|\.netrc|\.aws|\.ssh|\.git-credentials/i;
+// Local source-file exec is a common setup.py versioning idiom. Decoded,
+// fetched, evaluated, or otherwise dynamic input remains suspicious.
+const PY_DYNAMIC_EXEC = /\b(?:exec|eval)\s*\((?!\s*(?:open|io\.open)\s*\(\s*["'](?!https?:))/i;
 const PY_DYNAMIC_IMPORT = /\b__import__\s*\(/i;
 const PY_DECODER = /\b(?:base64\.b64decode|marshal\.loads|zlib\.decompress|codecs\.decode)\s*\(/i;
-const PY_DESTRUCTIVE = /\bshutil\.rmtree\s*\(\s*(?:Path\.home\s*\(\s*\)|os\.path\.expanduser\s*\(\s*["']~|os\.(?:environ|getenv)[\s\S]{0,80}?["']HOME)|\b(?:os\.system|subprocess\.(?:run|call|Popen|check_call|check_output))\s*\([\s\S]{0,240}?\brm\s+-rf?\s+(?:~|\$HOME|\/home\/|\/\s|\/\*)/i;
+const PY_DESTRUCTIVE = /\bshutil\.rmtree\s*\(\s*(?:(?:pathlib\.)?Path\.home\s*\(\s*\)|os\.path\.expanduser\s*\(\s*["']~|os\.(?:environ|getenv)[\s\S]{0,80}?["']HOME)|\b(?:os\.system|subprocess\.(?:run|call|Popen|check_call|check_output))\s*\([\s\S]{0,240}?\brm\s+-rf?\s+(?:~|\$HOME|\/home\/|\/\s|\/\*)/i;
 
 export class InstallGuardAgent extends BaseAgent {
   constructor() {
@@ -173,7 +176,7 @@ export class InstallGuardAgent extends BaseAgent {
           fix: 'Remove network transmission of environment or credential data. Package builds must be offline and reproducible.',
         },
         {
-          match: this._findMatch(content, /\b(?:exec|eval)\s*\(/i) || this._findNearbyMatch(content, PY_DYNAMIC_IMPORT, PY_DECODER),
+          match: this._findMatch(content, PY_DYNAMIC_EXEC) || this._findNearbyMatch(content, PY_DYNAMIC_IMPORT, PY_DECODER),
           rule: 'WORM_PYTHON_INSTALL_OBFUSCATED_EXEC', severity: 'high',
           title: 'Python install hook uses dynamic or decoded execution',
           description: 'This Python package installation entry point uses exec/eval, or combines dynamic import with decoded or decompressed content.',

