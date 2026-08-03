@@ -128,7 +128,7 @@ export async function ciCommand(targetPath = '.', options = {}) {
 
   // ── Score ────────────────────────────────────────────────────────────────
   const scoringEngine = new ScoringEngine();
-  const scoreResult = scoringEngine.compute(allFindings, depVulns);
+  const scoreResult = scoringEngine.compute(allFindings, depVulns, { includeEnvironment: checkGlobalAgents });
   // Round like audit does; without this the JSON emitted 29.900000000000006.
   scoreResult.score = Math.round(scoreResult.score * 10) / 10;
   scoringEngine.saveToHistory(absolutePath, scoreResult);
@@ -139,8 +139,11 @@ export async function ciCommand(targetPath = '.', options = {}) {
   if (sarifPath) {
     // Environment findings describe the developer's machine. Publishing the
     // names of someone's globally configured agent servers into a repository's
-    // security tab is not acceptable, so machine output carries project only.
-    const sarif = buildSARIF(projectFindings(allFindings), absolutePath);
+    // security tab is not acceptable, so machine output carries project only —
+    // unless --check-global-agents was passed, which is the caller declaring
+    // the environment in scope. A flag that ran a check and then discarded its
+    // result would be worse than no flag.
+    const sarif = buildSARIF(checkGlobalAgents ? allFindings : projectFindings(allFindings), absolutePath);
     fs.writeFileSync(sarifPath, JSON.stringify(sarif, null, 2));
   }
 
