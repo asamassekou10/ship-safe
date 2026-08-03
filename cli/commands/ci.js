@@ -36,6 +36,7 @@ import {
   isTestFile,
   isExampleFile
 } from '../utils/patterns.js';
+import { projectFindings } from '../agents/base-agent.js';
 import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import fg from 'fast-glob';
 
@@ -59,6 +60,10 @@ export async function ciCommand(targetPath = '.', options = {}) {
   const startTime = Date.now();
 
   // ── Secret Scan ──────────────────────────────────────────────────────────
+  // A pipeline cannot act on the runner's home directory, so environment
+  // checks are off unless explicitly requested.
+  const checkGlobalAgents = options.checkGlobalAgents === true;
+
   const allFiles = await findFiles(absolutePath, { includeTests: options.includeTests });
   const secretFindings = [];
 
@@ -91,7 +96,7 @@ export async function ciCommand(targetPath = '.', options = {}) {
 
   // ── Agent Scan ───────────────────────────────────────────────────────────
   const orchestrator = buildOrchestrator();
-  const results = await orchestrator.runAll(absolutePath, { quiet: true }); // ship-safe-ignore — orchestrator result, not LLM output triggering actions
+  const results = await orchestrator.runAll(absolutePath, { quiet: true, includeTests: options.includeTests, checkGlobalAgents }); // ship-safe-ignore — orchestrator result, not LLM output triggering actions
   const agentFindings = results.findings;
 
   // ── Dependency Audit ─────────────────────────────────────────────────────
@@ -132,7 +137,10 @@ export async function ciCommand(targetPath = '.', options = {}) {
 
   // ── SARIF Output ─────────────────────────────────────────────────────────
   if (sarifPath) {
-    const sarif = buildSARIF(allFindings, absolutePath);
+    // Environment findings describe the developer's machine. Publishing the
+    // names of someone's globally configured agent servers into a repository's
+    // security tab is not acceptable, so machine output carries project only.
+    const sarif = buildSARIF(projectFindings(allFindings), absolutePath);
     fs.writeFileSync(sarifPath, JSON.stringify(sarif, null, 2));
   }
 

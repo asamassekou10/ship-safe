@@ -20,7 +20,7 @@ import fg from 'fast-glob';
 import { buildOrchestrator, buildOrchestratorAsync } from '../agents/index.js';
 import { LegalRiskAgent } from '../agents/legal-risk-agent.js';
 import { ScoringEngine } from '../agents/scoring-engine.js';
-import { isSuppressible } from '../agents/base-agent.js';
+import { isSuppressible, projectFindings } from '../agents/base-agent.js';
 import { PolicyEngine } from '../agents/policy-engine.js';
 import { HTMLReporter } from '../agents/html-reporter.js';
 import { SBOMGenerator } from '../agents/sbom-generator.js';
@@ -440,14 +440,19 @@ export async function auditCommand(targetPath = '.', options = {}) {
   // ── Output ────────────────────────────────────────────────────────────────
   console.log();
 
+  // Machine output is shared: uploaded to code scanning, committed, pasted into
+  // tickets. Environment findings describe the developer's own machine, so they
+  // stay on the terminal and out of every serialized format.
+  const emittedFindings = projectFindings(filteredFindings);
+
   if (options.csv) {
-    outputCSV(filteredFindings, depVulns, scoreResult, absolutePath);
+    outputCSV(emittedFindings, depVulns, scoreResult, absolutePath);
   } else if (options.md) {
-    outputMarkdown(scoreResult, filteredFindings, depVulns, remediationPlan, absolutePath);
+    outputMarkdown(scoreResult, emittedFindings, depVulns, remediationPlan, absolutePath);
   } else if (options.json) {
-    outputJSON(scoreResult, filteredFindings, depVulns, recon, agentResults, remediationPlan, suppressions, options.compare ? scoringEngine.loadHistory(absolutePath) : null);
+    outputJSON(scoreResult, emittedFindings, depVulns, recon, agentResults, remediationPlan, suppressions, options.compare ? scoringEngine.loadHistory(absolutePath) : null);
   } else if (options.sarif) {
-    outputSARIF(filteredFindings, absolutePath);
+    outputSARIF(emittedFindings, absolutePath);
   } else {
     printReport(scoreResult, filteredFindings, depVulns, recon, remediationPlan, absolutePath, filesScanned);
   }

@@ -22,6 +22,8 @@ import path from 'path';
 import os from 'os';
 
 import { loadShipSafeIgnorePatterns, findUpwards, isTestFile, isExampleFile } from '../utils/patterns.js';
+import { createFinding, projectFindings, environmentFindings } from '../agents/base-agent.js';
+import { ScoringEngine } from '../agents/scoring-engine.js';
 
 function workspace(ignoreBody, extraDirs = []) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-ignore-'));
@@ -143,5 +145,42 @@ describe('test and example path classification', () => {
       assert.equal(isTestFile(p), false, p);
       assert.equal(isExampleFile(p), false, p);
     }
+  });
+});
+
+describe('finding scope', () => {
+  it('defaults to project scope', () => {
+    const f = createFinding({ file: 'a.js', rule: 'X', title: 'x' });
+    assert.equal(f.scope, 'project');
+  });
+
+  it('separates environment findings from project findings', () => {
+    const all = [
+      createFinding({ file: 'src/a.js', rule: 'P1', title: 'p' }),
+      createFinding({ file: '/home/dev/.cursor/mcp.json', rule: 'E1', title: 'e', scope: 'environment' }),
+      createFinding({ file: 'src/b.js', rule: 'P2', title: 'p' }),
+    ];
+    assert.deepEqual(projectFindings(all).map(f => f.rule), ['P1', 'P2']);
+    assert.deepEqual(environmentFindings(all).map(f => f.rule), ['E1']);
+  });
+
+  it('treats a finding with no scope as project scoped', () => {
+    // Findings built without createFinding must not be dropped from output.
+    const legacy = [{ file: 'a.js', rule: 'LEGACY' }];
+    assert.deepEqual(projectFindings(legacy).map(f => f.rule), ['LEGACY']);
+    assert.deepEqual(environmentFindings(legacy), []);
+  });
+
+  it('keeps environment findings out of the score', () => {
+    // A maintainer having an agent tool installed must not move a repo's grade.
+    const engine = new ScoringEngine();
+    const projectOnly = engine.compute([
+      createFinding({ file: 'src/a.js', rule: 'P', title: 'p', severity: 'high', category: 'config' }),
+    ]);
+    const withEnvironment = engine.compute([
+      createFinding({ file: 'src/a.js', rule: 'P', title: 'p', severity: 'high', category: 'config' }),
+      createFinding({ file: '/home/dev/.cursor/mcp.json', rule: 'E', title: 'e', severity: 'high', category: 'config', scope: 'environment' }),
+    ]);
+    assert.equal(withEnvironment.score, projectOnly.score);
   });
 });

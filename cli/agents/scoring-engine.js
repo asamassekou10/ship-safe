@@ -10,6 +10,7 @@
  */
 
 import fs from 'fs';
+import { projectFindings } from './base-agent.js';
 import path from 'path';
 import { getComplianceSummary, getAgenticSummary, enrichAgenticRisk } from '../utils/compliance-map.js';
 
@@ -74,6 +75,11 @@ export class ScoringEngine {
    * @returns {object}            — { score, grade, categories, breakdown }
    */
   compute(findings = [], depVulns = []) {
+    // A grade describes the repository. Environment findings are about the
+    // machine running the scan, so a maintainer having an agent tool installed
+    // must not move the project's score.
+    findings = projectFindings(findings);
+
     const categoryResults = {};
 
     // Initialize all categories

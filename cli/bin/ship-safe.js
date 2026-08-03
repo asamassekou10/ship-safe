@@ -457,6 +457,7 @@ program
   .option('--threshold <score>', 'Minimum passing score (default: 75)', parseInt)
   .option('--fail-on <severity>', 'Fail on findings at this severity or above (critical, high, medium)')
   .option('--sarif <file>', 'Write SARIF output for GitHub Code Scanning')
+  .option('--check-global-agents', 'Also check globally configured agent tooling outside the project (off by default in ci)')
   .option('--include-tests', 'Also scan test, fixture, and example files (excluded by default to reduce false positives)')
   .option('--json', 'JSON output')
   .option('--no-deps', 'Skip dependency audit')

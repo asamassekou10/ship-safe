@@ -26,6 +26,20 @@ import { SKIP_DIRS, SKIP_EXTENSIONS, SKIP_FILENAMES, MAX_FILE_SIZE, loadGitignor
 
 /**
  * Create a standardized finding object.
+ *
+ * `scope` separates what a finding is about:
+ *
+ *   'project'     — something in the scanned repository. The default.
+ *   'environment' — something about the machine running the scan, such as a
+ *                   globally configured MCP server. Useful to a developer
+ *                   locally, meaningless to a pipeline, and never safe to put
+ *                   in machine output: the names of someone's personal agent
+ *                   servers should not end up in a repository's security tab.
+ *
+ * Environment findings are kept out of the score, out of --json/--sarif/--csv,
+ * and out of `ci` unless explicitly requested. Making that a property of the
+ * finding rather than a special case in one agent means the next environment
+ * check inherits the handling instead of repeating the bug.
  */
 export function createFinding({
   file,
@@ -41,6 +55,7 @@ export function createFinding({
   cwe = null,
   owasp = null,
   fix = null,
+  scope = 'project',
 }) {
   return {
     file,
@@ -56,6 +71,7 @@ export function createFinding({
     cwe,
     owasp,
     fix,
+    scope,
   };
 }
 
@@ -82,6 +98,16 @@ export function createFinding({
  * critical finding as safe is a signal, not a no-op.
  */
 export const SUPPRESSION_FLOOR_SEVERITIES = new Set(['critical']);
+
+/** Findings about the scanned repository, safe for scoring and machine output. */
+export function projectFindings(findings) {
+  return (findings || []).filter(f => (f.scope || 'project') !== 'environment');
+}
+
+/** Findings about the machine running the scan. Interactive display only. */
+export function environmentFindings(findings) {
+  return (findings || []).filter(f => f.scope === 'environment');
+}
 
 /** Whether a finding of this severity may be silenced by an inline comment. */
 export function isSuppressible(severity) {
