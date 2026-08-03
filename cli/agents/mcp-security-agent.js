@@ -315,7 +315,13 @@ export class MCPSecurityAgent extends BaseAgent {
     }
 
     // ── 5. Detect shadow MCP configs (not in version control) ───────────
-    findings = findings.concat(this._detectShadowMcpConfigs(rootPath));
+    // Reads the developer's home directory, which is useful locally and
+    // meaningless to a pipeline whose runner is ephemeral. `ci` opts out by
+    // default; --check-global-agents forces it on for persistent self-hosted
+    // runners where a poisoned global config is a real concern.
+    if (context.options?.checkGlobalAgents !== false) {
+      findings = findings.concat(this._detectShadowMcpConfigs(rootPath));
+    }
 
     return findings;
   }
@@ -735,6 +741,10 @@ export class MCPSecurityAgent extends BaseAgent {
               severity: 'medium',
               category: this.category,
               rule: 'MCP_SHADOW_CONFIG',
+              // About the machine, not the repository: a pipeline cannot fix a
+              // developer's home directory, and these server names must not
+              // reach machine output. See createFinding in base-agent.js.
+              scope: 'environment',
               title: `MCP: ${serverCount} Shadow Server(s) in User Config`,
               description: `Found ${serverCount} MCP server(s) configured outside the project in ${configPath}. These operate outside your project's security controls.`,
               matched: Object.keys(servers).join(', '),

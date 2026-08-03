@@ -10,6 +10,7 @@
  */
 
 import fs from 'fs';
+import { projectFindings } from './base-agent.js';
 import path from 'path';
 import { getComplianceSummary, getAgenticSummary, enrichAgenticRisk } from '../utils/compliance-map.js';
 
@@ -73,7 +74,13 @@ export class ScoringEngine {
    * @param {object[]} depVulns   — Array of dependency CVE objects
    * @returns {object}            — { score, grade, categories, breakdown }
    */
-  compute(findings = [], depVulns = []) {
+  compute(findings = [], depVulns = [], { includeEnvironment = false } = {}) {
+    // A grade describes the repository. Environment findings are about the
+    // machine running the scan, so a maintainer having an agent tool installed
+    // must not move the project's score. A caller that passed
+    // --check-global-agents has declared the environment in scope and opts in.
+    if (!includeEnvironment) findings = projectFindings(findings);
+
     const categoryResults = {};
 
     // Initialize all categories

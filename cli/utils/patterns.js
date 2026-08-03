@@ -1185,3 +1185,35 @@ export const TEST_FILE_PATTERNS = [
   /\.stories\.[jt]sx?$/,   // Storybook story files
   /\.mock\.[jt]sx?$/,
 ];
+
+/**
+ * Is this path test, fixture, or mock code?
+ *
+ * `scan` has excluded these by default for a long time, on the reasoning that
+ * test files deliberately contain credential-shaped strings and vulnerable
+ * constructs. `audit` and `ci` did not, so the same repository could be clean
+ * under one command and fail under another.
+ *
+ * Measured on four mature projects (express, requests, flask, chalk): 89% of
+ * all findings came from test, example, and fixture paths. Express alone
+ * produced 601 API_NO_SECURITY_HEADERS findings, of which 528 were in `test/`
+ * and 2 in `lib/`. A test app that skips security headers is not a defect.
+ */
+export function isTestFile(filePath) {
+  return TEST_FILE_PATTERNS.some((pattern) => pattern.test(filePath));
+}
+
+/**
+ * Example, sample, and demo code. Illustrative rather than production, so it
+ * carries the same reasoning as test code, kept separate because callers may
+ * want to treat them differently.
+ */
+export const EXAMPLE_FILE_PATTERNS = [
+  /[/\\]examples?[/\\]/i,
+  /[/\\]samples?[/\\]/i,
+  /[/\\]demos?[/\\]/i,
+];
+
+export function isExampleFile(filePath) {
+  return EXAMPLE_FILE_PATTERNS.some((pattern) => pattern.test(filePath));
+}

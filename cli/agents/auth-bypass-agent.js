@@ -59,7 +59,12 @@ const PATTERNS = [
   {
     rule: 'COOKIE_NO_HTTPONLY',
     title: 'Cookie Missing httpOnly Flag',
-    regex: /(?:cookie|Cookie|setCookie|set-cookie)[^;]{0,100}(?:secure|domain|path|maxAge|max-age)(?![^;]*httpOnly)/gi,
+    // Requires an actual cookie-set operation. Matching the bare word "cookie"
+    // near an option name fired on any code that merely discusses cookie
+    // configuration: on Flask it flagged three keys of a config dict that sets
+    // SESSION_COOKIE_HTTPONLY two lines below, and a docstring describing the
+    // Domain parameter. 17 of Flask's 55 findings came from this one rule.
+    regex: /(?:res\.cookie|response\.cookie|setCookie|set_cookie|Set-Cookie\s*:)\s*[(:][^;\n]{0,160}?(?:secure|domain|path|maxAge|max-age)(?![^;\n]*httponly)/gi,
     severity: 'medium',
     cwe: 'CWE-1004',
     owasp: 'A05:2021',

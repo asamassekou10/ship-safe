@@ -21,7 +21,9 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-import { loadShipSafeIgnorePatterns, findUpwards } from '../utils/patterns.js';
+import { loadShipSafeIgnorePatterns, findUpwards, isTestFile, isExampleFile } from '../utils/patterns.js';
+import { createFinding, projectFindings, environmentFindings } from '../agents/base-agent.js';
+import { ScoringEngine } from '../agents/scoring-engine.js';
 
 function workspace(ignoreBody, extraDirs = []) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-ignore-'));
@@ -111,5 +113,74 @@ describe('ci --threshold', () => {
     assert.equal(resolve({ threshold: '0' }), 0);
     assert.equal(resolve({}), 75);
     assert.equal(resolve({ threshold: 60 }), 60);
+  });
+});
+
+describe('test and example path classification', () => {
+  it('recognises the common test layouts', () => {
+    for (const p of [
+      '/repo/test/app.js', '/repo/tests/thing.py', '/repo/__tests__/x.js',
+      '/repo/src/thing.test.ts', '/repo/src/thing.spec.jsx', '/repo/test_client.py',
+      '/repo/fixtures/data.json', '/repo/mocks/api.js', '/repo/src/x.stories.tsx',
+    ]) {
+      assert.equal(isTestFile(p), true, p);
+    }
+  });
+
+  it('recognises example and demo layouts', () => {
+    for (const p of ['/repo/examples/auth.js', '/repo/example/a.py', '/repo/samples/x.js', '/repo/demo/app.js']) {
+      assert.equal(isExampleFile(p), true, p);
+    }
+  });
+
+  it('does not misclassify production source', () => {
+    // `lib/` is where express's only two real findings lived, against 528 in
+    // `test/`. Misclassifying these would hide the findings that matter.
+    for (const p of [
+      '/repo/lib/router.js', '/repo/src/index.ts', '/repo/app/main.py',
+      '/repo/contest/app.js',      // contains "test" but is not a test dir
+      '/repo/src/latest.js',       // ends in "test" but is not a test file
+      '/repo/src/protester.py',
+    ]) {
+      assert.equal(isTestFile(p), false, p);
+      assert.equal(isExampleFile(p), false, p);
+    }
+  });
+});
+
+describe('finding scope', () => {
+  it('defaults to project scope', () => {
+    const f = createFinding({ file: 'a.js', rule: 'X', title: 'x' });
+    assert.equal(f.scope, 'project');
+  });
+
+  it('separates environment findings from project findings', () => {
+    const all = [
+      createFinding({ file: 'src/a.js', rule: 'P1', title: 'p' }),
+      createFinding({ file: '/home/dev/.cursor/mcp.json', rule: 'E1', title: 'e', scope: 'environment' }),
+      createFinding({ file: 'src/b.js', rule: 'P2', title: 'p' }),
+    ];
+    assert.deepEqual(projectFindings(all).map(f => f.rule), ['P1', 'P2']);
+    assert.deepEqual(environmentFindings(all).map(f => f.rule), ['E1']);
+  });
+
+  it('treats a finding with no scope as project scoped', () => {
+    // Findings built without createFinding must not be dropped from output.
+    const legacy = [{ file: 'a.js', rule: 'LEGACY' }];
+    assert.deepEqual(projectFindings(legacy).map(f => f.rule), ['LEGACY']);
+    assert.deepEqual(environmentFindings(legacy), []);
+  });
+
+  it('keeps environment findings out of the score', () => {
+    // A maintainer having an agent tool installed must not move a repo's grade.
+    const engine = new ScoringEngine();
+    const projectOnly = engine.compute([
+      createFinding({ file: 'src/a.js', rule: 'P', title: 'p', severity: 'high', category: 'config' }),
+    ]);
+    const withEnvironment = engine.compute([
+      createFinding({ file: 'src/a.js', rule: 'P', title: 'p', severity: 'high', category: 'config' }),
+      createFinding({ file: '/home/dev/.cursor/mcp.json', rule: 'E', title: 'e', severity: 'high', category: 'config', scope: 'environment' }),
+    ]);
+    assert.equal(withEnvironment.score, projectOnly.score);
   });
 });

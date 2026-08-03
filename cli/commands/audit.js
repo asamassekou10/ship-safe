@@ -20,7 +20,7 @@ import fg from 'fast-glob';
 import { buildOrchestrator, buildOrchestratorAsync } from '../agents/index.js';
 import { LegalRiskAgent } from '../agents/legal-risk-agent.js';
 import { ScoringEngine } from '../agents/scoring-engine.js';
-import { isSuppressible } from '../agents/base-agent.js';
+import { isSuppressible, projectFindings } from '../agents/base-agent.js';
 import { PolicyEngine } from '../agents/policy-engine.js';
 import { HTMLReporter } from '../agents/html-reporter.js';
 import { SBOMGenerator } from '../agents/sbom-generator.js';
@@ -33,7 +33,9 @@ import {
   SKIP_EXTENSIONS,
   SKIP_FILENAMES,
   MAX_FILE_SIZE,
-  loadGitignorePatterns
+  loadGitignorePatterns,
+  isTestFile,
+  isExampleFile
 } from '../utils/patterns.js';
 import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import { printBanner } from '../utils/output.js';
@@ -107,7 +109,7 @@ export async function auditCommand(targetPath = '.', options = {}) {
   let filesScanned = 0;
 
   try {
-    allFiles = await findFiles(absolutePath);
+    allFiles = await findFiles(absolutePath, { includeTests: options.includeTests });
     filesScanned = allFiles.length;
 
     // Determine which files need scanning (incremental if cache exists)
@@ -438,14 +440,19 @@ export async function auditCommand(targetPath = '.', options = {}) {
   // ── Output ────────────────────────────────────────────────────────────────
   console.log();
 
+  // Machine output is shared: uploaded to code scanning, committed, pasted into
+  // tickets. Environment findings describe the developer's own machine, so they
+  // stay on the terminal and out of every serialized format.
+  const emittedFindings = projectFindings(filteredFindings);
+
   if (options.csv) {
-    outputCSV(filteredFindings, depVulns, scoreResult, absolutePath);
+    outputCSV(emittedFindings, depVulns, scoreResult, absolutePath);
   } else if (options.md) {
-    outputMarkdown(scoreResult, filteredFindings, depVulns, remediationPlan, absolutePath);
+    outputMarkdown(scoreResult, emittedFindings, depVulns, remediationPlan, absolutePath);
   } else if (options.json) {
-    outputJSON(scoreResult, filteredFindings, depVulns, recon, agentResults, remediationPlan, suppressions, options.compare ? scoringEngine.loadHistory(absolutePath) : null);
+    outputJSON(scoreResult, emittedFindings, depVulns, recon, agentResults, remediationPlan, suppressions, options.compare ? scoringEngine.loadHistory(absolutePath) : null);
   } else if (options.sarif) {
-    outputSARIF(filteredFindings, absolutePath);
+    outputSARIF(emittedFindings, absolutePath);
   } else {
     printReport(scoreResult, filteredFindings, depVulns, recon, remediationPlan, absolutePath, filesScanned);
   }
@@ -936,7 +943,7 @@ export function findUpwards(start, name) {
   return null;
 }
 
-async function findFiles(rootPath) {
+async function findFiles(rootPath, { includeTests = false } = {}) {
   const globIgnore = Array.from(SKIP_DIRS).map(dir => `**/${dir}/**`);
 
   // Respect .gitignore patterns
@@ -962,6 +969,11 @@ async function findFiles(rootPath) {
   });
 
   return files.filter(file => {
+    // Test and example code is illustrative by nature: it deliberately contains
+    // credential-shaped strings and minimal apps that skip production controls.
+    // `scan` has always excluded it; `audit` and `ci` did not, so the same repo
+    // could pass one command and fail another.
+    if (!includeTests && (isTestFile(file) || isExampleFile(file))) return false;
     const ext = path.extname(file).toLowerCase();
     if (SKIP_EXTENSIONS.has(ext)) return false;
     if (SKIP_FILENAMES.has(path.basename(file))) return false;
