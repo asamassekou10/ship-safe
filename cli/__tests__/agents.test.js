@@ -2059,7 +2059,12 @@ describe('GPTRedAgent', async () => {
     ].join('\n'));
 
     try {
-      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: { gptRed: true } });
+      // `noAi` pins this to the offline path, which is what the test is about.
+      // Without it the agent auto-detects any provider key in the environment,
+      // so a contributor with KIMI_API_KEY or OPENAI_API_KEY set would get a
+      // second, AI-generated finding, a 50s test, and a real API charge for
+      // running `npm test`. CI has no keys, so this only ever broke locally.
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: { gptRed: true, noAi: true } });
       assert.equal(findings.length, 1);
       assert.equal(findings[0].rule, 'GPT_RED_AGENT_CONTEXT_INJECTION');
       assert.equal(findings[0].severity, 'critical');
