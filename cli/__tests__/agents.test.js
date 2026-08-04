@@ -285,15 +285,16 @@ describe('ScoringEngine', async () => {
     assert.equal(result.grade.letter, 'A');
   });
 
-  it('deducts for critical findings (capped at category weight)', () => {
+  it('deducts for critical findings, bounded by category weight', () => {
     const engine = new ScoringEngine();
     const findings = [
       { severity: 'critical', category: 'secrets', confidence: 'high' },
     ];
     const result = engine.compute(findings, []);
     assert.ok(result.score < 100, 'Score should decrease with critical finding');
-    // 25 pts deduction capped at category weight of 15
-    assert.equal(result.categories.secrets.deduction, 15);
+    const { deduction, weight } = result.categories.secrets;
+    assert.ok(deduction > 0, 'a critical secret must cost something');
+    assert.ok(deduction < weight, 'no single category may exceed its weight');
   });
 
   it('applies confidence multiplier', () => {
@@ -306,12 +307,18 @@ describe('ScoringEngine', async () => {
     assert.ok(lowResult.score > highResult.score, 'Low confidence should deduct less');
   });
 
-  it('caps deduction at category weight', () => {
+  it('bounds a category by its weight while still ranking severity of noise', () => {
     const engine = new ScoringEngine();
-    // 10 critical findings in secrets (25 pts each = 250, but capped at 15)
-    const findings = Array(10).fill({ severity: 'critical', category: 'secrets', confidence: 'high' });
-    const result = engine.compute(findings, []);
-    assert.equal(result.categories.secrets.deduction, 15);
+    const one = engine.compute(
+      [{ severity: 'critical', category: 'secrets', confidence: 'high' }], []);
+    const ten = engine.compute(
+      Array(10).fill({ severity: 'critical', category: 'secrets', confidence: 'high' }), []);
+
+    const weight = ten.categories.secrets.weight;
+    assert.ok(ten.categories.secrets.deduction < weight,
+      'a category may approach its weight but never exceed it');
+    assert.ok(ten.categories.secrets.deduction > one.categories.secrets.deduction,
+      'ten criticals must cost more than one — the old hard cap made them equal');
   });
 
   it('handles dependency vulnerabilities', () => {

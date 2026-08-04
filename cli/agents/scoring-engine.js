@@ -62,6 +62,34 @@ const GRADES = [
   { min: 0,  letter: 'F', label: 'Not safe to ship',             color: 'red' },
 ];
 
+/**
+ * Bound a category's deduction by its weight without ever reaching it.
+ *
+ *   d = weight * raw / (raw + weight)
+ *
+ * A hard `Math.min(raw, weight)` saturates, and it saturates almost at once:
+ * every category's weight is worth only 3 to 5 medium-severity findings, so
+ * roughly thirty findings spread across categories bottom out the score of a
+ * project of any size. hermes-agent scored 13/F at 6,948 findings and 13/F at
+ * 799 — an 89% reduction the number could not see.
+ *
+ * This curve keeps the same bound and the same ceiling on any one category's
+ * influence, but stays strictly monotonic, so more findings always cost more
+ * and two runs are always comparable:
+ *
+ *   raw = 0          → 0
+ *   raw = weight     → weight / 2
+ *   raw = 5 × weight → weight × 5/6
+ *   raw → ∞          → weight
+ *
+ * The first finding in a category still costs the most, which is the property
+ * the hard cap was reaching for.
+ */
+function softCap(raw, weight) {
+  if (raw <= 0 || weight <= 0) return 0;
+  return (weight * raw) / (raw + weight);
+}
+
 // =============================================================================
 // SCORING ENGINE
 // =============================================================================
@@ -141,7 +169,8 @@ export class ScoringEngine {
         }
       }
 
-      result.deduction = Math.min(deduction, result.maxDeduction);
+      result.rawDeduction = deduction;
+      result.deduction = softCap(deduction, result.maxDeduction);
     }
 
     // ── Compute total score ───────────────────────────────────────────────────
