@@ -151,7 +151,13 @@ const PATTERNS = [
   {
     rule: 'PII_EMAIL_HARDCODED',
     title: 'Privacy: Real Email Address Hardcoded',
-    regex: /['"][a-zA-Z0-9._%+-]+@(?!example\.com|example\.org|test\.com|test\.org|testing\.com|localhost|placeholder|fake|dummy|mailinator\.com|noreply|no-reply|sample\.com)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}['"]/g,
+    // The noreply exclusion has to cover the whole domain, not just its first
+    // label. `noreply@` was already excluded, but GitHub's privacy addresses
+    // are `<id>+<user>@users.noreply.github.com`, so the old anchored
+    // alternative never fired on the exact addresses GitHub hands out
+    // specifically so a contributor's real one stays private. 622 of the 1965
+    // matches on hermes-agent's contributor map were these.
+    regex: /['"][a-zA-Z0-9._%+-]+@(?!example\.com|example\.org|test\.com|test\.org|testing\.com|localhost|placeholder|fake|dummy|mailinator\.com|sample\.com)(?![a-zA-Z0-9.-]*(?:noreply|no-reply))[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}['"]/g,
     severity: 'medium',
     cwe: 'CWE-312',
     owasp: 'A02:2021',
@@ -226,6 +232,25 @@ const PATTERNS = [
 // PII COMPLIANCE AGENT
 // =============================================================================
 
+/**
+ * Above this many hardcoded emails in one file, the file is an address
+ * directory rather than a leak, and the honest finding is "this file is a
+ * directory" reported once — not one finding per entry.
+ *
+ * Calibrated against hermes-agent, whose `scripts/release.py` carries a
+ * contributor credit map: 1965 matches from a single file, 28% of everything
+ * the scanner reported on that repo. Ten is comfortably above what an
+ * accidental leak looks like (a support address, a default recipient, a
+ * seeded test user) and far below any real directory.
+ */
+const EMAIL_DIRECTORY_THRESHOLD = 10;
+
+/**
+ * Files whose entire purpose is recording contributor identity. Emails here
+ * are the point of the file, and they are already public in git history.
+ */
+const CREDIT_FILE = /(?:^|\/)(?:\.mailmap|AUTHORS|CONTRIBUTORS|CREDITS)(?:\.[a-z]+)?$|(?:^|\/)contributors?\//i;
+
 export class PIIComplianceAgent extends BaseAgent {
   constructor() {
     super(
@@ -247,13 +272,71 @@ export class PIIComplianceAgent extends BaseAgent {
 
     // ── 1. Scan code files with PII patterns ─────────────────────────────
     for (const file of codeFiles) {
+      if (CREDIT_FILE.test(file)) continue;
       findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS));
     }
 
-    // ── 2. Check for missing data deletion endpoint (GDPR right to erasure)
+    // ── 2. Collapse per-file email floods into one directory finding ─────
+    findings = this._collapseEmailDirectories(findings);
+
+    // ── 3. Check for missing data deletion endpoint (GDPR right to erasure)
     findings = findings.concat(this._checkDataDeletion(context));
 
     return findings;
+  }
+
+  /**
+   * Replace runs of PII_EMAIL_HARDCODED in a single file with one finding
+   * describing the file as an address directory.
+   *
+   * Reporting a contributor map once, accurately, is more useful than
+   * reporting it 1965 times: the reviewer's decision is about the file, not
+   * about each address in it, and a flood at this scale buries every other
+   * finding in the run.
+   */
+  _collapseEmailDirectories(findings) {
+    const counts = new Map();
+    for (const f of findings) {
+      if (f.rule !== 'PII_EMAIL_HARDCODED') continue;
+      counts.set(f.file, (counts.get(f.file) || 0) + 1);
+    }
+
+    const dirs = new Set(
+      [...counts.entries()]
+        .filter(([, n]) => n >= EMAIL_DIRECTORY_THRESHOLD)
+        .map(([file]) => file)
+    );
+    if (dirs.size === 0) return findings;
+
+    const kept = [];
+    const emitted = new Set();
+
+    for (const f of findings) {
+      if (f.rule !== 'PII_EMAIL_HARDCODED' || !dirs.has(f.file)) {
+        kept.push(f);
+        continue;
+      }
+      if (emitted.has(f.file)) continue;
+      emitted.add(f.file);
+
+      const count = counts.get(f.file);
+      kept.push(createFinding({
+        file: f.file,
+        line: f.line,
+        severity: 'low',
+        category: this.category,
+        rule: 'PII_EMAIL_DIRECTORY',
+        title: 'Privacy: File Contains an Email Address Directory',
+        description: `${count} hardcoded email addresses in one file. This is an address directory (contributor credits, a mailing list, a seed fixture) rather than an accidental leak. Reported once instead of ${count} times.`,
+        matched: `${count} email addresses`,
+        confidence: 'low',
+        cwe: 'CWE-312',
+        owasp: 'A02:2021',
+        fix: 'If this is a contributor or credits map, no action is needed — the addresses are already public in git history. If it is a real address list, move it out of source control.',
+      }));
+    }
+
+    return kept;
   }
 
   /**

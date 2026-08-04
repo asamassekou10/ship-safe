@@ -2578,3 +2578,131 @@ Run security audits on your codebase before deploying.
     assert.equal(critical.length, 0, 'Well-formed skill should have no critical/high findings');
   });
 });
+
+// =============================================================================
+// FALSE-POSITIVE CALIBRATION — hermes-agent corpus
+// =============================================================================
+//
+// Each case below is a shape taken from NousResearch/hermes-agent at 743dc94,
+// where these five rules produced 4684 of 6948 findings. The assertions are
+// about cardinality and context, not about detection: every rule here still
+// fires on the attack shape it was written for.
+
+describe('PII email calibration', async () => {
+  const { PIIComplianceAgent } = await import('../agents/pii-compliance-agent.js');
+  const agent = new PIIComplianceAgent();
+
+  it('ignores GitHub noreply addresses anywhere in the domain', async () => {
+    const { dir, file } = writeTempFile(
+      'AUTHOR = "122438640+ragingbulld@users.noreply.github.com"\n', '.py');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'PII_EMAIL_HARDCODED').length, 0,
+        'users.noreply.github.com is the address GitHub issues to keep the real one private');
+    } finally { cleanup(dir); }
+  });
+
+  it('collapses a contributor map into one directory finding', async () => {
+    const rows = Array.from({ length: 40 },
+      (_, i) => `    "person${i}@gmail.com": "person${i}",`).join('\n');
+    const { dir, file } = writeTempFile(`AUTHOR_MAP = {\n${rows}\n}\n`, '.py');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'PII_EMAIL_HARDCODED').length, 0);
+      const dirFindings = findings.filter(f => f.rule === 'PII_EMAIL_DIRECTORY');
+      assert.equal(dirFindings.length, 1, 'one finding for the file, not one per address');
+      assert.match(dirFindings[0].description, /40 hardcoded email/);
+    } finally { cleanup(dir); }
+  });
+
+  it('still reports a single stray address', async () => {
+    const { dir, file } = writeTempFile('const SUPPORT = "carol@realcompany.com";');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(findings.some(f => f.rule === 'PII_EMAIL_HARDCODED'),
+        'below the directory threshold this is still a hardcoded address');
+    } finally { cleanup(dir); }
+  });
+});
+
+describe('Agentic rule calibration', async () => {
+  const { AgenticSecurityAgent } = await import('../agents/agentic-security-agent.js');
+  const agent = new AgenticSecurityAgent();
+
+  it('reports missing tool audit logging once per file, not once per mention', async () => {
+    const body = Array.from({ length: 30 },
+      (_, i) => `def step${i}(): return executeTool(name${i}, args${i})`).join('\n');
+    const { dir, file } = writeTempFile(body, '.py');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'AGENT_NO_AUDIT_LOG').length, 1);
+    } finally { cleanup(dir); }
+  });
+
+  it('does not claim missing audit logging when the file logs', async () => {
+    const { dir, file } = writeTempFile(
+      'def run(c):\n    logger.info("tool %s", c.name)\n    return executeTool(c.name, c.args)\n', '.py');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'AGENT_NO_AUDIT_LOG').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('does not treat subprocess.run near a result binding as an agent action', async () => {
+    const { dir, file } = writeTempFile(
+      'result = None\nproc = subprocess.run(cmd, capture_output=True)\nresult = proc.stdout\n', '.py');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'AGENT_OUTPUT_TO_ACTION').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('still flags an action invoked on the model output', async () => {
+    const { dir, file } = writeTempFile('const completion = await llm(); completion.execute();');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(findings.some(f => f.rule === 'AGENT_OUTPUT_TO_ACTION'));
+    } finally { cleanup(dir); }
+  });
+
+  it('does not claim missing memory expiry when a TTL is set', async () => {
+    const { dir, file } = writeTempFile(
+      'def save(e):\n    memory.store(e, ttl=3600)\n', '.py');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'AGENT_MEMORY_NO_EXPIRY').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('flags memory persistence with no retention policy, once', async () => {
+    const body = Array.from({ length: 20 },
+      (_, i) => `def w${i}(e): memory.store(e)`).join('\n');
+    const { dir, file } = writeTempFile(body, '.py');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'AGENT_MEMORY_NO_EXPIRY').length, 1);
+    } finally { cleanup(dir); }
+  });
+});
+
+describe('SSRF internal IP calibration', async () => {
+  const { SSRFProber } = await import('../agents/ssrf-prober.js');
+  const agent = new SSRFProber();
+
+  it('ignores a loopback bind address', async () => {
+    const { dir, file } = writeTempFile('app.listen(8080, "127.0.0.1")\nHOST = "127.0.0.1"\n', '.py');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'SSRF_INTERNAL_IP').length, 0,
+        'binding loopback is not an SSRF sink');
+    } finally { cleanup(dir); }
+  });
+
+  it('still flags an internal address as a request destination', async () => {
+    const { dir, file } = writeTempFile('requests.get("http://169.254.0.1")\nfetch("http://192.168.1.5/admin")');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(findings.some(f => f.rule === 'SSRF_INTERNAL_IP'));
+    } finally { cleanup(dir); }
+  });
+});

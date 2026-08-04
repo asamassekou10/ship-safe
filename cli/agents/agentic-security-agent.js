@@ -122,17 +122,11 @@ const PATTERNS = [
     description: 'User-controlled content written directly to agent persistent memory. Enables memory poisoning — attacker instructions persist across sessions.',
     fix: 'Sanitize and validate content before writing to agent memory. Separate user messages from system state.',
   },
-  {
-    rule: 'AGENT_MEMORY_NO_EXPIRY',
-    title: 'Agent: Persistent Memory Without Expiration',
-    regex: /(?:memory|longTermMemory|persistentState)[\s\S]{0,200}(?:save|store|persist|write)(?![\s\S]{0,200}(?:ttl|expir|maxAge|retention|cleanup|prune))/g,
-    severity: 'medium',
-    cwe: 'CWE-404',
-    owasp: 'A04:2021',
-    confidence: 'low',
-    description: 'Agent memory persists without expiration policy. Poisoned memories remain indefinitely.',
-    fix: 'Set TTL or retention policies on agent memory. Implement periodic cleanup of stale entries.',
-  },
+  // AGENT_MEMORY_NO_EXPIRY moved to AGENT_STRUCTURAL_RULES below. Like
+  // AGENT_NO_AUDIT_LOG it asserted the absence of something (a TTL) using a
+  // negative lookahead after a variable-length gap, which backtracks until the
+  // lookahead succeeds. 234 findings on hermes-agent, one per mention of the
+  // word "memory" near a write.
 
   // ── Unbounded Execution ──────────────────────────────────────────────────
   {
@@ -196,7 +190,11 @@ const PATTERNS = [
   {
     rule: 'AGENT_OUTPUT_TO_ACTION',
     title: 'Agent: LLM Output Directly Triggers Actions',
-    regex: /(?:completion|response|output|result|generated)[\s\S]{0,100}(?:\.execute\b|\.run\b|\.send\b|\.post\b|\.delete\b|\.pay\b|\.transfer\b|\.deploy\b)/g,
+    // The action has to be invoked *on* the model output, not merely appear
+    // within 100 characters of a variable called `result`. The loose version
+    // matched `subprocess.run` anywhere near a `result =` binding and fired
+    // 329 times on hermes-agent, almost all of it ordinary CLI code.
+    regex: /\b(?:completion|response|output|result|generated)\w*\s*(?:\.\w+)?\s*\.\s*(?:execute|run|send|post|delete|pay|transfer|deploy)\s*\(/g,
     severity: 'high',
     cwe: 'CWE-862',
     owasp: 'A01:2021',
@@ -251,24 +249,20 @@ const PATTERNS = [
   },
 
   // ── Audit & Observability ────────────────────────────────────────────────
-  {
-    rule: 'AGENT_NO_AUDIT_LOG',
-    title: 'Agent: Tool Invocations Not Logged',
-    regex: /(?:tool_call|function_call|executeTool|callTool|tool\.run)[\s\S]{0,300}(?![\s\S]{0,300}(?:log|audit|record|track|monitor|trace|emit|publish))/g,
-    severity: 'medium',
-    cwe: 'CWE-778',
-    owasp: 'A09:2021',
-    confidence: 'low',
-    description: 'Agent tool invocations are not being logged or audited. Makes incident response and forensics impossible.',
-    fix: 'Log all tool invocations including: tool name, arguments, caller identity, timestamp, and result status.',
-  },
+  // AGENT_NO_AUDIT_LOG used to live here as a line pattern. It is a property
+  // of a file, not of a line, and as a pattern it was structurally unable to
+  // say anything: `[\s\S]{0,300}` followed by a negative lookahead backtracks
+  // to whatever length makes the lookahead succeed, so any line mentioning
+  // `tool_call` fired. It produced 1904 findings on hermes-agent, second only
+  // to the contributor-map email flood. It now lives in
+  // AGENT_STRUCTURAL_RULES, which emits at most one finding per file.
 ];
 
 // =============================================================================
 // KIMI K3 / OPENAI-COMPATIBLE TOOL-CALL SECURITY CHECKS
 // =============================================================================
 
-const TOOL_CALL_STRUCTURAL_RULES = [
+const AGENT_STRUCTURAL_RULES = [
   {
     rule: 'AGENT_DYNAMIC_TOOL_LOADING_FROM_CONTEXT',
     title: 'Agent: Dynamic Tool Definitions Loaded From Prompt Context',
@@ -327,6 +321,51 @@ const TOOL_CALL_STRUCTURAL_RULES = [
       return appendsToolResult && !preservesAssistantToolCalls;
     },
   },
+  {
+    rule: 'AGENT_NO_AUDIT_LOG',
+    title: 'Agent: Tool Invocations Not Logged',
+    severity: 'medium',
+    cwe: 'CWE-778',
+    owasp: 'A09:2021',
+    description: 'This file dispatches agent tool invocations but has no visible logging, audit, or telemetry call anywhere in it. Without a record of which tool ran with which arguments, incident response and forensics have nothing to work from.',
+    fix: 'Log every tool invocation: tool name, arguments, caller identity, timestamp, and result status.',
+    test(content) {
+      // Dispatch, not mere mention. A file that names `tool_call` while
+      // building a request is not the file that runs the tool.
+      const dispatchesTool =
+        /(?:executeTool|callTool|invokeTool|runTool|dispatchTool|tool\.run|handler\s*\(\s*(?:args|params|input))/i.test(content)
+        || /(?:toolRegistry|tools|handlers)\s*\[[^\]]*\]\s*\(/i.test(content);
+      if (!dispatchesTool) return false;
+
+      // Any observability call in the file counts. This is deliberately
+      // generous: the claim is "nothing here records anything," and one
+      // logger is enough to refute it.
+      const hasObservability =
+        /(?:console\.(?:log|info|warn|error|debug)|logger?\.\w+|logging\.\w+|log\.\w+|audit\w*\s*\(|\btrace\w*\s*\(|telemetry|metrics?\.\w+|emit\s*\(|span\.|structlog|winston|pino|loguru)/i.test(content);
+
+      return !hasObservability;
+    },
+  },
+  {
+    rule: 'AGENT_MEMORY_NO_EXPIRY',
+    title: 'Agent: Persistent Memory Without Expiration',
+    severity: 'medium',
+    cwe: 'CWE-404',
+    owasp: 'A04:2026',
+    description: 'This file writes to agent persistent memory but nothing in it sets a TTL, retention window, or cleanup pass. A poisoned memory written once stays readable for every future session.',
+    fix: 'Set a TTL or retention policy on agent memory, and run a periodic prune of stale entries.',
+    test(content) {
+      const persistsMemory =
+        /(?:memory|longTermMemory|persistent_?[Ss]tate|memory_?store|memoryStore)\w*\s*\.\s*(?:save|store|persist|write|insert|upsert|add|append)\s*\(/i.test(content)
+        || /(?:save|store|persist|write)_?[Mm]emory\s*\(/i.test(content);
+      if (!persistsMemory) return false;
+
+      const hasRetention =
+        /\b(?:ttl|expir\w*|max_?age|retention|cleanup|prune|evict\w*|purge|vacuum|gc_\w+)\b/i.test(content);
+
+      return !hasRetention;
+    },
+  },
 ];
 
 // =============================================================================
@@ -363,7 +402,7 @@ export class AgenticSecurityAgent extends BaseAgent {
     if (!content) return [];
 
     const findings = [];
-    for (const rule of TOOL_CALL_STRUCTURAL_RULES) {
+    for (const rule of AGENT_STRUCTURAL_RULES) {
       if (!rule.test(content)) continue;
       const line = this.findLine(content, rule);
       const lines = content.split('\n');
@@ -405,6 +444,8 @@ export class AgenticSecurityAgent extends BaseAgent {
       AGENT_TOOL_CALL_NO_ALLOWLIST: /(?:executeTool|callTool|invokeTool|toolRegistry|tool_calls?|function_call)/i,
       AGENT_TOOL_CHOICE_REQUIRED_UNTRUSTED: /tool_choice/i,
       AGENT_TOOL_CALL_REPLAY_MISSING_ASSISTANT: /(?:role\s*:\s*['"]tool['"]|tool_call_id|toolCallId)/i,
+      AGENT_NO_AUDIT_LOG: /(?:executeTool|callTool|invokeTool|runTool|dispatchTool|tool\.run)/i,
+      AGENT_MEMORY_NO_EXPIRY: /(?:memory|longTermMemory|persistent_?[Ss]tate)/i,
     };
     const marker = markers[rule.rule] || /tool/i;
     const lines = content.split('\n');

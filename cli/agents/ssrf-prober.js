@@ -66,12 +66,19 @@ const PATTERNS = [
   {
     rule: 'SSRF_INTERNAL_IP',
     title: 'SSRF: Internal IP Pattern',
-    regex: /(?:127\.0\.0\.|0\.0\.0\.0|10\.\d+\.\d+\.\d+|172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.)\d+/g,
+    // A private IP literal on its own says nothing. Local-first software binds
+    // loopback on purpose, and the old bare-literal pattern reported 312 times
+    // on hermes-agent for doing exactly what its documentation says it does.
+    //
+    // The SSRF question is whether an internal address is the destination of a
+    // request, so require an outbound-request context on the same line. A bind
+    // address, a default host, or a docs example no longer counts.
+    regex: /(?:fetch|axios|got|request|urlopen|requests\.\w+|httpx?\.\w+|curl|https?:\/\/|url\s*[:=]|endpoint\s*[:=]|baseURL\s*[:=]|proxy\s*[:=])[^\n]{0,80}(?:127\.0\.0\.|0\.0\.0\.0|10\.\d+\.\d+\.\d+|172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.)\d+/gi,
     severity: 'medium',
     cwe: 'CWE-918',
     owasp: 'A10:2021',
     confidence: 'low',
-    description: 'Internal IP address in code. Verify it is not reachable via user-controlled URLs.',
+    description: 'Internal IP address used as a request destination. Verify it cannot be reached via a user-controlled URL.',
     fix: 'Block private IP ranges in URL validation for user-supplied URLs',
   },
   {

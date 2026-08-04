@@ -14,6 +14,46 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - `MCP_TOOL_ALIAS_BYPASS` flags tool alias mappings that can route allowlisted names to different tools.
   - `MCP_NESTED_PERMISSION_OVERRIDE` flags nested permission blocks with wildcard expansion inside server entries.
 
+### Fixed
+- **Five rules recalibrated against a large Python agent codebase.** Scanning
+  [hermes-agent](https://github.com/NousResearch/hermes-agent) (~8,400 files) at
+  `743dc94` produced **6,948 findings**, and five rules accounted for 4,684 of
+  them. Each turned out to be a defect rather than a threshold problem.
+
+  - `PII_EMAIL_HARDCODED` (2,037 → 0 on that repo). Two bugs. The `noreply`
+    exclusion was anchored to the first domain label, so GitHub's
+    `<id>+<user>@users.noreply.github.com` privacy addresses — the ones GitHub
+    issues *specifically* to keep a contributor's real address private — never
+    matched it. And a contributor credit map was reported once per entry: 1,963
+    findings from `scripts/release.py` alone, 28% of the entire report. Files
+    holding more than 10 addresses now produce one `PII_EMAIL_DIRECTORY`
+    finding describing the file, and `.mailmap` / `AUTHORS` / `CONTRIBUTORS`
+    are skipped outright. A single stray address still reports as before.
+  - `AGENT_NO_AUDIT_LOG` (1,904 → per-file). The rule asserted the *absence* of
+    logging using a negative lookahead placed after `[\s\S]{0,300}`. A
+    variable-length gap backtracks until the lookahead succeeds, so the
+    assertion could never fail and every line mentioning `tool_call` fired. Now
+    a structural check: at most one finding per file, and any logger in the
+    file refutes it.
+  - `AGENT_MEMORY_NO_EXPIRY` (234 → per-file). Same defect, same fix.
+  - `AGENT_OUTPUT_TO_ACTION` (329 → 0 on that repo). Matched any `.run` within
+    100 characters of a variable named `result`, which is `subprocess.run` in
+    every Python CLI ever written. Now requires the action to be invoked on the
+    model output itself.
+  - `SSRF_INTERNAL_IP` (312 → 102). Fired on bare private-IP literals, so
+    local-first software binding loopback on purpose was reported 312 times for
+    following its own documentation. Now requires an outbound-request context.
+
+  Total on hermes-agent: **6,948 → 2,264**, a 67% reduction, with triage of the
+  remaining long tail still to come. Detection is unchanged: NodeGoat holds at
+  74 findings / 9 critical / 18 high, and DVWA's criticals and highs are
+  identical, its only two lost findings being `$_DVWA['db_server'] =
+  '127.0.0.1'` in translated READMEs. The clean corpus improves from 73
+  findings to 67.
+
+  16 other rules share the backtracking-lookahead defect and are tracked for
+  follow-up.
+
 ---
 
 ## [9.6.4] — 2026-08-03 — Upload Rule Scoping
