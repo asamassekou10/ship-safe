@@ -19,7 +19,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { BaseAgent } from './base-agent.js';
+import { BaseAgent, createFinding } from './base-agent.js';
 
 // =============================================================================
 // MCP SECURITY PATTERNS
