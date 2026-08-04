@@ -87,12 +87,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   orchestrator swallowed, taking the rest of that agent's output for MCP server
   files with it.
 
+- **`COOKIE_NO_HTTPONLY` reported correctly configured cookies as insecure.**
+  Its lookahead floated after whichever attribute matched rather than being
+  pinned to the options object, so `{ httpOnly: true, secure: true, path: '/' }`
+  matched on `path` and then asked whether `httpOnly` appeared *after* `path`.
+  It does not, so the rule fired. Now anchored at the call opener.
+
+  This was found by auditing the shape described below, and it was the only
+  unambiguous false positive in the group.
+
 ### Known issues
 
-- 16 rules still carry the backtracking-lookahead defect, and the score
-  saturates after 3–5 medium findings per category, which is why hermes-agent
-  reports the same 13/F at 818 findings as it did at 6,948. Both are tracked as
-  issues.
+- The score saturates after 3–5 medium findings per category, which is why
+  hermes-agent reports the same 13/F at 799 findings as it did at 6,948.
+  Tracked in #107.
+
+- Roughly a dozen rules still write an absence check as a negative lookahead
+  after a variable-length gap. An earlier draft of this entry called all of
+  them broken; that was wrong, and the correction is worth recording. The
+  defect only bites when the trigger token recurs after the mitigation, which
+  is common for `tool_call` (hence `AGENT_NO_AUDIT_LOG`'s 1,904 findings) and
+  rare for the rest. Probed individually with the mitigation present and a
+  single trigger, only `COOKIE_NO_HTTPONLY` misfired. The remainder are
+  fragile rather than broken, and `cli/__tests__/absence-rules.test.js` now
+  guards the quiet direction for the ones that matter. Tracked in #106.
 
 ---
 
