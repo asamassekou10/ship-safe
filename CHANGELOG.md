@@ -51,8 +51,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   '127.0.0.1'` in translated READMEs. The clean corpus improves from 73
   findings to 67.
 
-  16 other rules share the backtracking-lookahead defect and are tracked for
-  follow-up.
+  Continued through the long tail, another nine rules:
+
+  - `AGENT_NO_COST_LIMIT`, `AGENT_NO_OUTPUT_SCHEMA`, `LLM_NO_COST_LIMIT` and
+    `OAUTH_NO_STATE` carried the same never-failing absence assertion.
+    `OAUTH_NO_STATE` was worse: its alternation put the lookahead on only the
+    last branch, so the first two matched any mention of an authorize URL
+    unconditionally. Spend control is now asked once per project, where a
+    budget is actually configured.
+  - `SQL_INJECTION_TEMPLATE_LITERAL` listed `CREATE` as a bare alternative, so
+    ``showToast(`Create failed: ${e}`)`` was 24 criticals on a file browser.
+    `PYTHON_SQL_FSTRING` flagged `f"Select a model ({n} available)"`. Both now
+    require clause structure — SELECT with FROM, UPDATE with SET — instead of a
+    keyword.
+  - Patterns can now set `skipComments`. A comment explaining why code *avoids*
+    the cloud metadata endpoint is not access to it, and that was every
+    `SSRF_CLOUD_METADATA` hit. `SSRF_INTERNAL_IP` also stops flagging loopback
+    OAuth redirect URIs, which RFC 8252 recommends for native apps.
+  - `CODE_INJECTION_EVAL_GENERIC` counted any method named `eval` — `cdp.eval`,
+    the Chrome DevTools Protocol helper, 126 times. `API_UPLOAD_NO_TYPE_CHECK`
+    matched `filename)` in any language, the same mistake 9.6.4 fixed next door.
+    `TIMING_ATTACK_COMPARISON` flagged two locally held values compared to each
+    other. `AGENT_TOOL_SHELL_ACCESS` fired on any file containing the word
+    "tools" and a subprocess call.
+  - `SlopSquatAgent` resolved every import against the root `package.json`, so
+    in a workspace every sub-package dependency looked hallucinated. It now
+    walks up from the importing file the way Node does. 137 → 33.
+
+  **hermes-agent: 6,948 → 818, an 88% reduction.** Clean corpus 73 → 57;
+  express and flask reach C, requests B. NodeGoat did not move by a single
+  finding. hermes-agent is now a pinned clean-corpus entry.
+
+- **`MCPSecurityAgent` referenced `createFinding` without importing it.** The
+  new per-file tool-validation check threw a `ReferenceError` that the
+  orchestrator swallowed, taking the rest of that agent's output for MCP server
+  files with it.
+
+### Known issues
+
+- 16 rules still carry the backtracking-lookahead defect, and the score
+  saturates after 3–5 medium findings per category, which is why hermes-agent
+  reports the same 13/F at 818 findings as it did at 6,948. Both are tracked as
+  issues.
 
 ---
 
