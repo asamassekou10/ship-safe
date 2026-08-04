@@ -57,6 +57,9 @@ const PATTERNS = [
     rule: 'SSRF_CLOUD_METADATA',
     title: 'SSRF: Cloud Metadata Endpoint Access',
     regex: /169\.254\.169\.254|metadata\.google\.internal|100\.100\.100\.200/g,
+    // Every hit on hermes-agent was a comment explaining why the code takes
+    // care *not* to probe IMDS. Prose about an endpoint is not access to it.
+    skipComments: true,
     severity: 'critical',
     cwe: 'CWE-918',
     owasp: 'A10:2021',
@@ -73,7 +76,10 @@ const PATTERNS = [
     // The SSRF question is whether an internal address is the destination of a
     // request, so require an outbound-request context on the same line. A bind
     // address, a default host, or a docs example no longer counts.
-    regex: /(?:fetch|axios|got|request|urlopen|requests\.\w+|httpx?\.\w+|curl|https?:\/\/|url\s*[:=]|endpoint\s*[:=]|baseURL\s*[:=]|proxy\s*[:=])[^\n]{0,80}(?:127\.0\.0\.|0\.0\.0\.0|10\.\d+\.\d+\.\d+|172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.)\d+/gi,
+    // A loopback OAuth redirect URI is RFC 8252's recommended practice for a
+    // native app, not an SSRF sink, so exclude the callback shape outright.
+    regex: /(?<!(?:redirect_?uri|callback_?url|redirect_?url)\s*[:=]\s*f?["'`])(?:fetch|axios|got|request|urlopen|requests\.\w+|httpx?\.\w+|curl|https?:\/\/|url\s*[:=]|endpoint\s*[:=]|baseURL\s*[:=]|proxy\s*[:=])[^\n]{0,80}(?:127\.0\.0\.|0\.0\.0\.0|10\.\d+\.\d+\.\d+|172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.)\d+/gi,
+    skipComments: true,
     severity: 'medium',
     cwe: 'CWE-918',
     owasp: 'A10:2021',

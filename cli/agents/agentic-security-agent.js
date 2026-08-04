@@ -69,7 +69,12 @@ const PATTERNS = [
   {
     rule: 'AGENT_TOOL_SHELL_ACCESS',
     title: 'Agent: Tool With Shell/Command Execution',
-    regex: /(?:tools|functions)[\s\S]{0,500}(?:exec\s*\(|execSync|spawn|child_process|subprocess|os\.system|shell\s*[:=]\s*true)/g,
+    // A file that has the word "tools" somewhere and calls subprocess 500
+    // characters later is every agent codebase in existence, which is why
+    // this fired 56 times at critical severity on hermes-agent. The finding
+    // worth making is that a *tool definition* grants shell, so require the
+    // exec to sit inside the tool list or handler literal.
+    regex: /\b(?:tools|functions)\s*[:=]\s*[[{][^\]}]{0,300}?(?:exec\s*\(|execSync|spawn\s*\(|child_process|subprocess\.|os\.system|shell\s*[:=]\s*true)|\b(?:tool|function)\s*\(\s*['"][^'"]{0,60}['"][^)]{0,200}?(?:execSync|child_process|subprocess\.|os\.system|shell\s*[:=]\s*true)/g,
     severity: 'critical',
     cwe: 'CWE-78',
     owasp: 'A03:2021',
@@ -91,7 +96,11 @@ const PATTERNS = [
   {
     rule: 'AGENT_ESCALATED_PERMISSIONS',
     title: 'Agent: Runs With Elevated Permissions',
-    regex: /(?:agent|bot|assistant)[\s\S]{0,300}(?:admin|sudo|root|superuser|service.?role|elevated|full.?access|all.?permissions)/gi,
+    // Proximity of the words "agent" and "root" within 300 characters is not
+    // evidence of anything in a codebase whose subject is agents — it fired 79
+    // times on hermes-agent, largely on paths named `root_path`. Require the
+    // privilege to be assigned as configuration.
+    regex: /(?:agent|bot|assistant)\w*\s*(?:\.\w+)*\s*[:=]\s*[^\n=]{0,60}\b(?:admin|sudo|superuser|service[_-]?role|elevated|full[_-]?access|all[_-]?permissions)\b|\b(?:role|permission|privilege|run_?as|user)\s*[:=]\s*['"](?:admin|root|superuser|sudo)['"]/gi,
     severity: 'high',
     cwe: 'CWE-269',
     owasp: 'A04:2021',
@@ -150,23 +159,17 @@ const PATTERNS = [
     description: 'Agent execution without timeout configuration. Runaway agents can consume unlimited resources.',
     fix: 'Set explicit timeout on agent execution. Use AbortController or equivalent mechanism.',
   },
-  {
-    rule: 'AGENT_NO_COST_LIMIT',
-    title: 'Agent: No Spending/Token Limit',
-    regex: /(?:agent|completion|chat)[\s\S]{0,300}(?:model|engine)\s*[:=](?![\s\S]{0,300}(?:max_tokens|maxTokens|budget|cost|limit|cap))/g,
-    severity: 'medium',
-    cwe: 'CWE-770',
-    owasp: 'A04:2021',
-    confidence: 'low',
-    description: 'Agent makes LLM calls without token or cost limits. Enables denial of wallet attacks.',
-    fix: 'Set max_tokens on all LLM calls. Implement per-session cost budgets.',
-  },
+  // AGENT_NO_COST_LIMIT moved to AGENT_STRUCTURAL_RULES: same broken
+  // lookahead-after-a-gap as AGENT_NO_AUDIT_LOG, 41 findings on hermes-agent.
 
   // ── Multi-Agent Risks ────────────────────────────────────────────────────
   {
     rule: 'AGENT_RECURSIVE_INVOCATION',
     title: 'Agent: Recursive Self-Invocation',
-    regex: /(?:agent|assistant)[\s\S]{0,200}(?:call|invoke|run|execute)[\s\S]{0,100}(?:self|this|agent|itself)/g,
+    // `self` is a parameter on every Python method, so the loose proximity
+    // form matched 104 times on hermes-agent. Require an actual self-call:
+    // the agent invoking its own run/invoke entry point.
+    regex: /\b(?:self|this)\s*\.\s*(?:run|invoke|call|execute|step)\s*\(|\b(?:agent|assistant)\s*\.\s*(?:run|invoke|call|execute)\s*\([^)]*\b(?:self|this|agent)\b/g,
     severity: 'high',
     cwe: 'CWE-674',
     owasp: 'A04:2021',
@@ -205,7 +208,11 @@ const PATTERNS = [
   {
     rule: 'AGENT_NO_OUTPUT_SCHEMA',
     title: 'Agent: No Schema Validation on LLM Output',
-    regex: /(?:JSON\.parse|json\.loads)\s*\(\s*(?:completion|response|output|result|generated|llm|ai|gpt|claude)(?![\s\S]{0,200}(?:schema|validate|zod|yup|joi|ajv|parse|safeParse|type_adapter))/g,
+    // The trailing lookahead never failed, and one of its own escape hatches
+    // was the word `parse` — which `JSON.parse` supplies by definition. The
+    // per-file version of this question lives in AGENT_STRUCTURAL_RULES; here
+    // just record the parse of model output.
+    regex: /(?:JSON\.parse|json\.loads)\s*\(\s*(?:completion|response|output|result|generated|llm|ai|gpt|claude)\w*\s*[,)]/g,
     severity: 'medium',
     cwe: 'CWE-20',
     owasp: 'A03:2021',
@@ -272,7 +279,28 @@ const AGENT_STRUCTURAL_RULES = [
     description: 'Tool definitions appear to be injected into system/developer context from user, document, or retrieved content. Kimi K3-style dynamic tool loading makes this especially risky: poisoned context can add or reshape tools.',
     fix: 'Load tool definitions from trusted code/config only. Never let user, RAG, document, or tool-result content define available tools.',
     test(content) {
-      return /(?:system|developer|messages|prompt)[\s\S]{0,500}(?:tool|function)s?[\s\S]{0,500}(?:req\.|request\.|body\.|params\.|query\.|user|userMessage|input|retrieved|document|toolResult|tool_result)/i.test(content);
+      // The old form asked whether the words "prompt", "tool" and "user"
+      // appeared within 1000 characters of each other, which is true of 249
+      // files in hermes-agent and of essentially any agent codebase. What
+      // matters is a tool/function list being *assigned from* untrusted
+      // content, so require that shape directly.
+      // A tool or function list assigned from untrusted content.
+      const assignedFromUntrusted =
+        /\b(?:tools|functions|tool_?definitions|toolSchemas?)\s*[:=]\s*[^\n;]{0,120}\b(?:req\.|request\.|body\.|params\.|query\.|user_?(?:input|message|content)|retrieved|documents?|tool_?results?|completion|response)\b/i.test(content)
+        || /\b(?:tools|functions)\s*\.\s*(?:push|extend|append|concat)\s*\(\s*[^)\n]{0,80}\b(?:retrieved|documents?|tool_?results?|user_?(?:input|message)|body\.|req\.)\b/i.test(content);
+
+      // A tool schema read straight off the request, whatever it is then
+      // spliced into.
+      const toolShapedUntrustedRead =
+        /\b(?:req|request|body|params|query|ctx)\.[\w.]*tool[\w.]*/i.test(content);
+
+      // The Kimi K3 shape: the schema never lands in a `tools` array at all,
+      // it is concatenated into a system or developer message. The tool
+      // definitions still arrive from the request.
+      const injectedIntoInstructionMessage =
+        /content\s*[:=][^\n]{0,140}\b(?:tool|function)s?\b[^\n]{0,100}\b(?:req\.|request\.|body\.|params\.|query\.|user_?(?:input|message)|retrieved|documents?|tool_?results?)/i.test(content);
+
+      return assignedFromUntrusted || toolShapedUntrustedRead || injectedIntoInstructionMessage;
     },
   },
   {
@@ -366,6 +394,44 @@ const AGENT_STRUCTURAL_RULES = [
       return !hasRetention;
     },
   },
+  {
+    rule: 'AGENT_NO_COST_LIMIT',
+    title: 'Agent: No Spending/Token Limit',
+    severity: 'medium',
+    cwe: 'CWE-770',
+    owasp: 'A04:2021',
+    description: 'This file issues LLM completions but sets no token ceiling or cost budget anywhere in it. An agent loop that misbehaves bills the operator until the provider stops it.',
+    fix: 'Set max_tokens on every completion call and enforce a per-session cost budget.',
+    test(content) {
+      const callsModel =
+        /(?:chat\.completions\.create|messages\.create|responses\.create|createChatCompletion|\.generate(?:_content)?\s*\(|completion\s*\()/i.test(content);
+      if (!callsModel) return false;
+
+      const hasCeiling =
+        /\b(?:max_?tokens|max_?output_?tokens|max_?completion_?tokens|budget|cost_?limit|token_?limit|max_?spend|quota)\b/i.test(content);
+
+      return !hasCeiling;
+    },
+  },
+  {
+    rule: 'AGENT_NO_OUTPUT_SCHEMA',
+    title: 'Agent: Model Output Parsed Without Schema Validation',
+    severity: 'medium',
+    cwe: 'CWE-20',
+    owasp: 'A03:2021',
+    description: 'This file parses model output as JSON but validates it against no schema. A model that returns a differently shaped object, whether by drift or by injection, flows straight into the code that consumes it.',
+    fix: 'Validate parsed model output against an explicit schema (zod, pydantic, jsonschema) before use.',
+    test(content) {
+      const parsesModelOutput =
+        /(?:JSON\.parse|json\.loads)\s*\(\s*(?:completion|response|output|result|generated|llm|ai|gpt|claude)\w*\s*[,)]/i.test(content);
+      if (!parsesModelOutput) return false;
+
+      const validates =
+        /\b(?:zod|yup|joi|ajv|jsonschema|pydantic|BaseModel|TypeAdapter|type_adapter|safeParse|validate\w*\s*\(|schema)\b/i.test(content);
+
+      return !validates;
+    },
+  },
 ];
 
 // =============================================================================
@@ -446,6 +512,8 @@ export class AgenticSecurityAgent extends BaseAgent {
       AGENT_TOOL_CALL_REPLAY_MISSING_ASSISTANT: /(?:role\s*:\s*['"]tool['"]|tool_call_id|toolCallId)/i,
       AGENT_NO_AUDIT_LOG: /(?:executeTool|callTool|invokeTool|runTool|dispatchTool|tool\.run)/i,
       AGENT_MEMORY_NO_EXPIRY: /(?:memory|longTermMemory|persistent_?[Ss]tate)/i,
+      AGENT_NO_COST_LIMIT: /(?:completions\.create|messages\.create|responses\.create|createChatCompletion|\.generate)/i,
+      AGENT_NO_OUTPUT_SCHEMA: /(?:JSON\.parse|json\.loads)/i,
     };
     const marker = markers[rule.rule] || /tool/i;
     const lines = content.split('\n');

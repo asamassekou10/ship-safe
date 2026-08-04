@@ -81,6 +81,7 @@ export class SlopSquatAgent extends BaseAgent {
           if (!pkg || reported.has(pkg)) continue;
           if (BUILTINS.has(pkg) || declared.has(pkg) || pkg === selfName) continue;
           if (this._installed(nodeModules, pkg)) continue;
+          if (this._resolvesNearby(file, rootPath, pkg)) continue;
 
           reported.add(pkg);
           const line = content.slice(0, m.index).split('\n').length;
@@ -136,6 +137,38 @@ export class SlopSquatAgent extends BaseAgent {
 
   _installed(nodeModules, pkg) {
     try { return fs.existsSync(path.join(nodeModules, ...pkg.split('/'))); } catch { return false; }
+  }
+
+  /**
+   * Resolve an import the way Node does: walk up from the importing file,
+   * checking each ancestor's package.json and node_modules until the project
+   * root.
+   *
+   * Resolving only against the root pair mis-reads any repository with more
+   * than one package in it. On hermes-agent — which has package.json files
+   * under apps/, web/, website/, ui-tui/ and tests-js/ — every dependency of
+   * every sub-package looked phantom, and the agent reported 137 of them as
+   * possible AI hallucinations. A workspace dependency is the opposite of a
+   * hallucination: it is declared, installed, and resolving fine.
+   */
+  _resolvesNearby(file, rootPath, pkg) {
+    let dir = path.dirname(path.resolve(file));
+    const stop = path.resolve(rootPath);
+
+    for (;;) {
+      if (this._installed(path.join(dir, 'node_modules'), pkg)) return true;
+
+      const pkgJson = path.join(dir, 'package.json');
+      if (fs.existsSync(pkgJson)) {
+        if (this._declaredDeps(pkgJson).has(pkg)) return true;
+        if (this._selfName(pkgJson) === pkg) return true;
+      }
+
+      if (dir === stop) return false;
+      const parent = path.dirname(dir);
+      if (parent === dir) return false;
+      dir = parent;
+    }
   }
 }
 

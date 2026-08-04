@@ -2706,3 +2706,150 @@ describe('SSRF internal IP calibration', async () => {
     } finally { cleanup(dir); }
   });
 });
+
+describe('Long-tail calibration — hermes-agent corpus', async () => {
+  const { InjectionTester } = await import('../agents/injection-tester.js');
+  const { SSRFProber } = await import('../agents/ssrf-prober.js');
+  const { AuthBypassAgent } = await import('../agents/auth-bypass-agent.js');
+  const { SlopSquatAgent } = await import('../agents/slopsquat-agent.js');
+  const { LLMRedTeam } = await import('../agents/llm-redteam.js');
+
+  const run = async (agent, files, dir) =>
+    agent.analyze({ rootPath: dir, files, recon: {}, options: {} });
+
+  it('does not read an English sentence starting with "Create" as SQL', async () => {
+    const { dir, file } = writeTempFile('showToast(`Create failed: ${e}`, "error");');
+    try {
+      const findings = await run(new InjectionTester(), [file], dir);
+      assert.equal(findings.filter(f => f.rule === 'SQL_INJECTION_TEMPLATE_LITERAL').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('still flags a real interpolated SQL template literal', async () => {
+    const { dir, file } = writeTempFile('db.query(`SELECT * FROM users WHERE id = ${id}`);');
+    try {
+      const findings = await run(new InjectionTester(), [file], dir);
+      assert.ok(findings.some(f => f.rule === 'SQL_INJECTION_TEMPLATE_LITERAL'));
+    } finally { cleanup(dir); }
+  });
+
+  it('does not read an f-string prompt as SQL', async () => {
+    const { dir, file } = writeTempFile('hint = f"Select a model ({len(models)} available)"\n', '.py');
+    try {
+      const findings = await run(new InjectionTester(), [file], dir);
+      assert.equal(findings.filter(f => f.rule === 'PYTHON_SQL_FSTRING').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('accepts the parameterised IN-clause idiom', async () => {
+    const { dir, file } = writeTempFile(
+      'ph = ",".join("?" * len(ids))\nconn.execute(f"DELETE FROM messages WHERE id IN ({ph})", ids)\n', '.py');
+    try {
+      const findings = await run(new InjectionTester(), [file], dir);
+      assert.equal(findings.filter(f => f.rule === 'PYTHON_SQL_FSTRING').length, 0,
+        'values are bound; only the placeholder string is interpolated');
+    } finally { cleanup(dir); }
+  });
+
+  it('does not treat a method named eval as the global sink', async () => {
+    const { dir, file } = writeTempFile('await cdp.eval(expression);');
+    try {
+      const findings = await run(new InjectionTester(), [file], dir);
+      assert.equal(findings.filter(f => f.rule === 'CODE_INJECTION_EVAL_GENERIC').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('still flags a bare eval call', async () => {
+    const { dir, file } = writeTempFile('const v = eval(payload);');
+    try {
+      const findings = await run(new InjectionTester(), [file], dir);
+      assert.ok(findings.some(f => f.rule === 'CODE_INJECTION_EVAL_GENERIC'));
+    } finally { cleanup(dir); }
+  });
+
+  it('ignores a metadata endpoint named only in a comment', async () => {
+    const { dir, file } = writeTempFile(
+      '# avoid probing 169.254.169.254 when not on EC2\nclient = build()\n', '.py');
+    try {
+      const findings = await run(new SSRFProber(), [file], dir);
+      assert.equal(findings.filter(f => f.rule === 'SSRF_CLOUD_METADATA').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('still flags a metadata endpoint actually requested', async () => {
+    const { dir, file } = writeTempFile('requests.get("http://169.254.169.254/latest/meta-data/")\n', '.py');
+    try {
+      const findings = await run(new SSRFProber(), [file], dir);
+      assert.ok(findings.some(f => f.rule === 'SSRF_CLOUD_METADATA'));
+    } finally { cleanup(dir); }
+  });
+
+  it('ignores a loopback OAuth redirect URI', async () => {
+    const { dir, file } = writeTempFile(
+      'DEFAULT_REDIRECT_URI = "http://127.0.0.1:43827/spotify/callback"\n', '.py');
+    try {
+      const findings = await run(new SSRFProber(), [file], dir);
+      assert.equal(findings.filter(f => f.rule === 'SSRF_INTERNAL_IP').length, 0,
+        'RFC 8252 recommends a loopback redirect for native apps');
+    } finally { cleanup(dir); }
+  });
+
+  it('ignores equality between two locally held secrets', async () => {
+    const { dir, file } = writeTempFile('if new_token == self._anthropic_api_key:\n    pass\n', '.py');
+    try {
+      const findings = await run(new AuthBypassAgent(), [file], dir);
+      assert.equal(findings.filter(f => f.rule === 'TIMING_ATTACK_COMPARISON').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('still flags a request-supplied token compared to a stored secret', async () => {
+    const { dir, file } = writeTempFile('if (req.headers["x-api-key"] === API_TOKEN) { allow(); }');
+    try {
+      const findings = await run(new AuthBypassAgent(), [file], dir);
+      assert.ok(findings.some(f => f.rule === 'TIMING_ATTACK_COMPARISON'));
+    } finally { cleanup(dir); }
+  });
+
+  it('resolves imports against the nearest package.json in a workspace', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-ws-'));
+    try {
+      fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'root' }));
+      const app = path.join(dir, 'apps', 'desktop');
+      fs.mkdirSync(app, { recursive: true });
+      fs.writeFileSync(path.join(app, 'package.json'),
+        JSON.stringify({ name: 'desktop', dependencies: { 'some-real-dep': '^1.0.0' } }));
+      const file = path.join(app, 'index.js');
+      fs.writeFileSync(file, "import x from 'some-real-dep';\n");
+
+      const findings = await run(new SlopSquatAgent(), [file], dir);
+      assert.equal(findings.filter(f => f.rule === 'SLOPSQUAT_PHANTOM_IMPORT').length, 0,
+        'a workspace dependency is declared, not hallucinated');
+    } finally { cleanup(dir); }
+  });
+
+  it('reports absent LLM spend controls once for the project', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-llm-'));
+    try {
+      const files = [];
+      for (let i = 0; i < 5; i++) {
+        const f = path.join(dir, `call${i}.js`);
+        fs.writeFileSync(f, 'await client.chat.completions.create({ model: "gpt-4" });\n');
+        files.push(f);
+      }
+      const findings = await run(new LLMRedTeam(), files, dir);
+      assert.equal(findings.filter(f => f.rule === 'LLM_NO_COST_LIMIT').length, 1);
+    } finally { cleanup(dir); }
+  });
+
+  it('stays quiet about spend controls when a budget exists somewhere', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-llm2-'));
+    try {
+      const a = path.join(dir, 'call.js');
+      const b = path.join(dir, 'config.js');
+      fs.writeFileSync(a, 'await client.chat.completions.create({ model: "gpt-4" });\n');
+      fs.writeFileSync(b, 'export const TOKEN_BUDGET = 100000;\n');
+      const findings = await run(new LLMRedTeam(), [a, b], dir);
+      assert.equal(findings.filter(f => f.rule === 'LLM_NO_COST_LIMIT').length, 0);
+    } finally { cleanup(dir); }
+  });
+});

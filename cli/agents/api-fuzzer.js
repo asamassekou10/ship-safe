@@ -88,7 +88,12 @@ const PATTERNS = [
   {
     rule: 'API_UPLOAD_NO_TYPE_CHECK',
     title: 'API: File Upload Without Type Validation',
-    regex: /(?<!_)(?:originalname|filename)\s*(?:\)|;)/g,
+    // Same failure as API_PATH_IN_FILENAME in 9.6.4: an Express upload rule
+    // matching Python. `filename)` and `filename;` occur in every language that
+    // has a variable called filename — `os.path.basename(filename)` alone
+    // accounted for much of the 104 hits on hermes-agent. Require the multer
+    // property access that marks the value as upload-controlled.
+    regex: /\b(?:file|files\[\d*\]|req\.file|req\.files\[\d*\])\s*\.\s*(?:originalname|filename)\s*(?:\)|;|,|\})/g,
     severity: 'high',
     cwe: 'CWE-434',
     owasp: 'A04:2021',
