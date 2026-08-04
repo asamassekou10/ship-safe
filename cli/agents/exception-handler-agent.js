@@ -27,6 +27,7 @@ const PATTERNS = [
   // ── Empty/Silent Error Handling ────────────────────────────────────────────
   {
     rule: 'EXCEPTION_EMPTY_CATCH',
+    category: 'quality',   // maintainability, not a vulnerability — reported, not scored
     title: 'Exception: Empty catch Block',
     regex: /catch\s*\(\s*(?:e|err|error|ex|exception|_)?\s*\)\s*\{\s*\}/g,
     severity: 'medium',
@@ -37,6 +38,7 @@ const PATTERNS = [
   },
   {
     rule: 'EXCEPTION_CATCH_COMMENT_ONLY',
+    category: 'quality',   // maintainability, not a vulnerability — reported, not scored
     title: 'Exception: catch Block With Only a Comment',
     regex: /catch\s*\(\s*\w*\s*\)\s*\{\s*\/\/[^\n]*\s*\}/g,
     severity: 'low',
@@ -48,6 +50,7 @@ const PATTERNS = [
   },
   {
     rule: 'EXCEPTION_PYTHON_BARE_EXCEPT',
+    category: 'quality',   // maintainability, not a vulnerability — reported, not scored
     title: 'Exception: Python Bare except: (catches everything)',
     regex: /^(\s*)except\s*:\s*$/gm,
     severity: 'high',
@@ -58,6 +61,7 @@ const PATTERNS = [
   },
   {
     rule: 'EXCEPTION_PYTHON_PASS',
+    category: 'quality',   // maintainability, not a vulnerability — reported, not scored
     title: 'Exception: Python except with pass',
     regex: /except\s+\w+(?:\s+as\s+\w+)?:\s*\n\s+pass\s*$/gm,
     severity: 'medium',
@@ -118,6 +122,7 @@ const PATTERNS = [
   // ── Generic Catch-All Without Rethrow ─────────────────────────────────────
   {
     rule: 'EXCEPTION_CATCH_ALL_NO_RETHROW',
+    category: 'quality',   // maintainability, not a vulnerability — reported, not scored
     title: 'Exception: catch(Exception) Without Rethrow',
     regex: /catch\s*\(\s*(?:Exception|Error|Throwable|BaseException)\s+\w+\s*\)\s*\{(?:(?!throw\b|rethrow\b).){0,200}\}/gs,
     severity: 'medium',
@@ -144,6 +149,7 @@ const PATTERNS = [
   // ── Resource Cleanup ──────────────────────────────────────────────────────
   {
     rule: 'EXCEPTION_OPEN_WITHOUT_CLOSE',
+    category: 'quality',   // maintainability, not a vulnerability — reported, not scored
     title: 'Exception: Resource Opened Without finally/close',
     regex: /(?:createConnection|createPool|open\(|connect\()[\s\S]{0,500}(?:(?!\.finally|\.close\(|\.end\(|\.release\(|\.destroy\(|finally\s*\{|with\s).){200,}$/gm,
     severity: 'low',

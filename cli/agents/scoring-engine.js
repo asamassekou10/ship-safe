@@ -33,7 +33,24 @@ const CATEGORIES = {
   'supply-chain':{ weight: 12, label: 'Supply Chain',           deductions: { critical: 15, high: 8,  medium: 3 } },
   api:           { weight: 10, label: 'API Security',           deductions: { critical: 15, high: 8,  medium: 3 } },
   llm:           { weight: 12, label: 'AI/LLM Security',       deductions: { critical: 15, high: 8,  medium: 3 } },
+
+  // Reported, never scored. `weight: 0` keeps it out of the total, and
+  // `scored: false` is what the rest of the pipeline checks.
+  //
+  // These are maintainability findings, not vulnerabilities. `.unwrap()` in
+  // Rust and a bare `except:` in Python are worth telling someone about and
+  // are not security defects, and mixing them into a security grade is how a
+  // report earns the reputation of being noise. SonarQube draws the same line:
+  // its security rating moves on vulnerabilities only, and code smells never
+  // touch it. On hermes-agent this is 58 RUST_UNWRAP_IN_PROD findings that
+  // were dragging a security score down.
+  quality:       { weight: 0,  label: 'Code Quality',           scored: false, deductions: {} },
 };
+
+/** Categories that contribute to the score. */
+const SCORED_CATEGORIES = Object.fromEntries(
+  Object.entries(CATEGORIES).filter(([, c]) => c.scored !== false)
+);
 
 // Fallback categories for findings that don't match a known category
 const FALLBACK_CATEGORY_MAP = {
@@ -147,7 +164,7 @@ export class ScoringEngine {
     // ── Compute deductions per category (confidence-weighted) ─────────────────
     const CONFIDENCE_MULTIPLIER = { high: 1.0, medium: 0.6, low: 0.3 };
 
-    for (const [key, config] of Object.entries(CATEGORIES)) {
+    for (const [key, config] of Object.entries(SCORED_CATEGORIES)) {
       const result = categoryResults[key];
       let deduction = 0;
 

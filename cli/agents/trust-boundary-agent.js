@@ -77,7 +77,7 @@ export class TrustBoundaryAgent extends BaseAgent {
     for (const file of this.getFilesToScan(context)) {
       const base = path.basename(file).toLowerCase();
       if (AGENT_CONTEXT.has(base) || /(^|\/)docs\//.test(file.replace(/\\/g, '/'))) {
-        findings.push(...this._scanAgentDoc(file));
+        findings.push(...this._scanAgentDoc(file, rootPath));
       }
     }
 
@@ -140,7 +140,51 @@ export class TrustBoundaryAgent extends BaseAgent {
 
   // ── Friendly Fire ─────────────────────────────────────────────────────────────
 
-  _scanAgentDoc(file) {
+  /**
+   * Hosts the project itself owns, from package.json `homepage` and
+   * `repository`.
+   *
+   * A project documenting its own installer is not Friendly Fire. The threat
+   * is an agent being steered into running *someone else's* script; when the
+   * script comes from the project the agent is already working inside, the
+   * agent gained nothing it did not already have. hermes-agent reported 32 of
+   * these, every one its own documented `curl | bash` install line repeated
+   * across translated READMEs and the docs site.
+   *
+   * Reported as a lower-severity note rather than dropped, because a
+   * download-and-run step is still worth seeing in a report.
+   */
+  _ownHosts(rootPath) {
+    if (this._ownHostCache) return this._ownHostCache;
+    const hosts = new Set();
+    try {
+      const pkgPath = path.join(rootPath, 'package.json');
+      if (fs.existsSync(pkgPath)) {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+        const urls = [
+          pkg.homepage,
+          typeof pkg.repository === 'string' ? pkg.repository : pkg.repository?.url,
+        ].filter(Boolean);
+        for (const raw of urls) {
+          const cleaned = String(raw).replace(/^git\+/, '').replace(/\.git$/, '');
+          try { hosts.add(new URL(cleaned).hostname.replace(/^www\./, '')); } catch { /* not a URL */ }
+        }
+      }
+    } catch { /* unreadable or malformed package.json */ }
+    this._ownHostCache = hosts;
+    return hosts;
+  }
+
+  _isOwnHost(snippet, rootPath) {
+    const own = this._ownHosts(rootPath);
+    if (own.size === 0) return false;
+    const url = snippet.match(/https?:\/\/([^/\s'"`)]+)/i);
+    if (!url) return false;
+    const host = url[1].replace(/^www\./, '');
+    return [...own].some(o => host === o || host.endsWith(`.${o}`) || o.endsWith(`.${host}`));
+  }
+
+  _scanAgentDoc(file, rootPath) {
     const content = this.readFile(file);
     if (!content) return [];
     const findings = [];
@@ -148,13 +192,18 @@ export class TrustBoundaryAgent extends BaseAgent {
 
     let m;
     if ((m = CURL_BASH.exec(content)) || (m = IEX_CRADLE.exec(content))) {
+      const ownHost = this._isOwnHost(m[0], rootPath);
       findings.push(createFinding({
-        file, line: lineOf(m.index), severity: 'high', category: 'agentic',
+        file, line: lineOf(m.index), severity: ownHost ? 'low' : 'high', category: 'agentic',
         rule: 'AGENT_REMOTE_EXEC_INSTRUCTION',
-        title: 'Download-and-run command in an agent-read file',
-        description: 'This file — which AI coding agents ingest as context — instructs downloading and executing a remote script (curl|bash / PowerShell cradle). An agent following the repo\'s setup steps would run attacker-controlled code (Friendly Fire).',
+        title: ownHost
+          ? 'Download-and-run command in the project\'s own install docs'
+          : 'Download-and-run command in an agent-read file',
+        description: ownHost
+          ? 'This file instructs downloading and executing a script from the project\'s own domain. An agent already working inside this repository gains nothing it did not have, so this is a note rather than a Friendly Fire finding — but a piped installer is still worth pinning and checksumming.'
+          : 'This file — which AI coding agents ingest as context — instructs downloading and executing a remote script (curl|bash / PowerShell cradle). An agent following the repo\'s setup steps would run attacker-controlled code (Friendly Fire).',
         matched: m[0].slice(0, 100).replace(/\n/g, ' '),
-        confidence: 'high', cwe: 'CWE-77',
+        confidence: ownHost ? 'low' : 'high', cwe: 'CWE-77',
         fix: 'Never pipe a downloaded script to a shell. Pin and vendor install steps; agents should not execute remote code from a repo\'s docs.',
       }));
     }
