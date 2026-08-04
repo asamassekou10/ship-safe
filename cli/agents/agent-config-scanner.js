@@ -198,7 +198,15 @@ const PATTERNS = [
   {
     rule: 'AGENT_CFG_UNICODE_TAGS',
     title: 'Agent Config: Invisible Unicode Tag Characters',
-    regex: /[\u{E0001}-\u{E007F}]/gu,
+    // Excludes RGI emoji flag tag sequences, which are built from these exact
+    // characters: U+1F3F4, a subdivision code in tag letters, then U+E007F.
+    // That is how 🏴󠁧󠁢󠁳󠁣󠁴󠁿, 🏴󠁧󠁢󠁷󠁬󠁳󠁿 and 🏴󠁧󠁢󠁥󠁮󠁧󠁿 are encoded, so any document using one was
+    // reported as critical invisible prompt injection.
+    //
+    // The lookbehind excuses a tag character only while it is still inside a
+    // well-formed sequence, so a payload placed after a legitimate flag — the
+    // obvious evasion — is still caught.
+    regex: /(?<!\u{1F3F4}[\u{E0020}-\u{E007E}]{0,8})[\u{E0001}-\u{E007F}]/gu,
     severity: 'critical',
     cwe: 'CWE-116',
     owasp: 'ASI01',
