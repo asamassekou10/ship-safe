@@ -10,8 +10,8 @@
       "findings": 22,
       "critical": 0,
       "high": 5,
-      "score": 71.3,
-      "grade": "C"
+      "score": 81.2,
+      "grade": "B"
     },
     {
       "id": "requests",
@@ -20,7 +20,7 @@
       "findings": 11,
       "critical": 1,
       "high": 2,
-      "score": 81.1,
+      "score": 87,
       "grade": "B"
     },
     {
@@ -30,8 +30,8 @@
       "findings": 20,
       "critical": 0,
       "high": 7,
-      "score": 67.7,
-      "grade": "C"
+      "score": 81.6,
+      "grade": "B"
     },
     {
       "id": "chalk",
@@ -40,8 +40,8 @@
       "findings": 4,
       "critical": 0,
       "high": 4,
-      "score": 87.2,
-      "grade": "B"
+      "score": 91.8,
+      "grade": "A"
     },
     {
       "id": "hermes-agent",
@@ -49,8 +49,8 @@
       "commit": "743dc94ab90adb0529bb233b8498c6fd6ee0e020",
       "findings": 799,
       "critical": 115,
-      "high": 226,
-      "score": 13,
+      "high": 225,
+      "score": 20.9,
       "grade": "F"
     }
   ],

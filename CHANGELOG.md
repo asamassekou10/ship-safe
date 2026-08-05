@@ -96,6 +96,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   This was found by auditing the shape described below, and it was the only
   unambiguous false positive in the group.
 
+### Changed
+
+- **`ci` now gates on severity, not on the composite score.** The default is
+  `--fail-on critical`; `--fail-on high|medium|none` adjusts it. `--threshold`
+  still works and still wins when passed explicitly, so pipelines that pinned a
+  score — including the GitHub Action, which always passes one — keep their
+  existing behaviour.
+
+  The old default was `score < 75`. A composite score is a poor gate, and no
+  comparable tool uses one: Snyk gates on `--severity-threshold`, Trivy on
+  `--severity`, and SonarQube's security rating is set by the worst finding
+  rather than the volume of findings. Ours could not distinguish 30 findings
+  from 7,000, so a pipeline gating on it was gating on noise.
+
+- **Code-quality findings no longer affect the security score.** A new
+  `quality` category is reported but never scored, and `RUST_UNWRAP_IN_PROD`
+  plus the maintainability half of the `EXCEPTION_*` family now route to it.
+  SonarQube draws the same line — code smells never touch its security rating.
+  The security-relevant exception rules (`EXCEPTION_STACK_IN_RESPONSE`,
+  `EXCEPTION_FULL_ERROR_RESPONSE`, and the unhandled-rejection rules) are
+  unchanged, because the classification is per rule, not per agent.
+
+- **`AGENT_REMOTE_EXEC_INSTRUCTION` distinguishes whose host is being piped
+  into a shell.** A project documenting its own installer drops to `low`; a
+  third-party host stays at `high`. The Friendly Fire threat is an agent being
+  steered into running *someone else's* script, and an agent already working
+  inside the repository gains nothing from the project's own install line.
+  hermes-agent reported 32 of these, every one its own documented
+  `curl | bash` repeated across translated READMEs.
+
 ### Known issues
 
 - The score saturates after 3–5 medium findings per category, which is why

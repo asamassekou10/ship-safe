@@ -53,8 +53,9 @@ npx ship-safe agent . --branch --pr         # fix on a branch + open a PR
 # Undo the last fix
 npx ship-safe undo
 
-# CI/CD mode
-npx ship-safe ci . --threshold 80 --sarif results.sarif
+# CI/CD mode — fails on any critical finding
+npx ship-safe ci . --sarif results.sarif
+npx ship-safe ci . --fail-on high          # stricter: critical or high
 ```
 
 ## What Ship Safe Finds
@@ -189,7 +190,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Security gate
-        run: npx ship-safe ci . --threshold 75 --sarif results.sarif
+        run: npx ship-safe ci . --sarif results.sarif
       - uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:

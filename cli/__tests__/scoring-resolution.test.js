@@ -67,3 +67,34 @@ describe('scoring stays responsive as findings grow', () => {
     }
   });
 });
+
+describe('quality findings are reported but never scored', async () => {
+  const { ScoringEngine } = await import('../agents/scoring-engine.js');
+
+  it('does not let a maintainability finding move the score', () => {
+    const engine = new ScoringEngine();
+    const clean = engine.compute([], []);
+    const withQuality = engine.compute(
+      Array(50).fill({ severity: 'medium', category: 'quality', confidence: 'high' }), []);
+
+    assert.equal(withQuality.score, clean.score,
+      'code-quality findings must not affect a security score');
+  });
+
+  it('still counts them so they show up in the report', () => {
+    const engine = new ScoringEngine();
+    const result = engine.compute(
+      [{ severity: 'medium', category: 'quality', confidence: 'high' }], []);
+
+    assert.equal(result.categories.quality.counts.medium, 1);
+  });
+
+  it('keeps scoring real security findings alongside them', () => {
+    const engine = new ScoringEngine();
+    const mixed = engine.compute([
+      { severity: 'critical', category: 'secrets', confidence: 'high' },
+      ...Array(20).fill({ severity: 'medium', category: 'quality', confidence: 'high' }),
+    ], []);
+    assert.ok(mixed.score < 100, 'a critical secret must still cost');
+  });
+});

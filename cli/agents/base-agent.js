@@ -329,7 +329,11 @@ export class BaseAgent {
             line: i + 1,
             column: match.index + 1,
             severity,
-            category: this.category,
+            // A pattern may override its agent's category. Used to route
+            // maintainability rules to `quality`, which is reported but never
+            // scored — an agent can hold both kinds, and the distinction is
+            // per rule, not per agent.
+            category: p.category || this.category,
             rule: p.rule,
             title: p.title,
             description: p.description,
