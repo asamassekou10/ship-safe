@@ -22,7 +22,7 @@ Mature, heavily reviewed projects with no known active vulnerabilities.
 | [requests](https://github.com/psf/requests) | 11 | 1 | 81.1 | B | 15 |
 | [flask](https://github.com/pallets/flask) | 20 | 0 | 67.7 | C | 28 |
 | [chalk](https://github.com/chalk/chalk) | 4 | 0 | 87.2 | B | 4 |
-| [hermes-agent](https://github.com/NousResearch/hermes-agent) | 799 | 115 | 13 | F | — |
+| [hermes-agent](https://github.com/NousResearch/hermes-agent) | 785 | 101 | 19.5 | F | — |
 | **total (original four)** | **57** | **1** | | | **73** |
 
 Before the 9.6.3 false-positive work these same four projects produced **1031**
@@ -57,11 +57,20 @@ mistaken for progress when it is really lost detection.
 | project | findings | critical | high |
 |---|---|---|---|
 | [NodeGoat](https://github.com/OWASP/NodeGoat) | 74 | 9 | 18 |
-| [DVWA](https://github.com/digininja/DVWA) | 76 | 6 | 55 |
+| [DVWA](https://github.com/digininja/DVWA) | 71 | 1 | 55 |
 
-Across the entire recalibration NodeGoat did not move by a single finding, and
-DVWA's criticals and highs are unchanged. DVWA's 7 lost mediums were
-`$_DVWA['db_server'] = '127.0.0.1'` in translated READMEs and similar.
+Across the entire recalibration NodeGoat did not move by a single finding.
+
+DVWA's criticals went from 6 to 1 when rules gained language scope, and that
+number deserves explaining rather than burying, because a drop in the
+vulnerable corpus is exactly what this table exists to catch.
+
+All five were `SSRF_USER_URL_FETCH` on `fetch(url, {...})` inside `<script>`
+blocks in PHP templates. That is browser JavaScript making a client-side
+request. Server-side request forgery requires the server to make the request,
+so a client-side `fetch` is not SSRF under any reading. DVWA has plenty of real
+vulnerabilities; these five were not among them, and the one remaining critical
+is unaffected. Highs are unchanged at 55.
 
 ### The score column is less informative than it looks
 

@@ -76,6 +76,48 @@ export function createFinding({
 }
 
 // =============================================================================
+// LANGUAGE RESOLUTION
+// =============================================================================
+
+/**
+ * Map a file extension to the language a rule can be written against.
+ *
+ * Rules are overwhelmingly shaped by one language's syntax, but agents scan
+ * several. 9.6.4 fixed an Express file-upload rule that matched the substring
+ * `path.join(` inside Python's `os.path.join(self.root_path, filename)` and
+ * reported critical on Flask's own config loader. That was not a bad regex so
+ * much as a missing abstraction: nothing let the rule say which language it
+ * described.
+ *
+ * A pattern declares `langs: ['js']` and stops being applied to Ruby. Anything
+ * without the field keeps running everywhere, so this is additive.
+ */
+const EXT_LANGUAGE = {
+  '.js': 'js', '.jsx': 'js', '.mjs': 'js', '.cjs': 'js',
+  '.ts': 'js', '.tsx': 'js', '.mts': 'js', '.cts': 'js',
+  '.py': 'python', '.pyi': 'python',
+  '.rb': 'ruby', '.rake': 'ruby',
+  '.php': 'php',
+  '.go': 'go',
+  '.java': 'java',
+  '.rs': 'rust',
+  '.cs': 'csharp',
+  '.sql': 'sql',
+  '.sh': 'shell', '.bash': 'shell', '.zsh': 'shell',
+};
+
+/**
+ * Language for a path, or null when we have no opinion.
+ *
+ * Null means "do not filter". A rule scoped to `['js']` still runs against a
+ * .json config or a .md file, because those carry no language of their own and
+ * silently skipping them would be a detection loss dressed up as precision.
+ */
+export function languageOf(filePath) {
+  return EXT_LANGUAGE[path.extname(String(filePath || '')).toLowerCase()] || null;
+}
+
+// =============================================================================
 // SUPPRESSION FLOOR
 // =============================================================================
 
@@ -289,6 +331,7 @@ export class BaseAgent {
     const content = this.readFile(filePath);
     if (!content) return [];
 
+    const lang = languageOf(filePath);
     const lines = content.split('\n');
     const findings = [];
 
@@ -308,6 +351,10 @@ export class BaseAgent {
 
       for (const p of patterns) {
         if (p.skipComments && isCommentLine) continue;
+        // A pattern that declares `langs` only runs against those languages.
+        // Absent, it runs everywhere, so existing rules are unaffected and the
+        // field can be adopted agent by agent.
+        if (p.langs && lang && !p.langs.includes(lang)) continue;
         const severity = p.severity || 'medium';
 
         // Collect matches first. Suppression is only meaningful for a pattern
