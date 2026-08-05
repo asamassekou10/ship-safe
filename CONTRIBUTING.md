@@ -104,6 +104,54 @@ Before opening a PR, please confirm:
 - [ ] New detector behavior has a test or fixture when practical
 - [ ] Documentation changed if the user-facing behavior changed
 - [ ] No real secrets, tokens, customer data, or private repo URLs were added
+- [ ] The false-positive benchmark was run, if you touched a rule (see below)
+- [ ] Absence rules assert the quiet direction (see below)
+
+### If You Touched a Rule: Run the Benchmark
+
+```bash
+node benchmarks/false-positives/run.mjs --clone   # first time only
+node benchmarks/false-positives/run.mjs
+```
+
+Paste the before and after in your PR. What we look for:
+
+- **Clean corpus should drop or hold.** These are mature, heavily reviewed
+  projects. A finding on one of them is triage work a user inherits.
+- **NodeGoat and DVWA must not move.** They are deliberately vulnerable and
+  exist so a drop in noise cannot be mistaken for progress when it is really
+  lost detection. If they do move, say why in the PR. Sometimes it is correct,
+  but it always needs explaining.
+
+This is not ceremony. Nearly every fix in 9.7.0 came from running this and
+reading the output honestly, including a rule that reported 1,963 findings on a
+single contributor credits file.
+
+### If Your Rule Asserts an Absence, Test the Quiet Direction
+
+A rule that reports something *missing* — no logging, no rate limit, no schema
+validation — has a failure mode a normal detection test never catches. It can
+be structurally incapable of staying quiet.
+
+Written like this, it never fails:
+
+```js
+regex: /tool_call[\s\S]{0,300}(?![\s\S]{0,300}(?:log|audit))/
+```
+
+The gap backtracks until the lookahead succeeds, so the rule degrades into
+"this line contains `tool_call`". That exact pattern shipped and produced 1,904
+findings on one repository.
+
+Prefer a structural check that answers two questions per file: does this file
+do the thing, and does anything here mitigate it. `AGENT_STRUCTURAL_RULES` in
+`cli/agents/agentic-security-agent.js` is the shape to copy.
+
+Then add a case to `cli/__tests__/absence-rules.test.js`: give the rule an
+input where the mitigation is present, and assert it stays silent. Be generous
+about what counts as a mitigation. The finding claims nothing here does X, so
+one instance of X refutes it, and a stingy check trades a loud wrong answer for
+a quiet one.
 
 ### Adding Secret Patterns
 

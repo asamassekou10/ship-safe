@@ -283,6 +283,17 @@ they beat us: **[docs/comparison.md](docs/comparison.md)**
 
 ---
 
+## What's Next
+
+**10.0 is Hermes Agent coverage.** Ship Safe already scans Hermes deployments,
+but against v0.13.0 while Hermes is on v0.20.0 — the ACP adapter, TUI gateway,
+serverless terminal backends, cron blueprints and plugin manifests all shipped
+in between with no coverage.
+
+See the [roadmap](./ROADMAP.md) for what is planned and what is deliberately
+not, and the [10.0 milestone](https://github.com/asamassekou10/ship-safe/milestone/1)
+for claimable work. Everything in it is open to contributors.
+
 ## Contributing
 
 Ship Safe is open source, and the best contributions are small, focused improvements that make AI-assisted development safer.
