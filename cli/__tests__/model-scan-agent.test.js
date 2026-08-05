@@ -107,7 +107,7 @@ describe('ModelScanAgent — source loaders', () => {
   it('flags mutable Hugging Face references and remote code', async () => {
     const file = path.join(FIXTURES, 'mutable.py');
     const f = await scan(FIXTURES, [file]);
-    assert.ok(f.some((x) => x.rule === 'RAG_TRUST_REMOTE_CODE'));
+    // trust_remote_code is RAGSecurityAgent's rule, asserted in its own suite.
     assert.equal(f.filter((x) => x.rule === 'MODEL_MUTABLE_REMOTE_REFERENCE').length, 3);
     assert.ok(f.some((x) => x.rule === 'MODEL_MUTABLE_RAW_URL'));
     assert.ok(f.some((x) => x.rule === 'MODEL_MUTABLE_DOWNLOAD_PICKLE_LOAD' && x.severity === 'critical'));
