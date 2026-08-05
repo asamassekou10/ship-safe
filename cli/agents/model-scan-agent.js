@@ -53,15 +53,11 @@ const ZIP_MAGIC = Buffer.from([0x50, 0x4b, 0x03, 0x04]); // PyTorch .pt is a zip
 
 // Source-level unsafe loaders.
 const SOURCE_PATTERNS = [
-  {
-    regex: /trust_remote_code\s*=\s*True/g,
-    rule: 'RAG_TRUST_REMOTE_CODE',
-    title: 'Model loaded with trust_remote_code=True',
-    severity: 'high',
-    description: 'The model loader allows executable Python code from the remote model repository.',
-    cwe: 'CWE-829',
-    fix: 'Set trust_remote_code=False and use a model whose code has been reviewed and pinned.',
-  },
+  // trust_remote_code=True is already covered by RAG_TRUST_REMOTE_CODE in
+  // rag-security-agent.js, with the same regex and severity. Emitting it from
+  // here too gave one line of source two findings under one rule ID, with two
+  // different CWEs and categories, which makes the rule impossible to reason
+  // about downstream. RAGSecurityAgent scans .py, so coverage is unchanged.
   {
     regex: /torch\s*\.\s*load\s*\((?![^)]*weights_only\s*=\s*True)/g,
     rule: 'MODEL_TORCH_LOAD_UNSAFE',
