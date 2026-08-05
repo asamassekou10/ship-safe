@@ -20,8 +20,12 @@ const RAG_DOC_RE = /(?:^|\/)(?:docs|knowledge|rag|content|prompts|instructions|p
 
 const UNTRUSTED_TEXT_RE = /(?:ignore\s+(?:all\s+)?(?:previous|prior|above)\s+instructions|disregard\s+(?:all\s+)?(?:previous|prior|above)|override\s+(?:system|previous|all)\s+(?:instructions|prompt|rules)|reveal\s+(?:the\s+)?(?:system\s+prompt|developer\s+message|hidden\s+instructions)|send\s+(?:all\s+)?(?:files|code|secrets|tokens|keys|env|\.env)|exfiltrate|upload\s+(?:all\s+)?(?:files|code|secrets|tokens|keys)|curl\s+https?:\/\/|wget\s+https?:\/\/|webhook\.site|requestbin\.com|pipedream\.net|ngrok\.(?:io|app)|canarytokens\.com)/i;
 // Unicode tag characters are intentionally matched as a range of invisible code points.
+//
+// The tag-character branch excludes RGI emoji flag sequences (U+1F3F4 + tag
+// letters + U+E007F), which are legitimate and otherwise read as invisible
+// prompt injection. See AGENT_CFG_UNICODE_TAGS for the full reasoning.
 // eslint-disable-next-line no-misleading-character-class
-const HIDDEN_TEXT_RE = /[\u{E0001}-\u{E007F}]|[\u200B\u200C\u200D\uFEFF\u2060]{4,}|<!--[\s\S]{0,500}?(?:ignore|override|execute|send|exfiltrate|upload|curl|wget)[\s\S]{0,500}?-->/iu;
+const HIDDEN_TEXT_RE = /(?<!\u{1F3F4}[\u{E0020}-\u{E007E}]{0,8})[\u{E0001}-\u{E007F}]|[\u200B\u200C\u200D\uFEFF\u2060]{4,}|<!--[\s\S]{0,500}?(?:ignore|override|execute|send|exfiltrate|upload|curl|wget)[\s\S]{0,500}?-->/iu;
 
 const TOOL_CAPABILITY_RE = /(?:tools?|functions?|actions?|capabilities|permissions?|allow(?:ed)?|always_allow|auto_approve|auto_execute|dangerously-skip-permissions|workspace-write|danger-full-access|filesystem|readFile|writeFile|shell|bash|exec|spawn|curl|wget|fetch|http|network|mcpServers?)/i;
 const SECRET_CAPABILITY_RE = /(?:\.env|process\.env|env\s*:|api[_-]?key|token|secret|authorization|bearer|vault|credentials?|access_token|refresh_token|client_secret|service_role)/i;
