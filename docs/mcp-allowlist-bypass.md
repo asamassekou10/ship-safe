@@ -77,6 +77,6 @@ List each permitted tool by its real name, avoid alias mappings for tools you
 allowlist, and keep permission blocks flat so a denial can't be re-opened by a
 nested override further down the config.
 
-Run `ship-safe scan .` to check project-local MCP configuration for these
+Run `ship-safe audit .` to check project-local MCP configuration for these
 patterns. Findings are reported under `MCP_ALLOWLIST_WILDCARD`,
 `MCP_TOOL_ALIAS_BYPASS`, and `MCP_NESTED_PERMISSION_OVERRIDE`.
