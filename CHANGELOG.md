@@ -6,7 +6,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased]
+## [9.7.0] — 2026-08-05 — Calibration
+
+This release changes what existing scans report and how `ci` decides to fail.
+
+It came out of pointing the scanner at a large, actively maintained AI agent
+codebase and taking the result seriously. [hermes-agent](https://github.com/NousResearch/hermes-agent)
+at `743dc94` produced **6,948 findings** on the first run and graded 13/F. It
+now produces **785**, an 89% reduction, and every rule changed to get there is
+listed below.
+
+Detection did not move. NodeGoat holds at 74 findings / 9 critical / 18 high
+across the entire release, and the clean corpus improves from 73 findings to 57.
+
+Two things behind the noise turned out to be structural rather than a matter of
+tuning, and both are fixed here: rules that assert an absence could not fail,
+and the score saturated after three to five findings per category. The second
+is why `ci` now gates on severity instead.
 
 ### Added
 - **MCP allowlist bypass detection** in `MCPSecurityAgent`:
