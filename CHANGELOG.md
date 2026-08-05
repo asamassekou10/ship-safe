@@ -6,6 +6,37 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **A repository with a critical finding could still grade A.** The asymptotic
+  deduction curve added in 9.7.0 restored resolution at the high end and made
+  the low end far too generous: a single command injection scored 91.4 and
+  graded **"A — Ship it!"**, while `ci` on the same repository exited 1. Two
+  parts of the tool were telling a user opposite things about the same code,
+  and the friendlier one was wrong.
+
+  The worst finding now caps the grade. Any critical caps at D regardless of
+  score, which is the line SonarQube draws — its security rating is set by the
+  most severe issue, not by how many there are. The score is unchanged and
+  still answers the volume question.
+
+  Deliberately narrow: highs and mediums do not cap. They are
+  confidence-weighted and noisier, and capping on them would move most of the
+  corpus for less reason.
+
+  Corpus effect is one project. `requests` goes B to D on its single critical,
+  which is the `GIT_HISTORY_SECRET` test-fixture key already documented as a
+  known false positive. It should stop grading D once that is fixed, which is
+  the right incentive.
+
+### Added
+- **`docs/design.md`** — what the tool is for, the four ideas that shape it,
+  how we verify any of it, and what we deliberately do not do. Written during a
+  coherence pass over 9.7.0, which is what surfaced the grading bug above.
+
+---
+
 ## [9.7.2] — 2026-08-08 — Claude Code protection status
 
 ### Added

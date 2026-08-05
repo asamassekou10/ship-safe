@@ -18,11 +18,11 @@ Mature, heavily reviewed projects with no known active vulnerabilities.
 
 | project | findings | critical | score | grade | was (9.6.3) |
 |---|---|---|---|---|---|
-| [express](https://github.com/expressjs/express) | 22 | 0 | 71.3 | C | 26 |
-| [requests](https://github.com/psf/requests) | 11 | 1 | 81.1 | B | 15 |
-| [flask](https://github.com/pallets/flask) | 20 | 0 | 67.7 | C | 28 |
-| [chalk](https://github.com/chalk/chalk) | 4 | 0 | 87.2 | B | 4 |
-| [hermes-agent](https://github.com/NousResearch/hermes-agent) | 785 | 101 | 19.5 | F | — |
+| [express](https://github.com/expressjs/express) | 22 | 0 | 81.2 | B | 26 |
+| [requests](https://github.com/psf/requests) | 11 | 1 | 87 | D | 15 |
+| [flask](https://github.com/pallets/flask) | 20 | 0 | 81.6 | B | 28 |
+| [chalk](https://github.com/chalk/chalk) | 4 | 0 | 91.8 | A | 4 |
+| [hermes-agent](https://github.com/NousResearch/hermes-agent) | 785 | 101 | 20.9 | F | — |
 | **total (original four)** | **57** | **1** | | | **73** |
 
 Before the 9.6.3 false-positive work these same four projects produced **1031**
@@ -71,6 +71,23 @@ request. Server-side request forgery requires the server to make the request,
 so a client-side `fetch` is not SSRF under any reading. DVWA has plenty of real
 vulnerabilities; these five were not among them, and the one remaining critical
 is unaffected. Highs are unchanged at 55.
+
+### Why requests scores 87 and grades D
+
+Because the score and the grade answer different questions, on purpose.
+
+The score is about volume: 11 findings on a large mature library is very
+little, and 87 says so. The grade is about worst case: one of those 11 is
+critical, so the answer to "can I ship this" is no regardless of how few there
+are.
+
+A critical finding caps the grade at D. Without that cap a repository with a
+single command injection scored 91.4 and graded "A — Ship it!" while `ci` on
+the same repository exited 1, which is the tool contradicting itself in the
+direction of reassurance.
+
+requests' one critical is the known false positive named below. It should stop
+grading D once that is fixed, which is the right incentive.
 
 ### The score column is less informative than it looks
 
