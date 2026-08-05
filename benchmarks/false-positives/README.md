@@ -8,21 +8,22 @@ This measures the other half. What does Ship Safe say about code that is almost
 certainly fine? Every finding on a healthy codebase is triage work a user
 inherits, and enough of them make a tool something you turn off.
 
-## Results — v9.6.3
+## Results — unreleased
 
-Ship Safe `9.6.3`, `ship-safe ci --no-deps`, corpus pinned by commit.
+Ship Safe at `HEAD`, `ship-safe ci --no-deps`, corpus pinned by commit.
 
 ### Clean corpus
 
 Mature, heavily reviewed projects with no known active vulnerabilities.
 
-| project | findings | critical | score | grade |
-|---|---|---|---|---|
-| [express](https://github.com/expressjs/express) | 26 | 0 | 63.1 | C |
-| [requests](https://github.com/psf/requests) | 15 | 1 | 74.5 | C |
-| [flask](https://github.com/pallets/flask) | 28 | 0 | 54.5 | D |
-| [chalk](https://github.com/chalk/chalk) | 4 | 0 | 87.2 | B |
-| **total** | **73** | **1** | | |
+| project | findings | critical | score | grade | was (9.6.3) |
+|---|---|---|---|---|---|
+| [express](https://github.com/expressjs/express) | 22 | 0 | 71.3 | C | 26 |
+| [requests](https://github.com/psf/requests) | 11 | 1 | 81.1 | B | 15 |
+| [flask](https://github.com/pallets/flask) | 20 | 0 | 67.7 | C | 28 |
+| [chalk](https://github.com/chalk/chalk) | 4 | 0 | 87.2 | B | 4 |
+| [hermes-agent](https://github.com/NousResearch/hermes-agent) | 818 | 115 | 13 | F | — |
+| **total (original four)** | **57** | **1** | | | **73** |
 
 Before the 9.6.3 false-positive work these same four projects produced **1031**
 findings, with express alone at 811 and three of the four graded F. The bulk of
@@ -30,6 +31,23 @@ that noise was test and fixture code, which deliberately contains
 credential-shaped strings and minimal apps that skip production controls. 528 of
 express's 601 `API_NO_SECURITY_HEADERS` hits were in `test/`, against 2 in
 `lib/`.
+
+### hermes-agent, and why it is here
+
+[hermes-agent](https://github.com/NousResearch/hermes-agent) joined the clean
+corpus because the original four are small, and three of them are libraries. It
+is ~8,400 files of actively maintained Python, and it is in our own domain: an
+AI agent with tools, MCP servers, memory, and a gateway. Rules written for
+agent security should be measured against a real agent.
+
+It found more than any other corpus entry ever has. The first run reported
+**6,948 findings**, of which five rules were 4,684 — including 1,963 on a single
+contributor credit map, and two rules whose absence-assertions were structurally
+incapable of failing. It is now at **818**, an 88% reduction, with the full
+accounting in the changelog for this release.
+
+818 is not a passing number and this table does not pretend otherwise. The
+remaining tail is documented under "Known false positives" below.
 
 ### Vulnerable corpus
 
@@ -39,7 +57,22 @@ mistaken for progress when it is really lost detection.
 | project | findings | critical | high |
 |---|---|---|---|
 | [NodeGoat](https://github.com/OWASP/NodeGoat) | 74 | 9 | 18 |
-| [DVWA](https://github.com/digininja/DVWA) | 83 | 6 | 55 |
+| [DVWA](https://github.com/digininja/DVWA) | 76 | 6 | 55 |
+
+Across the entire recalibration NodeGoat did not move by a single finding, and
+DVWA's criticals and highs are unchanged. DVWA's 7 lost mediums were
+`$_DVWA['db_server'] = '127.0.0.1'` in translated READMEs and similar.
+
+### The score column is less informative than it looks
+
+Category deductions are capped at the category's weight, and the eight weights
+sum to 100. Each category therefore saturates after **3 to 5 medium-severity
+findings**. Past that point the score stops responding: hermes-agent scored 13/F
+at 6,948 findings and still scores 13/F at 818.
+
+This is why the table leads with finding counts. Treat the score as a signal
+only for small, already-clean projects, and see the tracking issue on scoring
+saturation.
 
 ## Known false positives
 
@@ -60,8 +93,28 @@ Fixed since the first run of this benchmark:
   property access such as `file.originalname` rather than any variable named
   `filename`. This benchmark is what surfaced it.
 
-Beyond critical, flask's remaining 28 findings are the weakest result in the
-corpus and are a mix rather than one dominant cause.
+Beyond critical, flask's remaining 20 findings are a mix rather than one
+dominant cause.
+
+### hermes-agent's remaining 818
+
+Not yet triaged, listed so the next pass has a starting point. Counts are from
+the run that produced this table.
+
+| rule | count | first read |
+|---|---|---|
+| `SSRF_INTERNAL_IP` | 98 | local-first software talking to its own loopback services |
+| `RUST_UNWRAP_IN_PROD` | 58 | `.unwrap()` in a small native extension; a lint, not a vulnerability, and arguably out of scope at medium |
+| `AGENT_TOOL_CALL_REPLAY_MISSING_ASSISTANT` | 33 | needs checking against their actual message-history handling |
+| `AGENT_NO_COST_LIMIT` | 33 | now per-file; a project-level question asked per file will always over-report |
+| `SLOPSQUAT_PHANTOM_IMPORT` | 33 | down from 137 after workspace resolution; the rest need checking |
+| `AGENT_REMOTE_EXEC_INSTRUCTION` | 32 | `curl \| bash` in the project's own install docs, across translations |
+| `AGENT_NO_OUTPUT_SCHEMA` | 22 | same shape as the cost-limit rule |
+| `Password Assignment` | 21 | secret scanner; needs sampling |
+
+The two structural issues behind much of this tail — rules that assert an
+absence per line, and the scoring saturation above — are tracked as issues
+rather than patched case by case.
 
 ## Honest limits
 

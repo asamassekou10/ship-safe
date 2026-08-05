@@ -19,7 +19,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { BaseAgent } from './base-agent.js';
+import { BaseAgent, createFinding } from './base-agent.js';
 
 // =============================================================================
 // MCP SECURITY PATTERNS
@@ -27,17 +27,10 @@ import { BaseAgent } from './base-agent.js';
 
 const PATTERNS = [
   // ── Tool Poisoning & Validation ──────────────────────────────────────────
-  {
-    rule: 'MCP_NO_TOOL_VALIDATION',
-    title: 'MCP: Tool Call Without Validation',
-    regex: /(?:tools\/call|tool_call|callTool|executeTool)\s*\(/g,
-    severity: 'high',
-    cwe: 'CWE-20',
-    owasp: 'A03:2021',
-    confidence: 'medium',
-    description: 'MCP tool invocation without visible tool-name validation or allowlisting. Attackers can invoke arbitrary tools via tool poisoning.',
-    fix: 'Validate tool names against an explicit allowlist before execution',
-  },
+  // MCP_NO_TOOL_VALIDATION is emitted by _checkToolValidation, not from here.
+  // As a line pattern it matched every `callTool(` site and never looked for
+  // the validation whose absence it was reporting, so it fired 95 times on
+  // hermes-agent — once per call site, in files that do validate.
   {
     rule: 'MCP_DYNAMIC_TOOL_REGISTRATION',
     title: 'MCP: Dynamic Tool Registration from External Source',
@@ -303,6 +296,7 @@ export class MCPSecurityAgent extends BaseAgent {
 
     for (const file of mcpServerFiles) {
       findings = findings.concat(this._checkServerAuth(file));
+      findings = findings.concat(this._checkToolValidation(file));
     }
 
     // ── 4. Check MCP configs for typosquatting & over-permissioned servers ─
@@ -366,6 +360,44 @@ export class MCPSecurityAgent extends BaseAgent {
   /**
    * Check if MCP server files have authentication.
    */
+  _checkToolValidation(filePath) {
+    const content = this.readFile(filePath);
+    if (!content) return [];
+
+    const dispatches = /(?:tools\/call|tool_call|callTool|executeTool)\s*\(/.test(content);
+    if (!dispatches) return [];
+
+    // Any allowlist, schema check, or membership test in the file refutes the
+    // claim that names go unvalidated. Deliberately generous: the finding says
+    // "nothing here validates," and one check is enough to disprove it.
+    const validates =
+      /(?:allow_?list|allowedTools|ALLOWED_TOOLS|SAFE_TOOLS|permitted_?tools|tool_?schema|validate\w*\s*\(|zod|pydantic|jsonschema|BaseModel)/i.test(content)
+      || /\b(?:in|includes|has|hasOwnProperty|get)\s*\(?\s*(?:ALLOWED|allowed|registry|REGISTRY|_tools|TOOLS)\b/.test(content);
+    if (validates) return [];
+
+    const lines = content.split('\n');
+    const idx = lines.findIndex(l => /(?:tools\/call|tool_call|callTool|executeTool)\s*\(/.test(l));
+    const line = idx === -1 ? 1 : idx + 1;
+    const matched = (lines[line - 1] || '').trim().slice(0, 180);
+    if (this.isSuppressed(matched, 'high')) return [];
+
+    return [createFinding({
+      file: filePath,
+      line,
+      column: 1,
+      severity: 'high',
+      category: this.category,
+      rule: 'MCP_NO_TOOL_VALIDATION',
+      title: 'MCP: Tool Call Without Validation',
+      description: 'This file dispatches MCP tool invocations but contains no tool-name allowlist or argument schema check. Tool poisoning can then invoke whatever the server exposes.',
+      matched,
+      confidence: 'medium',
+      cwe: 'CWE-20',
+      owasp: 'A03:2021',
+      fix: 'Validate tool names against an explicit allowlist, and tool arguments against a schema, before execution.',
+    })];
+  }
+
   _checkServerAuth(filePath) {
     const content = this.readFile(filePath);
     if (!content) return [];

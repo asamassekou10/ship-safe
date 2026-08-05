@@ -299,7 +299,15 @@ export class BaseAgent {
       // which pattern matched.
       const lineMarked = /ship-safe-ignore/i.test(line);
 
+      // Some rules describe code and nothing else. A comment explaining why a
+      // codebase *avoids* the cloud metadata endpoint is not a finding about
+      // the cloud metadata endpoint, and prose that happens to contain a
+      // keyword is not code. Opt-in per pattern, because other rules
+      // deliberately target comments (hidden instructions, TODO markers).
+      const isCommentLine = /^\s*(?:#|\/\/|\*|<!--|--\s|;)/.test(line);
+
       for (const p of patterns) {
+        if (p.skipComments && isCommentLine) continue;
         const severity = p.severity || 'medium';
 
         // Collect matches first. Suppression is only meaningful for a pattern
