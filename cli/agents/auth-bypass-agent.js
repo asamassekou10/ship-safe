@@ -64,7 +64,13 @@ const PATTERNS = [
     // configuration: on Flask it flagged three keys of a config dict that sets
     // SESSION_COOKIE_HTTPONLY two lines below, and a docstring describing the
     // Domain parameter. 17 of Flask's 55 findings came from this one rule.
-    regex: /(?:res\.cookie|response\.cookie|setCookie|set_cookie|Set-Cookie\s*:)\s*[(:][^;\n]{0,160}?(?:secure|domain|path|maxAge|max-age)(?![^;\n]*httponly)/gi,
+    // The lookahead has to be pinned to the start of the options, not left
+    // floating after whichever attribute happened to match. Written the old
+    // way, `{ httpOnly: true, secure: true, path: '/' }` matched on `path`
+    // and then asked whether httpOnly appeared *after* `path` — it does not,
+    // so a correctly configured cookie was reported as insecure. Anchoring
+    // the check at the call opener asks about the whole options object.
+    regex: /(?:res\.cookie|response\.cookie|setCookie|set_cookie|Set-Cookie\s*:)\s*[(:](?![^;\n]{0,200}httponly)[^;\n]{0,160}(?:secure|domain|path|maxAge|max-age)/gi,
     severity: 'medium',
     cwe: 'CWE-1004',
     owasp: 'A05:2021',
@@ -133,7 +139,12 @@ const PATTERNS = [
   {
     rule: 'OAUTH_NO_STATE',
     title: 'OAuth Missing State Parameter',
-    regex: /authorize_url|authorization_endpoint|auth_uri.*(?!state)/g,
+    // The alternation put the lookahead on the last branch only, so the first
+    // two matched any mention of an authorize URL unconditionally — and the
+    // lookahead itself, sitting after `.*`, could never fail anyway. Ask the
+    // real question: an authorization URL being built with no state parameter
+    // anywhere in its construction.
+    regex: /(?:authorize_?url|authorization_endpoint|auth_uri)\s*[:=]\s*(?:f?["'`][^"'`\n]*(?:\?|&)(?!(?:[^"'`\n]*[?&])?state=)[^"'`\n]*["'`]|[^\n]{0,80}\.(?:format|join)\((?![^\n]{0,120}state))/gi,
     severity: 'high',
     cwe: 'CWE-352',
     owasp: 'A07:2021',
@@ -200,7 +211,20 @@ const PATTERNS = [
   {
     rule: 'TIMING_ATTACK_COMPARISON',
     title: 'Timing Attack: String Comparison',
-    regex: /(?:apiKey|api_key|token|secret|signature|hmac)\s*(?:===?|!==?)\s*/gi,
+    // Comparing a secret against a sentinel is a presence check, not a
+    // timing-sensitive comparison. `if token == None` and `if not secret ==
+    // ""` are the two most common lines in any auth module and made up most of
+    // the 79 hits on hermes-agent.
+    // The whitespace has to live inside the lookahead. With `\s*` in front of
+    // it the quantifier just backtracks to zero width and the lookahead then
+    // inspects the space rather than the operand, which is why the first
+    // version of this exclusion changed nothing.
+    // A timing attack needs an attacker on one side of the comparison. Two
+    // locally-held values checked for equality — `if new_token ==
+    // self._anthropic_api_key`, cache and state bookkeeping — leak nothing to
+    // anyone, and they were all 78 remaining hits on hermes-agent. Require one
+    // side to be request-derived.
+    regex: /(?:\b(?:req|request|headers?|params|query|body|input|provided|supplied|incoming|client|candidate|given)\b[\w.[\]'"-]*\s*(?:===?|!==?)\s*[\w.]*(?:apiKey|api_key|token|secret|signature|hmac)|(?:apiKey|api_key|token|secret|signature|hmac)[\w.]*\s*(?:===?|!==?)\s*[\w.[\]'"-]*\b(?:req|request|headers?|params|query|body|input|provided|supplied|incoming|client|candidate|given)\b)/gi,
     severity: 'medium',
     cwe: 'CWE-208',
     owasp: 'A02:2021',

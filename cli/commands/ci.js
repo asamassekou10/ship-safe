@@ -3,18 +3,29 @@
  * =============================================
  *
  * Single command for CI pipelines with:
- *   - Exit code 1 if score < threshold (default 75)
+ *   - Exit code 1 if any finding meets the failure severity (default: critical)
  *   - SARIF output for GitHub Code Scanning upload
  *   - JSON output for custom integrations
  *   - Compact summary for CI logs
- *   - --fail-on flag for severity-based gating
+ *   - --threshold for score-based gating, for pipelines that already use it
  *
  * USAGE:
- *   npx ship-safe ci .                         Default: fail if score < 75
- *   npx ship-safe ci . --threshold 60          Custom score threshold
- *   npx ship-safe ci . --fail-on critical      Only fail on critical findings
+ *   npx ship-safe ci .                         Default: fail on any critical
+ *   npx ship-safe ci . --fail-on high          Fail on critical or high
+ *   npx ship-safe ci . --fail-on none          Report only, never fail
+ *   npx ship-safe ci . --threshold 60          Gate on score instead
  *   npx ship-safe ci . --sarif results.sarif   SARIF for GitHub Code Scanning
  *   npx ship-safe ci . --baseline              Only check new findings
+ *
+ * WHY SEVERITY AND NOT SCORE:
+ *   The gate used to be `score < 75`. A composite score is a poor gate and
+ *   every comparable tool avoids it — Snyk gates on --severity-threshold,
+ *   Trivy on --severity, SonarQube rates on the worst finding rather than the
+ *   volume of findings. Our own score could not tell 30 findings from 7,000
+ *   (see the scoring engine), so a pipeline gating on it was gating on noise.
+ *
+ *   `--threshold` still works and still takes precedence when set explicitly,
+ *   so pipelines that pinned a number keep their behaviour.
  */
 
 import fs from 'fs';
@@ -46,10 +57,14 @@ import fg from 'fast-glob';
 
 export async function ciCommand(targetPath = '.', options = {}) {
   const absolutePath = path.resolve(targetPath);
-  // `?? 75`, not `|| 75`: `--threshold 0` is a legitimate request to report
-  // without gating, and `||` silently turned it back into the default.
+  // Score gating is now opt-in. `--threshold 0` remains a legitimate request
+  // to report without gating, which is why this stays `??` and not `||`.
+  const thresholdSet = options.threshold !== undefined && options.threshold !== null;
   const threshold = Number(options.threshold ?? 75);
-  const failOn = options.failOn || null;
+
+  // Severity is the default gate. An explicit --threshold wins, so pipelines
+  // that already pinned a score keep the behaviour they configured.
+  const failOn = options.failOn || (thresholdSet ? null : 'critical');
   const sarifPath = options.sarif || null;
 
   if (!fs.existsSync(absolutePath)) {
@@ -197,7 +212,10 @@ export async function ciCommand(targetPath = '.', options = {}) {
   if (!pass) {
     if (!options.json) {
       if (failOn) {
-        console.log(`[ship-safe] FAIL: Found ${failOn}-severity findings`);
+        const order = ['critical', 'high', 'medium', 'low'];
+        const blocking = order.slice(0, order.indexOf(failOn) + 1);
+        const n = allFindings.filter(f => blocking.includes(f.severity)).length;
+        console.log(`[ship-safe] FAIL: ${n} finding(s) at ${failOn} severity or above`);
       } else {
         console.log(`[ship-safe] FAIL: Score ${scoreResult.score} < threshold ${threshold}`);
       }
@@ -216,6 +234,7 @@ export async function ciCommand(targetPath = '.', options = {}) {
 // =============================================================================
 
 function determinePass(scoreResult, findings, threshold, failOn) {
+  if (failOn === 'none') return true;
   if (failOn) {
     const sevOrder = ['critical', 'high', 'medium', 'low'];
     const failIndex = sevOrder.indexOf(failOn);

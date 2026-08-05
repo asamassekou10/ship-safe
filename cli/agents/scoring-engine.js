@@ -33,7 +33,24 @@ const CATEGORIES = {
   'supply-chain':{ weight: 12, label: 'Supply Chain',           deductions: { critical: 15, high: 8,  medium: 3 } },
   api:           { weight: 10, label: 'API Security',           deductions: { critical: 15, high: 8,  medium: 3 } },
   llm:           { weight: 12, label: 'AI/LLM Security',       deductions: { critical: 15, high: 8,  medium: 3 } },
+
+  // Reported, never scored. `weight: 0` keeps it out of the total, and
+  // `scored: false` is what the rest of the pipeline checks.
+  //
+  // These are maintainability findings, not vulnerabilities. `.unwrap()` in
+  // Rust and a bare `except:` in Python are worth telling someone about and
+  // are not security defects, and mixing them into a security grade is how a
+  // report earns the reputation of being noise. SonarQube draws the same line:
+  // its security rating moves on vulnerabilities only, and code smells never
+  // touch it. On hermes-agent this is 58 RUST_UNWRAP_IN_PROD findings that
+  // were dragging a security score down.
+  quality:       { weight: 0,  label: 'Code Quality',           scored: false, deductions: {} },
 };
+
+/** Categories that contribute to the score. */
+const SCORED_CATEGORIES = Object.fromEntries(
+  Object.entries(CATEGORIES).filter(([, c]) => c.scored !== false)
+);
 
 // Fallback categories for findings that don't match a known category
 const FALLBACK_CATEGORY_MAP = {
@@ -61,6 +78,34 @@ const GRADES = [
   { min: 40, letter: 'D', label: 'Significant security risks',   color: 'red' },
   { min: 0,  letter: 'F', label: 'Not safe to ship',             color: 'red' },
 ];
+
+/**
+ * Bound a category's deduction by its weight without ever reaching it.
+ *
+ *   d = weight * raw / (raw + weight)
+ *
+ * A hard `Math.min(raw, weight)` saturates, and it saturates almost at once:
+ * every category's weight is worth only 3 to 5 medium-severity findings, so
+ * roughly thirty findings spread across categories bottom out the score of a
+ * project of any size. hermes-agent scored 13/F at 6,948 findings and 13/F at
+ * 799 — an 89% reduction the number could not see.
+ *
+ * This curve keeps the same bound and the same ceiling on any one category's
+ * influence, but stays strictly monotonic, so more findings always cost more
+ * and two runs are always comparable:
+ *
+ *   raw = 0          → 0
+ *   raw = weight     → weight / 2
+ *   raw = 5 × weight → weight × 5/6
+ *   raw → ∞          → weight
+ *
+ * The first finding in a category still costs the most, which is the property
+ * the hard cap was reaching for.
+ */
+function softCap(raw, weight) {
+  if (raw <= 0 || weight <= 0) return 0;
+  return (weight * raw) / (raw + weight);
+}
 
 // =============================================================================
 // SCORING ENGINE
@@ -119,7 +164,7 @@ export class ScoringEngine {
     // ── Compute deductions per category (confidence-weighted) ─────────────────
     const CONFIDENCE_MULTIPLIER = { high: 1.0, medium: 0.6, low: 0.3 };
 
-    for (const [key, config] of Object.entries(CATEGORIES)) {
+    for (const [key, config] of Object.entries(SCORED_CATEGORIES)) {
       const result = categoryResults[key];
       let deduction = 0;
 
@@ -141,7 +186,8 @@ export class ScoringEngine {
         }
       }
 
-      result.deduction = Math.min(deduction, result.maxDeduction);
+      result.rawDeduction = deduction;
+      result.deduction = softCap(deduction, result.maxDeduction);
     }
 
     // ── Compute total score ───────────────────────────────────────────────────

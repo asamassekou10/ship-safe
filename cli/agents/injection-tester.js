@@ -23,7 +23,11 @@ const PATTERNS = [
   {
     rule: 'SQL_INJECTION_TEMPLATE_LITERAL',
     title: 'SQL Injection via Template Literal',
-    regex: /`(?:SELECT|INSERT|UPDATE|DELETE|DROP\s+TABLE|ALTER\s+TABLE|TRUNCATE|CREATE|REPLACE|MERGE)[^`]*\$\{/gi,
+    // A bare `CREATE` alternative meant every template literal starting with
+    // the word "Create" was SQL injection — `showToast(\`Create failed:
+    // ${e}\`)` was 24 criticals on hermes-agent's file browser. Require the
+    // clause structure that makes a string a statement rather than a sentence.
+    regex: /`(?=[^`]*\$\{)[^`]*\b(?:SELECT\b[^`]*\bFROM\b|INSERT\s+INTO\b|UPDATE\b[^`]*\bSET\b|DELETE\s+FROM\b|DROP\s+TABLE\b|ALTER\s+TABLE\b|TRUNCATE\s+TABLE\b|CREATE\s+(?:TABLE|INDEX|VIEW|DATABASE)\b|REPLACE\s+INTO\b|MERGE\s+INTO\b)/gi,
     severity: 'critical',
     cwe: 'CWE-89',
     owasp: 'A03:2021',
@@ -129,7 +133,13 @@ const PATTERNS = [
   {
     rule: 'CODE_INJECTION_EVAL_GENERIC',
     title: 'Code Injection: eval() Usage',
-    regex: /\beval\s*\(/g,
+    // `\b` matches between `.` and `e`, so the bare form also claimed every
+    // method named eval. On hermes-agent that was `cdp.eval(...)`, the Chrome
+    // DevTools Protocol helper, 126 times across the desktop perf harness.
+    // A method call on an object is a different API from the global sink this
+    // rule describes; if a specific one is worth flagging it needs its own
+    // rule that can say why.
+    regex: /(?<![.\w$])eval\s*\(/g,
     severity: 'high',
     cwe: 'CWE-94',
     owasp: 'A03:2021',
@@ -348,7 +358,19 @@ const PATTERNS = [
   {
     rule: 'PYTHON_SQL_FSTRING',
     title: 'SQL Injection via Python f-string',
-    regex: /f["'](?:SELECT|INSERT|UPDATE|DELETE)\s+[^"']*\{/gi,
+    // Interpolation *with* bound parameters is the standard safe idiom for a
+    // variable-length IN clause:
+    //
+    //   conn.execute(f"DELETE FROM messages WHERE id IN ({ph})", ids)
+    //
+    // where `ph` is "?,?,?" and the values ride in `ids`. Requiring that no
+    // parameter argument follows the string keeps the real shape —
+    // `execute(f"... WHERE name = {name}")` — and drops the idiom, which was
+    // most of the 77 criticals on hermes-agent.
+    // Same problem as the template-literal rule: `f"Select a model ({n}
+    // available)"` is English, not SQL. Require clause structure as well as
+    // interpolation.
+    regex: /f["'][^"']*\b(?:SELECT\b[^"']*\bFROM\b|INSERT\s+INTO\b|UPDATE\b[^"']*\bSET\b|DELETE\s+FROM\b)[^"']*\{[^"']*["'](?!\s*,)/gi,
     severity: 'critical',
     cwe: 'CWE-89',
     owasp: 'A03:2021',

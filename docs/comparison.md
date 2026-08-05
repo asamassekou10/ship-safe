@@ -80,9 +80,9 @@ it was a year ago.
 
 The other half of picking a scanner is how much triage it creates. We publish a
 [false-positive benchmark](../benchmarks/false-positives/) measuring Ship Safe on
-mature projects with no known active vulnerabilities: 75 findings across express,
-requests, flask and chalk, with the 3 remaining criticals documented as false
-positives.
+mature projects with no known active vulnerabilities: 73 findings across express,
+requests, flask and chalk, with the 1 remaining critical documented as a false
+positive.
 
 We deliberately do **not** publish a head-to-head detection comparison. A
 vendor-run benchmark where the vendor picks the corpus is worth very little, and
