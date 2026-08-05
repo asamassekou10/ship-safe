@@ -284,6 +284,10 @@ function buildSARIF(findings, rootPath) {
             region: { startLine: Math.max(1, f.line || 1), startColumn: f.column || 1 },
           },
         }],
+        // Carried into SARIF so a policy-aware consumer can filter on it. Only
+        // findings whose target publishes a trust model have one today, so the
+        // key is omitted rather than defaulted when absent.
+        ...(f.posture ? { properties: { posture: f.posture } } : {}),
       })),
     }],
   };

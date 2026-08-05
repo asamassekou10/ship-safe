@@ -52,6 +52,63 @@ const HERMES_FILE_PATTERNS = [
 // SINGLE-LINE REGEX PATTERNS
 // =============================================================================
 
+// =============================================================================
+// POSTURE — which half of Hermes's own security policy a finding falls under
+// =============================================================================
+
+/**
+ * Hermes publishes an unusually explicit security policy, and it draws a hard
+ * line we should respect rather than paper over.
+ *
+ * SECURITY.md §2.2: "The only security boundary against an adversarial LLM is
+ * the operating system. Nothing inside the agent process constitutes
+ * containment — not the approval gate, not output redaction, not any pattern
+ * scanner, not any tool allowlist."
+ *
+ * §3.1 lists what they treat as in scope: escape from a declared isolation
+ * posture, unauthorized external-surface access, credential exfiltration
+ * through a mechanism meant to prevent it, and code contradicting a documented
+ * stance. §3.2 lists what they do not: bypasses of in-process heuristics,
+ * prompt injection on its own without a chained §3.1 outcome, consequences of
+ * a posture the operator chose, and documented break-glass settings.
+ *
+ * Both halves are worth reporting. They are not worth reporting identically. A
+ * Hermes operator who has read their policy and sees our `critical` next to
+ * something their maintainers would close as out of scope concludes, fairly,
+ * that we did not do the reading.
+ *
+ * So every Hermes finding carries a posture:
+ *
+ *   'boundary' — a class §3.1 treats as in scope. Act on these.
+ *   'hygiene'  — a real improvement their model does not call a vulnerability.
+ *
+ * Default is 'hygiene', because §3.2 is by far the larger set and defaulting
+ * the other way would quietly inflate everything we have not thought about.
+ *
+ * See docs/hermes-security-model.md.
+ */
+const BOUNDARY_RULES = new Set([
+  // Credential exfiltration to a destination outside the trust envelope (§3.1).
+  'HERMES_MEMORY_EXFIL_PATTERN',
+  'HERMES_SUB_AGENT_CREDENTIAL_FORWARD',
+  'HERMES_XURL_TOKEN_STORE_EXPOSURE',
+  'HERMES_FULL_TOOL_CONTEXT_FORWARD',
+  // Reaching cloud metadata is the canonical credential-theft path, and it
+  // crosses out of whatever the posture confined.
+  'HERMES_BROWSER_CLOUD_METADATA_SSRF',
+  // A check that can be raced is a mechanism that should have prevented
+  // something and does not, rather than a heuristic being imperfect.
+  'HERMES_AUTH_JSON_TOCTOU',
+  // Escapes the agent process into the host through a path the shell-level
+  // posture never covered (§2.2, "does not confine ... code-execution").
+  'HERMES_XURL_SUBPROCESS_INJECTION',
+]);
+
+/** Which half of Hermes's policy a rule falls under. */
+export function postureFor(rule) {
+  return BOUNDARY_RULES.has(rule) ? 'boundary' : 'hygiene';
+}
+
 const PATTERNS = [
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -747,6 +804,13 @@ export class HermesSecurityAgent extends BaseAgent {
       findings.push(...checkBrowserCloudMetadataFloor(content, filePath, this));
       // xurl skill / X API integration coverage
       findings.push(...checkXurlReadWriteLoop(content, filePath, this));
+    }
+
+    // Tag every finding with which half of Hermes's own policy it falls under.
+    // Done once here rather than on each rule so a new rule cannot forget, and
+    // so the default is visible in one place.
+    for (const finding of findings) {
+      finding.posture = postureFor(finding.rule);
     }
 
     return findings;

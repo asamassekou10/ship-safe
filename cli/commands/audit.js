@@ -704,6 +704,7 @@ function buildRemediationPlan(findings, depVulns, rootPath) {
         file: `${path.relative(rootPath, f.file).replace(/\\/g, '/')}:${f.line}`,
         action: f.aiFix || f.fix || f.description,
         effort: EFFORT_MAP[f.category] || 'medium',
+        posture: f.posture || null,
       });
     }
 
@@ -794,10 +795,21 @@ function printReport(scoreResult, findings, depVulns, recon, plan, rootPath, fil
         console.log(chalk.gray('  ' + '─'.repeat(56)));
       }
 
+      // A `hygiene` tag marks a finding that the target's own security policy
+      // does not treat as a vulnerability. Currently only Hermes findings
+      // carry a posture; see docs/hermes-security-model.md. Marking the
+      // weaker half is less noisy than decorating every line, and it stops a
+      // policy-aware reader from dismissing the whole report when they hit an
+      // item their maintainers would close as out of scope.
+      const postureTag = item.posture === 'hygiene'
+        ? chalk.gray.dim(' (hygiene)')
+        : '';
+
       console.log(
         chalk.white(`  ${String(item.priority).padStart(2)}.`) +
         chalk.gray(` [${item.categoryLabel}] `) +
-        chalk.white(item.title)
+        chalk.white(item.title) +
+        postureTag
       );
       console.log(
         chalk.gray(`      ${item.file}`) +
