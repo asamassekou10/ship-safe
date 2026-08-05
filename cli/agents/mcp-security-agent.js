@@ -223,7 +223,7 @@ const PATTERNS = [
 // STRUCTURAL CHECKS (beyond line-by-line regex)
 // =============================================================================
 
-const MCP_CONFIG_FILES = [
+export const MCP_CONFIG_FILES = [
   'mcp.json',
   '.mcp.json',
   'mcp-config.json',
