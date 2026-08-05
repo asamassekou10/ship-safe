@@ -99,7 +99,18 @@ const PATTERNS = [
   {
     rule: 'API_PATH_IN_FILENAME',
     title: 'API: Path Traversal in File Upload',
-    regex: /path\.join\s*\([^)]*(?:originalname|filename|req\.file|req\.body)/g,
+    // Two boundaries matter here, and the original pattern had neither.
+    //
+    // `(?<![\w.])` stops `path.join` matching inside Python's
+    // `os.path.join(self.root_path, filename)`. This agent scans .py and .rb as
+    // well as JS, so an Express upload rule was firing at critical severity on
+    // Flask's own config loader (src/flask/config.py:204).
+    //
+    // Requiring a property access rather than a bare `filename` stops any local
+    // variable that happens to carry that name from looking like user input.
+    // Multer exposes `file.originalname` and `file.filename`, so the real
+    // attack shape always has the dot.
+    regex: /(?<![\w.])path\.join\s*\([^)]*(?:\.originalname\b|\.filename\b|req\.(?:file|files|body|query|params)\b)/g,
     severity: 'critical',
     cwe: 'CWE-22',
     owasp: 'A01:2021',

@@ -164,6 +164,27 @@ describe('APIFuzzer', async () => {
       assert.ok(findings.some(f => f.rule === 'API_DEBUG_ENDPOINT'));
     } finally { cleanup(dir); }
   });
+
+  it('detects user-controlled filename in upload path construction', async () => {
+    const { dir, file } = writeTempFile('const dest = path.join(uploadDir, req.file.originalname);');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(findings.some(f => f.rule === 'API_PATH_IN_FILENAME'));
+    } finally { cleanup(dir); }
+  });
+
+  it('does not flag os.path.join in Python or a bare filename variable', async () => {
+    // This agent scans .py and .rb too, so an Express upload rule used to fire
+    // at critical severity on Flask's own config loader.
+    const py = writeTempFile('filename = os.path.join(self.root_path, filename)', '.py');
+    const js = writeTempFile('const p = path.join(dir, filename);');
+    try {
+      for (const { dir, file } of [py, js]) {
+        const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+        assert.equal(findings.filter(f => f.rule === 'API_PATH_IN_FILENAME').length, 0);
+      }
+    } finally { cleanup(py.dir); cleanup(js.dir); }
+  });
 });
 
 // =============================================================================

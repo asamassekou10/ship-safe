@@ -16,13 +16,13 @@ Ship Safe `9.6.3`, `ship-safe ci --no-deps`, corpus pinned by commit.
 
 Mature, heavily reviewed projects with no known active vulnerabilities.
 
-| project | findings | critical | high | score | grade |
-|---|---|---|---|---|---|
-| [express](https://github.com/expressjs/express) | 26 | 0 | 9 | 63.1 | C |
-| [requests](https://github.com/psf/requests) | 15 | 1 | 4 | 74.5 | C |
-| [flask](https://github.com/pallets/flask) | 30 | 2 | 12 | 54.1 | D |
-| [chalk](https://github.com/chalk/chalk) | 4 | 0 | 4 | 87.2 | B |
-| **total** | **75** | **3** | **29** | | |
+| project | findings | critical | score | grade |
+|---|---|---|---|---|
+| [express](https://github.com/expressjs/express) | 26 | 0 | 63.1 | C |
+| [requests](https://github.com/psf/requests) | 15 | 1 | 74.5 | C |
+| [flask](https://github.com/pallets/flask) | 28 | 0 | 54.5 | D |
+| [chalk](https://github.com/chalk/chalk) | 4 | 0 | 87.2 | B |
+| **total** | **73** | **1** | | |
 
 Before the 9.6.3 false-positive work these same four projects produced **1031**
 findings, with express alone at 811 and three of the four graded F. The bulk of
@@ -43,23 +43,24 @@ mistaken for progress when it is really lost detection.
 
 ## Known false positives
 
-The 3 critical findings on the clean corpus are all false positives. Naming them
-is the point of running this:
-
-- **`API_PATH_IN_FILENAME` — flask `src/flask/config.py:204,290` (2 findings).**
-  The rule targets Express file uploads
-  (`path.join(dir, req.file.originalname)`) but its regex matches the substring
-  `path.join(` inside Python's `os.path.join(self.root_path, filename)`, where
-  `filename` is an ordinary local variable. A JavaScript upload rule firing on
-  Python framework code, at the severity that gates CI. This is the highest
-  impact remaining false positive.
+The 1 remaining critical finding on the clean corpus is a false positive.
+Naming it is the point of running this:
 
 - **`GIT_HISTORY_SECRET` — requests `tests/certs/expired/ca/ca-private.key`.**
   A deliberately expired test-fixture private key. Working-tree findings in test
   directories are filtered, but history scanning reads commits rather than
   paths, so the filter does not reach it.
 
-Beyond critical, flask's remaining 30 findings are the weakest result in the
+Fixed since the first run of this benchmark:
+
+- **`API_PATH_IN_FILENAME` — flask `src/flask/config.py:204,290`.** The rule
+  targets Express file uploads but its regex matched the substring `path.join(`
+  inside Python's `os.path.join(self.root_path, filename)`. Fixed in 9.6.4 by
+  anchoring the pattern so it cannot match `os.path.join`, and by requiring a
+  property access such as `file.originalname` rather than any variable named
+  `filename`. This benchmark is what surfaced it.
+
+Beyond critical, flask's remaining 28 findings are the weakest result in the
 corpus and are a mix rather than one dominant cause.
 
 ## Honest limits
