@@ -64,7 +64,13 @@ const PATTERNS = [
     // configuration: on Flask it flagged three keys of a config dict that sets
     // SESSION_COOKIE_HTTPONLY two lines below, and a docstring describing the
     // Domain parameter. 17 of Flask's 55 findings came from this one rule.
-    regex: /(?:res\.cookie|response\.cookie|setCookie|set_cookie|Set-Cookie\s*:)\s*[(:][^;\n]{0,160}?(?:secure|domain|path|maxAge|max-age)(?![^;\n]*httponly)/gi,
+    // The lookahead has to be pinned to the start of the options, not left
+    // floating after whichever attribute happened to match. Written the old
+    // way, `{ httpOnly: true, secure: true, path: '/' }` matched on `path`
+    // and then asked whether httpOnly appeared *after* `path` — it does not,
+    // so a correctly configured cookie was reported as insecure. Anchoring
+    // the check at the call opener asks about the whole options object.
+    regex: /(?:res\.cookie|response\.cookie|setCookie|set_cookie|Set-Cookie\s*:)\s*[(:](?![^;\n]{0,200}httponly)[^;\n]{0,160}(?:secure|domain|path|maxAge|max-age)/gi,
     severity: 'medium',
     cwe: 'CWE-1004',
     owasp: 'A05:2021',

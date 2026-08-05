@@ -22,7 +22,7 @@ Mature, heavily reviewed projects with no known active vulnerabilities.
 | [requests](https://github.com/psf/requests) | 11 | 1 | 81.1 | B | 15 |
 | [flask](https://github.com/pallets/flask) | 20 | 0 | 67.7 | C | 28 |
 | [chalk](https://github.com/chalk/chalk) | 4 | 0 | 87.2 | B | 4 |
-| [hermes-agent](https://github.com/NousResearch/hermes-agent) | 818 | 115 | 13 | F | — |
+| [hermes-agent](https://github.com/NousResearch/hermes-agent) | 799 | 115 | 13 | F | — |
 | **total (original four)** | **57** | **1** | | | **73** |
 
 Before the 9.6.3 false-positive work these same four projects produced **1031**
@@ -42,11 +42,11 @@ agent security should be measured against a real agent.
 
 It found more than any other corpus entry ever has. The first run reported
 **6,948 findings**, of which five rules were 4,684 — including 1,963 on a single
-contributor credit map, and two rules whose absence-assertions were structurally
-incapable of failing. It is now at **818**, an 88% reduction, with the full
+contributor credit map, and two rules whose absence-assertions could not fail on
+input like theirs. It is now at **799**, an 89% reduction, with the full
 accounting in the changelog for this release.
 
-818 is not a passing number and this table does not pretend otherwise. The
+799 is not a passing number and this table does not pretend otherwise. The
 remaining tail is documented under "Known false positives" below.
 
 ### Vulnerable corpus
@@ -68,7 +68,7 @@ DVWA's criticals and highs are unchanged. DVWA's 7 lost mediums were
 Category deductions are capped at the category's weight, and the eight weights
 sum to 100. Each category therefore saturates after **3 to 5 medium-severity
 findings**. Past that point the score stops responding: hermes-agent scored 13/F
-at 6,948 findings and still scores 13/F at 818.
+at 6,948 findings and still scores 13/F at 799.
 
 This is why the table leads with finding counts. Treat the score as a signal
 only for small, already-clean projects, and see the tracking issue on scoring
@@ -96,7 +96,7 @@ Fixed since the first run of this benchmark:
 Beyond critical, flask's remaining 20 findings are a mix rather than one
 dominant cause.
 
-### hermes-agent's remaining 818
+### hermes-agent's remaining 799
 
 Not yet triaged, listed so the next pass has a starting point. Counts are from
 the run that produced this table.
@@ -112,9 +112,8 @@ the run that produced this table.
 | `AGENT_NO_OUTPUT_SCHEMA` | 22 | same shape as the cost-limit rule |
 | `Password Assignment` | 21 | secret scanner; needs sampling |
 
-The two structural issues behind much of this tail — rules that assert an
-absence per line, and the scoring saturation above — are tracked as issues
-rather than patched case by case.
+The scoring saturation described above is tracked as an issue rather than
+patched here.
 
 ## Honest limits
 
@@ -123,10 +122,11 @@ Read these before quoting any number above.
 - **This is a proxy for a false-positive rate, not a rate.** "No known active
   vulnerabilities" is not "no vulnerabilities", and these findings have not each
   been adjudicated by hand. Turning the proxy into a real rate means triaging
-  all 75 findings individually. That work has not been done.
-- **Four projects is a small corpus**, skewed toward JavaScript and Python, and
-  toward libraries rather than applications. A web app with real authentication
-  and deployment configuration exercises rules these do not reach.
+  each finding individually. That work has not been done.
+- **Five projects is a small corpus**, skewed toward JavaScript and Python. The
+  original four are libraries; hermes-agent is the first application in it. A
+  web app with real authentication and deployment configuration still exercises
+  rules none of these reach.
 - **Grades are not comparable across projects.** Score is normalized by codebase
   size, so a small package and a framework with a large test suite are not on
   the same footing.

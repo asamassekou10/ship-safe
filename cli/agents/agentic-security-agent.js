@@ -205,20 +205,9 @@ const PATTERNS = [
     description: 'LLM output directly triggers side-effect actions without validation. Hallucinated or injected outputs can cause unintended actions.',
     fix: 'Validate LLM output against expected schemas before executing side effects. Add human confirmation for irreversible actions.',
   },
-  {
-    rule: 'AGENT_NO_OUTPUT_SCHEMA',
-    title: 'Agent: No Schema Validation on LLM Output',
-    // The trailing lookahead never failed, and one of its own escape hatches
-    // was the word `parse` — which `JSON.parse` supplies by definition. The
-    // per-file version of this question lives in AGENT_STRUCTURAL_RULES; here
-    // just record the parse of model output.
-    regex: /(?:JSON\.parse|json\.loads)\s*\(\s*(?:completion|response|output|result|generated|llm|ai|gpt|claude)\w*\s*[,)]/g,
-    severity: 'medium',
-    cwe: 'CWE-20',
-    owasp: 'A03:2021',
-    description: 'LLM JSON output parsed without schema validation. Malformed or malicious output can cause unexpected behavior.',
-    fix: 'Validate LLM structured output against a schema (Zod, Joi, Pydantic) before processing.',
-  },
+  // AGENT_NO_OUTPUT_SCHEMA moved to AGENT_STRUCTURAL_RULES. Its old lookahead
+  // never failed, and one of its own escape hatches was the word `parse`,
+  // which `JSON.parse` supplies by definition.
 
   // ── Credential Isolation ─────────────────────────────────────────────────
   {
@@ -426,8 +415,12 @@ const AGENT_STRUCTURAL_RULES = [
         /(?:JSON\.parse|json\.loads)\s*\(\s*(?:completion|response|output|result|generated|llm|ai|gpt|claude)\w*\s*[,)]/i.test(content);
       if (!parsesModelOutput) return false;
 
+      // Deliberately generous. The claim is "nothing here validates the
+      // shape"; one validator refutes it. `\w*schema` matters because the
+      // common idiom names the schema after the type — `ResultSchema.parse`,
+      // `UserSchema.safeParse` — and a bare `\bschema\b` misses all of them.
       const validates =
-        /\b(?:zod|yup|joi|ajv|jsonschema|pydantic|BaseModel|TypeAdapter|type_adapter|safeParse|validate\w*\s*\(|schema)\b/i.test(content);
+        /\b(?:zod|yup|joi|ajv|jsonschema|pydantic|BaseModel|TypeAdapter|type_adapter|safeParse|validate\w*\s*\(|\w*schema)\b/i.test(content);
 
       return !validates;
     },

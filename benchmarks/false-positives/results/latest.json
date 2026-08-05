@@ -47,7 +47,7 @@
       "id": "hermes-agent",
       "repo": "NousResearch/hermes-agent",
       "commit": "743dc94ab90adb0529bb233b8498c6fd6ee0e020",
-      "findings": 818,
+      "findings": 799,
       "critical": 115,
       "high": 226,
       "score": 13,
@@ -74,7 +74,7 @@
   ],
   "summary": {
     "cleanProjects": 5,
-    "cleanFindings": 875,
+    "cleanFindings": 856,
     "cleanCriticalFindings": 116,
     "vulnerableProjects": 2,
     "vulnerableFindings": 150
