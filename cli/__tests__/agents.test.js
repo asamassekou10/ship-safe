@@ -164,6 +164,27 @@ describe('APIFuzzer', async () => {
       assert.ok(findings.some(f => f.rule === 'API_DEBUG_ENDPOINT'));
     } finally { cleanup(dir); }
   });
+
+  it('detects user-controlled filename in upload path construction', async () => {
+    const { dir, file } = writeTempFile('const dest = path.join(uploadDir, req.file.originalname);');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(findings.some(f => f.rule === 'API_PATH_IN_FILENAME'));
+    } finally { cleanup(dir); }
+  });
+
+  it('does not flag os.path.join in Python or a bare filename variable', async () => {
+    // This agent scans .py and .rb too, so an Express upload rule used to fire
+    // at critical severity on Flask's own config loader.
+    const py = writeTempFile('filename = os.path.join(self.root_path, filename)', '.py');
+    const js = writeTempFile('const p = path.join(dir, filename);');
+    try {
+      for (const { dir, file } of [py, js]) {
+        const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+        assert.equal(findings.filter(f => f.rule === 'API_PATH_IN_FILENAME').length, 0);
+      }
+    } finally { cleanup(py.dir); cleanup(js.dir); }
+  });
 });
 
 // =============================================================================
@@ -264,15 +285,16 @@ describe('ScoringEngine', async () => {
     assert.equal(result.grade.letter, 'A');
   });
 
-  it('deducts for critical findings (capped at category weight)', () => {
+  it('deducts for critical findings, bounded by category weight', () => {
     const engine = new ScoringEngine();
     const findings = [
       { severity: 'critical', category: 'secrets', confidence: 'high' },
     ];
     const result = engine.compute(findings, []);
     assert.ok(result.score < 100, 'Score should decrease with critical finding');
-    // 25 pts deduction capped at category weight of 15
-    assert.equal(result.categories.secrets.deduction, 15);
+    const { deduction, weight } = result.categories.secrets;
+    assert.ok(deduction > 0, 'a critical secret must cost something');
+    assert.ok(deduction < weight, 'no single category may exceed its weight');
   });
 
   it('applies confidence multiplier', () => {
@@ -285,12 +307,18 @@ describe('ScoringEngine', async () => {
     assert.ok(lowResult.score > highResult.score, 'Low confidence should deduct less');
   });
 
-  it('caps deduction at category weight', () => {
+  it('bounds a category by its weight while still ranking severity of noise', () => {
     const engine = new ScoringEngine();
-    // 10 critical findings in secrets (25 pts each = 250, but capped at 15)
-    const findings = Array(10).fill({ severity: 'critical', category: 'secrets', confidence: 'high' });
-    const result = engine.compute(findings, []);
-    assert.equal(result.categories.secrets.deduction, 15);
+    const one = engine.compute(
+      [{ severity: 'critical', category: 'secrets', confidence: 'high' }], []);
+    const ten = engine.compute(
+      Array(10).fill({ severity: 'critical', category: 'secrets', confidence: 'high' }), []);
+
+    const weight = ten.categories.secrets.weight;
+    assert.ok(ten.categories.secrets.deduction < weight,
+      'a category may approach its weight but never exceed it');
+    assert.ok(ten.categories.secrets.deduction > one.categories.secrets.deduction,
+      'ten criticals must cost more than one — the old hard cap made them equal');
   });
 
   it('handles dependency vulnerabilities', () => {
@@ -2555,5 +2583,280 @@ Run security audits on your codebase before deploying.
 `);
     const critical = result.findings.filter(f => f.severity === 'critical' || f.severity === 'high');
     assert.equal(critical.length, 0, 'Well-formed skill should have no critical/high findings');
+  });
+});
+
+// =============================================================================
+// FALSE-POSITIVE CALIBRATION — hermes-agent corpus
+// =============================================================================
+//
+// Each case below is a shape taken from NousResearch/hermes-agent at 743dc94,
+// where these five rules produced 4684 of 6948 findings. The assertions are
+// about cardinality and context, not about detection: every rule here still
+// fires on the attack shape it was written for.
+
+describe('PII email calibration', async () => {
+  const { PIIComplianceAgent } = await import('../agents/pii-compliance-agent.js');
+  const agent = new PIIComplianceAgent();
+
+  it('ignores GitHub noreply addresses anywhere in the domain', async () => {
+    const { dir, file } = writeTempFile(
+      'AUTHOR = "122438640+ragingbulld@users.noreply.github.com"\n', '.py');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'PII_EMAIL_HARDCODED').length, 0,
+        'users.noreply.github.com is the address GitHub issues to keep the real one private');
+    } finally { cleanup(dir); }
+  });
+
+  it('collapses a contributor map into one directory finding', async () => {
+    const rows = Array.from({ length: 40 },
+      (_, i) => `    "person${i}@gmail.com": "person${i}",`).join('\n');
+    const { dir, file } = writeTempFile(`AUTHOR_MAP = {\n${rows}\n}\n`, '.py');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'PII_EMAIL_HARDCODED').length, 0);
+      const dirFindings = findings.filter(f => f.rule === 'PII_EMAIL_DIRECTORY');
+      assert.equal(dirFindings.length, 1, 'one finding for the file, not one per address');
+      assert.match(dirFindings[0].description, /40 hardcoded email/);
+    } finally { cleanup(dir); }
+  });
+
+  it('still reports a single stray address', async () => {
+    const { dir, file } = writeTempFile('const SUPPORT = "carol@realcompany.com";');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(findings.some(f => f.rule === 'PII_EMAIL_HARDCODED'),
+        'below the directory threshold this is still a hardcoded address');
+    } finally { cleanup(dir); }
+  });
+});
+
+describe('Agentic rule calibration', async () => {
+  const { AgenticSecurityAgent } = await import('../agents/agentic-security-agent.js');
+  const agent = new AgenticSecurityAgent();
+
+  it('reports missing tool audit logging once per file, not once per mention', async () => {
+    const body = Array.from({ length: 30 },
+      (_, i) => `def step${i}(): return executeTool(name${i}, args${i})`).join('\n');
+    const { dir, file } = writeTempFile(body, '.py');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'AGENT_NO_AUDIT_LOG').length, 1);
+    } finally { cleanup(dir); }
+  });
+
+  it('does not claim missing audit logging when the file logs', async () => {
+    const { dir, file } = writeTempFile(
+      'def run(c):\n    logger.info("tool %s", c.name)\n    return executeTool(c.name, c.args)\n', '.py');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'AGENT_NO_AUDIT_LOG').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('does not treat subprocess.run near a result binding as an agent action', async () => {
+    const { dir, file } = writeTempFile(
+      'result = None\nproc = subprocess.run(cmd, capture_output=True)\nresult = proc.stdout\n', '.py');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'AGENT_OUTPUT_TO_ACTION').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('still flags an action invoked on the model output', async () => {
+    const { dir, file } = writeTempFile('const completion = await llm(); completion.execute();');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(findings.some(f => f.rule === 'AGENT_OUTPUT_TO_ACTION'));
+    } finally { cleanup(dir); }
+  });
+
+  it('does not claim missing memory expiry when a TTL is set', async () => {
+    const { dir, file } = writeTempFile(
+      'def save(e):\n    memory.store(e, ttl=3600)\n', '.py');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'AGENT_MEMORY_NO_EXPIRY').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('flags memory persistence with no retention policy, once', async () => {
+    const body = Array.from({ length: 20 },
+      (_, i) => `def w${i}(e): memory.store(e)`).join('\n');
+    const { dir, file } = writeTempFile(body, '.py');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'AGENT_MEMORY_NO_EXPIRY').length, 1);
+    } finally { cleanup(dir); }
+  });
+});
+
+describe('SSRF internal IP calibration', async () => {
+  const { SSRFProber } = await import('../agents/ssrf-prober.js');
+  const agent = new SSRFProber();
+
+  it('ignores a loopback bind address', async () => {
+    const { dir, file } = writeTempFile('app.listen(8080, "127.0.0.1")\nHOST = "127.0.0.1"\n', '.py');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'SSRF_INTERNAL_IP').length, 0,
+        'binding loopback is not an SSRF sink');
+    } finally { cleanup(dir); }
+  });
+
+  it('still flags an internal address as a request destination', async () => {
+    const { dir, file } = writeTempFile('requests.get("http://169.254.0.1")\nfetch("http://192.168.1.5/admin")');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(findings.some(f => f.rule === 'SSRF_INTERNAL_IP'));
+    } finally { cleanup(dir); }
+  });
+});
+
+describe('Long-tail calibration — hermes-agent corpus', async () => {
+  const { InjectionTester } = await import('../agents/injection-tester.js');
+  const { SSRFProber } = await import('../agents/ssrf-prober.js');
+  const { AuthBypassAgent } = await import('../agents/auth-bypass-agent.js');
+  const { SlopSquatAgent } = await import('../agents/slopsquat-agent.js');
+  const { LLMRedTeam } = await import('../agents/llm-redteam.js');
+
+  const run = async (agent, files, dir) =>
+    agent.analyze({ rootPath: dir, files, recon: {}, options: {} });
+
+  it('does not read an English sentence starting with "Create" as SQL', async () => {
+    const { dir, file } = writeTempFile('showToast(`Create failed: ${e}`, "error");');
+    try {
+      const findings = await run(new InjectionTester(), [file], dir);
+      assert.equal(findings.filter(f => f.rule === 'SQL_INJECTION_TEMPLATE_LITERAL').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('still flags a real interpolated SQL template literal', async () => {
+    const { dir, file } = writeTempFile('db.query(`SELECT * FROM users WHERE id = ${id}`);');
+    try {
+      const findings = await run(new InjectionTester(), [file], dir);
+      assert.ok(findings.some(f => f.rule === 'SQL_INJECTION_TEMPLATE_LITERAL'));
+    } finally { cleanup(dir); }
+  });
+
+  it('does not read an f-string prompt as SQL', async () => {
+    const { dir, file } = writeTempFile('hint = f"Select a model ({len(models)} available)"\n', '.py');
+    try {
+      const findings = await run(new InjectionTester(), [file], dir);
+      assert.equal(findings.filter(f => f.rule === 'PYTHON_SQL_FSTRING').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('accepts the parameterised IN-clause idiom', async () => {
+    const { dir, file } = writeTempFile(
+      'ph = ",".join("?" * len(ids))\nconn.execute(f"DELETE FROM messages WHERE id IN ({ph})", ids)\n', '.py');
+    try {
+      const findings = await run(new InjectionTester(), [file], dir);
+      assert.equal(findings.filter(f => f.rule === 'PYTHON_SQL_FSTRING').length, 0,
+        'values are bound; only the placeholder string is interpolated');
+    } finally { cleanup(dir); }
+  });
+
+  it('does not treat a method named eval as the global sink', async () => {
+    const { dir, file } = writeTempFile('await cdp.eval(expression);');
+    try {
+      const findings = await run(new InjectionTester(), [file], dir);
+      assert.equal(findings.filter(f => f.rule === 'CODE_INJECTION_EVAL_GENERIC').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('still flags a bare eval call', async () => {
+    const { dir, file } = writeTempFile('const v = eval(payload);');
+    try {
+      const findings = await run(new InjectionTester(), [file], dir);
+      assert.ok(findings.some(f => f.rule === 'CODE_INJECTION_EVAL_GENERIC'));
+    } finally { cleanup(dir); }
+  });
+
+  it('ignores a metadata endpoint named only in a comment', async () => {
+    const { dir, file } = writeTempFile(
+      '# avoid probing 169.254.169.254 when not on EC2\nclient = build()\n', '.py');
+    try {
+      const findings = await run(new SSRFProber(), [file], dir);
+      assert.equal(findings.filter(f => f.rule === 'SSRF_CLOUD_METADATA').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('still flags a metadata endpoint actually requested', async () => {
+    const { dir, file } = writeTempFile('requests.get("http://169.254.169.254/latest/meta-data/")\n', '.py');
+    try {
+      const findings = await run(new SSRFProber(), [file], dir);
+      assert.ok(findings.some(f => f.rule === 'SSRF_CLOUD_METADATA'));
+    } finally { cleanup(dir); }
+  });
+
+  it('ignores a loopback OAuth redirect URI', async () => {
+    const { dir, file } = writeTempFile(
+      'DEFAULT_REDIRECT_URI = "http://127.0.0.1:43827/spotify/callback"\n', '.py');
+    try {
+      const findings = await run(new SSRFProber(), [file], dir);
+      assert.equal(findings.filter(f => f.rule === 'SSRF_INTERNAL_IP').length, 0,
+        'RFC 8252 recommends a loopback redirect for native apps');
+    } finally { cleanup(dir); }
+  });
+
+  it('ignores equality between two locally held secrets', async () => {
+    const { dir, file } = writeTempFile('if new_token == self._anthropic_api_key:\n    pass\n', '.py');
+    try {
+      const findings = await run(new AuthBypassAgent(), [file], dir);
+      assert.equal(findings.filter(f => f.rule === 'TIMING_ATTACK_COMPARISON').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('still flags a request-supplied token compared to a stored secret', async () => {
+    const { dir, file } = writeTempFile('if (req.headers["x-api-key"] === API_TOKEN) { allow(); }');
+    try {
+      const findings = await run(new AuthBypassAgent(), [file], dir);
+      assert.ok(findings.some(f => f.rule === 'TIMING_ATTACK_COMPARISON'));
+    } finally { cleanup(dir); }
+  });
+
+  it('resolves imports against the nearest package.json in a workspace', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-ws-'));
+    try {
+      fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'root' }));
+      const app = path.join(dir, 'apps', 'desktop');
+      fs.mkdirSync(app, { recursive: true });
+      fs.writeFileSync(path.join(app, 'package.json'),
+        JSON.stringify({ name: 'desktop', dependencies: { 'some-real-dep': '^1.0.0' } }));
+      const file = path.join(app, 'index.js');
+      fs.writeFileSync(file, "import x from 'some-real-dep';\n");
+
+      const findings = await run(new SlopSquatAgent(), [file], dir);
+      assert.equal(findings.filter(f => f.rule === 'SLOPSQUAT_PHANTOM_IMPORT').length, 0,
+        'a workspace dependency is declared, not hallucinated');
+    } finally { cleanup(dir); }
+  });
+
+  it('reports absent LLM spend controls once for the project', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-llm-'));
+    try {
+      const files = [];
+      for (let i = 0; i < 5; i++) {
+        const f = path.join(dir, `call${i}.js`);
+        fs.writeFileSync(f, 'await client.chat.completions.create({ model: "gpt-4" });\n');
+        files.push(f);
+      }
+      const findings = await run(new LLMRedTeam(), files, dir);
+      assert.equal(findings.filter(f => f.rule === 'LLM_NO_COST_LIMIT').length, 1);
+    } finally { cleanup(dir); }
+  });
+
+  it('stays quiet about spend controls when a budget exists somewhere', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-llm2-'));
+    try {
+      const a = path.join(dir, 'call.js');
+      const b = path.join(dir, 'config.js');
+      fs.writeFileSync(a, 'await client.chat.completions.create({ model: "gpt-4" });\n');
+      fs.writeFileSync(b, 'export const TOKEN_BUDGET = 100000;\n');
+      const findings = await run(new LLMRedTeam(), [a, b], dir);
+      assert.equal(findings.filter(f => f.rule === 'LLM_NO_COST_LIMIT').length, 0);
+    } finally { cleanup(dir); }
   });
 });

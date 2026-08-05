@@ -14,6 +14,162 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - `MCP_TOOL_ALIAS_BYPASS` flags tool alias mappings that can route allowlisted names to different tools.
   - `MCP_NESTED_PERMISSION_OVERRIDE` flags nested permission blocks with wildcard expansion inside server entries.
 
+### Fixed
+- **Five rules recalibrated against a large Python agent codebase.** Scanning
+  [hermes-agent](https://github.com/NousResearch/hermes-agent) (~8,400 files) at
+  `743dc94` produced **6,948 findings**, and five rules accounted for 4,684 of
+  them. Each turned out to be a defect rather than a threshold problem.
+
+  - `PII_EMAIL_HARDCODED` (2,037 → 0 on that repo). Two bugs. The `noreply`
+    exclusion was anchored to the first domain label, so GitHub's
+    `<id>+<user>@users.noreply.github.com` privacy addresses — the ones GitHub
+    issues *specifically* to keep a contributor's real address private — never
+    matched it. And a contributor credit map was reported once per entry: 1,963
+    findings from `scripts/release.py` alone, 28% of the entire report. Files
+    holding more than 10 addresses now produce one `PII_EMAIL_DIRECTORY`
+    finding describing the file, and `.mailmap` / `AUTHORS` / `CONTRIBUTORS`
+    are skipped outright. A single stray address still reports as before.
+  - `AGENT_NO_AUDIT_LOG` (1,904 → per-file). The rule asserted the *absence* of
+    logging using a negative lookahead placed after `[\s\S]{0,300}`. A
+    variable-length gap backtracks until the lookahead succeeds, so the
+    assertion could never fail and every line mentioning `tool_call` fired. Now
+    a structural check: at most one finding per file, and any logger in the
+    file refutes it.
+  - `AGENT_MEMORY_NO_EXPIRY` (234 → per-file). Same defect, same fix.
+  - `AGENT_OUTPUT_TO_ACTION` (329 → 0 on that repo). Matched any `.run` within
+    100 characters of a variable named `result`, which is `subprocess.run` in
+    every Python CLI ever written. Now requires the action to be invoked on the
+    model output itself.
+  - `SSRF_INTERNAL_IP` (312 → 102). Fired on bare private-IP literals, so
+    local-first software binding loopback on purpose was reported 312 times for
+    following its own documentation. Now requires an outbound-request context.
+
+  Total on hermes-agent: **6,948 → 2,264**, a 67% reduction, with triage of the
+  remaining long tail still to come. Detection is unchanged: NodeGoat holds at
+  74 findings / 9 critical / 18 high, and DVWA's criticals and highs are
+  identical, its only two lost findings being `$_DVWA['db_server'] =
+  '127.0.0.1'` in translated READMEs. The clean corpus improves from 73
+  findings to 67.
+
+  Continued through the long tail, another nine rules:
+
+  - `AGENT_NO_COST_LIMIT`, `AGENT_NO_OUTPUT_SCHEMA`, `LLM_NO_COST_LIMIT` and
+    `OAUTH_NO_STATE` carried the same never-failing absence assertion.
+    `OAUTH_NO_STATE` was worse: its alternation put the lookahead on only the
+    last branch, so the first two matched any mention of an authorize URL
+    unconditionally. Spend control is now asked once per project, where a
+    budget is actually configured.
+  - `SQL_INJECTION_TEMPLATE_LITERAL` listed `CREATE` as a bare alternative, so
+    ``showToast(`Create failed: ${e}`)`` was 24 criticals on a file browser.
+    `PYTHON_SQL_FSTRING` flagged `f"Select a model ({n} available)"`. Both now
+    require clause structure — SELECT with FROM, UPDATE with SET — instead of a
+    keyword.
+  - Patterns can now set `skipComments`. A comment explaining why code *avoids*
+    the cloud metadata endpoint is not access to it, and that was every
+    `SSRF_CLOUD_METADATA` hit. `SSRF_INTERNAL_IP` also stops flagging loopback
+    OAuth redirect URIs, which RFC 8252 recommends for native apps.
+  - `CODE_INJECTION_EVAL_GENERIC` counted any method named `eval` — `cdp.eval`,
+    the Chrome DevTools Protocol helper, 126 times. `API_UPLOAD_NO_TYPE_CHECK`
+    matched `filename)` in any language, the same mistake 9.6.4 fixed next door.
+    `TIMING_ATTACK_COMPARISON` flagged two locally held values compared to each
+    other. `AGENT_TOOL_SHELL_ACCESS` fired on any file containing the word
+    "tools" and a subprocess call.
+  - `SlopSquatAgent` resolved every import against the root `package.json`, so
+    in a workspace every sub-package dependency looked hallucinated. It now
+    walks up from the importing file the way Node does. 137 → 33.
+
+  **hermes-agent: 6,948 → 818, an 88% reduction.** Clean corpus 73 → 57;
+  express and flask reach C, requests B. NodeGoat did not move by a single
+  finding. hermes-agent is now a pinned clean-corpus entry.
+
+- **`MCPSecurityAgent` referenced `createFinding` without importing it.** The
+  new per-file tool-validation check threw a `ReferenceError` that the
+  orchestrator swallowed, taking the rest of that agent's output for MCP server
+  files with it.
+
+- **`COOKIE_NO_HTTPONLY` reported correctly configured cookies as insecure.**
+  Its lookahead floated after whichever attribute matched rather than being
+  pinned to the options object, so `{ httpOnly: true, secure: true, path: '/' }`
+  matched on `path` and then asked whether `httpOnly` appeared *after* `path`.
+  It does not, so the rule fired. Now anchored at the call opener.
+
+  This was found by auditing the shape described below, and it was the only
+  unambiguous false positive in the group.
+
+### Changed
+
+- **`ci` now gates on severity, not on the composite score.** The default is
+  `--fail-on critical`; `--fail-on high|medium|none` adjusts it. `--threshold`
+  still works and still wins when passed explicitly, so pipelines that pinned a
+  score — including the GitHub Action, which always passes one — keep their
+  existing behaviour.
+
+  The old default was `score < 75`. A composite score is a poor gate, and no
+  comparable tool uses one: Snyk gates on `--severity-threshold`, Trivy on
+  `--severity`, and SonarQube's security rating is set by the worst finding
+  rather than the volume of findings. Ours could not distinguish 30 findings
+  from 7,000, so a pipeline gating on it was gating on noise.
+
+- **Code-quality findings no longer affect the security score.** A new
+  `quality` category is reported but never scored, and `RUST_UNWRAP_IN_PROD`
+  plus the maintainability half of the `EXCEPTION_*` family now route to it.
+  SonarQube draws the same line — code smells never touch its security rating.
+  The security-relevant exception rules (`EXCEPTION_STACK_IN_RESPONSE`,
+  `EXCEPTION_FULL_ERROR_RESPONSE`, and the unhandled-rejection rules) are
+  unchanged, because the classification is per rule, not per agent.
+
+- **`AGENT_REMOTE_EXEC_INSTRUCTION` distinguishes whose host is being piped
+  into a shell.** A project documenting its own installer drops to `low`; a
+  third-party host stays at `high`. The Friendly Fire threat is an agent being
+  steered into running *someone else's* script, and an agent already working
+  inside the repository gains nothing from the project's own install line.
+  hermes-agent reported 32 of these, every one its own documented
+  `curl | bash` repeated across translated READMEs.
+
+### Known issues
+
+- The score saturates after 3–5 medium findings per category, which is why
+  hermes-agent reports the same 13/F at 799 findings as it did at 6,948.
+  Tracked in #107.
+
+- Roughly a dozen rules still write an absence check as a negative lookahead
+  after a variable-length gap. An earlier draft of this entry called all of
+  them broken; that was wrong, and the correction is worth recording. The
+  defect only bites when the trigger token recurs after the mitigation, which
+  is common for `tool_call` (hence `AGENT_NO_AUDIT_LOG`'s 1,904 findings) and
+  rare for the rest. Probed individually with the mitigation present and a
+  single trigger, only `COOKIE_NO_HTTPONLY` misfired. The remainder are
+  fragile rather than broken, and `cli/__tests__/absence-rules.test.js` now
+  guards the quiet direction for the ones that matter. Tracked in #106.
+
+---
+
+## [9.6.4] — 2026-08-03 — Upload Rule Scoping
+
+### Fixed
+- **`API_PATH_IN_FILENAME` no longer fires on Python or Ruby.** The rule targets
+  Express file uploads, but `path.join` was unanchored, so it matched the
+  substring inside Python's `os.path.join(self.root_path, filename)`. Combined
+  with a bare `filename` alternative, it reported **critical** on Flask's own
+  config loader (`src/flask/config.py:204,290`). The pattern now refuses a
+  preceding identifier or dot, and requires a property access such as
+  `file.originalname` or `req.body.name` rather than any variable named
+  `filename`. All four Express attack shapes still match; verified against
+  NodeGoat and DVWA, whose findings are unchanged.
+
+  Our own [false-positive benchmark](benchmarks/false-positives/) surfaced this,
+  which is what it is for. Clean-corpus criticals drop from 3 to 1, and flask
+  from 30 findings / 2 critical to 28 / 0.
+
+- **Dev dependency `brace-expansion` 5.0.8 → 5.0.9** ([GHSA-rgw5-rvv9-x895]
+  (https://github.com/advisories/GHSA-rgw5-rvv9-x895)). Transitive under eslint,
+  devDependencies only, so no published release was affected.
+
+- **GPT-Red test no longer makes live API calls.** A test asserting offline
+  behaviour did not pin itself offline, so any contributor with a provider key
+  in their environment got a spurious failure and a real API charge from
+  `npm test`.
+
 ---
 
 ## [9.6.3] — 2026-08-03 — False Positive Reduction

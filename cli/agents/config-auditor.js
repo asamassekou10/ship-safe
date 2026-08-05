@@ -446,6 +446,7 @@ const CONFIG_PATTERNS = [
   },
   {
     rule: 'RUST_UNWRAP_IN_PROD',
+    category: 'quality',   // maintainability, not a vulnerability — reported, not scored
     title: 'Rust: .unwrap() Without Error Handling',
     regex: /\.unwrap\(\)/g,
     severity: 'low',

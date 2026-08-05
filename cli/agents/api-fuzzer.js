@@ -88,7 +88,12 @@ const PATTERNS = [
   {
     rule: 'API_UPLOAD_NO_TYPE_CHECK',
     title: 'API: File Upload Without Type Validation',
-    regex: /(?<!_)(?:originalname|filename)\s*(?:\)|;)/g,
+    // Same failure as API_PATH_IN_FILENAME in 9.6.4: an Express upload rule
+    // matching Python. `filename)` and `filename;` occur in every language that
+    // has a variable called filename — `os.path.basename(filename)` alone
+    // accounted for much of the 104 hits on hermes-agent. Require the multer
+    // property access that marks the value as upload-controlled.
+    regex: /\b(?:file|files\[\d*\]|req\.file|req\.files\[\d*\])\s*\.\s*(?:originalname|filename)\s*(?:\)|;|,|\})/g,
     severity: 'high',
     cwe: 'CWE-434',
     owasp: 'A04:2021',
@@ -99,7 +104,18 @@ const PATTERNS = [
   {
     rule: 'API_PATH_IN_FILENAME',
     title: 'API: Path Traversal in File Upload',
-    regex: /path\.join\s*\([^)]*(?:originalname|filename|req\.file|req\.body)/g,
+    // Two boundaries matter here, and the original pattern had neither.
+    //
+    // `(?<![\w.])` stops `path.join` matching inside Python's
+    // `os.path.join(self.root_path, filename)`. This agent scans .py and .rb as
+    // well as JS, so an Express upload rule was firing at critical severity on
+    // Flask's own config loader (src/flask/config.py:204).
+    //
+    // Requiring a property access rather than a bare `filename` stops any local
+    // variable that happens to carry that name from looking like user input.
+    // Multer exposes `file.originalname` and `file.filename`, so the real
+    // attack shape always has the dot.
+    regex: /(?<![\w.])path\.join\s*\([^)]*(?:\.originalname\b|\.filename\b|req\.(?:file|files|body|query|params)\b)/g,
     severity: 'critical',
     cwe: 'CWE-22',
     owasp: 'A01:2021',

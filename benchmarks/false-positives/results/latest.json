@@ -1,37 +1,37 @@
 {
   "tool": "ship-safe",
-  "version": "9.6.3",
+  "version": "9.6.4",
   "methodology": "Findings reported by `ship-safe ci --no-deps` against pinned checkouts. Clean corpus: mature projects with no known active vulnerabilities, where every finding is triage a user inherits. Vulnerable corpus: deliberately insecure applications, present so a reduction in noise cannot be mistaken for lost detection. Counts are a proxy for a false-positive rate, not a verified one.",
   "clean": [
     {
       "id": "express",
       "repo": "expressjs/express",
       "commit": "a3714473feb3d2908add734d340e7755fd85e0a3",
-      "findings": 26,
+      "findings": 22,
       "critical": 0,
-      "high": 9,
-      "score": 63.1,
-      "grade": "C"
+      "high": 5,
+      "score": 81.2,
+      "grade": "B"
     },
     {
       "id": "requests",
       "repo": "psf/requests",
       "commit": "414f0513c33883adf6f2b46901d4f0b38a455851",
-      "findings": 15,
+      "findings": 11,
       "critical": 1,
-      "high": 4,
-      "score": 74.5,
-      "grade": "C"
+      "high": 2,
+      "score": 87,
+      "grade": "B"
     },
     {
       "id": "flask",
       "repo": "pallets/flask",
       "commit": "6a2f545bfd8ed31e19066a299296917e034aca58",
-      "findings": 30,
-      "critical": 2,
-      "high": 12,
-      "score": 54.1,
-      "grade": "D"
+      "findings": 20,
+      "critical": 0,
+      "high": 7,
+      "score": 81.6,
+      "grade": "B"
     },
     {
       "id": "chalk",
@@ -40,8 +40,18 @@
       "findings": 4,
       "critical": 0,
       "high": 4,
-      "score": 87.2,
-      "grade": "B"
+      "score": 91.8,
+      "grade": "A"
+    },
+    {
+      "id": "hermes-agent",
+      "repo": "NousResearch/hermes-agent",
+      "commit": "743dc94ab90adb0529bb233b8498c6fd6ee0e020",
+      "findings": 799,
+      "critical": 115,
+      "high": 225,
+      "score": 20.9,
+      "grade": "F"
     }
   ],
   "vulnerable": [
@@ -57,16 +67,16 @@
       "id": "DVWA",
       "repo": "digininja/DVWA",
       "commit": "d45ba3c4e7efa7f023f25f58ab4af9912c887057",
-      "findings": 83,
+      "findings": 76,
       "critical": 6,
       "high": 55
     }
   ],
   "summary": {
-    "cleanProjects": 4,
-    "cleanFindings": 75,
-    "cleanCriticalFindings": 3,
+    "cleanProjects": 5,
+    "cleanFindings": 856,
+    "cleanCriticalFindings": 116,
     "vulnerableProjects": 2,
-    "vulnerableFindings": 157
+    "vulnerableFindings": 150
   }
 }

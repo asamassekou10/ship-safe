@@ -8,7 +8,7 @@
  */
 
 import path from 'path';
-import { BaseAgent } from './base-agent.js';
+import { BaseAgent, createFinding } from './base-agent.js';
 
 const PATTERNS = [
   // ── LLM01: Prompt Injection ────────────────────────────────────────────────
@@ -172,17 +172,11 @@ const PATTERNS = [
     description: 'AI endpoint without rate limiting. Users could rack up API costs.',
     fix: 'Add rate limiting per user: express-rate-limit, @upstash/ratelimit, etc.',
   },
-  {
-    rule: 'LLM_NO_COST_LIMIT',
-    title: 'LLM Usage Without Cost Controls',
-    regex: /(?:OPENAI|ANTHROPIC|AI)_(?:API_KEY|KEY).*(?!(?:budget|limit|cap|max_cost|spending))/gi,
-    severity: 'medium',
-    cwe: 'CWE-770',
-    owasp: 'LLM10',
-    confidence: 'low',
-    description: 'AI API usage without cost controls. Set spending limits on your provider dashboard.',
-    fix: 'Configure spending limits in OpenAI/Anthropic dashboard. Add per-user token budgets.',
-  },
+  // LLM_NO_COST_LIMIT is emitted once per project by _checkCostControls. As a
+  // line pattern it was `KEY.*(?!budget|limit|...)`, where `.*` backtracks
+  // until the lookahead succeeds — so it reported every line mentioning a
+  // provider key, 307 times on hermes-agent. Spend control is a property of a
+  // project, not of a line.
 
   // ── LLM03: Supply Chain ────────────────────────────────────────────────────
   {
@@ -266,7 +260,57 @@ export class LLMRedTeam extends BaseAgent {
       if (applicable.length === 0) continue;
       findings = findings.concat(this.scanFileWithPatterns(file, applicable));
     }
+
+    findings = findings.concat(this._checkCostControls(codeFiles));
     return findings;
+  }
+
+  /**
+   * Report absent LLM spend controls once for the whole project.
+   *
+   * A budget is normally configured in one place — a config module, a wrapper
+   * client, a provider dashboard — so asking the question per file guarantees
+   * a wrong answer in every file that isn't that one.
+   */
+  _checkCostControls(codeFiles) {
+    let anchorFile = null;
+    let anchorLine = 1;
+
+    for (const file of codeFiles) {
+      const content = this.readFile(file);
+      if (!content) continue;
+
+      if (/\b(?:max_?cost|cost_?limit|budget|spend(?:ing)?_?limit|max_?spend|token_?budget|usage_?limit|quota)\b/i.test(content)) {
+        return [];
+      }
+
+      if (!anchorFile) {
+        const lines = content.split('\n');
+        const idx = lines.findIndex(l => /(?:OPENAI|ANTHROPIC)_API_KEY|openai\.|anthropic\.|chat\.completions|messages\.create/i.test(l));
+        if (idx !== -1) {
+          anchorFile = file;
+          anchorLine = idx + 1;
+        }
+      }
+    }
+
+    if (!anchorFile) return [];
+
+    return [createFinding({
+      file: anchorFile,
+      line: anchorLine,
+      column: 1,
+      severity: 'medium',
+      category: this.category,
+      rule: 'LLM_NO_COST_LIMIT',
+      title: 'LLM Usage Without Cost Controls',
+      description: 'This project calls an LLM provider but nothing in it sets a budget, token cap, or spend limit. A runaway agent loop or an abusive caller bills the operator until the provider cuts it off.',
+      matched: 'no budget, token cap, or spend limit found in project',
+      confidence: 'low',
+      cwe: 'CWE-770',
+      owasp: 'LLM10',
+      fix: 'Set per-user token budgets in code and a spending limit on the provider dashboard.',
+    })];
   }
 }
 
