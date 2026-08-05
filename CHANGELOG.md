@@ -14,6 +14,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - `MCP_TOOL_ALIAS_BYPASS` flags tool alias mappings that can route allowlisted names to different tools.
   - `MCP_NESTED_PERMISSION_OVERRIDE` flags nested permission blocks with wildcard expansion inside server entries.
 
+### Added
+- **Rules can declare a language.** A pattern may now carry `langs: ['js']`, and
+  `scanFileWithPatterns` skips it on files of another language. Absent the
+  field a rule runs everywhere, so this is additive and can be adopted agent by
+  agent.
+
+  This is the abstraction whose absence caused the 9.6.4 bug: an Express upload
+  rule matched the substring `path.join(` inside Python's
+  `os.path.join(self.root_path, filename)` and reported critical on Flask's own
+  config loader. The regex was patched then; nothing let the rule say which
+  language it described.
+
+  Files with no language of their own — `.json`, `.yml`, `.md` — are never
+  skipped, because dropping a JS-scoped rule on a JSON config would be a
+  detection loss dressed up as precision.
+
+  `SSRFProber` is the first agent converted: five rules scoped, four left alone
+  because their syntax is genuinely mixed. On hermes-agent this removes 20
+  false positives, all `memory_manager.fetch(query)` style local calls in
+  Python matching a rule written for `fetch()` the browser API.
+
+  It also removes five criticals from DVWA, which is worth stating plainly
+  since a drop in the vulnerable corpus normally means lost detection. All five
+  were `fetch(url, {...})` inside `<script>` blocks in PHP templates. That is
+  browser JavaScript making a client-side request, and client-side fetch is not
+  server-side request forgery. NodeGoat did not move.
+
 ### Fixed
 - **Five rules recalibrated against a large Python agent codebase.** Scanning
   [hermes-agent](https://github.com/NousResearch/hermes-agent) (~8,400 files) at

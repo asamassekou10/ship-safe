@@ -15,6 +15,7 @@ import { BaseAgent } from './base-agent.js';
 const PATTERNS = [
   {
     rule: 'SSRF_USER_URL_FETCH',
+    langs: ['js'],   // fetch() is a JS/TS API; the req./ctx. shapes are Express and Koa.
     title: 'SSRF: User Input in fetch()',
     regex: /fetch\s*\(\s*(?:req\.|request\.|ctx\.|query|params|body|input|url|data)/g,
     severity: 'critical',
@@ -25,6 +26,7 @@ const PATTERNS = [
   },
   {
     rule: 'SSRF_USER_URL_AXIOS',
+    langs: ['js'],   // axios, got, superagent, node-fetch and undici are all npm clients.
     title: 'SSRF: User Input in axios/got/http',
     regex: /(?:axios|got|http|https|request|superagent|node-fetch|undici)(?:\.get|\.post|\.put|\.delete|\.request|\s*\()\s*\(\s*(?:req\.|request\.|ctx\.|query|params|body|input|url|data)/g,
     severity: 'critical',
@@ -35,6 +37,7 @@ const PATTERNS = [
   },
   {
     rule: 'SSRF_URL_TEMPLATE',
+    langs: ['js'],   // backtick template literals only exist in JS/TS.
     title: 'SSRF: Template Literal in URL',
     regex: /(?:fetch|axios|got|http\.get|https\.get)\s*\(\s*`[^`]*\$\{(?:req\.|request\.|ctx\.|query|params|body|input)/g,
     severity: 'critical',
@@ -89,6 +92,7 @@ const PATTERNS = [
   },
   {
     rule: 'SSRF_REDIRECT_FOLLOW',
+    langs: ['js'],   // maxRedirects is an axios option, and `key: true` is JS object syntax. Still runs on .json and .yml, which carry no language.
     title: 'SSRF: HTTP Client Follows Redirects',
     regex: /(?:follow|maxRedirects|redirect)\s*:\s*(?:true|\d{2,})/g,
     severity: 'medium',
@@ -100,6 +104,7 @@ const PATTERNS = [
   },
   {
     rule: 'SSRF_PYTHON_REQUESTS',
+    langs: ['python'],   // requests + flask.request is Python.
     title: 'SSRF: Python requests with User Input',
     regex: /requests\.(?:get|post|put|delete|head|patch)\s*\(\s*(?:request\.|flask\.|data|args|form)/g,
     severity: 'critical',

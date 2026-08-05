@@ -47,8 +47,8 @@
       "id": "hermes-agent",
       "repo": "NousResearch/hermes-agent",
       "commit": "743dc94ab90adb0529bb233b8498c6fd6ee0e020",
-      "findings": 799,
-      "critical": 115,
+      "findings": 785,
+      "critical": 101,
       "high": 225,
       "score": 20.9,
       "grade": "F"
@@ -67,16 +67,16 @@
       "id": "DVWA",
       "repo": "digininja/DVWA",
       "commit": "d45ba3c4e7efa7f023f25f58ab4af9912c887057",
-      "findings": 76,
-      "critical": 6,
+      "findings": 71,
+      "critical": 1,
       "high": 55
     }
   ],
   "summary": {
     "cleanProjects": 5,
-    "cleanFindings": 856,
-    "cleanCriticalFindings": 116,
+    "cleanFindings": 842,
+    "cleanCriticalFindings": 102,
     "vulnerableProjects": 2,
-    "vulnerableFindings": 150
+    "vulnerableFindings": 145
   }
 }
