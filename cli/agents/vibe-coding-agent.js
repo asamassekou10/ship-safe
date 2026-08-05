@@ -55,7 +55,10 @@ const PATTERNS = [
   {
     rule: 'VIBE_TODO_AUTH',
     title: 'Vibe Code: TODO — Add Authentication',
-    regex: /\/\/\s*(?:TODO|FIXME|HACK|XXX)\s*:?\s*(?:add|implement|fix|enable|require)\s+(?:auth(?:entication|orization)?|login|session|jwt|token|middleware|permission|rbac|access.?control)/gi,
+    // Comment styles beyond `//` come from the duplicate copy that used to
+    // live in injection-tester.js under the same rule ID. Python and block
+    // comments carry these TODOs just as often.
+    regex: /(?:\/\/|#|\/\*)\s*(?:TODO|FIXME|HACK|XXX)\s*:?\s*(?:add|implement|fix|enable|require|handle)\s+(?:auth(?:entication|orization)?|login|session|jwt|token|middleware|permission|rbac|access.?control)/gi,
     severity: 'high',
     cwe: 'CWE-306',
     owasp: 'A01:2021',
@@ -65,7 +68,7 @@ const PATTERNS = [
   {
     rule: 'VIBE_TODO_VALIDATION',
     title: 'Vibe Code: TODO — Add Input Validation',
-    regex: /\/\/\s*(?:TODO|FIXME|HACK|XXX)\s*:?\s*(?:add|implement|fix|enable)\s+(?:valid(?:ation|ate)|sanitiz(?:e|ation)|escap(?:e|ing)|input.?check|type.?check)/gi,
+    regex: /(?:\/\/|#|\/\*)\s*(?:TODO|FIXME|HACK|XXX)\s*:?\s*(?:add|implement|fix|enable|handle)\s+(?:valid(?:ation|ate)|sanitiz(?:e|ation)|escap(?:e|ing)|filter|input.?check|check.?input|type.?check)/gi,
     severity: 'high',
     cwe: 'CWE-20',
     owasp: 'A03:2021',
