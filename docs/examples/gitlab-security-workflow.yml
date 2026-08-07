@@ -4,7 +4,7 @@
 # file and override the threshold in your own settings if you use CI/CD includes.
 #
 # Tune --threshold for your team. Lower values are less strict; higher values
-# require the scan to miss fewer findings before the pipeline passes.
+# require a higher security score before the pipeline passes.
 
 stages:
   - security
