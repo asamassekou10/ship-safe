@@ -86,7 +86,12 @@ const CONFIG_PATTERNS = [
   {
     rule: 'CORS_WILDCARD',
     title: 'CORS Wildcard Origin',
-    regex: /(?:Access-Control-Allow-Origin|origin)\s*[:=]\s*['"]?\*['"]?/g,
+    // The header-function form was invisible. `origin: "*"` matched, but
+    // `res.setHeader("Access-Control-Allow-Origin", "*")` and
+    // `res.header(..., "*")` did not, because the rule required `:` or `=`
+    // before the wildcard. That is the most common way to set this header in
+    // Express, so the rule missed the shape it exists for.
+    regex: /(?:Access-Control-Allow-Origin|origin)\s*(?:[:=]|['"]\s*,)\s*['"]?\*['"]?/g,
     severity: 'high',
     cwe: 'CWE-942',
     owasp: 'A05:2021',
@@ -96,6 +101,10 @@ const CONFIG_PATTERNS = [
   {
     rule: 'CORS_CREDENTIALS_WILDCARD',
     title: 'CORS Credentials with Wildcard',
+    // Same-line cors() options form only. The header-pair form spans two
+    // lines and pattern scanning is per line, so it is handled by
+    // _checkCorsCredentialHeaders below rather than by a longer regex that
+    // could never match.
     regex: /credentials\s*:\s*true.*origin\s*:\s*true|origin\s*:\s*true.*credentials\s*:\s*true/g,
     severity: 'critical',
     cwe: 'CWE-942',
@@ -576,9 +585,58 @@ export class ConfigAuditor extends BaseAgent {
     );
     for (const file of codeFiles) {
       findings = findings.concat(this.scanFileWithPatterns(file, generalPatterns));
+      findings = findings.concat(this._checkCorsCredentialHeaders(file));
     }
 
     return findings;
+  }
+
+  /**
+   * Wildcard origin combined with credentials, set as separate headers.
+   *
+   * This is the dangerous CORS combination and it is normally written across
+   * two lines:
+   *
+   *   res.setHeader('Access-Control-Allow-Origin', '*');
+   *   res.setHeader('Access-Control-Allow-Credentials', 'true');
+   *
+   * Pattern scanning runs per line, so no regex in CONFIG_PATTERNS can see
+   * both. A file-level check can.
+   *
+   * Browsers reject exactly this pair, which is why it often survives review:
+   * it looks permissive rather than broken. It matters because a server that
+   * reflects the request origin instead of literal `*` has the same shape and
+   * does work, and that is credential theft from any site.
+   */
+  _checkCorsCredentialHeaders(filePath) {
+    const content = this.readFile(filePath);
+    if (!content) return [];
+
+    const wildcardOrigin = /Access-Control-Allow-Origin['"]?\s*(?:[:=,]|['"]\s*,)\s*['"]?\*/i;
+    const allowsCredentials = /Access-Control-Allow-Credentials['"]?\s*(?:[:=,]|['"]\s*,)\s*['"]?true/i;
+    if (!wildcardOrigin.test(content) || !allowsCredentials.test(content)) return [];
+
+    const lines = content.split('\n');
+    const idx = lines.findIndex(l => allowsCredentials.test(l));
+    const line = idx === -1 ? 1 : idx + 1;
+    const matched = (lines[line - 1] || '').trim().slice(0, 180);
+    if (this.isSuppressed(matched, 'critical')) return [];
+
+    return [createFinding({
+      file: filePath,
+      line,
+      column: 1,
+      severity: 'critical',
+      category: this.category,
+      rule: 'CORS_CREDENTIALS_WILDCARD',
+      title: 'CORS Credentials with Wildcard',
+      description: 'This file sets a wildcard Access-Control-Allow-Origin and also allows credentials. If the origin is ever reflected from the request rather than sent literally, any site can read authenticated responses.',
+      matched,
+      confidence: 'high',
+      cwe: 'CWE-942',
+      owasp: 'A05:2021',
+      fix: 'Send a specific origin from an allowlist whenever Access-Control-Allow-Credentials is true.',
+    })];
   }
 
   /**

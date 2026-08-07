@@ -1,6 +1,6 @@
 {
   "tool": "ship-safe",
-  "version": "9.6.4",
+  "version": "9.7.0",
   "methodology": "Findings reported by `ship-safe ci --no-deps` against pinned checkouts. Clean corpus: mature projects with no known active vulnerabilities, where every finding is triage a user inherits. Vulnerable corpus: deliberately insecure applications, present so a reduction in noise cannot be mistaken for lost detection. Counts are a proxy for a false-positive rate, not a verified one.",
   "clean": [
     {
@@ -47,9 +47,9 @@
       "id": "hermes-agent",
       "repo": "NousResearch/hermes-agent",
       "commit": "743dc94ab90adb0529bb233b8498c6fd6ee0e020",
-      "findings": 785,
+      "findings": 787,
       "critical": 101,
-      "high": 225,
+      "high": 227,
       "score": 20.9,
       "grade": "F"
     }
@@ -74,7 +74,7 @@
   ],
   "summary": {
     "cleanProjects": 5,
-    "cleanFindings": 842,
+    "cleanFindings": 844,
     "cleanCriticalFindings": 102,
     "vulnerableProjects": 2,
     "vulnerableFindings": 145
