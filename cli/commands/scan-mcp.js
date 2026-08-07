@@ -8,7 +8,7 @@
  *
  * USAGE:
  *   ship-safe scan-mcp <url>        Analyze a remote MCP server
- *   ship-safe scan-mcp <path>       Analyze a local MCP manifest file
+ *   ship-safe scan-mcp <path>       Analyze a local MCP manifest file or project directory
  *
  * The command connects to the server's /tools endpoint (or reads the manifest
  * JSON directly) and inspects every tool definition for attack patterns.
@@ -23,6 +23,7 @@ import chalk from 'chalk';
 import { createHash } from 'crypto';
 import * as output from '../utils/output.js';
 import { ThreatIntel } from '../utils/threat-intel.js';
+import { MCPSecurityAgent, MCP_CONFIG_FILES } from '../agents/mcp-security-agent.js';
 
 // =============================================================================
 // MCP TOOL DESCRIPTION PATTERNS
@@ -216,6 +217,23 @@ export async function scanMcpCommand(target, options = {}) {
       output.error(`File not found: ${filePath}`);
       process.exit(1);
     }
+
+    let stats;
+    try {
+      stats = fs.statSync(filePath);
+    } catch (err) {
+      output.error(`Failed to inspect MCP target ${filePath}: ${err.message}`);
+      process.exit(1);
+    }
+
+    if (stats.isDirectory()) {
+      return scanMcpDirectory(filePath, options);
+    }
+    if (!stats.isFile()) {
+      output.error(`Unsupported MCP target: ${filePath} (expected a regular file or directory)`);
+      process.exit(1);
+    }
+
     try {
       manifest = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       serverName = path.basename(filePath);
@@ -248,6 +266,103 @@ export async function scanMcpCommand(target, options = {}) {
   if (getSummary(findings).critical > 0) {
     process.exit(1);
   }
+}
+
+async function scanMcpDirectory(rootPath, options) {
+  const configFiles = discoverMcpConfigFiles(rootPath);
+  const configPaths = configFiles.map(filePath => projectRelativePath(rootPath, filePath));
+  const scanner = new MCPSecurityAgent();
+  const findings = normalizeDirectoryFindings(rootPath, await scanner.analyze({
+    rootPath,
+    files: configFiles,
+    options: { checkGlobalAgents: false },
+  }));
+  const summary = getSummary(findings);
+
+  if (configFiles.length === 0) {
+    renderEmptyDirectoryWarning(rootPath);
+  }
+
+  if (options.json) {
+    printDirectoryJson(rootPath, configPaths, findings);
+  } else {
+    renderDirectoryFindings(rootPath, configPaths, findings);
+  }
+
+  if (summary.critical > 0) {
+    process.exit(1);
+  }
+}
+
+function discoverMcpConfigFiles(rootPath) {
+  return MCP_CONFIG_FILES
+    .map(relativePath => path.join(rootPath, relativePath))
+    .filter(filePath => {
+      try {
+        return fs.statSync(filePath).isFile();
+      } catch {
+        return false;
+      }
+    });
+}
+
+function projectRelativePath(rootPath, filePath) {
+  return path.relative(rootPath, filePath).replace(/\\/g, '/');
+}
+
+function normalizeDirectoryFindings(rootPath, findings) {
+  return findings.map(finding => finding.file
+    ? { ...finding, file: projectRelativePath(rootPath, finding.file) }
+    : finding);
+}
+
+function renderEmptyDirectoryWarning(rootPath) {
+  output.warning(`No MCP configuration files found in ${rootPath}. Searched: ${MCP_CONFIG_FILES.join(', ')}`);
+}
+
+function renderDirectoryFindings(rootPath, configPaths, findings) {
+  if (configPaths.length === 0) return;
+
+  const project = path.basename(rootPath);
+  console.log(chalk.gray(`  Project: ${project}`));
+  console.log(chalk.gray(`  Configs found: ${configPaths.length}`));
+  console.log();
+
+  const grouped = new Map(configPaths.map(configPath => [configPath, []]));
+  for (const finding of findings) {
+    if (!grouped.has(finding.file)) grouped.set(finding.file, []);
+    grouped.get(finding.file).push(finding);
+  }
+
+  for (const [configPath, configFindings] of grouped) {
+    console.log(chalk.cyan(`  Config: ${configPath}`));
+    if (configFindings.length === 0) {
+      console.log(chalk.gray('    No findings.'));
+      console.log();
+      continue;
+    }
+    for (const finding of configFindings) {
+      const sevColor = finding.severity === 'critical' ? chalk.red.bold
+        : finding.severity === 'high' ? chalk.yellow
+        : chalk.blue;
+      console.log(`    ${sevColor(`[${finding.severity.toUpperCase()}]`)} ${chalk.white(finding.title || finding.rule)}`);
+      if (finding.matched) console.log(chalk.gray(`      ${String(finding.matched).slice(0, 120)}`));
+    }
+    console.log();
+  }
+
+  const summary = getSummary(findings);
+  if (summary.total === 0) {
+    console.log(chalk.green.bold(`  ✔ ${project}: No security issues found across ${configPaths.length} MCP config(s).`));
+    console.log();
+  } else if (summary.critical > 0) {
+    console.log(chalk.red.bold('    ⚠ Critical security issues detected.'));
+    console.log();
+  }
+}
+
+function printDirectoryJson(rootPath, configPaths, findings) {
+  console.log(JSON.stringify({ project: path.basename(rootPath), source: rootPath, configCount: configPaths.length, configs: configPaths, findings, summary: getSummary(findings) }, null, 2));
 }
 
 // =============================================================================
