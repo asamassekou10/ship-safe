@@ -1,0 +1,24 @@
+# Example GitLab CI security gate
+#
+# Copy the security-gate job into your project's .gitlab-ci.yml, or include this
+# file and override the threshold in your own settings if you use CI/CD includes.
+#
+# Tune --threshold for your team. Lower values are less strict; higher values
+# require the scan to miss fewer findings before the pipeline passes.
+
+stages:
+  - security
+
+security-gate:
+  stage: security
+  image: node:20
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - npx --yes ship-safe@latest ci . --threshold 75 --sarif ship-safe.sarif
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - ship-safe.sarif

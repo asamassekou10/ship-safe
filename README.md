@@ -197,6 +197,8 @@ jobs:
           sarif_file: results.sarif
 ```
 
+A GitLab CI version is in [docs/examples/gitlab-security-workflow.yml](docs/examples/gitlab-security-workflow.yml).
+
 ---
 
 ## LLM Support
