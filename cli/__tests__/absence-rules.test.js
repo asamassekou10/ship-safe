@@ -37,6 +37,7 @@ describe('absence rules stay quiet when the mitigation is present', async () => 
   const { AgenticSecurityAgent } = await import('../agents/agentic-security-agent.js');
   const { RAGSecurityAgent } = await import('../agents/rag-security-agent.js');
   const { PIIComplianceAgent } = await import('../agents/pii-compliance-agent.js');
+  const { MCPSecurityAgent } = await import('../agents/mcp-security-agent.js');
 
   const quiet = async (Agent, rule, code, ext = '.js') => {
     const { dir, file } = writeTemp(code, ext);
@@ -74,6 +75,10 @@ describe('absence rules stay quiet when the mitigation is present', async () => 
   it('PII_TRACKING_NO_CONSENT: consent checked before init', () =>
     quiet(PIIComplianceAgent, 'PII_TRACKING_NO_CONSENT',
       'if (hasConsent) { gtag("config", id); } // gdpr cookie banner opt-in'));
+
+  it('MCP_REMOTE_UNPINNED: version pinned on the entry', () =>
+    quiet(MCPSecurityAgent, 'MCP_REMOTE_UNPINNED',
+      'const mcpServers = {\n  docs: { command: "npx mcp-docs", version: "1.4.2" }\n};\n'));
 });
 
 describe('install docs are judged by whose host they point at', async () => {
