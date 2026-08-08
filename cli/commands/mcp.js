@@ -3,11 +3,22 @@
  * ==========
  *
  * Exposes ship-safe as a Model Context Protocol (MCP) server.
- * Allows AI editors (Claude Desktop, Cursor, Windsurf, Zed) to call
+ * Allows AI clients (Codex, Claude Desktop, Cursor, Windsurf, Zed) to call
  * ship-safe's security tools directly during conversations.
  *
  * USAGE:
  *   npx ship-safe mcp       Start the MCP server (stdio transport)
+ *
+ * SETUP (Codex / other MCP clients):
+ *   Register the stdio command in the client's MCP configuration:
+ *   {
+ *     "mcpServers": {
+ *       "ship-safe": {
+ *         "command": "npx",
+ *         "args": ["ship-safe", "mcp"]
+ *       }
+ *     }
+ *   }
  *
  * SETUP (Claude Desktop):
  *   Add to ~/Library/Application Support/Claude/claude_desktop_config.json:

@@ -49,15 +49,17 @@ const CLAUDE_SETTINGS_PATH = path.join(os.homedir(), '.claude', 'settings.json')
 const PRE_COMMAND  = `node "${PRE_HOOK_SCRIPT}"`;
 const POST_COMMAND = `node "${POST_HOOK_SCRIPT}"`;
 
+export const HOOK_COMMANDS = { preToolUse: PRE_COMMAND, postToolUse: POST_COMMAND };
+
 // =============================================================================
 // Public API
 // =============================================================================
 
-export async function hooksCommand(action = 'install', _options = {}) {
+export async function hooksCommand(action = 'install', options = {}) {
   switch (action) {
     case 'install': return install();
     case 'remove':  return remove();
-    case 'status':  return status();
+    case 'status':  return status(options);
     default:
       console.error(chalk.red(`Unknown action: ${action}. Use: install | remove | status`));
       process.exit(1);
@@ -123,7 +125,10 @@ function install() {
 
   if (!changed) {
     console.log(chalk.green('✔ ship-safe hooks are already installed.'));
-    printStatus(settings);
+    printStatus(getHookStatus(settings, {
+      preToolUse: fs.existsSync(PRE_HOOK_SCRIPT),
+      postToolUse: fs.existsSync(POST_HOOK_SCRIPT),
+    }));
     return;
   }
 
@@ -177,24 +182,57 @@ function remove() {
 // Status
 // =============================================================================
 
-function status() {
-  const settings = readSettings();
-  printStatus(settings);
+function status(options = {}) {
+  const settingsState = readSettingsState({ quiet: Boolean(options.json) });
+  const hookStatus = getHookStatus(settingsState.settings, {
+    preToolUse: fs.existsSync(PRE_HOOK_SCRIPT),
+    postToolUse: fs.existsSync(POST_HOOK_SCRIPT),
+  }, settingsState.valid);
+
+  if (options.json) {
+    process.stdout.write(JSON.stringify(hookStatus, null, 2) + '\n');
+  } else {
+    printStatus(hookStatus);
+  }
+
+  process.exitCode = hookStatus.protected ? 0 : 1;
 }
 
-function printStatus(settings) {
-  const preInstalled  = settings.hooks?.PreToolUse  && hasEntry(settings.hooks.PreToolUse,  PRE_COMMAND);
-  const postInstalled = settings.hooks?.PostToolUse && hasEntry(settings.hooks.PostToolUse, POST_COMMAND);
-  const scriptsExist  = fs.existsSync(PRE_HOOK_SCRIPT) && fs.existsSync(POST_HOOK_SCRIPT);
+export function getHookStatus(settings, scripts, settingsValid = true) {
+  const preRegistered = Boolean(settings.hooks?.PreToolUse && hasEntry(settings.hooks.PreToolUse, PRE_COMMAND));
+  const postRegistered = Boolean(settings.hooks?.PostToolUse && hasEntry(settings.hooks.PostToolUse, POST_COMMAND));
+  const preReady = preRegistered && scripts.preToolUse;
+  const postReady = postRegistered && scripts.postToolUse;
+  const protectedState = settingsValid && preReady && postReady;
+  const hasPartialState = preRegistered || postRegistered || scripts.preToolUse || scripts.postToolUse;
+
+  return {
+    schemaVersion: 1,
+    integration: 'claude-code',
+    state: protectedState ? 'active' : hasPartialState ? 'partial' : 'inactive',
+    protected: protectedState,
+    settings: { valid: settingsValid, path: CLAUDE_SETTINGS_PATH },
+    hooks: {
+      preToolUse: { registered: preRegistered, scriptPresent: scripts.preToolUse, ready: preReady },
+      postToolUse: { registered: postRegistered, scriptPresent: scripts.postToolUse, ready: postReady },
+    },
+    scripts: { directory: STABLE_HOOK_DIR },
+  };
+}
+
+function printStatus(hookStatus) {
+  const preReady = hookStatus.hooks.preToolUse.ready;
+  const postReady = hookStatus.hooks.postToolUse.ready;
+  const scriptsExist = hookStatus.hooks.preToolUse.scriptPresent && hookStatus.hooks.postToolUse.scriptPresent;
 
   console.log(chalk.bold('\nship-safe Claude Code hooks status:\n'));
   console.log(
-    (preInstalled  ? chalk.green('  ✔') : chalk.red('  ✗')) +
+    (preReady  ? chalk.green('  ✔') : chalk.red('  ✗')) +
     chalk.white(' PreToolUse  ') +
     chalk.gray('(block secrets in writes, dangerous bash commands)')
   );
   console.log(
-    (postInstalled ? chalk.green('  ✔') : chalk.red('  ✗')) +
+    (postReady ? chalk.green('  ✔') : chalk.red('  ✗')) +
     chalk.white(' PostToolUse ') +
     chalk.gray('(advisory scan after file writes)')
   );
@@ -205,7 +243,7 @@ function printStatus(settings) {
   );
   console.log();
 
-  if (!preInstalled || !postInstalled) {
+  if (!hookStatus.protected) {
     console.log(chalk.gray('  Run: npx ship-safe hooks install'));
   }
   console.log();
@@ -216,17 +254,22 @@ function printStatus(settings) {
 // =============================================================================
 
 function readSettings() {
+  return readSettingsState().settings;
+}
+
+function readSettingsState({ quiet = false } = {}) {
   try {
     if (fs.existsSync(CLAUDE_SETTINGS_PATH)) {
-      return JSON.parse(fs.readFileSync(CLAUDE_SETTINGS_PATH, 'utf8'));
+      return { settings: JSON.parse(fs.readFileSync(CLAUDE_SETTINGS_PATH, 'utf8')), valid: true };
     }
   } catch {
     // If the file exists but is malformed, back it up and start fresh
     const backup = CLAUDE_SETTINGS_PATH + '.bak';
     try { fs.copyFileSync(CLAUDE_SETTINGS_PATH, backup); } catch {}
-    console.warn(chalk.yellow(`Warning: could not parse existing settings.json — backed up to ${backup}`));
+    if (!quiet) console.warn(chalk.yellow(`Warning: could not parse existing settings.json — backed up to ${backup}`));
+    return { settings: {}, valid: false };
   }
-  return {};
+  return { settings: {}, valid: true };
 }
 
 function writeSettings(settings) {

@@ -85,6 +85,7 @@ npx ship-safe ci . --fail-on high          # stricter: critical or high
 ## Why Developers Use It
 
 - **Built for AI-native apps**: catches risks in agents, MCP servers, prompts, RAG flows, managed-agent configs, and AI-powered CI.
+- **Works with AI clients**: expose Ship Safe to Codex, Claude Desktop, Cursor, Windsurf, and other MCP clients through the local stdio server.
 - **Fast local feedback**: run it before a PR, during review, or inside CI without sending code to a hosted scanner.
 - **Fixes are reviewable**: every suggested change is shown as a diff before it touches your files.
 - **Works with your stack**: JavaScript, TypeScript, Python, config files, infrastructure files, GitHub Actions, and more.

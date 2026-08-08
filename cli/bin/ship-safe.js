@@ -159,7 +159,7 @@ program
 // -----------------------------------------------------------------------------
 program
   .command('mcp')
-  .description('Start ship-safe as an MCP server (for Claude Desktop, Cursor, Windsurf, etc.)')
+  .description('Start ship-safe as an MCP server (for Codex, Claude Desktop, Cursor, Windsurf, etc.)')
   .action(mcpCommand);
 
 // -----------------------------------------------------------------------------
@@ -553,6 +553,7 @@ How it works:
   PostToolUse — scans the file after it is written; injects advisory findings
                 into Claude's context so issues are caught immediately
 `)
+  .option('--json', 'Output a machine-readable protection status')
   .action(hooksCommand);
 
 // -----------------------------------------------------------------------------
