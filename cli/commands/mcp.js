@@ -249,7 +249,7 @@ async function analyzeFile({ path: filePath }) {
   };
 }
 
-async function scanRepo({ path: targetPath, agents: agentFilter, llm = false, outputFile }) {
+export async function scanRepo({ path: targetPath, agents: agentFilter, llm = false, outputFile }) {
   const rootPath = path.resolve(targetPath);
 
   if (!fs.existsSync(rootPath)) {
@@ -290,7 +290,9 @@ async function scanRepo({ path: targetPath, agents: agentFilter, llm = false, ou
 
     // Score
     const scorer = new ScoringEngine();
-    const { score, grade } = scorer.score(findings);
+    const scoreResult = scorer.compute(findings, []);
+    const score = Math.round(scoreResult.score * 10) / 10;
+    const grade = scoreResult.grade.letter;
 
     const SEV_ORDER = ['critical', 'high', 'medium', 'low'];
     const bySeverity = {};
@@ -494,8 +496,9 @@ export async function mcpCommand() {
   process.stdin.setEncoding('utf-8');
 
   let buffer = '';
+  let pending = Promise.resolve();
 
-  process.stdin.on('data', async (chunk) => {
+  process.stdin.on('data', (chunk) => {
     buffer += chunk;
 
     // MCP messages are newline-delimited JSON
@@ -505,22 +508,28 @@ export async function mcpCommand() {
     for (const line of lines) {
       if (!line.trim()) continue;
 
-      try {
-        const request = JSON.parse(line);
-        const response = await handleRequest(request);
-        process.stdout.write(JSON.stringify(response) + '\n');
-      } catch (err) {
-        const errorResponse = {
-          jsonrpc: '2.0',
-          id: null,
-          error: { code: -32700, message: 'Parse error', data: err.message },
-        };
-        process.stdout.write(JSON.stringify(errorResponse) + '\n');
-      }
+      // Serialize requests so the process cannot exit while an async scan is
+      // still producing its response, and so responses retain request order.
+      pending = pending.then(async () => {
+        try {
+          const request = JSON.parse(line);
+          const response = await handleRequest(request);
+          if (response) process.stdout.write(JSON.stringify(response) + '\n');
+        } catch (err) {
+          const errorResponse = {
+            jsonrpc: '2.0',
+            id: null,
+            error: { code: -32700, message: 'Parse error', data: err.message },
+          };
+          process.stdout.write(JSON.stringify(errorResponse) + '\n');
+        }
+      });
     }
   });
 
-  process.stdin.on('end', () => process.exit(0));
+  process.stdin.on('end', () => {
+    pending.then(() => process.exit(0), () => process.exit(0));
+  });
 }
 
 async function handleRequest(request) {
