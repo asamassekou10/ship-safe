@@ -53,6 +53,32 @@ import { ScoringEngine } from '../agents/scoring-engine.js';
 import { autoDetectProvider } from '../providers/llm-provider.js';
 import { DeepAnalyzer } from '../agents/deep-analyzer.js';
 
+const MAX_MCP_FINDINGS = 200;
+
+function workspacePath(targetPath) {
+  const workspaceRoot = path.resolve(process.cwd());
+  const absolutePath = path.resolve(targetPath);
+  const relativePath = path.relative(workspaceRoot, absolutePath);
+
+  if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+    return { error: `Path must stay within the MCP workspace: ${absolutePath}` };
+  }
+
+  // Resolve the target or its nearest existing parent before allowing a
+  // write. This also catches new files written through a symlinked directory.
+  let existingPath = absolutePath;
+  while (!fs.existsSync(existingPath) && existingPath !== path.dirname(existingPath)) {
+    existingPath = path.dirname(existingPath);
+  }
+  const realPath = fs.realpathSync.native(existingPath);
+  const realRelativePath = path.relative(workspaceRoot, realPath);
+  if (realRelativePath.startsWith('..') || path.isAbsolute(realRelativePath)) {
+    return { error: `Path must resolve within the MCP workspace: ${absolutePath}` };
+  }
+
+  return { path: absolutePath };
+}
+
 // =============================================================================
 // MCP TOOL DEFINITIONS
 // =============================================================================
@@ -120,6 +146,12 @@ const TOOLS = [
         outputFile: {
           type: 'string',
           description: 'Optional path to save the JSON report for later retrieval with get_findings.',
+        },
+        maxFindings: {
+          type: 'integer',
+          minimum: 1,
+          maximum: MAX_MCP_FINDINGS,
+          description: `Maximum findings returned in the MCP response (default: ${MAX_MCP_FINDINGS}). Use outputFile to retain the report.`,
         },
       },
       required: ['path'],
@@ -249,7 +281,7 @@ async function analyzeFile({ path: filePath }) {
   };
 }
 
-export async function scanRepo({ path: targetPath, agents: agentFilter, llm = false, outputFile }) {
+export async function scanRepo({ path: targetPath, agents: agentFilter, llm = false, outputFile, maxFindings = MAX_MCP_FINDINGS }) {
   const rootPath = path.resolve(targetPath);
 
   if (!fs.existsSync(rootPath)) {
@@ -300,32 +332,44 @@ export async function scanRepo({ path: targetPath, agents: agentFilter, llm = fa
       bySeverity[sev] = findings.filter(f => f.severity === sev).length;
     }
 
+    const serializedFindings = findings.map(f => ({
+      title:         f.title,
+      severity:      f.severity,
+      category:      f.category,
+      rule:          f.rule,
+      file:          f.file ? path.relative(rootPath, f.file) : null,
+      line:          f.line,
+      description:   f.description,
+      remediation:   f.remediation,
+      confidence:    f.confidence,
+      ...(f.deepAnalysis ? { deepAnalysis: f.deepAnalysis } : {}),
+    }));
+    const resultLimit = Math.min(Math.max(Number(maxFindings) || MAX_MCP_FINDINGS, 1), MAX_MCP_FINDINGS);
+
     const report = {
       scannedAt: new Date().toISOString(),
       rootPath,
       score,
       grade,
       totalFindings: findings.length,
+      returnedFindings: Math.min(serializedFindings.length, resultLimit),
+      truncated: serializedFindings.length > resultLimit,
       bySeverity,
-      findings: findings.map(f => ({
-        title:         f.title,
-        severity:      f.severity,
-        category:      f.category,
-        rule:          f.rule,
-        file:          f.file ? path.relative(rootPath, f.file) : null,
-        line:          f.line,
-        description:   f.description,
-        remediation:   f.remediation,
-        confidence:    f.confidence,
-        ...(f.deepAnalysis ? { deepAnalysis: f.deepAnalysis } : {}),
-      })),
+      findings: serializedFindings.slice(0, resultLimit),
       ...(deepStats ? { deepAnalysis: deepStats } : {}),
       summary: `Score: ${score}/100 (${grade}) — ${findings.length} finding(s): ${bySeverity.critical} critical, ${bySeverity.high} high, ${bySeverity.medium} medium, ${bySeverity.low} low.`,
     };
 
     if (outputFile) {
-      const outPath = path.resolve(outputFile);
-      fs.writeFileSync(outPath, JSON.stringify(report, null, 2), 'utf-8');
+      const resolvedOutput = workspacePath(outputFile);
+      if (resolvedOutput.error) return resolvedOutput;
+      const outPath = resolvedOutput.path;
+      fs.writeFileSync(outPath, JSON.stringify({
+        ...report,
+        findings: serializedFindings,
+        returnedFindings: serializedFindings.length,
+        truncated: false,
+      }, null, 2), 'utf-8');
       report.savedTo = outPath;
     }
 
@@ -374,8 +418,10 @@ function getFindings({ reportPath, severity }) {
   };
 }
 
-function suppressFinding({ file, line, reason }) {
-  const absPath = path.resolve(file);
+export function suppressFinding({ file, line, reason }) {
+  const resolved = workspacePath(file);
+  if (resolved.error) return { error: resolved.error };
+  const absPath = resolved.path;
 
   if (!fs.existsSync(absPath)) {
     return { error: `File not found: ${absPath}` };

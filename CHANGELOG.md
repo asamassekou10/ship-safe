@@ -6,6 +6,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [9.7.1] — 2026-08-07 — MCP and Codex integration
+
+### Added
+- Codex MCP integration guidance and a bounded `scan_repo` response for large repositories.
+- Regression coverage for MCP scoring and asynchronous stdio responses.
+
+### Fixed
+- MCP scans now use the current scoring engine API instead of the removed `score()` method.
+- MCP stdio waits for asynchronous scans to finish before closing the process.
+- `suppress_finding` refuses paths outside the MCP workspace, including symlinks that resolve outside it.
+
 ## [9.7.0] — 2026-08-05 — Calibration
 
 This release changes what existing scans report and how `ci` decides to fail.

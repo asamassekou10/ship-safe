@@ -315,6 +315,7 @@ Start here:
 - [Add an agent](./docs/adding-an-agent.md)
 - [Add a security rule](./docs/adding-a-security-rule.md)
 - [Handle MCP environment variables safely](./docs/mcp-env-safety.md)
+- [Use Ship Safe with Codex](./docs/integrations/codex.md)
 - [Release process](./docs/releasing.md)
 
 ---
