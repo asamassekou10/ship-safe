@@ -6,6 +6,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [9.7.2] — 2026-08-08 — Claude Code protection status
+
+### Added
+- Claude Code status line support showing `Protected by Ship Safe` only when the real-time hooks are installed and ready.
+- MCP `ship_safe_status` tool for Codex and other MCP clients, with an explicit distinction between availability and automatic lifecycle protection.
+- Claude Code and Codex integration documentation and regression coverage for status reporting.
+
+### Fixed
+- Claude hook installation now preserves an existing status line instead of overwriting another integration.
+- Release metadata and package lock versions are aligned at `9.7.2`.
+
 ## [9.7.1] — 2026-08-07 — MCP and Codex integration
 
 ### Added

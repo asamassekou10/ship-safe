@@ -38,6 +38,7 @@
  *   scan_repo       - Run a full multi-agent security scan on a repo
  *   get_findings    - Read findings from a saved ship-safe report file
  *   suppress_finding - Add a ship-safe-ignore comment to suppress a finding
+ *   ship_safe_status  - Report whether Ship Safe is connected in the MCP client
  *
  * PROTOCOL:
  *   JSON-RPC 2.0 over stdio (MCP spec: https://modelcontextprotocol.io)
@@ -84,6 +85,11 @@ function workspacePath(targetPath) {
 // =============================================================================
 
 const TOOLS = [
+  {
+    name: 'ship_safe_status',
+    description: 'Report Ship Safe MCP connection status. This confirms that Ship Safe is available to the client, but does not claim automatic interception of every client action.',
+    inputSchema: { type: 'object', properties: {} },
+  },
   {
     name: 'scan_secrets',
     description: 'Scan a directory or file for leaked secrets, API keys, and credentials. Returns structured findings with severity, file location, and remediation advice.',
@@ -258,6 +264,18 @@ function getChecklist() {
       { id: 13, category: 'CI/CD', check: 'ship-safe scan runs in CI pipeline', command: null },
       { id: 14, category: 'CI/CD', check: 'Pre-push hook installed', command: 'npx ship-safe guard' },
     ],
+  };
+}
+
+export function getShipSafeStatus() {
+  return {
+    schemaVersion: 1,
+    integration: 'mcp',
+    state: 'available',
+    protected: false,
+    badge: 'Ship Safe available in this session',
+    message: 'Ship Safe MCP tools are connected. MCP does not automatically intercept every Codex or Claude action; use scan_repo or scan_secrets when you want a check.',
+    tools: ['scan_repo', 'scan_secrets', 'analyze_file', 'get_findings', 'get_checklist', 'suppress_finding'],
   };
 }
 
@@ -589,7 +607,7 @@ async function handleRequest(request) {
       return respond({
         protocolVersion: '2024-11-05',
         capabilities: { tools: {} },
-        serverInfo: { name: 'ship-safe', version: '3.0.0' },
+        serverInfo: { name: 'ship-safe', version: '9.7.2' },
       });
 
     case 'tools/list':
@@ -601,6 +619,9 @@ async function handleRequest(request) {
       try {
         let result;
         switch (name) {
+          case 'ship_safe_status':
+            result = getShipSafeStatus();
+            break;
           case 'scan_secrets':
             result = await scanSecrets(args);
             break;

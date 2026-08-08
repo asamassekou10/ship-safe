@@ -547,6 +547,9 @@ Actions:
   remove    Unregister ship-safe hooks
   status    Show whether hooks are installed
 
+The installer also registers a local Claude Code status line. It displays
+"Protected by Ship Safe" only when the enforcement hooks are ready.
+
 How it works:
   PreToolUse  — blocks Write/Edit if critical secrets are in the new content;
                 blocks dangerous Bash patterns (curl|bash, credential exfiltration)

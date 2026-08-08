@@ -11,6 +11,7 @@ You are installing ship-safe as real-time security hooks into Claude Code. Once 
 - **Block** `Write` / `Edit` / `MultiEdit` calls that contain critical secrets (API keys, tokens, private keys) **before** they are written to disk
 - **Block** `Bash` calls matching dangerous patterns (curl piped to shell, credential exfiltration)
 - **Scan** every file after it is written and inject advisory findings directly into this conversation
+- **Show** a local `Protected by Ship Safe` status line in Claude Code when both hooks are ready
 
 ## Step 1: Determine the action
 
@@ -39,10 +40,12 @@ npx ship-safe@latest hooks status
 
 **On install success:**
 - Confirm that two hooks are now registered in `~/.claude/settings.json`
+- Confirm that the Ship Safe status line is registered as well, unless another status line already exists
 - Explain what each hook does:
   - **PreToolUse** (on Write / Edit / MultiEdit / Bash): blocks critical secrets and dangerous commands in real time
   - **PostToolUse** (on Write / Edit / MultiEdit): scans the written file and reports findings in context
 - Tell the user that **no restart is needed** — hooks take effect immediately
+- The status line is a local indicator backed by the installed hooks; it is not a decorative claim
 
 **On remove success:**
 - Confirm the hooks were removed from `~/.claude/settings.json`

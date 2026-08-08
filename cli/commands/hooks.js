@@ -41,6 +41,7 @@ const PKG_HOOK_DIR = path.resolve(__dirname, '../hooks');
 const STABLE_HOOK_DIR = path.join(os.homedir(), '.ship-safe', 'hooks');
 const PRE_HOOK_SCRIPT  = path.join(STABLE_HOOK_DIR, 'pre-tool-use.js');
 const POST_HOOK_SCRIPT = path.join(STABLE_HOOK_DIR, 'post-tool-use.js');
+const STATUS_LINE_SCRIPT = path.join(STABLE_HOOK_DIR, 'status-line.js');
 
 // Claude Code settings.json location
 const CLAUDE_SETTINGS_PATH = path.join(os.homedir(), '.claude', 'settings.json');
@@ -48,8 +49,9 @@ const CLAUDE_SETTINGS_PATH = path.join(os.homedir(), '.claude', 'settings.json')
 // The command strings we register (use stable paths)
 const PRE_COMMAND  = `node "${PRE_HOOK_SCRIPT}"`;
 const POST_COMMAND = `node "${POST_HOOK_SCRIPT}"`;
+const STATUS_LINE_COMMAND = `node "${STATUS_LINE_SCRIPT}"`;
 
-export const HOOK_COMMANDS = { preToolUse: PRE_COMMAND, postToolUse: POST_COMMAND };
+export const HOOK_COMMANDS = { preToolUse: PRE_COMMAND, postToolUse: POST_COMMAND, statusLine: STATUS_LINE_COMMAND };
 
 // =============================================================================
 // Public API
@@ -72,7 +74,7 @@ export async function hooksCommand(action = 'install', options = {}) {
 
 function install() {
   // ── 1. Copy hook scripts to stable location ────────────────────────────────
-  const scripts = ['pre-tool-use.js', 'post-tool-use.js', 'patterns.js'];
+  const scripts = ['pre-tool-use.js', 'post-tool-use.js', 'patterns.js', 'status-line.js'];
 
   for (const script of scripts) {
     const src = path.join(PKG_HOOK_DIR, script);
@@ -123,11 +125,30 @@ function install() {
     changed = true;
   }
 
+  // Claude Code supports one statusLine command. Do not overwrite another
+  // integration's status line; the hooks still install and status reports the
+  // conflict explicitly.
+  const hasOurStatusLine = settings.statusLine?.command === STATUS_LINE_COMMAND;
+  const hasConflictingStatusLine = Boolean(settings.statusLine && !hasOurStatusLine);
+  if (!settings.statusLine || hasOurStatusLine) {
+    if (!hasOurStatusLine) {
+      settings.statusLine = {
+        type: 'command',
+        command: STATUS_LINE_COMMAND,
+        padding: 0,
+      };
+      changed = true;
+    }
+  } else if (hasConflictingStatusLine) {
+    console.log(chalk.yellow('  Note: an existing Claude Code status line was preserved; Ship Safe did not overwrite it.'));
+  }
+
   if (!changed) {
     console.log(chalk.green('✔ ship-safe hooks are already installed.'));
     printStatus(getHookStatus(settings, {
       preToolUse: fs.existsSync(PRE_HOOK_SCRIPT),
       postToolUse: fs.existsSync(POST_HOOK_SCRIPT),
+      statusLine: fs.existsSync(STATUS_LINE_SCRIPT),
     }));
     return;
   }
@@ -137,6 +158,7 @@ function install() {
   console.log(chalk.green.bold('\n✔ ship-safe hooks installed successfully.\n'));
   console.log(chalk.gray('  Hook scripts: ') + chalk.white(STABLE_HOOK_DIR));
   console.log(chalk.gray('  Settings file: ') + chalk.white(CLAUDE_SETTINGS_PATH));
+  console.log(chalk.gray('  Status line:    ') + chalk.white('Protected by Ship Safe (when hooks are ready)'));
   console.log();
   console.log(chalk.cyan('  What happens now:'));
   console.log(chalk.white('  Write / Edit    ') + chalk.gray('→ blocked if critical secrets detected in content'));
@@ -154,7 +176,7 @@ function install() {
 function remove() {
   const settings = readSettings();
 
-  if (!settings.hooks) {
+  if (!settings.hooks && settings.statusLine?.command !== STATUS_LINE_COMMAND) {
     console.log(chalk.yellow('No hooks configured in settings.json.'));
     return;
   }
@@ -168,8 +190,13 @@ function remove() {
     removed += before - settings.hooks[event].length;
   }
 
+  if (settings.statusLine?.command === STATUS_LINE_COMMAND) {
+    delete settings.statusLine;
+    removed += 1;
+  }
+
   if (removed === 0) {
-    console.log(chalk.yellow('No ship-safe hooks found in settings.json.'));
+    console.log(chalk.yellow('No ship-safe hooks or status line found in settings.json.'));
     return;
   }
 
@@ -187,6 +214,7 @@ function status(options = {}) {
   const hookStatus = getHookStatus(settingsState.settings, {
     preToolUse: fs.existsSync(PRE_HOOK_SCRIPT),
     postToolUse: fs.existsSync(POST_HOOK_SCRIPT),
+    statusLine: fs.existsSync(STATUS_LINE_SCRIPT),
   }, settingsState.valid);
 
   if (options.json) {
@@ -216,6 +244,12 @@ export function getHookStatus(settings, scripts, settingsValid = true) {
       preToolUse: { registered: preRegistered, scriptPresent: scripts.preToolUse, ready: preReady },
       postToolUse: { registered: postRegistered, scriptPresent: scripts.postToolUse, ready: postReady },
     },
+    statusLine: {
+      registered: settings.statusLine?.command === STATUS_LINE_COMMAND,
+      scriptPresent: Boolean(scripts.statusLine),
+      ready: settings.statusLine?.command === STATUS_LINE_COMMAND && Boolean(scripts.statusLine),
+      conflict: Boolean(settings.statusLine && settings.statusLine.command !== STATUS_LINE_COMMAND),
+    },
     scripts: { directory: STABLE_HOOK_DIR },
   };
 }
@@ -230,6 +264,11 @@ function printStatus(hookStatus) {
     (preReady  ? chalk.green('  ✔') : chalk.red('  ✗')) +
     chalk.white(' PreToolUse  ') +
     chalk.gray('(block secrets in writes, dangerous bash commands)')
+  );
+  console.log(
+    (hookStatus.statusLine.ready ? chalk.green('  ✔') : chalk.yellow('  ○')) +
+    chalk.white(' Status line ') +
+    chalk.gray('(Protected by Ship Safe in Claude Code)')
   );
   console.log(
     (postReady ? chalk.green('  ✔') : chalk.red('  ✗')) +

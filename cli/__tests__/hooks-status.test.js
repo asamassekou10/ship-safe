@@ -11,11 +11,14 @@ describe('hooks status contract', () => {
         PreToolUse: registered(HOOK_COMMANDS.preToolUse),
         PostToolUse: registered(HOOK_COMMANDS.postToolUse),
       },
-    }, { preToolUse: true, postToolUse: true });
+      statusLine: { command: HOOK_COMMANDS.statusLine },
+    }, { preToolUse: true, postToolUse: true, statusLine: true });
 
     assert.equal(status.schemaVersion, 1);
     assert.equal(status.state, 'active');
     assert.equal(status.protected, true);
+    assert.equal(status.statusLine.ready, true);
+    assert.equal(status.statusLine.ready, true);
   });
 
   it('reports partial when only one hook is ready', () => {

@@ -316,6 +316,7 @@ Start here:
 - [Add a security rule](./docs/adding-a-security-rule.md)
 - [Handle MCP environment variables safely](./docs/mcp-env-safety.md)
 - [Use Ship Safe with Codex](./docs/integrations/codex.md)
+- [Use Ship Safe with Claude Code](./docs/integrations/claude-code.md)
 - [Release process](./docs/releasing.md)
 
 ---

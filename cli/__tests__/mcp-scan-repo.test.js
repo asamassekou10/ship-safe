@@ -3,7 +3,16 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { scanRepo, suppressFinding } from '../commands/mcp.js';
+import { getShipSafeStatus, scanRepo, suppressFinding } from '../commands/mcp.js';
+
+test('MCP status distinguishes availability from lifecycle protection', () => {
+  const status = getShipSafeStatus();
+
+  assert.equal(status.integration, 'mcp');
+  assert.equal(status.state, 'available');
+  assert.equal(status.protected, false);
+  assert.match(status.badge, /available/i);
+});
 
 test('MCP scan_repo returns a scored report', async () => {
   const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), 'ship-safe-mcp-'));

@@ -1,7 +1,7 @@
 {
   "name": "ship-safe",
-  "version": "3.0.0",
-  "description": "Security audit your project with Ship Safe — 16 agents, 80+ attack classes, deep LLM analysis, CI mode",
+  "version": "9.7.2",
+  "description": "Security audit your project with Ship Safe — 29 agents, 80+ attack classes, real-time Claude Code hooks, deep LLM analysis, and CI mode",
   "author": "asamassekou10",
   "homepage": "https://github.com/asamassekou10/ship-safe",
   "skills": [
@@ -12,6 +12,7 @@
     "skills/ship-safe-red-team",
     "skills/ship-safe-fix",
     "skills/ship-safe-deep",
-    "skills/ship-safe-ci"
+    "skills/ship-safe-ci",
+    "skills/ship-safe-hooks"
   ]
 }
