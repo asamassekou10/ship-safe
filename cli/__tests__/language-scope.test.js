@@ -134,4 +134,12 @@ describe('LLMRedTeam scoping', async () => {
   it('does not apply the Python model rule to JavaScript', async () => {
     assert.ok(!(await hits('AutoModel.from_pretrained("org/model")', '.js')).includes('LLM_UNVERIFIED_MODEL'));
   });
+
+  it('keeps the cross-language output-filter rule on JavaScript', async () => {
+    assert.ok((await hits('console.log(response.content);', '.js')).includes('LLM_NO_OUTPUT_FILTER'));
+  });
+
+  it('keeps the cross-language output-filter rule on Python', async () => {
+    assert.ok((await hits('print(response.content)', '.py')).includes('LLM_NO_OUTPUT_FILTER'));
+  });
 });

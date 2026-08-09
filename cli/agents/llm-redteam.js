@@ -46,7 +46,6 @@ const PATTERNS = [
   },
   {
     rule: 'LLM_NO_OUTPUT_FILTER',
-    langs: ['js'],   // requires a trailing `)` or `;` right after the property access — a JS statement-terminator shape, not how Python or Ruby end a line.
     title: 'LLM Output Without Filtering',
     regex: /(?:completion|response|result|output)(?:\.\w+)*\.(?:content|text|message)\s*(?:\)|;)/g,
     severity: 'medium',
