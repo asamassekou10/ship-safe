@@ -107,3 +107,39 @@ describe('SSRFProber scoping', async () => {
     assert.ok(!(await hits('requests.get(request.args)', '.js')).includes('SSRF_PYTHON_REQUESTS'));
   });
 });
+
+describe('LLMRedTeam scoping', async () => {
+  const { LLMRedTeam } = await import('../agents/llm-redteam.js');
+
+  const hits = async (code, ext) => {
+    const { dir, file } = tmpFile(code, ext);
+    try {
+      const f = await new LLMRedTeam().analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      return f.map(x => x.rule);
+    } finally { cleanup(dir); }
+  };
+
+  it('still catches the JS token-limit shape', async () => {
+    assert.ok((await hits("openai.chat.create({ model: 'gpt-4' })", '.js')).includes('LLM_NO_TOKEN_LIMIT'));
+  });
+
+  it('does not apply the JS token-limit rule to Python', async () => {
+    assert.ok(!(await hits("openai.chat.create({ model: 'gpt-4' })", '.py')).includes('LLM_NO_TOKEN_LIMIT'));
+  });
+
+  it('still catches the Python unverified-model shape', async () => {
+    assert.ok((await hits('AutoModel.from_pretrained("org/model")', '.py')).includes('LLM_UNVERIFIED_MODEL'));
+  });
+
+  it('does not apply the Python model rule to JavaScript', async () => {
+    assert.ok(!(await hits('AutoModel.from_pretrained("org/model")', '.js')).includes('LLM_UNVERIFIED_MODEL'));
+  });
+
+  it('keeps the cross-language output-filter rule on JavaScript', async () => {
+    assert.ok((await hits('console.log(response.content);', '.js')).includes('LLM_NO_OUTPUT_FILTER'));
+  });
+
+  it('keeps the cross-language output-filter rule on Python', async () => {
+    assert.ok((await hits('print(response.content)', '.py')).includes('LLM_NO_OUTPUT_FILTER'));
+  });
+});

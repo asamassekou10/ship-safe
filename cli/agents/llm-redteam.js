@@ -79,6 +79,7 @@ const PATTERNS = [
   },
   {
     rule: 'LLM_OUTPUT_TO_HTML',
+    langs: ['js'],   // innerHTML, dangerouslySetInnerHTML, and v-html are DOM/React/Vue-only APIs.
     title: 'LLM Output Rendered as HTML',
     regex: /(?:innerHTML|dangerouslySetInnerHTML|v-html)\s*=\s*(?:.*(?:completion|response|result|output|generated|llm|ai|gpt|claude))/gi,
     severity: 'high',
@@ -152,6 +153,7 @@ const PATTERNS = [
   // ── LLM10: Unbounded Consumption ───────────────────────────────────────────
   {
     rule: 'LLM_NO_TOKEN_LIMIT',
+    langs: ['js'],   // requires a literal `{` object argument right after `create(` — JS SDKs pass options objects; Python's SDK uses keyword args with no braces.
     title: 'LLM Call Without Token Limit',
     regex: /(?:openai|anthropic|ai)\.\w+\.create\s*\(\s*\{(?![\s\S]*max_tokens)[\s\S]*?\}/g,
     severity: 'medium',
@@ -181,6 +183,7 @@ const PATTERNS = [
   // ── LLM03: Supply Chain ────────────────────────────────────────────────────
   {
     rule: 'LLM_UNVERIFIED_MODEL',
+    langs: ['python'],   // from_pretrained / AutoModel / pipeline are HuggingFace transformers (Python) API names.
     title: 'Unverified Model Download',
     regex: /(?:from_pretrained|AutoModel|pipeline)\s*\(\s*["'][^"']+\/[^"']+["']/g,
     severity: 'medium',
