@@ -39,6 +39,10 @@ inputs:
     description: 'Post scan summary as PR comment'
     required: false
     default: 'true'
+  inline:
+    description: 'Post critical/high findings as inline PR review comments (pull_request only)'
+    required: false
+    default: 'false'
   token:
     description: 'GitHub token for PR comments and SARIF upload (default: github.token)'
     required: false
@@ -72,6 +76,13 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Protect fork pull_request_target scans
+      if: github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != github.repository
+      shell: bash
+      run: |
+        echo "::error::Ship Safe refuses fork pull_request_target scans because the checked-out PR may be untrusted code running with privileged context. Use pull_request instead."
+        exit 1
+
     - name: Setup Node.js
       uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
       with:
@@ -91,6 +102,8 @@ runs:
         SHIP_SAFE_DEPS: ${{ inputs.deps }}
         SHIP_SAFE_BASELINE: ${{ inputs.baseline }}
         SHIP_SAFE_SARIF: ${{ inputs.sarif }}
+        SHIP_SAFE_INLINE: ${{ inputs.inline }}
+        GH_TOKEN: ${{ inputs.token }}
       run: |
         VERSION=$(node -p "require(process.env.GITHUB_ACTION_PATH + '/package.json').version")
         npm install -g "ship-safe@$VERSION"
@@ -111,6 +124,9 @@ runs:
         fi
         if [ "$SHIP_SAFE_SARIF" = "true" ]; then
           FLAGS+=(--sarif /tmp/ship-safe-results.sarif)
+        fi
+        if [ "$SHIP_SAFE_INLINE" = "true" ] && [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+          FLAGS+=(--github-inline)
         fi
 
         # Run scan and capture output

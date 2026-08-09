@@ -637,7 +637,7 @@ async function postSlackAlert(webhookUrl, findings, scoreResult, rootPath) {
  *
  * Posts a review comment for each critical/high finding in a changed file.
  */
-async function postPRComments(findings, rootPath) {
+export async function postPRComments(findings, rootPath, source = 'watch') {
   // Check if gh is available
   try {
     execFileSync('gh', ['--version'], { stdio: 'pipe' });
@@ -702,7 +702,7 @@ async function postPRComments(findings, rootPath) {
       '',
       f.remediation ? `**Fix:** ${f.remediation}` : '',
       '',
-      `_[${f.rule}] — detected by ship-safe watch_`,
+      `_[${f.rule}] — detected by ship-safe ${source}_`,
     ].filter(l => l !== undefined).join('\n');
 
     try {

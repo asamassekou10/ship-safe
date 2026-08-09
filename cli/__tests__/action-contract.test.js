@@ -23,4 +23,17 @@ describe('GitHub Action contract', () => {
   it('passes fail-on through to the CLI gate', () => {
     assert.match(ACTION, /FLAGS\+=\(--fail-on "\$SHIP_SAFE_FAIL_ON"\)/);
   });
+
+  it('fails closed for fork pull_request_target scans', () => {
+    assert.match(ACTION, /Protect fork pull_request_target scans/);
+    assert.match(ACTION, /github\.event_name == 'pull_request_target'/);
+    assert.match(ACTION, /Use pull_request instead/);
+  });
+
+  it('offers opt-in inline PR comments through ci', () => {
+    assert.match(ACTION, /inline:/);
+    assert.match(ACTION, /SHIP_SAFE_INLINE/);
+    assert.match(ACTION, /GITHUB_EVENT_NAME.*pull_request/);
+    assert.match(ACTION, /FLAGS\+=\(--github-inline\)/);
+  });
 });
