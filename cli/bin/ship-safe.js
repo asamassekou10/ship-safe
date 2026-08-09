@@ -463,6 +463,7 @@ program
   .option('--no-deps', 'Skip dependency audit')
   .option('--baseline', 'Only check new findings (not in baseline)')
   .option('--github-pr', 'Post findings as a GitHub PR comment (requires gh CLI)')
+  .option('--github-inline', 'Post critical/high findings as deduplicated inline PR comments (requires gh CLI)')
   .action(ciCommand);
 
 // -----------------------------------------------------------------------------

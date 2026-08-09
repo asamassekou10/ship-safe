@@ -86,4 +86,17 @@ describe('ci gate', () => {
       assert.match(res.stdout, /threshold/);
     } finally { cleanup(dir); }
   });
+
+  it('--json emits one machine-readable line for CI integrations', () => {
+    const dir = project(CLEAN);
+    try {
+      const res = run(dir, '--json');
+      assert.equal(res.status, 0, `expected pass\n${res.stdout}${res.stderr}`);
+      const lines = res.stdout.trim().split('\n').filter(Boolean);
+      assert.equal(lines.length, 1, `expected one JSON line, got ${lines.length}`);
+      const report = JSON.parse(lines[0]);
+      assert.equal(report.totalFindings, 0);
+      assert.equal(report.pass, true);
+    } finally { cleanup(dir); }
+  });
 });

@@ -14,6 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 import { execFileSync } from 'child_process';
+import { findingFingerprint, fingerprintMarker, extractFingerprint } from '../utils/finding-fingerprint.js';
 import { SKIP_DIRS, SKIP_EXTENSIONS, SKIP_FILENAMES, SECRET_PATTERNS, SECURITY_PATTERNS } from '../utils/patterns.js';
 import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import * as output from '../utils/output.js';
@@ -636,7 +637,7 @@ async function postSlackAlert(webhookUrl, findings, scoreResult, rootPath) {
  *
  * Posts a review comment for each critical/high finding in a changed file.
  */
-async function postPRComments(findings, rootPath) {
+export async function postPRComments(findings, rootPath, source = 'watch') {
   // Check if gh is available
   try {
     execFileSync('gh', ['--version'], { stdio: 'pipe' });
@@ -666,13 +667,34 @@ async function postPRComments(findings, rootPath) {
     return;
   }
 
+  // Review comments survive reruns, so use a hidden marker rather than the
+  // rendered text to keep repeated watch scans idempotent.
+  const existingFingerprints = new Set();
+  try {
+    const commentsJson = execFileSync('gh', [
+      'api', `repos/{owner}/{repo}/pulls/${prNumber}/comments`,
+      '--paginate', '--slurp',
+    ], { cwd: rootPath, encoding: 'utf-8', stdio: 'pipe' });
+    const pages = JSON.parse(commentsJson || '[]');
+    for (const comment of pages.flat()) {
+      const fingerprint = extractFingerprint(comment.body);
+      if (fingerprint) existingFingerprints.add(fingerprint);
+    }
+  } catch {
+    // If the lookup fails, continue with posting. A failed dedup lookup must
+    // never prevent a security alert from being delivered.
+  }
+
   const criticalOrHigh = findings.filter(f =>
     (f.severity === 'critical' || f.severity === 'high') && f.file && f.line
   ).slice(0, 10); // Max 10 comments per scan
 
   for (const f of criticalOrHigh) {
     const relFile = path.relative(rootPath, f.file).replace(/\\/g, '/');
+    const fingerprint = findingFingerprint(f, rootPath);
+    if (existingFingerprints.has(fingerprint)) continue;
     const body = [
+      fingerprintMarker(fingerprint),
       `**Ship Safe — ${f.severity.toUpperCase()} finding**`,
       '',
       `**${f.title}**`,
@@ -680,7 +702,7 @@ async function postPRComments(findings, rootPath) {
       '',
       f.remediation ? `**Fix:** ${f.remediation}` : '',
       '',
-      `_[${f.rule}] — detected by ship-safe watch_`,
+      `_[${f.rule}] — detected by ship-safe ${source}_`,
     ].filter(l => l !== undefined).join('\n');
 
     try {
@@ -694,6 +716,7 @@ async function postPRComments(findings, rootPath) {
         '--field', `line=${f.line}`,
         '--field', 'side=RIGHT',
       ], { cwd: rootPath, stdio: 'pipe' });
+      existingFingerprints.add(fingerprint);
     } catch { /* individual comment failure is non-fatal */ }
   }
 

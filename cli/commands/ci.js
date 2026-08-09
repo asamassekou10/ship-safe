@@ -49,6 +49,7 @@ import {
 } from '../utils/patterns.js';
 import { projectFindings } from '../agents/base-agent.js';
 import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
+import { postPRComments } from './watch.js';
 import fg from 'fast-glob';
 
 // =============================================================================
@@ -173,10 +174,11 @@ export async function ciCommand(targetPath = '.', options = {}) {
       high: allFindings.filter(f => f.severity === 'high').length,
       medium: allFindings.filter(f => f.severity === 'medium').length,
       low: allFindings.filter(f => f.severity === 'low').length,
+      findings: projectFindings(allFindings),
       threshold,
       pass: determinePass(scoreResult, allFindings, threshold, failOn),
       duration: `${duration}s`,
-    }, null, 2));
+      }));
   } else {
     // ── Compact CI Summary ───────────────────────────────────────────────
     const critical = allFindings.filter(f => f.severity === 'critical').length;
@@ -204,6 +206,16 @@ export async function ciCommand(targetPath = '.', options = {}) {
       postPRComment(scoreResult, allFindings, depVulns, absolutePath, duration);
     } catch (err) {
       console.log(`[ship-safe] Warning: Could not post PR comment: ${err.message}`);
+    }
+  }
+
+  // Inline comments are opt-in because they require pull request write
+  // permission and should never be enabled accidentally on untrusted events.
+  if (options.githubInline) {
+    try {
+      await postPRComments(projectFindings(allFindings), absolutePath, 'ci');
+    } catch (err) {
+      console.log(`[ship-safe] Warning: Could not post inline PR comments: ${err.message}`);
     }
   }
 
