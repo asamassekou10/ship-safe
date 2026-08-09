@@ -200,6 +200,37 @@ jobs:
 
 A GitLab CI version is in [docs/examples/gitlab-security-workflow.yml](docs/examples/gitlab-security-workflow.yml).
 
+### GitHub Action with inline PR findings
+
+Use the Action from a `pull_request` workflow when you want critical and high
+findings attached to the changed lines. Keep `pull_request_target` out of this
+path for forked contributions: Ship Safe refuses that privileged combination
+because the checkout may contain untrusted code.
+
+```yaml
+name: Ship Safe
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: asamassekou10/ship-safe@v9.7.4
+        with:
+          fail-on: high
+          inline: true
+```
+
+Inline comments are opt-in and only post critical/high findings. Re-running
+the job updates the summary without creating duplicate inline comments.
+
 ---
 
 ## LLM Support

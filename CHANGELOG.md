@@ -8,6 +8,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [9.7.4] - 2026-08-09
+
+### Added
+- **Inline GitHub PR findings** — `ship-safe ci --github-inline` can post
+  critical and high findings directly on changed lines, with stable
+  fingerprints that prevent duplicate comments on reruns.
+- **Safer GitHub Action defaults** — the Action can opt into inline comments
+  with `inline: true` and refuses fork `pull_request_target` scans that could
+  execute untrusted checkout content with privileged context.
+
+### Fixed
+- GitHub Action CI output now uses the bundled Ship Safe version, preserves
+  the configured severity gate, and produces SARIF from the primary scan.
+
 ## [9.7.3] - 2026-08-09
 
 ### Fixed
