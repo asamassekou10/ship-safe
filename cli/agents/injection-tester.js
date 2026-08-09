@@ -392,7 +392,20 @@ const PATTERNS = [
   {
     rule: 'PROTOTYPE_POLLUTION',
     title: 'Prototype Pollution',
-    regex: /(?:Object\.assign|_\.merge|_\.extend|_\.defaultsDeep|lodash\.merge)\s*\(\s*(?:\{\}|[a-zA-Z]+),\s*(?:req\.|request\.|ctx\.|body|query|params|input|data)/g,
+    // Prototype pollution is a JavaScript concept, so the rule says so. The
+    // first version of this extension matched `d[ctx.session_key] = ...` in
+    // Python, where dictionaries have no prototype and the finding is
+    // meaningless. That is the same mistake language scoping exists to
+    // prevent, caught by the corpus.
+    langs: ['js'],
+    // Two shapes were missing. A merge source arriving through a wrapper call,
+    // `Object.assign(target, JSON.parse(req.body.raw))`, and computed key
+    // assignment, `obj[req.body.key] = value`, which is the __proto__
+    // injection path and involves no merge helper at all.
+    //
+    // `ctx.` and a bare `data` are deliberately not accepted: both matched
+    // ordinary application state rather than request input.
+    regex: /(?:Object\.assign|_\.merge|_\.extend|_\.defaultsDeep|lodash\.merge)\s*\(\s*(?:\{\}|[a-zA-Z]+)\s*,\s*[^)\n]{0,80}?(?:req\.|request\.|\bbody\b|\bquery\b|\bparams\b)|\[\s*(?:req|request)\.[\w.[\]'"]+\s*\]\s*=(?!=)/g,
     severity: 'high',
     cwe: 'CWE-1321',
     owasp: 'A03:2021',
@@ -446,29 +459,12 @@ const PATTERNS = [
   },
 
   // ── Vibe Code Detection (AI-generated code with security gaps) ──────────
-  {
-    rule: 'VIBE_TODO_AUTH',
-    title: 'Vibe Code: TODO to Add Authentication',
-    regex: /(?:\/\/|#|\/\*)\s*(?:TODO|FIXME|HACK|XXX)\s*:?\s*(?:add|implement|fix|handle)\s*(?:auth|authentication|authorization|permission|access.?control|login|session)/gi,
-    severity: 'high',
-    cwe: 'CWE-306',
-    owasp: 'A07:2021',
-    confidence: 'high',
-    description: 'TODO comment indicates missing authentication/authorization. Common in AI-generated code that creates endpoints without security.',
-    fix: 'Implement the missing authentication before shipping. Do not leave security TODOs in production code.',
-  },
-  {
-    rule: 'VIBE_TODO_VALIDATION',
-    title: 'Vibe Code: TODO to Add Input Validation',
-    regex: /(?:\/\/|#|\/\*)\s*(?:TODO|FIXME|HACK|XXX)\s*:?\s*(?:add|implement|fix|handle)\s*(?:valid|sanitiz|escap|filter|check.?input|input.?valid)/gi,
-    severity: 'medium',
-    cwe: 'CWE-20',
-    owasp: 'A03:2021',
-    confidence: 'high',
-    description: 'TODO comment indicates missing input validation. AI-generated code often creates the happy path without validation.',
-    fix: 'Implement input validation before shipping. Add schema validation (Zod, Joi) for all user inputs.',
-  },
-  {
+  // VIBE_TODO_AUTH and VIBE_TODO_VALIDATION used to be duplicated here. Both
+  // are owned by vibe-coding-agent.js, which holds the VIBE_ prefix. Emitting
+  // them from two agents gave one comment two findings under one rule ID, and
+  // VIBE_TODO_VALIDATION arrived at two different severities depending on
+  // which agent produced it, which makes the ID useless for suppression.
+      {
     rule: 'VIBE_PLACEHOLDER_SECRET',
     title: 'Vibe Code: Placeholder Secret Left in Code',
     regex: /(?:api[_-]?key|secret|password|token)\s*[:=]\s*['"](?:your[_-]?(?:api[_-]?)?key[_-]?here|sk[_-]xxx|changeme|password123|test123|replace[_-]?me|insert[_-]?here|placeholder|example|CHANGE_ME|YOUR_SECRET)['"]/gi,

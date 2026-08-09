@@ -1107,10 +1107,35 @@ describe('Vibe Code Detection', async () => {
   const agent = new InjectionTester();
 
   it('detects TODO to add authentication', async () => {
+    // VIBE_TODO_AUTH lives in VibeCodingAgent, which owns the VIBE_ prefix.
+    // InjectionTester used to carry a duplicate under the same rule ID, which
+    // meant one comment produced two findings.
+    const { VibeCodingAgent } = await import('../agents/vibe-coding-agent.js');
     const { dir, file } = writeTempFile('// TODO: add authentication\napp.post("/api/admin", handler);');
     try {
-      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      const findings = await new VibeCodingAgent()
+        .analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
       assert.ok(findings.some(f => f.rule === 'VIBE_TODO_AUTH'), 'Should detect TODO auth');
+    } finally { cleanup(dir); }
+  });
+
+  it('reports a TODO comment exactly once', async () => {
+    // The duplicate produced two findings under one rule ID, and
+    // VIBE_TODO_VALIDATION arrived at two different severities depending on
+    // which agent found it.
+    const { VibeCodingAgent } = await import('../agents/vibe-coding-agent.js');
+    const { InjectionTester: IT } = await import('../agents/injection-tester.js');
+    const { dir, file } = writeTempFile('// TODO: add authentication\n// TODO: add validation\n');
+    try {
+      const ctx = { rootPath: dir, files: [file], recon: {}, options: {} };
+      const all = [
+        ...await new VibeCodingAgent().analyze(ctx),
+        ...await new IT().analyze(ctx),
+      ];
+      for (const rule of ['VIBE_TODO_AUTH', 'VIBE_TODO_VALIDATION']) {
+        const hits = all.filter(f => f.rule === rule);
+        assert.equal(hits.length, 1, `${rule} reported ${hits.length} times`);
+      }
     } finally { cleanup(dir); }
   });
 
