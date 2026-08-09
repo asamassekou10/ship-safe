@@ -53,6 +53,9 @@ import { buildOrchestrator } from '../agents/index.js';
 import { ScoringEngine } from '../agents/scoring-engine.js';
 import { autoDetectProvider } from '../providers/llm-provider.js';
 import { DeepAnalyzer } from '../agents/deep-analyzer.js';
+import { PACKAGE_VERSION } from '../utils/package-version.js';
+
+export const MCP_SERVER_VERSION = PACKAGE_VERSION;
 
 const MAX_MCP_FINDINGS = 200;
 
@@ -607,7 +610,7 @@ async function handleRequest(request) {
       return respond({
         protocolVersion: '2024-11-05',
         capabilities: { tools: {} },
-        serverInfo: { name: 'ship-safe', version: '9.7.2' },
+        serverInfo: { name: 'ship-safe', version: MCP_SERVER_VERSION },
       });
 
     case 'tools/list':
