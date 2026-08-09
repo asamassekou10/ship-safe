@@ -8,6 +8,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [9.7.3] - 2026-08-09
+
 ### Fixed
 - **A repository with a critical finding could still grade A.** The asymptotic
   deduction curve added in 9.7.0 restored resolution at the high end and made
@@ -30,10 +32,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   known false positive. It should stop grading D once that is fixed, which is
   the right incentive.
 
+- Duplicate and false-negative detections are covered by the detection floor
+  and calibration regression tests.
+
 ### Added
 - **`docs/design.md`** — what the tool is for, the four ideas that shape it,
   how we verify any of it, and what we deliberately do not do. Written during a
   coherence pass over 9.7.0, which is what surfaced the grading bug above.
+- Language-scoped LLM security rules for JavaScript and Python, with regression
+  coverage that keeps cross-language output handling detection intact.
+- Release version consistency checks for package metadata and MCP server
+  metadata.
 
 ---
 
