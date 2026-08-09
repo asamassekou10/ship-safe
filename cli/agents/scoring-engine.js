@@ -195,7 +195,29 @@ export class ScoringEngine {
       (sum, r) => sum + r.deduction, 0
     );
     const score = Math.max(0, 100 - totalDeduction);
-    const grade = GRADES.find(g => score >= g.min);
+
+    // The worst finding caps the grade, regardless of score.
+    //
+    // Without this a repository with a single command injection scored 91.4
+    // and graded "A — Ship it!", while `ci` on the same repository exited 1.
+    // Two parts of the tool were telling a user opposite things about the same
+    // code, and the friendlier one was wrong.
+    //
+    // The score answers "how much is there", which is a volume question and is
+    // why it needs a curve. A grade answers "can I ship this", which is a
+    // worst-case question. SonarQube draws the same line: its security rating
+    // is set by the most severe issue, not by how many there are.
+    //
+    // Only critical caps today. Highs are confidence-weighted and noisier, and
+    // capping on them would move most of the corpus for less reason.
+    const criticalCount = Object.values(categoryResults)
+      .reduce((n, r) => n + (r.counts.critical || 0), 0);
+
+    let grade = GRADES.find(g => score >= g.min);
+    if (criticalCount > 0) {
+      const capped = GRADES.find(g => g.letter === 'D');
+      if (GRADES.indexOf(grade) < GRADES.indexOf(capped)) grade = capped;
+    }
 
     // ── Compliance mapping ─────────────────────────────────────────────────
     let compliance;

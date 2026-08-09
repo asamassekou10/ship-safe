@@ -98,3 +98,41 @@ describe('quality findings are reported but never scored', async () => {
     assert.ok(mixed.score < 100, 'a critical secret must still cost');
   });
 });
+
+describe('the grade cannot contradict the gate', () => {
+  const engine = () => new ScoringEngine();
+  const finding = (severity, category = 'injection') => ({
+    severity, category, confidence: 'high', rule: 'R', file: 'f.js', line: 1,
+  });
+
+  it('never grades a repository with a critical finding as A or B', () => {
+    // `ci` fails on any critical by default. A grade of "A — Ship it!" on the
+    // same code would be the tool contradicting itself, and the friendlier
+    // answer would be the wrong one.
+    const r = engine().compute([finding('critical')], []);
+    assert.ok(['D', 'F'].includes(r.grade.letter),
+      `one critical graded ${r.grade.letter}`);
+  });
+
+  it('caps on the worst finding, not on how many there are', () => {
+    const one = engine().compute([finding('critical')], []);
+    const many = engine().compute(Array(20).fill(finding('critical')), []);
+    // Both are ungradeable-for-shipping. The score still separates them.
+    assert.ok(['D', 'F'].includes(one.grade.letter));
+    assert.ok(['D', 'F'].includes(many.grade.letter));
+    assert.ok(many.score < one.score, 'score must still distinguish volume');
+  });
+
+  it('leaves a clean repository alone', () => {
+    assert.equal(engine().compute([], []).grade.letter, 'A');
+  });
+
+  it('does not cap on high or medium', () => {
+    // Deliberately narrow. Highs are confidence-weighted and noisier, so
+    // capping on them would move most of the corpus for less reason.
+    for (const sev of ['high', 'medium']) {
+      const r = engine().compute([finding(sev)], []);
+      assert.equal(r.grade.letter, 'A', `a single ${sev} should not cap`);
+    }
+  });
+});
