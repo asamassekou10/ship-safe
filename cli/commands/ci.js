@@ -173,10 +173,11 @@ export async function ciCommand(targetPath = '.', options = {}) {
       high: allFindings.filter(f => f.severity === 'high').length,
       medium: allFindings.filter(f => f.severity === 'medium').length,
       low: allFindings.filter(f => f.severity === 'low').length,
+      findings: projectFindings(allFindings),
       threshold,
       pass: determinePass(scoreResult, allFindings, threshold, failOn),
       duration: `${duration}s`,
-    }, null, 2));
+      }));
   } else {
     // ── Compact CI Summary ───────────────────────────────────────────────
     const critical = allFindings.filter(f => f.severity === 'critical').length;
