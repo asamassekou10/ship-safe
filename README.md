@@ -345,6 +345,7 @@ Start here:
 - [Contributor guide](./CONTRIBUTING.md)
 - [Add an agent](./docs/adding-an-agent.md)
 - [Add a security rule](./docs/adding-a-security-rule.md)
+- [Write a custom agent plugin](./docs/custom-agent-plugins.md)
 - [Handle MCP environment variables safely](./docs/mcp-env-safety.md)
 - [Use Ship Safe with Codex](./docs/integrations/codex.md)
 - [Use Ship Safe with Claude Code](./docs/integrations/claude-code.md)
