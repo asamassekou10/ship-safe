@@ -79,6 +79,10 @@ describe('absence rules stay quiet when the mitigation is present', async () => 
   it('MCP_REMOTE_UNPINNED: version pinned on the entry', () =>
     quiet(MCPSecurityAgent, 'MCP_REMOTE_UNPINNED',
       'const mcpServers = {\n  docs: { command: "npx mcp-docs", version: "1.4.2" }\n};\n'));
+
+  it('AGENT_CHAIN_NO_ISOLATION: permission scoped between chained steps', () =>
+    quiet(AgenticSecurityAgent, 'AGENT_CHAIN_NO_ISOLATION',
+      'const chain = orchestrateAgents([agent, step], { permission: "scoped", isolat: true });'));
 });
 
 describe('install docs are judged by whose host they point at', async () => {
