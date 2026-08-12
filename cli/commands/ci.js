@@ -165,7 +165,10 @@ export async function ciCommand(targetPath = '.', options = {}) {
 
   // ── JSON Output ──────────────────────────────────────────────────────────
   if (options.json) {
-    console.log(JSON.stringify({
+    // A large report can be buffered by stdout. Wait for the write callback
+    // before the command's forced exit, otherwise CI consumers may receive a
+    // truncated JSON document.
+    await writeStdout(`${JSON.stringify({
       score: scoreResult.score,
       grade: scoreResult.grade.letter,
       totalFindings: allFindings.length,
@@ -178,7 +181,7 @@ export async function ciCommand(targetPath = '.', options = {}) {
       threshold,
       pass: determinePass(scoreResult, allFindings, threshold, failOn),
       duration: `${duration}s`,
-      }));
+      })}\n`);
   } else {
     // ── Compact CI Summary ───────────────────────────────────────────────
     const critical = allFindings.filter(f => f.severity === 'critical').length;
@@ -239,6 +242,12 @@ export async function ciCommand(targetPath = '.', options = {}) {
     }
     process.exit(0);
   }
+}
+
+function writeStdout(value) {
+  return new Promise((resolve, reject) => {
+    process.stdout.write(value, (error) => error ? reject(error) : resolve());
+  });
 }
 
 // =============================================================================
