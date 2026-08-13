@@ -2056,6 +2056,54 @@ describe('SECRET_PATTERNS — X API credentials', async () => {
 });
 
 // =============================================================================
+// SECRET_PATTERNS — Supabase & Auth0 credentials
+// =============================================================================
+
+describe('SECRET_PATTERNS — Supabase & Auth0 credentials', async () => {
+  const { SECRET_PATTERNS } = await import('../utils/patterns.js');
+
+  function matches(name, sample) {
+    const entry = SECRET_PATTERNS.find(p => p.name === name);
+    assert.ok(entry, `pattern "${name}" should exist`);
+    entry.pattern.lastIndex = 0;
+    return entry.pattern.test(sample);
+  }
+
+  // Redacted-shape JWTs: real header, a fake "service_role"/"anon" payload,
+  // and a fake signature. Not tied to any real Supabase project.
+  const JWT_HEADER = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
+  const JWT_FAKE_SIG = 'ZmFrZXNpZ25hdHVyZWZvcnRlc3Rpbmc';
+  const SERVICE_ROLE_PAYLOAD = 'eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UifQ';
+  const ANON_PAYLOAD = 'eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIn0';
+  const serviceRoleKey = `${JWT_HEADER}.${SERVICE_ROLE_PAYLOAD}.${JWT_FAKE_SIG}`;
+  const anonKey = `${JWT_HEADER}.${ANON_PAYLOAD}.${JWT_FAKE_SIG}`;
+
+  it('flags a Supabase service role key carrying the service_role claim', () => {
+    assert.ok(matches('Supabase Service Role Key', `SUPABASE_SERVICE_ROLE_KEY=${serviceRoleKey}`));
+  });
+
+  it('does not flag a Supabase anon key as a service role key', () => {
+    assert.ok(!matches('Supabase Service Role Key', `NEXT_PUBLIC_SUPABASE_ANON_KEY=${anonKey}`));
+  });
+
+  it('flags a Supabase anon key with the lower-severity anon key pattern', () => {
+    const entry = SECRET_PATTERNS.find(p => p.name === 'Supabase Anon Key in Code');
+    assert.strictEqual(entry.severity, 'medium');
+    assert.ok(matches('Supabase Anon Key in Code', `supabase_anon_key = "${anonKey}"`));
+  });
+
+  it('flags an Auth0 client secret assignment', () => {
+    assert.ok(matches('Auth0 Client Secret',
+      'AUTH0_CLIENT_SECRET=aBcDeFgHiJ0123456789KlMnOpQrStUvWxYz0123456789ABCDEFGHIJ01234567'));
+  });
+
+  it('flags an Auth0 Management API token', () => {
+    assert.ok(matches('Auth0 Management API Token',
+      'AUTH0_MANAGEMENT_API_TOKEN=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2V4YW1wbGUuYXV0aDAuY29tLyJ9.fakesig'));
+  });
+});
+
+// =============================================================================
 // ORCHESTRATOR WIRING — HermesSecurityAgent actually runs end-to-end
 // =============================================================================
 // Regression guard: HermesSecurityAgent.shouldRun() previously gated on

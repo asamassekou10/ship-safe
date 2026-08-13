@@ -281,9 +281,12 @@ export const SECRET_PATTERNS = [
   },
   {
     name: 'Supabase Service Role Key',
-    pattern: /eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/g,
-    severity: 'high',
-    description: 'Supabase service role keys bypass Row Level Security. Keep server-side only.'
+    // Requires the standard HS256 JWT header plus base64("service_role") in the
+    // payload segment. Anon keys share the same header, so matching the header
+    // alone flags them too — this scopes the match to the service_role claim.
+    pattern: /eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[a-zA-Z0-9_-]*c2VydmljZV9yb2xl[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]+/g,
+    severity: 'critical',
+    description: 'Supabase service role keys bypass Row Level Security and grant full database access. Rotate immediately if exposed.'
   },
   {
     name: 'Upstash Redis REST Token',
@@ -388,6 +391,18 @@ export const SECRET_PATTERNS = [
     pattern: /https:\/\/[^.]+\.auth0\.com.*client_secret/gi,
     severity: 'critical',
     description: 'Auth0 URLs with embedded client secrets should never be in code.'
+  },
+  {
+    name: 'Auth0 Client Secret',
+    pattern: /(?:auth0|AUTH0)[_-]?client[_-]?secret["']?\s*[:=]\s*["']?([a-zA-Z0-9_-]{64,})["']?/gi,
+    severity: 'critical',
+    description: 'Auth0 client secrets can mint tokens and fully impersonate your application.'
+  },
+  {
+    name: 'Auth0 Management API Token',
+    pattern: /(?:auth0|AUTH0)[_-]?management[_-]?(?:api[_-]?)?token["']?\s*[:=]\s*["']?(eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+)["']?/gi,
+    severity: 'critical',
+    description: 'Auth0 Management API tokens can read and modify every user, tenant setting, and application in your account.'
   },
   {
     name: 'Supabase Anon Key in Code',
