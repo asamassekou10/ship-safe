@@ -84,6 +84,10 @@ describe('absence rules stay quiet when the mitigation is present', async () => 
     quiet(AgenticSecurityAgent, 'AGENT_CHAIN_NO_ISOLATION',
       'const chain = orchestrateAgents([agent, step], { permission: "scoped", isolat: true });'));
 
+  it('AGENT_CHAIN_NO_ISOLATION: mitigation text contains a trigger word as a substring', () =>
+    quiet(AgenticSecurityAgent, 'AGENT_CHAIN_NO_ISOLATION',
+      'const chain = orchestrateAgents([agent, step, task], { permission: "scoped", isolat: "per-step" });'));
+
   it('PII_NO_ENCRYPTION_AT_REST: encryption annotation present on the column', () =>
     quiet(PIIComplianceAgent, 'PII_NO_ENCRYPTION_AT_REST',
       'CREATE TABLE users (ssn VARCHAR(11) ENCRYPTED);'));

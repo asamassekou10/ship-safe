@@ -177,17 +177,14 @@ const PATTERNS = [
     description: 'Agent can recursively invoke itself or spawn sub-agents without depth limits. Enables infinite loops.',
     fix: 'Set max recursion depth for agent self-invocation. Track and limit sub-agent spawn depth.',
   },
-  {
-    rule: 'AGENT_CHAIN_NO_ISOLATION',
-    title: 'Agent: Multi-Agent Chain Without Privilege Isolation',
-    regex: /(?:pipe|chain|sequence|workflow)[\s\S]{0,300}(?:agent|step|task)[\s\S]{0,200}(?:agent|step|task)(?![\s\S]{0,200}(?:permission|scope|restrict|isolat))/g,
-    severity: 'medium',
-    cwe: 'CWE-269',
-    owasp: 'A04:2021',
-    confidence: 'low',
-    description: 'Multi-agent pipeline without privilege isolation between steps. A compromised agent can escalate through the chain.',
-    fix: 'Apply privilege isolation between agents in a chain. Each agent should have scoped permissions.',
-  },
+  //  AGENT_CHAIN_NO_ISOLATION moved to AGENT_STRUCTURAL_RULES. The old regex
+  // interleaved trigger-matching and mitigation-scanning in one continuous
+  // match: two greedy (?:agent|step|task) matches followed by a negative
+  // lookahead for the mitigation words. When the mitigation text itself
+  // contained one of the trigger words as a substring (e.g. a value like
+  // `isolat: "per-step"`), the greedy alternation consumed it as the second
+  // trigger instead of leaving it for the lookahead, and the rule fired
+  // despite the mitigation being present. See #145.
 
   // ── Output Safety ────────────────────────────────────────────────────────
   {
@@ -290,6 +287,30 @@ const AGENT_STRUCTURAL_RULES = [
         /content\s*[:=][^\n]{0,140}\b(?:tool|function)s?\b[^\n]{0,100}\b(?:req\.|request\.|body\.|params\.|query\.|user_?(?:input|message)|retrieved|documents?|tool_?results?)/i.test(content);
 
       return assignedFromUntrusted || toolShapedUntrustedRead || injectedIntoInstructionMessage;
+    },
+  },
+  {
+    rule: 'AGENT_CHAIN_NO_ISOLATION',
+    title: 'Agent: Multi-Agent Chain Without Privilege Isolation',
+    severity: 'medium',
+    cwe: 'CWE-269',
+    owasp: 'A04:2021',
+    confidence: 'low',
+    description: 'Multi-agent pipeline without privilege isolation between steps. A compromised agent can escalate through the chain.',
+    fix: 'Apply privilege isolation between agents in a chain. Each agent should have scoped permissions.',
+    test(content) {
+      // Trigger: a chain/pipe/sequence/workflow construct with at least two
+      // agent/step/task references near it.
+      const isChain = /\b(?:pipe|chain|sequence|workflow)\b[\s\S]{0,300}?\b(?:agent|step|task)\b[\s\S]{0,200}?\b(?:agent|step|task)\b/i.test(content);
+      if (!isChain) return false;
+
+      // Mitigation is checked independently over the whole file, not from
+      // wherever the trigger match happened to stop. A mitigation value that
+      // contains one of the trigger words as a substring (e.g. "per-step")
+      // can no longer be mistaken for the second trigger match, because
+      // trigger detection and mitigation detection never share a cursor.
+      const hasIsolation = /\b(?:permission|scope|restrict|isolat\w*)\b/i.test(content);
+      return !hasIsolation;
     },
   },
   {
@@ -507,6 +528,7 @@ export class AgenticSecurityAgent extends BaseAgent {
       AGENT_MEMORY_NO_EXPIRY: /(?:memory|longTermMemory|persistent_?[Ss]tate)/i,
       AGENT_NO_COST_LIMIT: /(?:completions\.create|messages\.create|responses\.create|createChatCompletion|\.generate)/i,
       AGENT_NO_OUTPUT_SCHEMA: /(?:JSON\.parse|json\.loads)/i,
+      AGENT_CHAIN_NO_ISOLATION: /\b(?:pipe|chain|sequence|workflow)\b/i,
     };
     const marker = markers[rule.rule] || /tool/i;
     const lines = content.split('\n');
