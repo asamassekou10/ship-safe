@@ -455,6 +455,21 @@ const NPM_TOKEN_ENV_RE = /\bNPM_TOKEN\b/;
 const PROVENANCE_DISABLED_RE = /--provenance(?:=|\s+)false\b|provenance\s*:\s*false\b/i;
 const PROVENANCE_INTENDED_RE = /--provenance\b|trusted\s+publish(?:ing)?\b/i;
 const ID_TOKEN_WRITE_RE = /id-token\s*:\s*write\b/i;
+
+// An AI/agent action that floats on a mutable tag is an ordinary supply-chain
+// risk on its own (see CICD_UNPINNED_ACTION above). It becomes a distinct,
+// higher-stakes finding once the workflow running it also hands out broad
+// write scope, or runs it on pull_request_target with nothing narrowing the
+// default token — either way a hijacked tag on the action executes with
+// that access on every run, and the action itself can read PR diffs,
+// comments, and repository contents.
+const AI_ACTION_STEP_RE =
+  /uses\s*:\s*([\w.-]+\/[\w.-]*(?:ai|agent|llm|review|autofix|copilot|claude|openai|anthropic|chatgpt|gpt|gemini|cursor|codeium|tabnine|codex|devin)[\w.-]*)@((?![\da-f]{40}\b)[\w./-]+)/gi;
+const BROAD_WRITE_PERMISSION_RE =
+  /permissions\s*:\s*(?:write-all\b|[\s\S]{0,280}\b(?:contents|pull-requests|actions)\s*:\s*write\b)/i;
+const READ_SCOPED_PERMISSION_RE =
+  /permissions\s*:\s*(?:read-all\b|[\s\S]{0,280}\bcontents\s*:\s*read\b)/i;
+
 function firstMatchLine(rawContent, patterns) {
   for (const re of patterns) {
     re.lastIndex = 0;
@@ -647,6 +662,54 @@ export class CICDScanner extends BaseAgent {
 
     return findings;
   }
+
+  /**
+   * An unpinned AI/agent action is CICD_UNPINNED_ACTION territory on its
+   * own. It becomes CICD_AI_ACTION_UNPINNED once the workflow running it
+   * also grants broad write permissions, or runs it on pull_request_target
+   * with no permissions block narrowing the default token down.
+   */
+  scanAiActionUnpinned(file) {
+    const content = this.readFile(file);
+    if (!content) return [];
+
+    const hasBroadWrite = BROAD_WRITE_PERMISSION_RE.test(content);
+    const prTargetUnguarded =
+      PR_TARGET_EVENT_RE.test(content) &&
+      !hasBroadWrite &&
+      !READ_SCOPED_PERMISSION_RE.test(content);
+
+    if (!hasBroadWrite && !prTargetUnguarded) return [];
+
+    const findings = [];
+    AI_ACTION_STEP_RE.lastIndex = 0;
+    let m;
+    while ((m = AI_ACTION_STEP_RE.exec(content)) !== null) {
+      const [, action, ref] = m;
+      findings.push(createFinding({
+        file,
+        line: content.slice(0, m.index).split('\n').length,
+        column: m.index + 1,
+        severity: 'critical',
+        category: this.category,
+        rule: 'CICD_AI_ACTION_UNPINNED',
+        title: `CI/CD: Unpinned AI Action With Broad Access (${action})`,
+        description:
+          `The AI/agent action "${action}" is referenced by a mutable ref ("${ref}") rather than a commit SHA, and ` +
+          (hasBroadWrite
+            ? 'this workflow grants broad write permissions (contents, pull-requests, or actions).'
+            : 'this workflow runs it on pull_request_target with no permissions block narrowing the default token.') +
+          ' A hijacked tag on this action executes with that access on every run, and the action itself can read PR diffs, comments, and repository contents.',
+        matched: m[0].trim().slice(0, 180),
+        confidence: 'medium',
+        cwe: 'CWE-829',
+        owasp: 'CICD-SEC-8',
+        fix: 'Pin the action to a full 40-character commit SHA, and scope permissions to read-only unless the action genuinely needs to write.',
+      }));
+    }
+
+    return findings;
+  }
 /**
    * npm publish workflows should prefer provenance/trusted publishing over
    * a long-lived NPM_TOKEN, and if provenance is intended, id-token: write
@@ -756,6 +819,7 @@ export class CICDScanner extends BaseAgent {
       // cannot see (see UNGOVERNED CONTINUOUS INGESTION above).
       findings = findings.concat(this.scanIngestionChain(file, rootPath, self));
       findings = findings.concat(this.scanPrivilegedHandoffs(file));
+      findings = findings.concat(this.scanAiActionUnpinned(file));
       findings = findings.concat(this.scanNpmPublishProvenance(file));
     }
     return findings;
