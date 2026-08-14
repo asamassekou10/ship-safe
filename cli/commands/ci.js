@@ -52,6 +52,12 @@ import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import { postPRComments } from './watch.js';
 import fg from 'fast-glob';
 
+const DEFAULT_STDOUT_WRITE_TIMEOUT_MS = 10_000;
+const configuredStdoutWriteTimeout = Number.parseInt(process.env.SHIP_SAFE_STDOUT_TIMEOUT_MS, 10);
+const STDOUT_WRITE_TIMEOUT_MS = Number.isInteger(configuredStdoutWriteTimeout) && configuredStdoutWriteTimeout > 0
+  ? configuredStdoutWriteTimeout
+  : DEFAULT_STDOUT_WRITE_TIMEOUT_MS;
+
 // =============================================================================
 // MAIN COMMAND
 // =============================================================================
@@ -168,20 +174,30 @@ export async function ciCommand(targetPath = '.', options = {}) {
     // A large report can be buffered by stdout. Wait for the write callback
     // before the command's forced exit, otherwise CI consumers may receive a
     // truncated JSON document.
-    await writeStdout(`${JSON.stringify({
-      score: scoreResult.score,
-      grade: scoreResult.grade.letter,
-      totalFindings: allFindings.length,
-      totalDepVulns: depVulns.length,
-      critical: allFindings.filter(f => f.severity === 'critical').length,
-      high: allFindings.filter(f => f.severity === 'high').length,
-      medium: allFindings.filter(f => f.severity === 'medium').length,
-      low: allFindings.filter(f => f.severity === 'low').length,
-      findings: projectFindings(allFindings),
-      threshold,
-      pass: determinePass(scoreResult, allFindings, threshold, failOn),
-      duration: `${duration}s`,
-      })}\n`);
+    try {
+      await writeStdout(`${JSON.stringify({
+        score: scoreResult.score,
+        grade: scoreResult.grade.letter,
+        totalFindings: allFindings.length,
+        totalDepVulns: depVulns.length,
+        critical: allFindings.filter(f => f.severity === 'critical').length,
+        high: allFindings.filter(f => f.severity === 'high').length,
+        medium: allFindings.filter(f => f.severity === 'medium').length,
+        low: allFindings.filter(f => f.severity === 'low').length,
+        findings: projectFindings(allFindings),
+        threshold,
+        pass: determinePass(scoreResult, allFindings, threshold, failOn),
+        duration: `${duration}s`,
+        })}\n`);
+    } catch (error) {
+      const message = error.code === 'SHIP_SAFE_STDOUT_TIMEOUT'
+        ? `Timed out writing JSON output to stdout after ${STDOUT_WRITE_TIMEOUT_MS}ms; the downstream consumer may not be reading.`
+        : `Could not write JSON output to stdout: ${error.message}`;
+      console.error(`[ship-safe] ${message}`);
+      // The report cannot be delivered once stdout is stalled or broken. Exit
+      // immediately so a blocked stream cannot keep the CI process alive.
+      process.exit(1);
+    }
   } else {
     // ── Compact CI Summary ───────────────────────────────────────────────
     const critical = allFindings.filter(f => f.severity === 'critical').length;
@@ -246,7 +262,28 @@ export async function ciCommand(targetPath = '.', options = {}) {
 
 function writeStdout(value) {
   return new Promise((resolve, reject) => {
-    process.stdout.write(value, (error) => error ? reject(error) : resolve());
+    let settled = false;
+    function finish(error) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      error ? reject(error) : resolve();
+    }
+
+    const timer = setTimeout(() => {
+      const error = new Error('stdout write timed out');
+      error.code = 'SHIP_SAFE_STDOUT_TIMEOUT';
+      finish(error);
+      // A live pipe that is no longer being read can keep the write callback
+      // pending forever. Close it after the bound so CI can fail cleanly.
+      process.stdout.destroy();
+    }, STDOUT_WRITE_TIMEOUT_MS);
+
+    try {
+      process.stdout.write(value, finish);
+    } catch (error) {
+      finish(error);
+    }
   });
 }
 
