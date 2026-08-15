@@ -34,7 +34,7 @@ const cleanup = (dir) => { try { fs.rmSync(dir, { recursive: true, force: true }
 const run = (dir, ...args) => spawnSync(
   process.execPath,
   [BIN, 'ci', dir, '--no-deps', ...args],
-  { encoding: 'utf8', timeout: 120_000 },
+  { encoding: 'utf8', timeout: 120_000, maxBuffer: 16 * 1024 * 1024 },
 );
 
 // A critical finding: user input straight into a shell.
@@ -97,6 +97,25 @@ describe('ci gate', () => {
       const report = JSON.parse(lines[0]);
       assert.equal(report.totalFindings, 0);
       assert.equal(report.pass, true);
+    } finally { cleanup(dir); }
+  });
+
+  it('--json output survives a large finding count without truncation', () => {
+    // A `console.log` this large exceeds a pipe's buffer, and process.exit()
+    // used to fire before the write finished, truncating the JSON — exactly
+    // what a scan of a large corpus (many findings) triggers.
+    const lines = [];
+    for (let i = 0; i < 4000; i++) {
+      lines.push(`const key${i} = "AKIA${String(i).padStart(16, '0')}";`);
+    }
+    const dir = project({ 'secrets.js': lines.join('\n') });
+    try {
+      const res = run(dir, '--json');
+      assert.equal(res.status, 1, `expected failure\n${res.stderr}`);
+      const out = res.stdout.trim();
+      let report;
+      assert.doesNotThrow(() => { report = JSON.parse(out); }, `output was not valid JSON:\n${out.slice(-200)}`);
+      assert.equal(report.totalFindings, 4000);
     } finally { cleanup(dir); }
   });
 });
