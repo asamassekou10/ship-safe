@@ -299,17 +299,27 @@ const AGENT_STRUCTURAL_RULES = [
     description: 'Multi-agent pipeline without privilege isolation between steps. A compromised agent can escalate through the chain.',
     fix: 'Apply privilege isolation between agents in a chain. Each agent should have scoped permissions.',
     test(content) {
-      // Trigger: a chain/pipe/sequence/workflow construct with at least two
-      // agent/step/task references near it.
-      const isChain = /\b(?:pipe|chain|sequence|workflow)\b[\s\S]{0,300}?\b(?:agent|step|task)\b[\s\S]{0,200}?\b(?:agent|step|task)\b/i.test(content);
-      if (!isChain) return false;
+      // First locate the chain trigger. Mitigation must be checked within the
+      // same declaration/statement, not against unrelated text elsewhere in
+      // the file.
+      const trigger = /\b(?:pipe|chain|sequence|workflow)\b[\s\S]{0,300}?\b(?:agent|step|task)\b[\s\S]{0,200}?\b(?:agent|step|task)\b/i.exec(content);
+      if (!trigger) return false;
 
-      // Mitigation is checked independently over the whole file, not from
-      // wherever the trigger match happened to stop. A mitigation value that
-      // contains one of the trigger words as a substring (e.g. "per-step")
-      // can no longer be mistaken for the second trigger match, because
-      // trigger detection and mitigation detection never share a cursor.
-      const hasIsolation = /\b(?:permission|scope|restrict|isolat\w*)\b/i.test(content);
+      // Scope the mitigation check to the statement containing the chain.
+      // This keeps unrelated declarations from suppressing a real finding.
+      const statementStart = Math.max(
+        content.lastIndexOf(';', trigger.index) + 1,
+        content.lastIndexOf('\n', trigger.index) + 1
+      );
+      const statementEnd = content.indexOf(';', trigger.index);
+      const statement = content.slice(
+        statementStart,
+        statementEnd === -1 ? content.length : statementEnd
+      );
+
+      const hasIsolation =
+        /\b(?:permission|scope|restrict|isolat\w*)\b/i.test(statement);
+
       return !hasIsolation;
     },
   },
