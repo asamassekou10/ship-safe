@@ -84,6 +84,76 @@ describe('absence rules stay quiet when the mitigation is present', async () => 
     quiet(AgenticSecurityAgent, 'AGENT_CHAIN_NO_ISOLATION',
       'const chain = orchestrateAgents([agent, step], { permission: "scoped", isolat: true });'));
 
+  it('AGENT_CHAIN_NO_ISOLATION: mitigation text contains a trigger word as a substring', () =>
+    quiet(AgenticSecurityAgent, 'AGENT_CHAIN_NO_ISOLATION',
+      'const chain = orchestrateAgents([agent, step, task], { permission: "scoped", isolat: "per-step" });'));
+
+  it('AGENT_CHAIN_NO_ISOLATION: unrelated permission text does not suppress finding', async () => {
+    const { dir, file } = writeTemp(`
+const chain = orchestrateAgents([agent, task]);
+
+function unrelatedConfig() {
+  return { permission: "read-only" };
+}
+`);
+    try {
+      const findings = await new AgenticSecurityAgent().analyze({
+        rootPath: dir,
+        files: [file],
+        recon: {},
+        options: {},
+      });
+
+      const hits = findings.filter(f => f.rule === 'AGENT_CHAIN_NO_ISOLATION');
+
+      assert.equal(hits.length, 1, 'unrelated permission text incorrectly suppressed the finding');
+    } finally {
+      cleanup(dir);
+    }
+  });
+
+  it('AGENT_CHAIN_NO_ISOLATION: automatic semicolon insertion keeps scope bounded', async () => {
+    const { dir, file } = writeTemp(`
+const chain = orchestrateAgents([agent, task])
+
+function unrelatedConfig() {
+  return { permission: "read-only" };
+}
+`);
+    try {
+      const findings = await new AgenticSecurityAgent().analyze({
+        rootPath: dir,
+        files: [file],
+        recon: {},
+        options: {},
+      });
+
+      assert.equal(findings.filter(f => f.rule === 'AGENT_CHAIN_NO_ISOLATION').length, 1);
+    } finally {
+      cleanup(dir);
+    }
+  });
+
+  it('AGENT_CHAIN_NO_ISOLATION: comments and descriptive strings do not count as isolation', async () => {
+    const { dir, file } = writeTemp(`
+const chain = orchestrateAgents([agent, task /* permission: read-only */], {
+  note: "scope is discussed here"
+});
+`);
+    try {
+      const findings = await new AgenticSecurityAgent().analyze({
+        rootPath: dir,
+        files: [file],
+        recon: {},
+        options: {},
+      });
+
+      assert.equal(findings.filter(f => f.rule === 'AGENT_CHAIN_NO_ISOLATION').length, 1);
+    } finally {
+      cleanup(dir);
+    }
+  });
+
   it('PII_NO_ENCRYPTION_AT_REST: encryption annotation present on the column', () =>
     quiet(PIIComplianceAgent, 'PII_NO_ENCRYPTION_AT_REST',
       'CREATE TABLE users (ssn VARCHAR(11) ENCRYPTED);'));

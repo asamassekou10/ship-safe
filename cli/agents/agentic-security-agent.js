@@ -177,17 +177,14 @@ const PATTERNS = [
     description: 'Agent can recursively invoke itself or spawn sub-agents without depth limits. Enables infinite loops.',
     fix: 'Set max recursion depth for agent self-invocation. Track and limit sub-agent spawn depth.',
   },
-  {
-    rule: 'AGENT_CHAIN_NO_ISOLATION',
-    title: 'Agent: Multi-Agent Chain Without Privilege Isolation',
-    regex: /(?:pipe|chain|sequence|workflow)[\s\S]{0,300}(?:agent|step|task)[\s\S]{0,200}(?:agent|step|task)(?![\s\S]{0,200}(?:permission|scope|restrict|isolat))/g,
-    severity: 'medium',
-    cwe: 'CWE-269',
-    owasp: 'A04:2021',
-    confidence: 'low',
-    description: 'Multi-agent pipeline without privilege isolation between steps. A compromised agent can escalate through the chain.',
-    fix: 'Apply privilege isolation between agents in a chain. Each agent should have scoped permissions.',
-  },
+  //  AGENT_CHAIN_NO_ISOLATION moved to AGENT_STRUCTURAL_RULES. The old regex
+  // interleaved trigger-matching and mitigation-scanning in one continuous
+  // match: two greedy (?:agent|step|task) matches followed by a negative
+  // lookahead for the mitigation words. When the mitigation text itself
+  // contained one of the trigger words as a substring (e.g. a value like
+  // `isolat: "per-step"`), the greedy alternation consumed it as the second
+  // trigger instead of leaving it for the lookahead, and the rule fired
+  // despite the mitigation being present. See #145.
 
   // ── Output Safety ────────────────────────────────────────────────────────
   {
@@ -258,6 +255,149 @@ const PATTERNS = [
 // KIMI K3 / OPENAI-COMPATIBLE TOOL-CALL SECURITY CHECKS
 // =============================================================================
 
+const MITIGATION_KEY = /^(?:permission|scope|restrict|isolat\w*)$/i;
+
+function maskMitigationEvidence(content) {
+  let result = '';
+
+  for (let i = 0; i < content.length;) {
+    const char = content[i];
+    const next = content[i + 1];
+
+    if ((char === '/' && next === '/') || (char === '-' && next === '-') || char === '#') {
+      result += ' ';
+      i += char === '#' ? 1 : 2;
+      while (i < content.length && content[i] !== '\n') {
+        result += ' ';
+        i++;
+      }
+      continue;
+    }
+
+    if (char === '/' && next === '*') {
+      result += '  ';
+      i += 2;
+      while (i < content.length) {
+        if (content[i] === '*' && content[i + 1] === '/') {
+          result += '  ';
+          i += 2;
+          break;
+        }
+        result += content[i] === '\n' ? '\n' : ' ';
+        i++;
+      }
+      continue;
+    }
+
+    if (char !== "'" && char !== '"' && char !== '`') {
+      result += char;
+      i++;
+      continue;
+    }
+
+    const quote = char;
+    let value = '';
+    let escaped = false;
+    i++;
+    while (i < content.length) {
+      const current = content[i];
+      if (escaped) {
+        value += current;
+        escaped = false;
+        i++;
+        continue;
+      }
+      if (current === '\\') {
+        escaped = true;
+        i++;
+        continue;
+      }
+      if (current === quote) {
+        i++;
+        break;
+      }
+      value += current;
+      i++;
+    }
+
+    let lookahead = i;
+    while (/\s/.test(content[lookahead] || '')) lookahead++;
+    if (content[lookahead] === ':' && MITIGATION_KEY.test(value.trim())) {
+      result += value.trim();
+    } else {
+      result += ' ';
+    }
+  }
+
+  return result;
+}
+
+function findStatementEnd(content, start) {
+  let depth = 0;
+  let quote = null;
+  let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
+  let expressionClosed = false;
+
+  for (let i = start; i < content.length; i++) {
+    const char = content[i];
+    const next = content[i + 1];
+
+    if (lineComment) {
+      if (char === '\n') {
+        lineComment = false;
+        if (depth === 0 && expressionClosed) return i;
+      }
+      continue;
+    }
+    if (blockComment) {
+      if (char === '*' && next === '/') {
+        blockComment = false;
+        i++;
+      }
+      continue;
+    }
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === "'" || char === '"' || char === '`') {
+      quote = char;
+      continue;
+    }
+    if ((char === '/' && next === '/') || (char === '-' && next === '-') || char === '#') {
+      lineComment = true;
+      if (char !== '#') i++;
+      continue;
+    }
+    if (char === '/' && next === '*') {
+      blockComment = true;
+      i++;
+      continue;
+    }
+    if (char === '(' || char === '[' || char === '{') {
+      depth++;
+      continue;
+    }
+    if (char === ')' || char === ']' || char === '}') {
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) expressionClosed = true;
+      continue;
+    }
+    if (char === ';' && depth === 0) return i;
+    if (char === '\n' && depth === 0 && expressionClosed) return i;
+  }
+
+  return content.length;
+}
+
 const AGENT_STRUCTURAL_RULES = [
   {
     rule: 'AGENT_DYNAMIC_TOOL_LOADING_FROM_CONTEXT',
@@ -290,6 +430,40 @@ const AGENT_STRUCTURAL_RULES = [
         /content\s*[:=][^\n]{0,140}\b(?:tool|function)s?\b[^\n]{0,100}\b(?:req\.|request\.|body\.|params\.|query\.|user_?(?:input|message)|retrieved|documents?|tool_?results?)/i.test(content);
 
       return assignedFromUntrusted || toolShapedUntrustedRead || injectedIntoInstructionMessage;
+    },
+  },
+  {
+    rule: 'AGENT_CHAIN_NO_ISOLATION',
+    title: 'Agent: Multi-Agent Chain Without Privilege Isolation',
+    severity: 'medium',
+    cwe: 'CWE-269',
+    owasp: 'A04:2021',
+    confidence: 'low',
+    description: 'Multi-agent pipeline without privilege isolation between steps. A compromised agent can escalate through the chain.',
+    fix: 'Apply privilege isolation between agents in a chain. Each agent should have scoped permissions.',
+    test(content) {
+      // First locate the chain trigger. Mitigation must be checked within the
+      // same declaration/statement, not against unrelated text elsewhere in
+      // the file.
+      const trigger = /\b(?:pipe|chain|sequence|workflow)\b[\s\S]{0,300}?\b(?:agent|step|task)\b[\s\S]{0,200}?\b(?:agent|step|task)\b/i.exec(content);
+      if (!trigger) return false;
+
+      // Scope the mitigation check to the statement containing the chain.
+      // This keeps unrelated declarations from suppressing a real finding.
+      const statementStart = Math.max(
+        content.lastIndexOf(';', trigger.index) + 1,
+        content.lastIndexOf('\n', trigger.index) + 1
+      );
+      const statementEnd = findStatementEnd(content, trigger.index);
+      const statement = content.slice(
+        statementStart,
+        statementEnd
+      );
+
+      const hasIsolation =
+        /\b(?:permission|scope|restrict|isolat\w*)\b/i.test(maskMitigationEvidence(statement));
+
+      return !hasIsolation;
     },
   },
   {
@@ -507,6 +681,7 @@ export class AgenticSecurityAgent extends BaseAgent {
       AGENT_MEMORY_NO_EXPIRY: /(?:memory|longTermMemory|persistent_?[Ss]tate)/i,
       AGENT_NO_COST_LIMIT: /(?:completions\.create|messages\.create|responses\.create|createChatCompletion|\.generate)/i,
       AGENT_NO_OUTPUT_SCHEMA: /(?:JSON\.parse|json\.loads)/i,
+      AGENT_CHAIN_NO_ISOLATION: /\b(?:pipe|chain|sequence|workflow)\b/i,
     };
     const marker = markers[rule.rule] || /tool/i;
     const lines = content.split('\n');
