@@ -255,6 +255,149 @@ const PATTERNS = [
 // KIMI K3 / OPENAI-COMPATIBLE TOOL-CALL SECURITY CHECKS
 // =============================================================================
 
+const MITIGATION_KEY = /^(?:permission|scope|restrict|isolat\w*)$/i;
+
+function maskMitigationEvidence(content) {
+  let result = '';
+
+  for (let i = 0; i < content.length;) {
+    const char = content[i];
+    const next = content[i + 1];
+
+    if ((char === '/' && next === '/') || (char === '-' && next === '-') || char === '#') {
+      result += ' ';
+      i += char === '#' ? 1 : 2;
+      while (i < content.length && content[i] !== '\n') {
+        result += ' ';
+        i++;
+      }
+      continue;
+    }
+
+    if (char === '/' && next === '*') {
+      result += '  ';
+      i += 2;
+      while (i < content.length) {
+        if (content[i] === '*' && content[i + 1] === '/') {
+          result += '  ';
+          i += 2;
+          break;
+        }
+        result += content[i] === '\n' ? '\n' : ' ';
+        i++;
+      }
+      continue;
+    }
+
+    if (char !== "'" && char !== '"' && char !== '`') {
+      result += char;
+      i++;
+      continue;
+    }
+
+    const quote = char;
+    let value = '';
+    let escaped = false;
+    i++;
+    while (i < content.length) {
+      const current = content[i];
+      if (escaped) {
+        value += current;
+        escaped = false;
+        i++;
+        continue;
+      }
+      if (current === '\\') {
+        escaped = true;
+        i++;
+        continue;
+      }
+      if (current === quote) {
+        i++;
+        break;
+      }
+      value += current;
+      i++;
+    }
+
+    let lookahead = i;
+    while (/\s/.test(content[lookahead] || '')) lookahead++;
+    if (content[lookahead] === ':' && MITIGATION_KEY.test(value.trim())) {
+      result += value.trim();
+    } else {
+      result += ' ';
+    }
+  }
+
+  return result;
+}
+
+function findStatementEnd(content, start) {
+  let depth = 0;
+  let quote = null;
+  let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
+  let expressionClosed = false;
+
+  for (let i = start; i < content.length; i++) {
+    const char = content[i];
+    const next = content[i + 1];
+
+    if (lineComment) {
+      if (char === '\n') {
+        lineComment = false;
+        if (depth === 0 && expressionClosed) return i;
+      }
+      continue;
+    }
+    if (blockComment) {
+      if (char === '*' && next === '/') {
+        blockComment = false;
+        i++;
+      }
+      continue;
+    }
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === "'" || char === '"' || char === '`') {
+      quote = char;
+      continue;
+    }
+    if ((char === '/' && next === '/') || (char === '-' && next === '-') || char === '#') {
+      lineComment = true;
+      if (char !== '#') i++;
+      continue;
+    }
+    if (char === '/' && next === '*') {
+      blockComment = true;
+      i++;
+      continue;
+    }
+    if (char === '(' || char === '[' || char === '{') {
+      depth++;
+      continue;
+    }
+    if (char === ')' || char === ']' || char === '}') {
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) expressionClosed = true;
+      continue;
+    }
+    if (char === ';' && depth === 0) return i;
+    if (char === '\n' && depth === 0 && expressionClosed) return i;
+  }
+
+  return content.length;
+}
+
 const AGENT_STRUCTURAL_RULES = [
   {
     rule: 'AGENT_DYNAMIC_TOOL_LOADING_FROM_CONTEXT',
@@ -311,14 +454,14 @@ const AGENT_STRUCTURAL_RULES = [
         content.lastIndexOf(';', trigger.index) + 1,
         content.lastIndexOf('\n', trigger.index) + 1
       );
-      const statementEnd = content.indexOf(';', trigger.index);
+      const statementEnd = findStatementEnd(content, trigger.index);
       const statement = content.slice(
         statementStart,
-        statementEnd === -1 ? content.length : statementEnd
+        statementEnd
       );
 
       const hasIsolation =
-        /\b(?:permission|scope|restrict|isolat\w*)\b/i.test(statement);
+        /\b(?:permission|scope|restrict|isolat\w*)\b/i.test(maskMitigationEvidence(statement));
 
       return !hasIsolation;
     },

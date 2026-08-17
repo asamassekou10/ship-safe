@@ -112,6 +112,48 @@ function unrelatedConfig() {
     }
   });
 
+  it('AGENT_CHAIN_NO_ISOLATION: automatic semicolon insertion keeps scope bounded', async () => {
+    const { dir, file } = writeTemp(`
+const chain = orchestrateAgents([agent, task])
+
+function unrelatedConfig() {
+  return { permission: "read-only" };
+}
+`);
+    try {
+      const findings = await new AgenticSecurityAgent().analyze({
+        rootPath: dir,
+        files: [file],
+        recon: {},
+        options: {},
+      });
+
+      assert.equal(findings.filter(f => f.rule === 'AGENT_CHAIN_NO_ISOLATION').length, 1);
+    } finally {
+      cleanup(dir);
+    }
+  });
+
+  it('AGENT_CHAIN_NO_ISOLATION: comments and descriptive strings do not count as isolation', async () => {
+    const { dir, file } = writeTemp(`
+const chain = orchestrateAgents([agent, task /* permission: read-only */], {
+  note: "scope is discussed here"
+});
+`);
+    try {
+      const findings = await new AgenticSecurityAgent().analyze({
+        rootPath: dir,
+        files: [file],
+        recon: {},
+        options: {},
+      });
+
+      assert.equal(findings.filter(f => f.rule === 'AGENT_CHAIN_NO_ISOLATION').length, 1);
+    } finally {
+      cleanup(dir);
+    }
+  });
+
   it('PII_NO_ENCRYPTION_AT_REST: encryption annotation present on the column', () =>
     quiet(PIIComplianceAgent, 'PII_NO_ENCRYPTION_AT_REST',
       'CREATE TABLE users (ssn VARCHAR(11) ENCRYPTED);'));
