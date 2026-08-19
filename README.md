@@ -155,7 +155,7 @@ $ ship-safe
   ███████╗██╗  ██╗██╗██████╗     ███████╗ █████╗ ███████╗███████╗
   ...
 
-  v9.4.1  ·  DeepSeek  ·  ~/my-project
+  v9.7.5  ·  DeepSeek  ·  ~/my-project
 
   /scan to find issues  ·  /agent to fix them  ·  /help for more
 
@@ -222,7 +222,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: asamassekou10/ship-safe@v9.7.4
+      - uses: asamassekou10/ship-safe@v9.7.5
         with:
           fail-on: high
           inline: true
