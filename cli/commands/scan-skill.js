@@ -18,6 +18,12 @@ import chalk from 'chalk';
 import { createHash } from 'crypto';
 import * as output from '../utils/output.js';
 import { ThreatIntel } from '../utils/threat-intel.js';
+import {
+  containsUnicodeTag,
+  describeUnicodeTagPayload,
+  firstNonAllowedUnicodeTagIndex,
+  stripAllowedEmojiFlagTags,
+} from '../utils/unicode-tags.js';
 
 // =============================================================================
 // HERMES SKILL FRONTMATTER PATTERNS (Track D — cross-skill/tool binding)
@@ -187,6 +193,25 @@ async function analyzeSkill(content, skillName, source) {
   const lines = content.split('\n');
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+
+    // Unicode Tag characters are invisible in most editors but can carry
+    // instructions that an agent reads from the skill body. Keep the same
+    // explicit subdivision-flag allowlist used by repository scanning.
+    if (containsUnicodeTag(line)) {
+      const sanitized = stripAllowedEmojiFlagTags(line);
+      if (containsUnicodeTag(sanitized)) {
+        findings.push({
+          check: 'unicode-tag-detection',
+          name: 'Unicode Tag smuggling',
+          severity: 'critical',
+          line: i + 1,
+          column: firstNonAllowedUnicodeTagIndex(line) + 1,
+          matched: describeUnicodeTagPayload(line),
+          note: 'Skill contains invisible Unicode Tag characters that can hide instructions from human reviewers while remaining visible to an agent.',
+        });
+      }
+    }
+
     for (const pattern of SKILL_PATTERNS) {
       pattern.regex.lastIndex = 0;
       if (pattern.regex.test(line)) {

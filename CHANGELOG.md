@@ -8,6 +8,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [9.7.5] - 2026-08-19
+
+### Added
+- **Unicode Tag smuggling detection** across agent instruction files, Hermes
+  skills, and `scan-skill`, including decoded payload context and an explicit
+  allowlist for legitimate UK subdivision flag sequences.
+- **Hermes fail-open adapter allowlist detection** for configurations that can
+  expose adapters without a bounded allowlist.
+- **Nested MCP permission re-grant detection** for wildcard or broader nested
+  permissions that undo a parent tool restriction.
+
+### Fixed
+- Large `ci --json` reports now flush reliably before the process exits, with
+  bounded stdout handling and a timeout for stalled writes.
+- PII storage encryption checks are scoped to relevant SQL, ORM, and object
+  declarations so unrelated comments and descriptive strings do not suppress
+  real findings.
+- Agent-chain mitigation matching is scoped to the relevant declaration,
+  reducing false suppressions from unrelated permission text.
+- Supabase service-role JWT and Auth0 secret detection now validate the
+  surrounding token context more precisely.
+
+### Contributors
+- [@Vermitrude](https://github.com/Vermitrude) — agent-chain mitigation
+  hardening in [#152](https://github.com/asamassekou10/ship-safe/pull/152).
+- [@AlvaroBalbin](https://github.com/AlvaroBalbin) — Supabase JWT validation in
+  [#154](https://github.com/asamassekou10/ship-safe/pull/154).
+- [@Dessalines39394](https://github.com/Dessalines39394) — Star History
+  documentation fix in [#155](https://github.com/asamassekou10/ship-safe/pull/155).
+
 ## [9.7.4] - 2026-08-09
 
 ### Added
