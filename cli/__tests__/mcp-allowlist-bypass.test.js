@@ -84,6 +84,112 @@ describe('MCPSecurityAgent — tool allowlist bypass fixtures', () => {
     } finally { cleanup(dir); }
   });
 
+  it('flags a nested override that re-allows a denied permission', async () => {
+    const dir = tmp();
+    try {
+      fs.writeFileSync(path.join(dir, '.mcp.json'), JSON.stringify({
+        mcpServers: {
+          shell: {
+            command: 'shell-mcp-server',
+            permissions: {
+              exec: {
+                deny: ['network'],
+                overrides: {
+                  network: { allow: true },
+                },
+              },
+            },
+          },
+        },
+      }));
+      const f = await scan(dir, ['.mcp.json']);
+      assert.ok(f.some((x) => x.rule === 'MCP_NESTED_PERMISSION_OVERRIDE'),
+        'Should flag a nested allow that re-grants a denied permission');
+    } finally { cleanup(dir); }
+  });
+
+  it('does not flag an unrelated allow without a deny in the same server', async () => {
+    const dir = tmp();
+    try {
+      fs.writeFileSync(path.join(dir, '.mcp.json'), JSON.stringify({
+        mcpServers: {
+          shell: {
+            command: 'shell-mcp-server',
+            permissions: {
+              exec: {
+                allow: true,
+              },
+            },
+          },
+        },
+      }));
+      const f = await scan(dir, ['.mcp.json']);
+      assert.equal(f.filter((x) => x.rule === 'MCP_NESTED_PERMISSION_OVERRIDE').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('does not pair a deny in one server with an allow in another', async () => {
+    const dir = tmp();
+    try {
+      fs.writeFileSync(path.join(dir, '.mcp.json'), JSON.stringify({
+        mcpServers: {
+          shell: {
+            command: 'shell-mcp-server',
+            permissions: { exec: { deny: ['network'] } },
+          },
+          filesystem: {
+            command: 'filesystem-mcp-server',
+            permissions: { read: { allow: true } },
+          },
+        },
+      }));
+      const f = await scan(dir, ['.mcp.json']);
+      assert.equal(f.filter((x) => x.rule === 'MCP_NESTED_PERMISSION_OVERRIDE').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('does not treat unrelated permission metadata as an override', async () => {
+    const dir = tmp();
+    try {
+      fs.writeFileSync(path.join(dir, '.mcp.json'), JSON.stringify({
+        mcpServers: {
+          shell: {
+            command: 'shell-mcp-server',
+            permissions: {
+              exec: { deny: ['network'] },
+              metadata: { allow: true },
+            },
+          },
+        },
+      }));
+      const f = await scan(dir, ['.mcp.json']);
+      assert.equal(f.filter((x) => x.rule === 'MCP_NESTED_PERMISSION_OVERRIDE').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('does not flag an override for a different denied permission', async () => {
+    const dir = tmp();
+    try {
+      fs.writeFileSync(path.join(dir, '.mcp.json'), JSON.stringify({
+        mcpServers: {
+          shell: {
+            command: 'shell-mcp-server',
+            permissions: {
+              exec: {
+                deny: ['network'],
+                overrides: {
+                  filesystem: { allow: true },
+                },
+              },
+            },
+          },
+        },
+      }));
+      const f = await scan(dir, ['.mcp.json']);
+      assert.equal(f.filter((x) => x.rule === 'MCP_NESTED_PERMISSION_OVERRIDE').length, 0);
+    } finally { cleanup(dir); }
+  });
+
   it('does not flag an explicit, bounded tool allowlist', async () => {
     const dir = tmp();
     try {

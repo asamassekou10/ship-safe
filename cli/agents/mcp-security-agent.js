@@ -552,8 +552,57 @@ export class MCPSecurityAgent extends BaseAgent {
       'toolPermissions', 'permissions', 'allowed_tools', 'tool_allowlist',
     ]);
     const aliasKeys = new Set(['toolAliases', 'aliases', 'tool_aliases']);
+    const denyKeys = new Set([
+      'deny', 'denied', 'denyTools', 'blockedTools', 'disallowedTools', 'disallow', 'blocked',
+    ]);
+    const hasWildcard = (obj) => {
+      if (obj === '*' || obj === 'all' || obj === 'any') return true;
+      if (Array.isArray(obj)) return obj.some(hasWildcard);
+      if (obj && typeof obj === 'object') return Object.values(obj).some(hasWildcard);
+      return false;
+    };
+    const hasDenyValue = (value) => {
+      if (value === true || hasWildcard(value)) return true;
+      if (typeof value === 'string') return value.trim().length > 0;
+      if (Array.isArray(value)) return value.some(hasDenyValue);
+      if (value && typeof value === 'object') return Object.values(value).some(hasDenyValue);
+      return false;
+    };
+    const denyTokens = (value) => {
+      if (value === true || hasWildcard(value)) return ['*'];
+      if (typeof value === 'string') return [value];
+      if (Array.isArray(value)) return value.flatMap(denyTokens);
+      if (value && typeof value === 'object') {
+        return Object.entries(value).flatMap(([key, nestedValue]) =>
+          nestedValue === true ? [key] : denyTokens(nestedValue));
+      }
+      return [];
+    };
+    const matchingRegrant = (key, value, pathParts, denials) => {
+      const isAllowField = key === 'allow' || key === 'allowed';
+      const isWildcardAllowlist = allowlistKeys.has(key) && hasWildcard(value);
+      if ((!isAllowField || (value !== true && !hasWildcard(value))) && !isWildcardAllowlist) {
+        return null;
+      }
 
-    const walk = (node, pathParts = []) => {
+      const overrideIndex = Math.max(
+        pathParts.lastIndexOf('overrides'),
+        pathParts.lastIndexOf('override'),
+      );
+      const overrideTarget = overrideIndex >= 0 ? pathParts[overrideIndex + 1] : null;
+      const scopeTarget = overrideTarget || pathParts[pathParts.length - 1];
+
+      return denials.find((denial) => {
+        const denialScope = denial.path.slice(0, -1);
+        const sameScope = denialScope.length === pathParts.length
+          && denialScope.every((part, index) => part === pathParts[index]);
+        const deniedTokens = denial.tokens.map((token) => token.toLowerCase());
+        const targetMatches = scopeTarget && deniedTokens.includes(String(scopeTarget).toLowerCase());
+        return sameScope || deniedTokens.includes('*') || targetMatches;
+      }) || null;
+    };
+
+    const walk = (node, pathParts = [], serverPath = null, inheritedDenials = []) => {
       if (node === null || typeof node !== 'object') return;
 
       if (Array.isArray(node)) {
@@ -574,12 +623,44 @@ export class MCPSecurityAgent extends BaseAgent {
             fix: 'Replace the wildcard with an explicit list of required tool names. Never use "*" in tool allowlists.',
           });
         }
-        node.forEach((item, i) => walk(item, pathParts.concat(String(i))));
+        node.forEach((item, i) => walk(item, pathParts.concat(String(i)), serverPath, inheritedDenials));
         return;
       }
 
+      const localDenials = serverPath
+        ? Object.entries(node)
+          .filter(([key, value]) => denyKeys.has(key) && hasDenyValue(value))
+          .map(([key, value]) => ({ path: pathParts.concat(key), tokens: denyTokens(value) }))
+        : [];
+      const activeDenials = inheritedDenials.concat(localDenials);
+
       for (const [key, value] of Object.entries(node)) {
         const nextPath = pathParts.concat(key);
+        const entersServerEntry = !serverPath
+          && (pathParts[pathParts.length - 1] === 'mcpServers'
+            || pathParts[pathParts.length - 1] === 'servers');
+        const nextServerPath = serverPath || (entersServerEntry ? nextPath : null);
+
+        // Only report an explicit deny/re-grant relationship within one server entry.
+        const matchingDenial = nextServerPath
+          ? matchingRegrant(key, value, pathParts, activeDenials)
+          : null;
+        if (matchingDenial) {
+          const denialPath = matchingDenial.path;
+          findings.push({
+            file: filePath, line: 1, column: 0,
+            severity: 'medium',
+            category: this.category,
+            rule: 'MCP_NESTED_PERMISSION_OVERRIDE',
+            title: `MCP: Nested permission re-grant at ${nextPath.join('.')}`,
+            description: `Project-local ${base} denies access at "${denialPath.join('.')}" but re-grants it at "${nextPath.join('.')}", which can silently broaden tool access for that server.`,
+            matched: `${denialPath.join('.')} -> ${nextPath.join('.')}: ${JSON.stringify(value).slice(0, 120)}`,
+            confidence: 'medium',
+            cwe: 'CWE-863',
+            owasp: 'ASI03:2026',
+            fix: 'Keep deny and allow rules consistent within each server entry. Do not nest wildcard or allow=true permission blocks beneath a denied scope.',
+          });
+        }
 
         if (allowlistKeys.has(key)) {
           if (value === '*' || value === 'all' || value === 'any') {
@@ -620,16 +701,16 @@ export class MCPSecurityAgent extends BaseAgent {
         if ((key === 'toolPolicy' || key === 'toolAccess')
             && value && typeof value === 'object'
             && pathParts.some(p => p === 'mcpServers' || p === 'servers')) {
-          const hasWildcard = (obj) => {
+          const hasNestedWildcard = (obj) => {
             if (obj === '*' || obj === 'all' || obj === 'any') return true;
-            if (Array.isArray(obj)) return obj.some(hasWildcard);
+            if (Array.isArray(obj)) return obj.some(hasNestedWildcard);
             if (obj && typeof obj === 'object') {
-              return Object.entries(obj).some(([k, v]) =>
-                allowlistKeys.has(k) ? hasWildcard(v) : false);
+              return Object.entries(obj).some(([nestedKey, nestedValue]) =>
+                allowlistKeys.has(nestedKey) ? hasNestedWildcard(nestedValue) : false);
             }
             return false;
           };
-          if (hasWildcard(value)) {
+          if (hasNestedWildcard(value)) {
             findings.push({
               file: filePath, line: 1, column: 0,
               severity: 'medium',
@@ -646,7 +727,8 @@ export class MCPSecurityAgent extends BaseAgent {
           }
         }
 
-        walk(value, nextPath);
+        const childDenials = denyKeys.has(key) ? inheritedDenials : activeDenials;
+        walk(value, nextPath, nextServerPath, childDenials);
       }
     };
 
