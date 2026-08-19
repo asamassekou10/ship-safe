@@ -102,6 +102,9 @@ const BOUNDARY_RULES = new Set([
   // Escapes the agent process into the host through a path the shell-level
   // posture never covered (§2.2, "does not confine ... code-execution").
   'HERMES_XURL_SUBPROCESS_INJECTION',
+  // A network adapter that falls through to agent work without proving the
+  // caller is allowlisted crosses the adapter trust boundary (§2.6).
+  'HERMES_ADAPTER_ALLOWLIST_FAIL_OPEN',
 ]);
 
 /** Which half of Hermes's policy a rule falls under. */
@@ -453,6 +456,106 @@ function checkToolContextForwarding(content, filePath, agent) {
   return findings;
 }
 
+function pythonCodeOnly(content) {
+  return String(content || '')
+    .replace(/^[ \t]*#.*$/gm, '')
+    .replace(/'''[\s\S]*?'''|"""[\s\S]*?"""/g, '');
+}
+
+/**
+ * Detect network-facing Hermes adapter paths that dispatch without a
+ * fail-closed operator allowlist. This intentionally does not inspect ACP
+ * or shared gateway plumbing: ACP is local IPC, and the gateway's authz mixin
+ * is the central policy implementation rather than an adapter boundary.
+ */
+function checkAdapterAllowlistFailOpen(content, filePath, agent) {
+  const findings = [];
+  const normalizedPath = String(filePath || '').replace(/\\/g, '/');
+
+  if (!/\.(?:py|pyi)$/i.test(normalizedPath)) return findings;
+  if (/\/acp_adapter\//i.test(normalizedPath)) return findings;
+  if (!/(?:^|\/)(?:gateway\/platforms|plugins\/platforms)\//i.test(normalizedPath)) {
+    return findings;
+  }
+  if (/(?:\/|^)(?:base|helpers|platform_registry|authz_mixin)\.py$/i.test(normalizedPath)) {
+    return findings;
+  }
+
+  const lines = content.split(/\r?\n/);
+  const functionRe = /^(\s*)(?:async\s+)?def\s+([A-Za-z_]\w*)\s*\([^)]*\)\s*:/;
+  const functions = [];
+
+  // Python's indentation gives us a useful conservative function boundary
+  // without pulling a parser into the CLI just for this rule.
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = lines[index].match(functionRe);
+    if (!match) continue;
+
+    const indent = match[1].length;
+    const body = [lines[index]];
+    let end = index + 1;
+    for (; end < lines.length; end += 1) {
+      const line = lines[end];
+      const trimmed = line.trim();
+      if (trimmed && line.length - line.trimStart().length <= indent) break;
+      body.push(line);
+    }
+    functions.push({ name: match[2], startLine: index + 1, text: body.join('\n') });
+    index = end - 1;
+  }
+
+  const boundaryNameRe = /(?:dispatch|relay|forward|approval|approve|handle_(?:message|event|request)|on_(?:message|event)|process_(?:message|event)|send)(?:_|$)/i;
+  const agentSinkRe = /(?:dispatch_(?:agent|work|message)|resolve_(?:gateway_)?approval|(?:run|execute|invoke)_[a-z_]*agent|relay_(?:output|message)|forward_(?:output|message)|message_handler|agent_(?:run|execute|output)|_process_message_background)/i;
+  const authzRe = /(?:allow[_-]?list|allow_from|allowed_(?:users|chats|agents|platforms)|dm_policy|group_policy|authz|authori[sz](?:e|ed|ation)|is_allowed|check_access|require_auth|enforce_own_access_policy|_is_(?:user|sender)_authori[sz]ed)/i;
+  const rejectRe = /(?:raise\s+(?:permissionerror|runtimeerror|valueerror)|return\s+(?:false|none)\b|return\s+[^\n]*(?:deny|reject|forbid)|not\s+in\s+[^\n]*(?:allow|authori[sz])|\b(?:drop|reject|deny|forbidden|403)\b)/i;
+  const explicitFailOpenRe = /(?:allow[_-]?all|accept[_-]?all|open[_-]?access|dm_policy\s*==\s*['"]open['"]|allow[_-]?list\s*=\s*[^\n]*(?:or\s+(?:\[\s*['"]\*['"]\s*\]|true\b))|(?:config|settings|options)\.get\(\s*['"](?:allow[_-]?list|allow_from|allowed_users)['"][^)]*\)\s*or\s+(?:true\b|\[\s*['"]\*['"]\s*\]))/i;
+  const sessionGateRe = /(?:if\s+[^\n]*session[_-]?id|session[_-]?id\s+and|session[_-]?id\s*:\s*)/i;
+
+  for (const fn of functions) {
+    const code = pythonCodeOnly(fn.text);
+    if (!boundaryNameRe.test(fn.name) || !agentSinkRe.test(code)) continue;
+
+    const hasAuthz = authzRe.test(code);
+    const hasReject = rejectRe.test(code);
+    const hasExplicitFailOpen = explicitFailOpenRe.test(code);
+    const usesSessionAsGate = sessionGateRe.test(code) && !hasAuthz;
+    const hasExplicitDispatchWithoutAuthz = /(?:dispatch_agent|dispatch_work|resolve_(?:gateway_)?approval|relay_output)/i.test(code) && !hasAuthz;
+
+    let reason;
+    let confidence = 'medium';
+    if (hasExplicitFailOpen) {
+      reason = 'empty or missing allowlist falls through to an allow-all path';
+      confidence = 'high';
+    } else if (usesSessionAsGate) {
+      reason = 'session ID is used as the authorization gate';
+      confidence = 'high';
+    } else if (hasAuthz && !hasReject) {
+      reason = 'allowlist/authorization data is read without a fail-closed rejection before dispatch';
+    } else if (hasExplicitDispatchWithoutAuthz) {
+      reason = 'agent work or approval is dispatched without an allowlist/authz check';
+    } else {
+      continue;
+    }
+
+    findings.push(createFinding({
+      file: filePath,
+      line: fn.startLine,
+      severity: 'critical',
+      category: agent.category,
+      rule: 'HERMES_ADAPTER_ALLOWLIST_FAIL_OPEN',
+      title: 'Hermes: Network Adapter Dispatches Without a Fail-Closed Allowlist',
+      description: 'This network-exposed Hermes adapter can dispatch agent work, resolve an approval, or relay output without proving that the caller is in an operator-configured allowlist. Hermes SECURITY.md §2.6 requires adapters to refuse when the allowlist is missing or empty; session IDs are routing handles, not authorization boundaries.',
+      matched: `${fn.name}(): ${reason}`,
+      confidence,
+      cwe: 'CWE-862',
+      owasp: 'ASI03',
+      fix: 'Require an explicit, non-empty operator allowlist before dispatch, approval, or output relay. Reject missing/empty configuration by default and never treat a session ID as authorization.',
+    }));
+  }
+
+  return findings;
+}
+
 /**
  * Check skill frontmatter for permissions field.
  * Skill files are Markdown; frontmatter is YAML between --- delimiters.
@@ -796,6 +899,7 @@ export class HermesSecurityAgent extends BaseAgent {
       // Structural checks
       findings.push(...checkToolNameCollisions(content, filePath, this));
       findings.push(...checkToolContextForwarding(content, filePath, this));
+      findings.push(...checkAdapterAllowlistFailOpen(content, filePath, this));
       findings.push(...checkSkillFrontmatter(content, filePath, this));
       findings.push(...checkMemoryFileDeserialization(content, filePath, this));
       // Hermes v0.13.0 "Tenacity Release" coverage

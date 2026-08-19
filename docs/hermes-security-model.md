@@ -59,7 +59,9 @@ layer treats agent output as inert and some path breaks that, it is in scope.
 **Adapters that fail open are explicitly named.** Their §2.6 says every enabled
 network-exposed adapter requires an allowlist, and that code paths failing open
 when none is configured are bugs in scope. A static rule that finds those is
-our highest-value Hermes rule.
+our highest-value Hermes rule. Ship Safe reports this as
+`HERMES_ADAPTER_ALLOWLIST_FAIL_OPEN` with `critical` severity and `boundary`
+posture.
 
 ## What their policy treats as out of scope
 

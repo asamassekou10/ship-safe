@@ -35,6 +35,7 @@ describe('postureFor', () => {
       'HERMES_XURL_TOKEN_STORE_EXPOSURE',
       'HERMES_MEMORY_EXFIL_PATTERN',
       'HERMES_BROWSER_CLOUD_METADATA_SSRF',
+      'HERMES_ADAPTER_ALLOWLIST_FAIL_OPEN',
     ]) {
       assert.equal(postureFor(rule), 'boundary', rule);
     }
