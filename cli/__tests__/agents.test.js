@@ -1590,6 +1590,33 @@ describe('Hook patterns — scanCritical', async () => {
     assert.ok(hits.some(h => h.name === 'Private Key (PEM)'));
   });
 
+  it('detects Supabase service role keys regardless of JWT claim order', () => {
+    const header = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
+    const signature = 'ZmFrZXNpZ25hdHVyZQ';
+    const payloads = [
+      { role: 'service_role', iss: 'supabase' },
+      { iss: 'supabase', role: 'service_role' },
+      { aud: 'authenticated', role: 'service_role', iss: 'supabase' },
+    ];
+
+    for (const payload of payloads) {
+      const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+      const key = `${header}.${encodedPayload}.${signature}`;
+      const hits = scanCritical(`SUPABASE_SERVICE_ROLE_KEY=${key}`);
+      assert.ok(
+        hits.some(h => h.name === 'Supabase Service Role Key'),
+        `expected hook to detect service_role payload: ${JSON.stringify(payload)}`
+      );
+    }
+  });
+
+  it('does not classify a Supabase anon key as a service role key', () => {
+    const header = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
+    const payload = Buffer.from(JSON.stringify({ iss: 'supabase', role: 'anon' })).toString('base64url');
+    const hits = scanCritical(`NEXT_PUBLIC_SUPABASE_ANON_KEY=${header}.${payload}.ZmFrZXNpZ25hdHVyZQ`);
+    assert.ok(!hits.some(h => h.name === 'Supabase Service Role Key'));
+  });
+
   it('includes line number in result', () => {
     const content = 'line1\nline2\nconst k = "AKIAIOSFODNN7EXAMPLE";\nline4';
     const hits = scanCritical(content);
@@ -2082,6 +2109,23 @@ describe('SECRET_PATTERNS — Supabase & Auth0 credentials', async () => {
     assert.ok(matches('Supabase Service Role Key', `SUPABASE_SERVICE_ROLE_KEY=${serviceRoleKey}`));
   });
 
+  it('flags a Supabase service role key regardless of claim order', () => {
+    const payloads = [
+      { role: 'service_role', iss: 'supabase' },
+      { iss: 'supabase', role: 'service_role' },
+      { aud: 'authenticated', role: 'service_role', iss: 'supabase' },
+    ];
+
+    for (const payload of payloads) {
+      const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+      const key = `${JWT_HEADER}.${encodedPayload}.${JWT_FAKE_SIG}`;
+      assert.ok(
+        matches('Supabase Service Role Key', `SUPABASE_SERVICE_ROLE_KEY=${key}`),
+        `expected service_role payload to match: ${JSON.stringify(payload)}`
+      );
+    }
+  });
+
   it('does not flag a Supabase anon key as a service role key', () => {
     assert.ok(!matches('Supabase Service Role Key', `NEXT_PUBLIC_SUPABASE_ANON_KEY=${anonKey}`));
   });
@@ -2100,6 +2144,11 @@ describe('SECRET_PATTERNS — Supabase & Auth0 credentials', async () => {
   it('flags an Auth0 Management API token', () => {
     assert.ok(matches('Auth0 Management API Token',
       'AUTH0_MANAGEMENT_API_TOKEN=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2V4YW1wbGUuYXV0aDAuY29tLyJ9.fakesig'));
+  });
+
+  it('flags the common Auth0 management token abbreviation', () => {
+    assert.ok(matches('Auth0 Management API Token',
+      'AUTH0_MGMT_API_TOKEN=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2V4YW1wbGUuYXV0aDAuY29tLyJ9.fakesig'));
   });
 });
 

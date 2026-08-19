@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { createJwtClaimMatcher } from './jwt.js';
 
 /**
  * Secret Detection Patterns
@@ -281,10 +282,9 @@ export const SECRET_PATTERNS = [
   },
   {
     name: 'Supabase Service Role Key',
-    // Requires the standard HS256 JWT header plus base64("service_role") in the
-    // payload segment. Anon keys share the same header, so matching the header
-    // alone flags them too — this scopes the match to the service_role claim.
-    pattern: /eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[a-zA-Z0-9_-]*c2VydmljZV9yb2xl[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]+/g,
+    // Anon keys share the same header. Decode the payload and require the
+    // exact service_role claim instead of searching encoded text.
+    pattern: createJwtClaimMatcher('role', 'service_role'),
     severity: 'critical',
     description: 'Supabase service role keys bypass Row Level Security and grant full database access. Rotate immediately if exposed.'
   },
@@ -400,7 +400,7 @@ export const SECRET_PATTERNS = [
   },
   {
     name: 'Auth0 Management API Token',
-    pattern: /(?:auth0|AUTH0)[_-]?management[_-]?(?:api[_-]?)?token["']?\s*[:=]\s*["']?(eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+)["']?/gi,
+    pattern: /(?:auth0|AUTH0)[_-]?(?:management|mgmt)[_-]?(?:api[_-]?)?token["']?\s*[:=]\s*["']?(eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+)["']?/gi,
     severity: 'critical',
     description: 'Auth0 Management API tokens can read and modify every user, tenant setting, and application in your account.'
   },

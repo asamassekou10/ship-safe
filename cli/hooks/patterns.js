@@ -15,6 +15,7 @@
  */
 
 import path from 'path';
+import { createJwtClaimMatcher } from '../utils/jwt.js';
 
 // =============================================================================
 // SHANNON ENTROPY — used to filter generic token false positives
@@ -129,9 +130,9 @@ export const CRITICAL_PATTERNS = [
   },
   {
     name:   'Supabase Service Role Key',
-    // Requires standard HS256 JWT header + base64("service_role") in payload
-    // Far more precise than matching any JWT.
-    re:     /eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[A-Za-z0-9+/_-]*c2VydmljZV9yb2xl/,
+    // Decode the payload and require the exact service_role claim so valid
+    // keys are not missed when JSON claim order changes.
+    re:     createJwtClaimMatcher('role', 'service_role'),
     envVar: 'SUPABASE_SERVICE_ROLE_KEY',
   },
   {
