@@ -30,6 +30,12 @@
 import fs from 'fs';
 import path from 'path';
 import { BaseAgent, createFinding } from './base-agent.js';
+import {
+  containsUnicodeTag,
+  describeUnicodeTagPayload,
+  firstNonAllowedUnicodeTagIndex,
+  stripAllowedEmojiFlagTags,
+} from '../utils/unicode-tags.js';
 
 // =============================================================================
 // FILES THIS AGENT SCANS
@@ -895,6 +901,7 @@ export class HermesSecurityAgent extends BaseAgent {
 
       // Single-line pattern scan
       findings.push(...this.scanFileWithPatterns(filePath, PATTERNS));
+      findings.push(...this._checkUnicodeTagSmuggling(filePath));
 
       // Structural checks
       findings.push(...checkToolNameCollisions(content, filePath, this));
@@ -915,6 +922,38 @@ export class HermesSecurityAgent extends BaseAgent {
     // so the default is visible in one place.
     for (const finding of findings) {
       finding.posture = postureFor(finding.rule);
+    }
+
+    return findings;
+  }
+
+  _checkUnicodeTagSmuggling(filePath) {
+    const lines = this.readLines(filePath);
+    const findings = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (!containsUnicodeTag(line)) continue;
+
+      const sanitized = stripAllowedEmojiFlagTags(line);
+      if (!containsUnicodeTag(sanitized)) continue;
+      if (this.isSuppressed(line, 'critical')) continue;
+
+      findings.push(createFinding({
+        file: filePath,
+        line: i + 1,
+        column: firstNonAllowedUnicodeTagIndex(line) + 1,
+        severity: 'critical',
+        category: this.category,
+        rule: 'HERMES_SKILL_UNICODE_TAGS',
+        title: 'Hermes Skill: Hidden Unicode Tag Payload',
+        description: 'Hermes skill content contains invisible Unicode Tag characters that can hide instructions from human reviewers while remaining visible to the agent.',
+        matched: describeUnicodeTagPayload(line),
+        confidence: 'high',
+        cwe: 'CWE-116',
+        owasp: 'ASI01',
+        fix: 'Remove the Unicode Tag payload and review the skill history before allowing the skill to load.',
+      }));
     }
 
     return findings;
