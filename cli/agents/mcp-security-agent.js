@@ -19,7 +19,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { BaseAgent, createFinding } from './base-agent.js';
+import { BaseAgent, createFinding, languageOf } from './base-agent.js';
 
 // =============================================================================
 // MCP SECURITY PATTERNS
@@ -249,6 +249,50 @@ const OFFICIAL_MCP_SERVERS = new Set([
   '@modelcontextprotocol/server-sequential-thinking',
 ]);
 
+// OAuth request shapes are deliberately language-scoped. These rules inspect
+// source code rather than MCP JSON, so a JS header expression must not be
+// allowed to report on a Python, Ruby, or Go file by accident.
+const MCP_OAUTH_SHAPES = {
+  js: {
+    inboundToken: /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*[^;\n]*\b(?:req|request|ctx|event)\b[^;\n]*(?:authorization|bearer|headers)\b[^;\n]*;?/gi,
+    directToken: /\b(?:req|request|ctx|event)\b[^;\n]*(?:authorization|bearer|headers)\b[^;\n]*/gi,
+    outboundRequest: /\b(?:fetch|axios(?:\.[A-Za-z_$][\w$]*)?|got|https?\.request)\s*\(/i,
+    audienceValidation: /(?:\baudience\b\s*[:=]|\b(?:claims?|payload|token)\b[^\n;]{0,120}\baud\b\s*(?:===|!==|==|!=|=)|\b(?:validate|verify|check|assert)\w*[^\n;]{0,120}\baud(?:ience)?\b)/i,
+    staticClientId: /["']?\bclient[_-]?id\b["']?\s*(?:=>|:=|[:=])\s*(["'])(.*?)\1/gi,
+    codeFlow: /(?:["']?\bresponse[_-]?type\b["']?\s*[:=]\s*["']code["']|["']?\bgrant[_-]?type\b["']?\s*[:=]\s*["']authorization[_-]?code["']|\bauthorization[_-]?code\b|["']?\bauthorization[_-]?endpoint\b["']?[^\n;]{0,240}["']?\btoken[_-]?endpoint\b["']?)/i,
+  },
+  python: {
+    inboundToken: /\b([A-Za-z_]\w*)\s*=\s*(?:request|req|ctx|context)\b[^\n]*(?:headers?|authorization|bearer)[^\n]*/gi,
+    directToken: /\b(?:request|req|ctx|context)\b[^\n]*(?:headers?|authorization|bearer)[^\n]*/gi,
+    outboundRequest: /\b(?:requests|httpx)\.(?:get|post|put|patch|delete|request)\s*\(|\b(?:urllib\.request\.)?urlopen\s*\(/i,
+    audienceValidation: /(?:\baudience\b\s*=|["']aud["']\s*\]|\b(?:claims?|payload)\b[^\n]{0,120}\baud\b\s*(?:==|!=|in\b))/i,
+    staticClientId: /["']?\bclient[_-]?id\b["']?\s*(?:=>|:=|[:=])\s*(["'])(.*?)\1/gi,
+    codeFlow: /(?:["']?\bresponse[_-]?type\b["']?\s*[:=]\s*["']code["']|["']?\bgrant[_-]?type\b["']?\s*[:=]\s*["']authorization[_-]?code["']|\bauthorization[_-]?code\b|["']?\bauthorization[_-]?endpoint\b["']?[^\n]{0,240}["']?\btoken[_-]?endpoint\b["']?)/i,
+  },
+  ruby: {
+    inboundToken: /\b([A-Za-z_]\w*)\s*=\s*(?:request|req|context|env|headers)\b[^\n]*(?:headers?|authorization|bearer)[^\n]*/gi,
+    directToken: /\b(?:request|req|context|env|headers)\b[^\n]*(?:headers?|authorization|bearer)[^\n]*/gi,
+    outboundRequest: /\b(?:Net::HTTP|Faraday|HTTParty|RestClient)\b[\s\S]{0,120}\b(?:get|post|put|delete|request|call)\b\s*[.(]/i,
+    audienceValidation: /(?:\baudience\s*[:=]|["']aud["']\s*=>|\b(?:claims?|payload)\b[^\n]{0,120}\baud\b\s*(?:==|!=|=~))/i,
+    staticClientId: /["']?\bclient[_-]?id\b["']?\s*(?:=>|:=|[:=])\s*(["'])(.*?)\1/gi,
+    codeFlow: /(?:["']?\bresponse[_-]?type\b["']?\s*[:=]\s*["']code["']|["']?\bgrant[_-]?type\b["']?\s*[:=]\s*["']authorization[_-]?code["']|\bauthorization[_-]?code\b|["']?\bauthorization[_-]?endpoint\b["']?[^\n]{0,240}["']?\btoken[_-]?endpoint\b["']?)/i,
+  },
+  go: {
+    inboundToken: /\b([A-Za-z_]\w*)\s*:?=\s*(?:r|req|request)\.Header\.Get\(\s*["']Authorization["']\s*\)/gi,
+    directToken: /\b(?:r|req|request)\.Header\.Get\(\s*["']Authorization["']\s*\)/gi,
+    outboundRequest: /\b(?:http\.(?:NewRequest|Get|Post|PostForm)|[A-Za-z_]\w*\.Do)\s*\(/i,
+    audienceValidation: /(?:\b(?:Audience|VerifyAudience)\b|["']aud["']\s*[:=]|\b(?:claims?|payload)\b[\s\S]{0,120}\baud\b\s*(?:==|!=))/i,
+    staticClientId: /["']?\b(?:client[_-]?id|clientID)\b["']?\s*(?:=>|:=|[:=])\s*(["'])(.*?)\1/gi,
+    codeFlow: /(?:["']?\bresponse[_-]?type\b["']?\s*[:=]\s*["']code["']|["']?\bgrant[_-]?type\b["']?\s*[:=]\s*["']authorization[_-]?code["']|\bauthorization[_-]?code\b|["']?\bauthorization[_-]?endpoint\b["']?[\s\S]{0,240}["']?\btoken[_-]?endpoint\b["']?)/i,
+  },
+};
+
+const MCP_OAUTH_DYNAMIC_REGISTRATION = /["']?(?:dynamic[_-]?client[_-]?registration|dynamicClientRegistration|allow[_-]?dynamic[_-]?registration|enable[_-]?dynamic[_-]?client[_-]?registration|dynamicRegistration|registerClients|RegisterClient)["']?\s*(?:=>|:=|[:=])\s*(?:true|["']?enabled["']?)/i;
+const MCP_OAUTH_TOKEN_EXCHANGE = /(?:exchangeToken|token[_-]?exchange|subject_token|RFC\s*8693|urn:ietf:params:oauth:grant-type:token-exchange)/i;
+const MCP_OAUTH_PKCE = /(?:\bcode[_-]?challenge\b|\bcode[_-]?verifier\b|\buse[_-]?pkce\b|\bpkce\b)/i;
+const MCP_OAUTH_EXPLICIT_NO_PKCE = /(?:["']?\b(?:use[_-]?pkce|pkce)\b["']?\s*[:=]\s*(?:false|null|["']?disabled["']?)|["']?\bcode[_-]?challenge\b["']?\s*[:=]\s*null)/i;
+const MCP_OAUTH_MARKER = /(?:\bMCP(?:::|[-_.])?(?:Server|Proxy)\b|@modelcontextprotocol|\bmcp[._-](?:server|proxy)\b|mcp\.NewServer)/i;
+
 // =============================================================================
 // MCP SECURITY AGENT
 // =============================================================================
@@ -274,6 +318,10 @@ export class MCPSecurityAgent extends BaseAgent {
 
     for (const file of codeFiles) {
       findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS));
+      findings = findings.concat(this._checkOAuthTokenPassthrough(file));
+      findings = findings.concat(this._checkOAuthAudienceValidation(file));
+      findings = findings.concat(this._checkOAuthConfusedDeputy(file));
+      findings = findings.concat(this._checkOAuthPkce(file));
     }
 
     // ── 2. Scan MCP config files ─────────────────────────────────────────
@@ -286,6 +334,7 @@ export class MCPSecurityAgent extends BaseAgent {
     for (const file of configFiles) {
       findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS));
       findings = findings.concat(this._checkConfigFile(file));
+      findings = findings.concat(this._checkOAuthConfig(file));
     }
 
     // ── 3. Check for MCP server files without auth patterns ──────────────
@@ -318,6 +367,278 @@ export class MCPSecurityAgent extends BaseAgent {
     }
 
     return findings;
+  }
+
+  /**
+   * Detect an inbound MCP bearer token copied into a downstream request.
+   *
+   * Request/header syntax is language-specific. Each supported language gets
+   * its own shape so a JavaScript expression cannot report on Python, Ruby,
+   * or Go by accident (issue #105).
+   */
+  _checkOAuthTokenPassthrough(filePath) {
+    const shape = MCP_OAUTH_SHAPES[languageOf(filePath)];
+    if (!shape) return [];
+
+    const content = this.readFile(filePath);
+    if (!content || !MCP_OAUTH_MARKER.test(content)) {
+      return [];
+    }
+
+    const inbound = shape.inboundToken;
+    inbound.lastIndex = 0;
+    const outbound = shape.outboundRequest;
+    const direct = shape.directToken;
+    direct.lastIndex = 0;
+    const lineNumber = (index) => content.slice(0, index).split('\n').length;
+    const lineText = (index) => (content.split('\n')[lineNumber(index) - 1] || '').trim().slice(0, 180);
+    const makeFinding = (requestIndex) => {
+      if (this.isSuppressed(lineText(requestIndex), 'high')) return null;
+
+      return createFinding({
+        file: filePath,
+        line: lineNumber(requestIndex),
+        column: 1,
+        severity: 'high',
+        category: this.category,
+        rule: 'MCP_UPSTREAM_TOKEN_PASSTHROUGH',
+        title: 'MCP: Inbound OAuth Token Passed Through Downstream',
+        description: 'An MCP tool reads an inbound authorization token and forwards it unchanged to a downstream request. This can bypass audience validation and downstream trust boundaries.',
+        matched: lineText(requestIndex),
+        confidence: 'high',
+        cwe: 'CWE-345',
+        owasp: 'ASI03:2026',
+        fix: 'Validate the inbound token for the MCP server and use RFC 8693 token exchange to mint a downstream-audience token instead of forwarding it unchanged.',
+      });
+    };
+
+    let incoming;
+    while ((incoming = inbound.exec(content)) !== null) {
+      const tokenName = incoming[1];
+      const searchStart = incoming.index + incoming[0].length;
+      const searchWindow = content.slice(searchStart, searchStart + 1200);
+      const requestMatch = searchWindow.match(outbound);
+      if (!requestMatch) continue;
+
+      const requestIndex = searchStart + requestMatch.index;
+      const requestContext = content.slice(requestIndex, requestIndex + 600);
+      const tokenReference = new RegExp(`\\b${tokenName}\\b`);
+      if (!/(?:authorization|bearer|headers)/i.test(requestContext) || !tokenReference.test(requestContext)) {
+        continue;
+      }
+
+      const finding = makeFinding(requestIndex);
+      if (finding) return [finding];
+    }
+
+    let directMatch;
+    while ((directMatch = direct.exec(content)) !== null) {
+      const directIndex = directMatch.index;
+      const beforeStart = Math.max(0, directIndex - 200);
+      const beforeWindow = content.slice(beforeStart, directIndex);
+      const beforeRequest = beforeWindow.match(outbound);
+      if (!beforeRequest) continue;
+      const requestIndex = beforeStart + beforeRequest.index;
+
+      const requestContext = content.slice(requestIndex, Math.max(requestIndex + 600, directIndex + directMatch[0].length));
+      if (!/(?:authorization|bearer|headers)/i.test(requestContext)) continue;
+
+      const finding = makeFinding(requestIndex);
+      if (finding) return [finding];
+    }
+
+    return [];
+  }
+
+  /**
+   * Detect an inbound MCP token that is accepted without an audience check.
+   *
+   * The MCP authorization guidance requires tokens to be issued for the MCP
+   * server itself. Token exchange is a valid alternative because it mints a
+   * new token for the downstream audience.
+   */
+  _checkOAuthAudienceValidation(filePath) {
+    const shape = MCP_OAUTH_SHAPES[languageOf(filePath)];
+    if (!shape) return [];
+
+    const content = this.readFile(filePath);
+    if (!content || !MCP_OAUTH_MARKER.test(content)) {
+      return [];
+    }
+
+    const inbound = shape.inboundToken;
+    inbound.lastIndex = 0;
+    const direct = shape.directToken;
+    direct.lastIndex = 0;
+    const audienceValidation = shape.audienceValidation;
+    const tokenExchange = MCP_OAUTH_TOKEN_EXCHANGE;
+    const lineNumber = (index) => content.slice(0, index).split('\n').length;
+    const lineText = (index) => (content.split('\n')[lineNumber(index) - 1] || '').trim().slice(0, 180);
+    const incoming = inbound.exec(content) || direct.exec(content);
+
+    if (!incoming || audienceValidation.test(content) || tokenExchange.test(content)) return [];
+    if (this.isSuppressed(lineText(incoming.index), 'high')) return [];
+
+    return [createFinding({
+      file: filePath,
+      line: lineNumber(incoming.index),
+      column: 1,
+      severity: 'high',
+      category: this.category,
+      rule: 'MCP_TOKEN_AUDIENCE_UNVALIDATED',
+      title: 'MCP: Inbound OAuth Token Audience Not Validated',
+      description: 'An MCP server accepts an inbound authorization token without checking that its audience is the MCP server. Tokens issued for another resource can then cross the MCP trust boundary.',
+      matched: lineText(incoming.index),
+      confidence: 'medium',
+      cwe: 'CWE-287',
+      owasp: 'A07:2021',
+      fix: 'Validate the token audience against the MCP server resource before accepting it, or use RFC 8693 token exchange to mint a token for the target audience.',
+    })];
+  }
+
+  /**
+   * Detect a static OAuth client id used alongside dynamic client
+   * registration in an MCP proxy.
+   */
+  _checkOAuthConfusedDeputy(filePath) {
+    const shape = MCP_OAUTH_SHAPES[languageOf(filePath)];
+    if (!shape) return [];
+
+    const content = this.readFile(filePath);
+    if (!content || !MCP_OAUTH_MARKER.test(content)) {
+      return [];
+    }
+
+    const staticClientId = shape.staticClientId;
+    staticClientId.lastIndex = 0;
+    const dynamicRegistration = MCP_OAUTH_DYNAMIC_REGISTRATION;
+    const lineNumber = (index) => content.slice(0, index).split('\n').length;
+    const lineText = (index) => (content.split('\n')[lineNumber(index) - 1] || '').trim().slice(0, 180);
+    let client;
+
+    while ((client = staticClientId.exec(content)) !== null) {
+      if (/\$\{|\b(?:process\.env|os\.environ|getenv|ENV\[|os\.Getenv)\b/i.test(client[2])) continue;
+      const scopeStart = Math.max(0, client.index - 600);
+      const scope = content.slice(scopeStart, client.index + 600);
+      if (!dynamicRegistration.test(scope)) continue;
+      if (this.isSuppressed(lineText(client.index), 'high')) return [];
+
+      return [createFinding({
+        file: filePath,
+        line: lineNumber(client.index),
+        column: 1,
+        severity: 'high',
+        category: this.category,
+        rule: 'MCP_STATIC_CLIENT_ID_DYNAMIC_REG',
+        title: 'MCP: Static OAuth Client ID With Dynamic Registration',
+        description: 'An MCP proxy combines a fixed third-party OAuth client_id with dynamic client registration. This can enable a confused deputy attack that reuses consent for an attacker-controlled client.',
+        matched: lineText(client.index),
+        confidence: 'medium',
+        cwe: 'CWE-441',
+        owasp: 'A07:2021',
+        fix: 'Use per-client consent and validate registered client_id and redirect_uri values before starting the third-party authorization flow.',
+      })];
+    }
+
+    return [];
+  }
+
+  /**
+   * Detect an OAuth authorization-code flow that does not use PKCE.
+   */
+  _checkOAuthPkce(filePath) {
+    const shape = MCP_OAUTH_SHAPES[languageOf(filePath)];
+    if (!shape) return [];
+
+    const content = this.readFile(filePath);
+    if (!content || !MCP_OAUTH_MARKER.test(content)) {
+      return [];
+    }
+
+    const codeFlow = shape.codeFlow;
+    const pkce = MCP_OAUTH_PKCE;
+    const explicitNoPkce = MCP_OAUTH_EXPLICIT_NO_PKCE;
+    const flowMatch = codeFlow.exec(content);
+    if (!flowMatch || (pkce.test(content) && !explicitNoPkce.test(content))) return [];
+
+    const lineNumber = (index) => content.slice(0, index).split('\n').length;
+    const lineText = (index) => (content.split('\n')[lineNumber(index) - 1] || '').trim().slice(0, 180);
+    if (this.isSuppressed(lineText(flowMatch.index), 'high')) return [];
+
+    return [createFinding({
+      file: filePath,
+      line: lineNumber(flowMatch.index),
+      column: 1,
+      severity: 'high',
+      category: this.category,
+      rule: 'MCP_OAUTH_NO_PKCE',
+      title: 'MCP: OAuth Authorization-Code Flow Without PKCE',
+      description: 'An MCP OAuth authorization-code flow does not use PKCE. An intercepted authorization code can then be redeemed by an attacker.',
+      matched: lineText(flowMatch.index),
+      confidence: 'medium',
+      cwe: 'CWE-352',
+      owasp: 'A07:2021',
+      fix: 'Use a cryptographically random code_verifier and send its S256 code_challenge with every authorization-code request.',
+    })];
+  }
+
+  /**
+   * Check project MCP JSON for OAuth proxy settings. JSON configs have no
+   * source-language extension, so they use their own key/value shapes.
+   */
+  _checkOAuthConfig(filePath) {
+    const content = this.readFile(filePath);
+    if (!content) return [];
+
+    const staticClientId = /["']?\bclient[_-]?id\b["']?\s*[:=]\s*(["'])(.*?)\1/gi;
+    const lineNumber = (index) => content.slice(0, index).split('\n').length;
+    const lineText = (index) => (content.split('\n')[lineNumber(index) - 1] || '').trim().slice(0, 180);
+    let client;
+
+    while ((client = staticClientId.exec(content)) !== null) {
+      if (/\$\{|\b(?:process\.env|os\.environ|getenv|ENV\[|os\.Getenv)\b/i.test(client[2])) continue;
+      const scope = content.slice(Math.max(0, client.index - 600), client.index + 600);
+      if (!MCP_OAUTH_DYNAMIC_REGISTRATION.test(scope)) continue;
+
+      return [createFinding({
+        file: filePath,
+        line: lineNumber(client.index),
+        column: 1,
+        severity: 'high',
+        category: this.category,
+        rule: 'MCP_STATIC_CLIENT_ID_DYNAMIC_REG',
+        title: 'MCP: Static OAuth Client ID With Dynamic Registration',
+        description: 'An MCP proxy combines a fixed third-party OAuth client_id with dynamic client registration. This can enable a confused deputy attack that reuses consent for an attacker-controlled client.',
+        matched: lineText(client.index),
+        confidence: 'medium',
+        cwe: 'CWE-441',
+        owasp: 'A07:2021',
+        fix: 'Use per-client consent and validate registered client_id and redirect_uri values before starting the third-party authorization flow.',
+      })];
+    }
+
+    const flowMatch = MCP_OAUTH_SHAPES.js.codeFlow.exec(content);
+    if (flowMatch && (!MCP_OAUTH_PKCE.test(content) || MCP_OAUTH_EXPLICIT_NO_PKCE.test(content))) {
+      if (this.isSuppressed(lineText(flowMatch.index), 'high')) return [];
+
+      return [createFinding({
+        file: filePath,
+        line: lineNumber(flowMatch.index),
+        column: 1,
+        severity: 'high',
+        category: this.category,
+        rule: 'MCP_OAUTH_NO_PKCE',
+        title: 'MCP: OAuth Authorization-Code Flow Without PKCE',
+        description: 'An MCP OAuth authorization-code flow does not use PKCE. An intercepted authorization code can then be redeemed by an attacker.',
+        matched: lineText(flowMatch.index),
+        confidence: 'medium',
+        cwe: 'CWE-352',
+        owasp: 'A07:2021',
+        fix: 'Use a cryptographically random code_verifier and send its S256 code_challenge with every authorization-code request.',
+      })];
+    }
+
+    return [];
   }
 
   /**
