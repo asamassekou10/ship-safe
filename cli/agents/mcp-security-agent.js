@@ -252,13 +252,16 @@ const OFFICIAL_MCP_SERVERS = new Set([
 // OAuth request shapes are deliberately language-scoped. These rules inspect
 // source code rather than MCP JSON, so a JS header expression must not be
 // allowed to report on a Python, Ruby, or Go file by accident.
+const MCP_TOOL_REGISTRATION = /(?:\.\s*tool|\b(?:registerTool|addTool))\s*\(/gi;
+const MCP_OAUTH_STATIC_CLIENT_ID = /["']?\bclient[_-]?id\b["']?\s*(?:=>|:=|[:=])\s*(["'])(.*?)\1/gi;
+const MCP_OAUTH_CODE_FLOW = /(?:["']?\bresponse[_-]?type\b["']?\s*[:=]\s*["']code["']|["']?\bgrant[_-]?type\b["']?\s*[:=]\s*["']authorization[_-]?code["']|\bauthorization[_-]?code\b|["']?\bauthorization[_-]?endpoint\b["']?[^\n]{0,240}["']?\btoken[_-]?endpoint\b["']?)/i;
 const MCP_OAUTH_SHAPES = {
   js: {
     inboundToken: /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*[^;\n]*\b(?:req|request|ctx|event)\b[^;\n]*(?:\.(?:authorization|bearer)\b|\[\s*['"](?:authorization|bearer|http_authorization)['"]\s*\]|(?:get|header)\s*\(\s*['"](?:authorization|bearer)['"])/gi,
     directToken: /\b(?:req|request|ctx|event)\b[^;\n]*(?:\.(?:authorization|bearer)\b|\[\s*['"](?:authorization|bearer|http_authorization)['"]\s*\]|(?:get|header)\s*\(\s*['"](?:authorization|bearer)['"])/gi,
     outboundRequest: /\b(?:fetch|axios(?:\.[A-Za-z_$][\w$]*)?|got|https?\.request)\s*\(/i,
     audienceValidation: /(?:\b(?:verify|decode|validate|check|assert)\w*[^\n;]{0,180}\baud(?:ience)?\b|\b(?:claims?|payload)\b[^\n;]{0,120}\baud\b\s*(?:===|!==|==|!=|=))/i,
-    staticClientId: /["']?\bclient[_-]?id\b["']?\s*(?:=>|:=|[:=])\s*(["'])(.*?)\1/gi,
+    staticClientId: MCP_OAUTH_STATIC_CLIENT_ID,
     codeFlow: /(?:["']?\bresponse[_-]?type\b["']?\s*[:=]\s*["']code["']|["']?\bgrant[_-]?type\b["']?\s*[:=]\s*["']authorization[_-]?code["']|\bauthorization[_-]?code\b|["']?\bauthorization[_-]?endpoint\b["']?[^\n;]{0,240}["']?\btoken[_-]?endpoint\b["']?)/i,
   },
   python: {
@@ -266,16 +269,16 @@ const MCP_OAUTH_SHAPES = {
     directToken: /\b(?:request|req|ctx|context)\b[^\n]*(?:\.(?:authorization|bearer)\b|\[\s*['"](?:authorization|bearer|http_authorization)['"]\s*\]|\.get\s*\(\s*['"](?:authorization|bearer)['"])/gi,
     outboundRequest: /\b(?:requests|httpx)\.(?:get|post|put|patch|delete|request)\s*\(|\b(?:urllib\.request\.)?urlopen\s*\(/i,
     audienceValidation: /(?:\b(?:verify|decode|validate|check|assert)\w*[^\n]{0,180}\baud(?:ience)?\b|\b(?:claims?|payload)\b[^\n]{0,120}\b(?:aud|audience)\b\s*(?:==|!=|in\b|=))/i,
-    staticClientId: /["']?\bclient[_-]?id\b["']?\s*(?:=>|:=|[:=])\s*(["'])(.*?)\1/gi,
-    codeFlow: /(?:["']?\bresponse[_-]?type\b["']?\s*[:=]\s*["']code["']|["']?\bgrant[_-]?type\b["']?\s*[:=]\s*["']authorization[_-]?code["']|\bauthorization[_-]?code\b|["']?\bauthorization[_-]?endpoint\b["']?[^\n]{0,240}["']?\btoken[_-]?endpoint\b["']?)/i,
+    staticClientId: MCP_OAUTH_STATIC_CLIENT_ID,
+    codeFlow: MCP_OAUTH_CODE_FLOW,
   },
   ruby: {
     inboundToken: /\b([A-Za-z_]\w*)\s*=\s*(?:request|req|context|env|headers)\b[^\n]*(?:\.(?:authorization|bearer)\b|\[\s*['"](?:authorization|bearer|http_authorization)['"]\s*\])/gi,
     directToken: /\b(?:request|req|context|env|headers)\b[^\n]*(?:\.(?:authorization|bearer)\b|\[\s*['"](?:authorization|bearer|http_authorization)['"]\s*\])/gi,
     outboundRequest: /\b(?:Net::HTTP|Faraday|HTTParty|RestClient)\b[\s\S]{0,120}\b(?:get|post|put|delete|request|call)\b\s*[.(]/i,
     audienceValidation: /(?:\b(?:verify|decode|validate|check|assert)\w*[^\n]{0,180}\baud(?:ience)?\b|\b(?:claims?|payload)\b[^\n]{0,120}\b(?:aud|audience)\b\s*(?:==|!=|=~|=>))/i,
-    staticClientId: /["']?\bclient[_-]?id\b["']?\s*(?:=>|:=|[:=])\s*(["'])(.*?)\1/gi,
-    codeFlow: /(?:["']?\bresponse[_-]?type\b["']?\s*[:=]\s*["']code["']|["']?\bgrant[_-]?type\b["']?\s*[:=]\s*["']authorization[_-]?code["']|\bauthorization[_-]?code\b|["']?\bauthorization[_-]?endpoint\b["']?[^\n]{0,240}["']?\btoken[_-]?endpoint\b["']?)/i,
+    staticClientId: MCP_OAUTH_STATIC_CLIENT_ID,
+    codeFlow: MCP_OAUTH_CODE_FLOW,
   },
   go: {
     inboundToken: /\b([A-Za-z_]\w*)\s*:?=\s*(?:r|req|request)\.Header\.Get\(\s*["']Authorization["']\s*\)/gi,
@@ -301,6 +304,49 @@ function isOAuthTokenName(name) {
     || normalized === 'auth'
     || normalized.startsWith('auth_')
     || normalized === 'accesstoken';
+}
+
+function sourceLineHelpers(content) {
+  const lines = content.split('\n');
+  const lineNumber = (index) => content.slice(0, index).split('\n').length;
+  const lineText = (index) => (lines[lineNumber(index) - 1] || '').trim().slice(0, 180);
+  return { lineNumber, lineText };
+}
+
+function createStaticClientIdDynamicRegFinding({ file, line, category, matched }) {
+  return createFinding({
+    file,
+    line,
+    column: 1,
+    severity: 'high',
+    category,
+    rule: 'MCP_STATIC_CLIENT_ID_DYNAMIC_REG',
+    title: 'MCP: Static OAuth Client ID With Dynamic Registration',
+    description: 'An MCP proxy combines a fixed third-party OAuth client_id with dynamic client registration. This can enable a confused deputy attack that reuses consent for an attacker-controlled client.',
+    matched,
+    confidence: 'medium',
+    cwe: 'CWE-441',
+    owasp: 'A07:2021',
+    fix: 'Use per-client consent and validate registered client_id and redirect_uri values before starting the third-party authorization flow.',
+  });
+}
+
+function createOAuthNoPkceFinding({ file, line, category, matched }) {
+  return createFinding({
+    file,
+    line,
+    column: 1,
+    severity: 'high',
+    category,
+    rule: 'MCP_OAUTH_NO_PKCE',
+    title: 'MCP: OAuth Authorization-Code Flow Without PKCE',
+    description: 'An MCP OAuth authorization-code flow does not use PKCE. An intercepted authorization code can then be redeemed by an attacker.',
+    matched,
+    confidence: 'medium',
+    cwe: 'CWE-352',
+    owasp: 'A07:2021',
+    fix: 'Use a cryptographically random code_verifier and send its S256 code_challenge with every authorization-code request.',
+  });
 }
 
 function stripComments(content, language) {
@@ -483,11 +529,8 @@ function sourceFunctionScopes(content, language) {
   }
 
   const code = maskStrings(stripComments(content, language));
-  return findBracePairs(content, language).filter(({ start }) => {
-    const prefix = code.slice(Math.max(0, start - 180), start);
-    if (language === 'go') return /\bfunc\b[\s\S]{0,160}$/.test(prefix);
-    return /\bfunction\b[\s\S]{0,160}$|=>\s*$/.test(prefix);
-  });
+  return findBracePairs(content, language)
+    .filter(({ start }) => isFunctionBrace(code, start, language));
 }
 
 function isFunctionBrace(code, start, language) {
@@ -561,7 +604,7 @@ function isMcpToolHandlerScope(code, scope, language) {
   if (language !== 'js') return false;
 
   const prefix = code.slice(Math.max(0, scope.start - 320), scope.start);
-  const registrations = allRegexMatches(/(?:\.\s*tool|\b(?:registerTool|addTool))\s*\(/gi, prefix);
+  const registrations = allRegexMatches(MCP_TOOL_REGISTRATION, prefix);
   if (registrations.length) {
     const registration = registrations.at(-1);
     const callbackHeader = prefix.slice(registration.index);
@@ -570,7 +613,7 @@ function isMcpToolHandlerScope(code, scope, language) {
   }
 
   const localHeader = code.slice(scope.start, Math.min(code.length, scope.start + 320));
-  const localRegistration = allRegexMatches(/(?:\.\s*tool|\b(?:registerTool|addTool))\s*\(/gi, localHeader)[0];
+  const localRegistration = allRegexMatches(MCP_TOOL_REGISTRATION, localHeader)[0];
   if (!localRegistration) return false;
 
   const callbackHeader = localHeader.slice(localRegistration.index);
@@ -732,8 +775,7 @@ export class MCPSecurityAgent extends BaseAgent {
         inbound.index <= direct.index && direct.index < inbound.index + inbound[0].length
       )));
     const outbound = shape.outboundRequest;
-    const lineNumber = (index) => content.slice(0, index).split('\n').length;
-    const lineText = (index) => (content.split('\n')[lineNumber(index) - 1] || '').trim().slice(0, 180);
+    const { lineNumber, lineText } = sourceLineHelpers(content);
     const makeFinding = (requestIndex) => {
       if (this.isSuppressed(lineText(requestIndex), 'high')) return null;
 
@@ -823,8 +865,7 @@ export class MCPSecurityAgent extends BaseAgent {
       .sort((left, right) => left.index - right.index);
     const audienceValidation = shape.audienceValidation;
     const tokenExchange = MCP_OAUTH_TOKEN_EXCHANGE;
-    const lineNumber = (index) => content.slice(0, index).split('\n').length;
-    const lineText = (index) => (content.split('\n')[lineNumber(index) - 1] || '').trim().slice(0, 180);
+    const { lineNumber, lineText } = sourceLineHelpers(content);
     const findings = [];
     const seenScopes = new Set();
 
@@ -879,8 +920,7 @@ export class MCPSecurityAgent extends BaseAgent {
     const objectScopes = sourceObjectScopes(content, language);
     const clients = allRegexMatches(shape.staticClientId, code);
     const registrations = allRegexMatches(MCP_OAUTH_DYNAMIC_REGISTRATION, code);
-    const lineNumber = (index) => content.slice(0, index).split('\n').length;
-    const lineText = (index) => (content.split('\n')[lineNumber(index) - 1] || '').trim().slice(0, 180);
+    const { lineNumber, lineText } = sourceLineHelpers(content);
 
     for (const client of clients) {
       if (/\$\{|\b(?:process\.env|os\.environ|getenv|ENV\[|os\.Getenv)\b/i.test(client[2])) continue;
@@ -888,20 +928,11 @@ export class MCPSecurityAgent extends BaseAgent {
         const scope = objectScopeContaining(code, objectScopes, client.index, registration.index);
         if (!scope || this.isSuppressed(lineText(client.index), 'high')) continue;
 
-        return [createFinding({
+        return [createStaticClientIdDynamicRegFinding({
           file: filePath,
           line: lineNumber(client.index),
-          column: 1,
-          severity: 'high',
           category: this.category,
-          rule: 'MCP_STATIC_CLIENT_ID_DYNAMIC_REG',
-          title: 'MCP: Static OAuth Client ID With Dynamic Registration',
-          description: 'An MCP proxy combines a fixed third-party OAuth client_id with dynamic client registration. This can enable a confused deputy attack that reuses consent for an attacker-controlled client.',
           matched: lineText(client.index),
-          confidence: 'medium',
-          cwe: 'CWE-441',
-          owasp: 'A07:2021',
-          fix: 'Use per-client consent and validate registered client_id and redirect_uri values before starting the third-party authorization flow.',
         })];
       }
     }
@@ -927,8 +958,7 @@ export class MCPSecurityAgent extends BaseAgent {
     const functionScopes = sourceFunctionScopes(content, language);
     const codeFlows = allRegexMatches(shape.codeFlow, code);
     const pkce = MCP_OAUTH_PKCE;
-    const lineNumber = (index) => content.slice(0, index).split('\n').length;
-    const lineText = (index) => (content.split('\n')[lineNumber(index) - 1] || '').trim().slice(0, 180);
+    const { lineNumber, lineText } = sourceLineHelpers(content);
     const findings = [];
     const reportedScopes = new Set();
 
@@ -944,20 +974,11 @@ export class MCPSecurityAgent extends BaseAgent {
       if (this.isSuppressed(lineText(flowMatch.index), 'high')) continue;
       reportedScopes.add(scope.start);
 
-      findings.push(createFinding({
+      findings.push(createOAuthNoPkceFinding({
         file: filePath,
         line: lineNumber(flowMatch.index),
-        column: 1,
-        severity: 'high',
         category: this.category,
-        rule: 'MCP_OAUTH_NO_PKCE',
-        title: 'MCP: OAuth Authorization-Code Flow Without PKCE',
-        description: 'An MCP OAuth authorization-code flow does not use PKCE. An intercepted authorization code can then be redeemed by an attacker.',
         matched: lineText(flowMatch.index),
-        confidence: 'medium',
-        cwe: 'CWE-352',
-        owasp: 'A07:2021',
-        fix: 'Use a cryptographically random code_verifier and send its S256 code_challenge with every authorization-code request.',
       }));
     }
 
@@ -977,8 +998,7 @@ export class MCPSecurityAgent extends BaseAgent {
     const staticClientId = /["']?\bclient[_-]?id\b["']?\s*[:=]\s*(["'])(.*?)\1/gi;
     const clients = allRegexMatches(staticClientId, code);
     const registrations = allRegexMatches(MCP_OAUTH_DYNAMIC_REGISTRATION, code);
-    const lineNumber = (index) => content.slice(0, index).split('\n').length;
-    const lineText = (index) => (content.split('\n')[lineNumber(index) - 1] || '').trim().slice(0, 180);
+    const { lineNumber, lineText } = sourceLineHelpers(content);
     const findings = [];
 
     for (const client of clients) {
@@ -988,20 +1008,11 @@ export class MCPSecurityAgent extends BaseAgent {
       ));
       if (!registration || this.isSuppressed(lineText(client.index), 'high')) continue;
 
-      findings.push(createFinding({
+      findings.push(createStaticClientIdDynamicRegFinding({
         file: filePath,
         line: lineNumber(client.index),
-        column: 1,
-        severity: 'high',
         category: this.category,
-        rule: 'MCP_STATIC_CLIENT_ID_DYNAMIC_REG',
-        title: 'MCP: Static OAuth Client ID With Dynamic Registration',
-        description: 'An MCP proxy combines a fixed third-party OAuth client_id with dynamic client registration. This can enable a confused deputy attack that reuses consent for an attacker-controlled client.',
         matched: lineText(client.index),
-        confidence: 'medium',
-        cwe: 'CWE-441',
-        owasp: 'A07:2021',
-        fix: 'Use per-client consent and validate registered client_id and redirect_uri values before starting the third-party authorization flow.',
       }));
       break;
     }
@@ -1017,20 +1028,11 @@ export class MCPSecurityAgent extends BaseAgent {
       if (this.isSuppressed(lineText(flowMatch.index), 'high')) continue;
       reportedScopes.add(scope.start);
 
-      findings.push(createFinding({
+      findings.push(createOAuthNoPkceFinding({
         file: filePath,
         line: lineNumber(flowMatch.index),
-        column: 1,
-        severity: 'high',
         category: this.category,
-        rule: 'MCP_OAUTH_NO_PKCE',
-        title: 'MCP: OAuth Authorization-Code Flow Without PKCE',
-        description: 'An MCP OAuth authorization-code flow does not use PKCE. An intercepted authorization code can then be redeemed by an attacker.',
         matched: lineText(flowMatch.index),
-        confidence: 'medium',
-        cwe: 'CWE-352',
-        owasp: 'A07:2021',
-        fix: 'Use a cryptographically random code_verifier and send its S256 code_challenge with every authorization-code request.',
       }));
     }
 
