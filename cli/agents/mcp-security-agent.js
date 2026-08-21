@@ -376,30 +376,34 @@ function stripComments(content, language) {
   return output.join('');
 }
 
-function maskStrings(content) {
+function maskStrings(content, preserveObjectKeys = false) {
   const output = [...content];
   let state = 'code';
   let quote = '';
+  let stringStart = -1;
 
   const blank = (index) => {
     if (output[index] !== '\n' && output[index] !== '\r') output[index] = ' ';
+  };
+  const blankRange = (start, end) => {
+    for (let index = start; index <= end; index += 1) blank(index);
   };
 
   for (let index = 0; index < content.length; index += 1) {
     const char = content[index];
     if (state === 'string') {
       if (char === '\\') {
-        blank(index);
-        if (index + 1 < content.length) {
-          blank(index + 1);
-          index += 1;
-        }
+        index += 1;
       } else if (char === quote) {
+        let next = index + 1;
+        while (next < content.length && /\s/.test(content[next])) next += 1;
+        if (!preserveObjectKeys || content[next] !== ':') blankRange(stringStart, index);
         blank(index);
         state = 'code';
         quote = '';
+        stringStart = -1;
       } else {
-        blank(index);
+        continue;
       }
       continue;
     }
@@ -407,9 +411,11 @@ function maskStrings(content) {
     if (char === '\'' || char === '"' || char === '`') {
       quote = char;
       state = 'string';
-      blank(index);
+      stringStart = index;
     }
   }
+
+  if (state === 'string' && stringStart !== -1) blankRange(stringStart, content.length - 1);
 
   return output.join('');
 }
@@ -541,6 +547,27 @@ function sourceScopeContaining(content, code, language, scopes, start, end = sta
   };
 }
 
+function isMcpToolHandlerScope(code, scope, language) {
+  if (language !== 'js') return true;
+
+  const prefix = code.slice(Math.max(0, scope.start - 320), scope.start);
+  const registrations = allRegexMatches(/(?:\.\s*tool|\b(?:registerTool|addTool))\s*\(/gi, prefix);
+  if (registrations.length) {
+    const registration = registrations.at(-1);
+    const callbackHeader = prefix.slice(registration.index);
+    const callback = callbackHeader.search(/=>|\bfunction\b/);
+    return callback !== -1 && !/[{};]/.test(callbackHeader.slice(0, callback));
+  }
+
+  const localHeader = code.slice(scope.start, Math.min(code.length, scope.start + 320));
+  const localRegistration = allRegexMatches(/(?:\.\s*tool|\b(?:registerTool|addTool))\s*\(/gi, localHeader)[0];
+  if (!localRegistration) return false;
+
+  const callbackHeader = localHeader.slice(localRegistration.index);
+  const callback = callbackHeader.search(/=>|\bfunction\b/);
+  return callback !== -1 && !/[{};]/.test(callbackHeader.slice(0, callback));
+}
+
 function allRegexMatches(regex, content) {
   const flags = regex.flags.includes('g') ? regex.flags : `${regex.flags}g`;
   const scanner = new RegExp(regex.source, flags);
@@ -551,6 +578,47 @@ function allRegexMatches(regex, content) {
     if (!match[0]) scanner.lastIndex += 1;
   }
   return matches;
+}
+
+function isQuotedObjectKeyAt(content, index) {
+  const quote = content[index];
+  if (quote !== '\'' && quote !== '"') return false;
+
+  let end = index + 1;
+  while (end < content.length) {
+    if (content[end] === '\\') {
+      end += 2;
+      continue;
+    }
+    if (content[end] === quote) break;
+    end += 1;
+  }
+  if (end >= content.length) return false;
+
+  let next = end + 1;
+  while (next < content.length && /\s/.test(content[next])) next += 1;
+  return content[next] === ':';
+}
+
+function hasExplicitNoPkce(content) {
+  const masked = maskStrings(content);
+  return allRegexMatches(MCP_OAUTH_EXPLICIT_NO_PKCE, content).some((match) => (
+    masked[match.index] === content[match.index]
+    || isQuotedObjectKeyAt(content, match.index)
+  ));
+}
+
+function hasTokenRelatedMitigation(scopeContent, tokenName, mitigation) {
+  if (!tokenName) return mitigation.test(scopeContent);
+
+  const tokenReference = new RegExp(`\\b${tokenName.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\b`);
+  return allRegexMatches(mitigation, scopeContent).some((match) => {
+    if (tokenReference.test(match[0])) return true;
+
+    const callEnd = scopeContent.indexOf(')', match.index);
+    const end = callEnd === -1 ? Math.min(scopeContent.length, match.index + 280) : callEnd + 1;
+    return tokenReference.test(scopeContent.slice(match.index, end));
+  });
 }
 
 // =============================================================================
@@ -680,7 +748,7 @@ export class MCPSecurityAgent extends BaseAgent {
       const tokenName = incoming[1];
       if (!isOAuthTokenName(tokenName)) continue;
       const scope = sourceScopeContaining(content, code, language, scopes, incoming.index, incoming.index + incoming[0].length);
-      if (!scope) continue;
+      if (!scope || !isMcpToolHandlerScope(code, scope, language)) continue;
       const searchStart = incoming.index + incoming[0].length;
       const searchWindow = code.slice(searchStart, Math.min(scope.end, searchStart + 1200));
       const requestMatch = searchWindow.match(outbound);
@@ -700,7 +768,7 @@ export class MCPSecurityAgent extends BaseAgent {
     for (const directMatch of directCandidates) {
       const directIndex = directMatch.index;
       const scope = sourceScopeContaining(content, code, language, scopes, directIndex, directIndex + directMatch[0].length);
-      if (!scope) continue;
+      if (!scope || !isMcpToolHandlerScope(code, scope, language)) continue;
       const beforeStart = Math.max(scope.start, directIndex - 200);
       const beforeWindow = code.slice(beforeStart, directIndex);
       const beforeRequest = beforeWindow.match(outbound);
@@ -756,7 +824,10 @@ export class MCPSecurityAgent extends BaseAgent {
       if (!scope || seenScopes.has(scope.start)) continue;
 
       const scopeContent = code.slice(scope.start, scope.end);
-      if (audienceValidation.test(scopeContent) || tokenExchange.test(scopeContent)) continue;
+      const mitigationContent = maskStrings(scopeContent);
+      const hasAudienceValidation = hasTokenRelatedMitigation(mitigationContent, incoming[1], audienceValidation);
+      const hasTokenExchange = hasTokenRelatedMitigation(mitigationContent, incoming[1], tokenExchange);
+      if (hasAudienceValidation || hasTokenExchange) continue;
       if (this.isSuppressed(lineText(incoming.index), 'high')) continue;
 
       seenScopes.add(scope.start);
@@ -846,7 +917,6 @@ export class MCPSecurityAgent extends BaseAgent {
     const functionScopes = sourceFunctionScopes(content, language);
     const codeFlows = allRegexMatches(shape.codeFlow, code);
     const pkce = MCP_OAUTH_PKCE;
-    const explicitNoPkce = MCP_OAUTH_EXPLICIT_NO_PKCE;
     const lineNumber = (index) => content.slice(0, index).split('\n').length;
     const lineText = (index) => (content.split('\n')[lineNumber(index) - 1] || '').trim().slice(0, 180);
     const findings = [];
@@ -858,7 +928,8 @@ export class MCPSecurityAgent extends BaseAgent {
       if (!scope) continue;
 
       const scopeContent = code.slice(scope.start, scope.end);
-      if (pkce.test(scopeContent) && !explicitNoPkce.test(scopeContent)) continue;
+      const mitigationContent = maskStrings(scopeContent, true);
+      if (pkce.test(mitigationContent) && !hasExplicitNoPkce(scopeContent)) continue;
       if (reportedScopes.has(scope.start)) continue;
       if (this.isSuppressed(lineText(flowMatch.index), 'high')) continue;
       reportedScopes.add(scope.start);
@@ -931,7 +1002,8 @@ export class MCPSecurityAgent extends BaseAgent {
       if (!scope || reportedScopes.has(scope.start)) continue;
 
       const scopeContent = code.slice(scope.start, scope.end);
-      if (MCP_OAUTH_PKCE.test(scopeContent) && !MCP_OAUTH_EXPLICIT_NO_PKCE.test(scopeContent)) continue;
+      const mitigationContent = maskStrings(scopeContent, true);
+      if (MCP_OAUTH_PKCE.test(mitigationContent) && !hasExplicitNoPkce(scopeContent)) continue;
       if (this.isSuppressed(lineText(flowMatch.index), 'high')) continue;
       reportedScopes.add(scope.start);
 
