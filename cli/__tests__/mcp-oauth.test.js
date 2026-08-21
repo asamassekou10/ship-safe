@@ -73,6 +73,46 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 1);
   });
 
+  it('does not treat a custom request id header as an OAuth token', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+      const server = new McpServer({ name: 'demo', version: '1.0.0' });
+      server.tool('search', async (request) => {
+        const requestId = request.headers['X-Request-ID'];
+        return fetch('https://api.example.com/search', {
+          headers: { 'X-Request-ID': requestId },
+        });
+      });
+    `);
+
+    const oauthRules = new Set([
+      'MCP_UPSTREAM_TOKEN_PASSTHROUGH',
+      'MCP_TOKEN_AUDIENCE_UNVALIDATED',
+    ]);
+    assert.equal(findings.filter((finding) => oauthRules.has(finding.rule)).length, 0);
+  });
+
+  it('does not treat an API-key variable as a bearer token', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+      const server = new McpServer({ name: 'demo', version: '1.0.0' });
+      server.tool('search', async (request) => {
+        const apiKey = request.headers.authorization;
+        return fetch('https://api.example.com/search', {
+          headers: { Authorization: apiKey },
+        });
+      });
+    `);
+
+    const oauthRules = new Set([
+      'MCP_UPSTREAM_TOKEN_PASSTHROUGH',
+      'MCP_TOKEN_AUDIENCE_UNVALIDATED',
+    ]);
+    assert.equal(findings.filter((finding) => oauthRules.has(finding.rule)).length, 0);
+  });
+
   it('flags an inbound MCP token that is accepted without audience validation', async () => {
     const findings = await scan(`
       import jwt from 'jsonwebtoken';
@@ -92,6 +132,79 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     assert.match(hits[0].description, /audience/i);
   });
 
+  it('does not let a safe handler hide an unsafe handler audience check', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+      import jwt from 'jsonwebtoken';
+
+      const server = new McpServer({ name: 'demo', version: '1.0.0' });
+      server.tool('safe', async (request) => {
+        const safeToken = request.headers.authorization;
+        return jwt.verify(safeToken, key, { audience: 'https://mcp.example.com' });
+      });
+
+      server.tool('unsafe', async (request) => {
+        const unsafeToken = request.headers.authorization;
+        return jwt.verify(unsafeToken, key);
+      });
+    `);
+
+    const hits = findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED');
+    assert.equal(hits.length, 1);
+    assert.match(hits[0].matched, /unsafeToken|authorization/i);
+  });
+
+  it('does not treat an audience comment as validation', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+      import jwt from 'jsonwebtoken';
+
+      const server = new McpServer({ name: 'demo', version: '1.0.0' });
+      server.tool('profile', async (request) => {
+        const token = request.headers.authorization;
+        // audience: this is UI metadata, not token validation
+        return jwt.verify(token, key);
+      });
+    `);
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 1);
+  });
+
+  it('does not treat an unrelated audience property as validation', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+      import jwt from 'jsonwebtoken';
+
+      const server = new McpServer({ name: 'demo', version: '1.0.0' });
+      server.tool('profile', async (request) => {
+        const token = request.headers.authorization;
+        const ui = { audience: 'admin-dashboard' };
+        return jwt.verify(token, key);
+      });
+    `);
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 1);
+  });
+
+  it('does not pair an unused helper token with another helper request', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+      const server = new McpServer({ name: 'demo', version: '1.0.0' });
+      function readToken(request) {
+        const token = request.headers.authorization;
+        return token;
+      }
+      function unrelated(token) {
+        return fetch('https://api.example.com/search', {
+          headers: { Authorization: token },
+        });
+      }
+    `);
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_UPSTREAM_TOKEN_PASSTHROUGH').length, 0);
+  });
+
   it('flags a static OAuth client id combined with dynamic registration', async () => {
     const findings = await scan(`
       import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -107,6 +220,18 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     assert.equal(hits.length, 1);
     assert.equal(hits[0].severity, 'high');
     assert.match(hits[0].description, /confused deputy/i);
+  });
+
+  it('does not pair static client id and dynamic registration from separate objects', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+      const server = new McpServer({ name: 'oauth-proxy', version: '1.0.0' });
+      const clientConfig = { client_id: 'mcp-proxy-production' };
+      const registrationConfig = { dynamic_client_registration: true };
+    `);
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_STATIC_CLIENT_ID_DYNAMIC_REG').length, 0);
   });
 
   it('flags an MCP authorization-code flow without PKCE', async () => {
@@ -126,6 +251,57 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     assert.equal(hits.length, 1);
     assert.equal(hits[0].severity, 'high');
     assert.match(hits[0].description, /PKCE/i);
+  });
+
+  it('reports a missing PKCE flow when another flow is PKCE-safe', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+      const server = new McpServer({ name: 'oauth-proxy', version: '1.0.0' });
+      const safeFlow = { response_type: 'code', code_challenge: challenge };
+      const unsafeFlow = {
+        response_type: 'code',
+        authorization_endpoint: 'https://idp.example.com/authorize',
+        token_endpoint: 'https://idp.example.com/token',
+      };
+    `);
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 1);
+  });
+
+  it('does not treat a PKCE comment as a mitigation', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+      const server = new McpServer({ name: 'oauth-proxy', version: '1.0.0' });
+      const oauth = { response_type: 'code' }; // PKCE will be added later
+    `);
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 1);
+  });
+
+  it('flags an authorization-code flow with PKCE explicitly disabled', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+      const server = new McpServer({ name: 'oauth-proxy', version: '1.0.0' });
+      const oauth = { response_type: 'code', use_pkce: false };
+    `);
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 1);
+  });
+
+  it('flags null and disabled PKCE settings', async () => {
+    for (const setting of ['pkce: null', "pkce: 'disabled'"]) {
+      const findings = await scan(`
+        import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+        const server = new McpServer({ name: 'oauth-proxy', version: '1.0.0' });
+        const oauth = { response_type: 'code', ${setting} };
+      `);
+
+      assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 1, setting);
+    }
   });
 
   it('uses language-specific token and outbound request shapes', async () => {
@@ -270,6 +446,18 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     assert.equal(hits.length, 1);
   });
 
+  it('does not pair static client id and registration from separate config objects', async () => {
+    const findings = await scan(JSON.stringify({
+      client: { client_id: 'mcp-proxy-production' },
+      registration: { dynamic_client_registration: true },
+      mcpServers: {
+        proxy: { command: 'node', args: ['server.js'] },
+      },
+    }), '.mcp.json');
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_STATIC_CLIENT_ID_DYNAMIC_REG').length, 0);
+  });
+
   it('flags an authorization-code flow without PKCE in a project MCP config', async () => {
     const findings = await scan(JSON.stringify({
       oauth: {
@@ -285,6 +473,25 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
 
     const hits = findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE');
     assert.equal(hits.length, 1);
+  });
+
+  it('reports confused deputy and missing PKCE independently in one config', async () => {
+    const findings = await scan(JSON.stringify({
+      oauth: {
+        client_id: 'mcp-proxy-production',
+        dynamic_client_registration: true,
+        response_type: 'code',
+        authorization_endpoint: 'https://idp.example.com/authorize',
+        token_endpoint: 'https://idp.example.com/token',
+      },
+      mcpServers: {
+        proxy: { command: 'node', args: ['server.js'] },
+      },
+    }), '.mcp.json');
+
+    const rules = new Set(findings.map((finding) => finding.rule));
+    assert.equal(rules.has('MCP_STATIC_CLIENT_ID_DYNAMIC_REG'), true);
+    assert.equal(rules.has('MCP_OAUTH_NO_PKCE'), true);
   });
 
   it('stays quiet when audience validation, token exchange, and PKCE are present', async () => {
