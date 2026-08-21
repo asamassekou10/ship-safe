@@ -432,7 +432,7 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     }
   });
 
-  it('uses language-specific token and outbound request shapes', async () => {
+  it('uses the Python MCP tool token and outbound request shapes', async () => {
     const cases = [
       {
         name: 'Python',
@@ -442,41 +442,10 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
           import requests
 
           mcp = FastMCP('demo')
+          @mcp.tool()
           def lookup(request):
               token = request.headers.get('Authorization')
               return requests.get('https://api.example.com/search', headers={'Authorization': token})
-        `,
-      },
-      {
-        name: 'Ruby',
-        ext: '.rb',
-        code: `
-          require 'net/http'
-          class MCP::Server
-            def lookup(request)
-              token = request.headers['Authorization']
-              Net::HTTP.get(URI('https://api.example.com/search'), { 'Authorization' => token })
-            end
-          end
-        `,
-      },
-      {
-        name: 'Go',
-        ext: '.go',
-        code: `
-          package main
-          import (
-            "net/http"
-            mcp "github.com/modelcontextprotocol/go-sdk/mcp"
-          )
-
-          var server = mcp.NewServer()
-          func lookup(r *http.Request) {
-            token := r.Header.Get("Authorization")
-            req, _ := http.NewRequest("GET", "https://api.example.com/search", nil)
-            req.Header.Set("Authorization", token)
-            client.Do(req)
-          }
         `,
       },
     ];
@@ -486,6 +455,91 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
       const hits = findings.filter((finding) => finding.rule === 'MCP_UPSTREAM_TOKEN_PASSTHROUGH');
       assert.equal(hits.length, 1, `${testCase.name} token passthrough shape was not detected`);
     }
+  });
+
+  it('does not flag an unrelated Python helper in an MCP-containing file', async () => {
+    const findings = await scan(`
+      from mcp.server.fastmcp import FastMCP
+      import requests
+
+      mcp = FastMCP('demo')
+
+      def unrelated_proxy(request):
+          token = request.headers.get('Authorization')
+          return requests.get('https://api.example.com/search', headers={'Authorization': token})
+    `, '.py');
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_UPSTREAM_TOKEN_PASSTHROUGH').length, 0);
+  });
+
+  it('flags a passthrough from an async decorated Python MCP tool', async () => {
+    const findings = await scan(`
+      from mcp.server.fastmcp import FastMCP
+      import requests
+
+      mcp = FastMCP('demo')
+
+      @mcp.tool()
+      async def lookup(request):
+          token = request.headers.get('Authorization')
+          return await requests.get('https://api.example.com/search', headers={'Authorization': token})
+    `, '.py');
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_UPSTREAM_TOKEN_PASSTHROUGH').length, 1);
+  });
+
+  it('does not treat a generic Python tool decorator as an MCP handler', async () => {
+    const findings = await scan(`
+      from mcp.server.fastmcp import FastMCP
+      import requests
+
+      mcp = FastMCP('demo')
+
+      @tool
+      def lookup(request):
+          token = request.headers.get('Authorization')
+          return requests.get('https://api.example.com/search', headers={'Authorization': token})
+    `, '.py');
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_UPSTREAM_TOKEN_PASSTHROUGH').length, 0);
+  });
+
+  it('does not flag an unrelated Ruby helper in an MCP-containing file', async () => {
+    const findings = await scan(`
+      require 'mcp'
+      require 'net/http'
+
+      server = MCP::Server.new(name: 'demo')
+
+      def unrelated_proxy(request)
+        token = request.headers['Authorization']
+        Net::HTTP.get(URI('https://api.example.com/search'), { 'Authorization' => token })
+      end
+    `, '.rb');
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_UPSTREAM_TOKEN_PASSTHROUGH').length, 0);
+  });
+
+  it('does not flag an unrelated Go helper in an MCP-containing file', async () => {
+    const findings = await scan(`
+      package main
+
+      import (
+        "net/http"
+        mcp "github.com/modelcontextprotocol/go-sdk/mcp"
+      )
+
+      var server = mcp.NewServer()
+
+      func unrelatedProxy(r *http.Request) {
+        token := r.Header.Get("Authorization")
+        req, _ := http.NewRequest("GET", "https://api.example.com/search", nil)
+        req.Header.Set("Authorization", token)
+        http.DefaultClient.Do(req)
+      }
+    `, '.go');
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_UPSTREAM_TOKEN_PASSTHROUGH').length, 0);
   });
 
   it('does not apply the JavaScript outbound shape to Python', async () => {

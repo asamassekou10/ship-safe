@@ -548,7 +548,17 @@ function sourceScopeContaining(content, code, language, scopes, start, end = sta
 }
 
 function isMcpToolHandlerScope(code, scope, language) {
-  if (language !== 'js') return true;
+  if (language === 'python') {
+    const precedingLines = code.slice(0, scope.start).split('\n');
+    const previousLine = precedingLines.at(-2)?.trim() || '';
+    const decorator = previousLine.match(/^@([A-Za-z_]\w*)\.tool(?:\([^)]*\))?$/);
+    if (!decorator) return false;
+
+    const receiver = decorator[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`\\b${receiver}\\s*=\\s*FastMCP\\s*\\(`).test(code);
+  }
+
+  if (language !== 'js') return false;
 
   const prefix = code.slice(Math.max(0, scope.start - 320), scope.start);
   const registrations = allRegexMatches(/(?:\.\s*tool|\b(?:registerTool|addTool))\s*\(/gi, prefix);
