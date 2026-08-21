@@ -1855,6 +1855,20 @@ describe('HermesSecurityAgent', async () => {
     return { dir, file };
   }
 
+  // Helper: write a plugins/<name>/plugin.yaml manifest plus an __init__.py
+  // in the same directory, matching the real plugins/security-guidance layout.
+  function writePlugin(manifestYaml, initSource = '') {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-hermes-plugin-'));
+    const pluginDir = path.join(dir, 'plugins', 'test-plugin');
+    fs.mkdirSync(pluginDir, { recursive: true });
+    const manifestFile = path.join(pluginDir, 'plugin.yaml');
+    fs.writeFileSync(manifestFile, manifestYaml);
+    if (initSource) {
+      fs.writeFileSync(path.join(pluginDir, '__init__.py'), initSource);
+    }
+    return { dir, manifestFile };
+  }
+
   it('detects remote tool registry URL (critical — ASI-05)', async () => {
     const { dir, file } = writeHermesFile(
       // loadRegistry(process.env.URL) — matches HERMES_REGISTRY_ENV_VAR_URL
@@ -2049,6 +2063,81 @@ describe('HermesSecurityAgent', async () => {
       const findings = await agent.analyze({ rootPath: dir, files: [file], recon: { files: [file] }, options: {} });
       assert.ok(!findings.some(f => f.rule === 'HERMES_XURL_READ_WRITE_LOOP'),
         'Human-approval gate should suppress the read/write-loop finding');
+    } finally { cleanup(dir); }
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Plugin manifest coverage (plugins/*/plugin.yaml)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  it('detects a plugin manifest with no author or source (low — ASI-10)', async () => {
+    const { dir, manifestFile } = writePlugin(
+      'name: test-plugin\nversion: "0.1.0"\ndescription: "does a thing"\nhooks:\n  - pre_tool_call\n'
+    );
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [manifestFile], recon: { files: [manifestFile] }, options: {} });
+      assert.ok(findings.some(f => f.rule === 'HERMES_PLUGIN_NO_PROVENANCE'),
+        'Should detect a manifest with no author or source');
+    } finally { cleanup(dir); }
+  });
+
+  it('does NOT flag provenance when the manifest declares an author', async () => {
+    const { dir, manifestFile } = writePlugin(
+      'name: test-plugin\nversion: "0.1.0"\ndescription: "does a thing"\nauthor: "NousResearch"\nhooks:\n  - pre_tool_call\n'
+    );
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [manifestFile], recon: { files: [manifestFile] }, options: {} });
+      assert.ok(!findings.some(f => f.rule === 'HERMES_PLUGIN_NO_PROVENANCE'),
+        'Should not flag a manifest that declares an author');
+    } finally { cleanup(dir); }
+  });
+
+  it('detects a plugin registering a hook its manifest does not declare (medium — ASI-10)', async () => {
+    const { dir, manifestFile } = writePlugin(
+      'name: test-plugin\nversion: "0.1.0"\ndescription: "does a thing"\nauthor: "NousResearch"\nhooks:\n  - pre_tool_call\n',
+      'def register(ctx) -> None:\n    ctx.register_hook("pre_tool_call", _on_pre_tool_call)\n    ctx.register_hook("on_session_end", _on_session_end)\n'
+    );
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [manifestFile], recon: { files: [manifestFile] }, options: {} });
+      const f = findings.find(f => f.rule === 'HERMES_PLUGIN_UNDECLARED_HOOK');
+      assert.ok(f, 'Should detect on_session_end registered but not declared');
+      assert.match(f.title, /on_session_end/);
+    } finally { cleanup(dir); }
+  });
+
+  it('does NOT flag a hook that is both registered and declared', async () => {
+    const { dir, manifestFile } = writePlugin(
+      'name: test-plugin\nversion: "0.1.0"\ndescription: "does a thing"\nauthor: "NousResearch"\nhooks:\n  - pre_tool_call\n  - on_session_end\n',
+      'def register(ctx) -> None:\n    ctx.register_hook("pre_tool_call", _on_pre_tool_call)\n    ctx.register_hook("on_session_end", _on_session_end)\n'
+    );
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [manifestFile], recon: { files: [manifestFile] }, options: {} });
+      assert.ok(!findings.some(f => f.rule === 'HERMES_PLUGIN_UNDECLARED_HOOK'),
+        'Should not flag hooks that are declared in the manifest');
+    } finally { cleanup(dir); }
+  });
+
+  it('detects a plugin binding a network listener without declaring it (high — ASI-04)', async () => {
+    const { dir, manifestFile } = writePlugin(
+      'name: test-plugin\nversion: "0.1.0"\ndescription: "does a thing"\nauthor: "NousResearch"\nhooks:\n  - on_session_end\n',
+      'import socketserver\n\ndef register(ctx) -> None:\n    ctx.register_hook("on_session_end", _on_session_end)\n\ndef _start():\n    httpd = socketserver.TCPServer(("127.0.0.1", 8765), Handler)\n'
+    );
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [manifestFile], recon: { files: [manifestFile] }, options: {} });
+      assert.ok(findings.some(f => f.rule === 'HERMES_PLUGIN_NETWORK_LISTENER_UNDECLARED'),
+        'Should detect an undeclared network listener');
+    } finally { cleanup(dir); }
+  });
+
+  it('does NOT flag a network listener the manifest description already mentions', async () => {
+    const { dir, manifestFile } = writePlugin(
+      'name: test-plugin\nversion: "0.1.0"\ndescription: "Runs a small local dashboard server."\nauthor: "NousResearch"\nhooks:\n  - on_session_end\n',
+      'import socketserver\n\ndef register(ctx) -> None:\n    ctx.register_hook("on_session_end", _on_session_end)\n\ndef _start():\n    httpd = socketserver.TCPServer(("127.0.0.1", 8765), Handler)\n'
+    );
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [manifestFile], recon: { files: [manifestFile] }, options: {} });
+      assert.ok(!findings.some(f => f.rule === 'HERMES_PLUGIN_NETWORK_LISTENER_UNDECLARED'),
+        'Should not flag a listener the manifest description already describes');
     } finally { cleanup(dir); }
   });
 });
