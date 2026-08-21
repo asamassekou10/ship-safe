@@ -234,6 +234,49 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 1);
   });
 
+  it('does not let unrelated audience validation hide a direct inbound authorization finding', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+      import jwt from 'jsonwebtoken';
+
+      const server = new McpServer({ name: 'demo', version: '1.0.0' });
+      server.tool('profile', async (request) => {
+        validate(serviceCredential, { audience: 'internal-api' });
+        return jwt.verify(request.headers.authorization, key);
+      });
+    `);
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 1);
+  });
+
+  it('accepts audience validation applied to a direct inbound authorization value', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+      import jwt from 'jsonwebtoken';
+
+      const server = new McpServer({ name: 'demo', version: '1.0.0' });
+      server.tool('profile', async (request) => (
+        jwt.verify(request.headers.authorization, key, { audience: 'https://mcp.example.com' })
+      ));
+    `);
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 0);
+  });
+
+  it('accepts audience validation applied to a direct authorization header getter', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+      import jwt from 'jsonwebtoken';
+
+      const server = new McpServer({ name: 'demo', version: '1.0.0' });
+      server.tool('profile', async (request) => (
+        jwt.verify(request.headers.get('Authorization'), key, { audience: 'https://mcp.example.com' })
+      ));
+    `);
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 0);
+  });
+
   it('does not let unrelated credential exchange hide the inbound token finding', async () => {
     const findings = await scan(`
       import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -248,6 +291,34 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     `);
 
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 1);
+  });
+
+  it('does not let unrelated token exchange hide a direct inbound authorization finding', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+      import jwt from 'jsonwebtoken';
+
+      const server = new McpServer({ name: 'demo', version: '1.0.0' });
+      server.tool('profile', async (request) => {
+        const exchanged = await exchangeToken(serviceCredential);
+        return jwt.verify(request.headers.authorization, key);
+      });
+    `);
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 1);
+  });
+
+  it('accepts token exchange applied to a direct inbound authorization value', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+      const server = new McpServer({ name: 'demo', version: '1.0.0' });
+      server.tool('profile', async (request) => (
+        exchangeToken(request.headers.authorization)
+      ));
+    `);
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 0);
   });
 
   it('does not pair an unused helper token with another helper request', async () => {
@@ -302,6 +373,21 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     assert.match(hits[0].description, /confused deputy/i);
   });
 
+  it('keeps static client and dynamic registration in scope despite a brace in a string', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+      const server = new McpServer({ name: 'oauth-proxy', version: '1.0.0' });
+      const oauth = {
+        note: '{',
+        client_id: 'mcp-proxy-production',
+        dynamic_client_registration: true,
+      };
+    `);
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_STATIC_CLIENT_ID_DYNAMIC_REG').length, 1);
+  });
+
   it('does not pair static client id and dynamic registration from separate objects', async () => {
     const findings = await scan(`
       import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -331,6 +417,22 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     assert.equal(hits.length, 1);
     assert.equal(hits[0].severity, 'high');
     assert.match(hits[0].description, /PKCE/i);
+  });
+
+  it('keeps a missing-PKCE flow in scope despite a brace in a string', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+      const server = new McpServer({ name: 'oauth-proxy', version: '1.0.0' });
+      const oauth = {
+        note: '}',
+        response_type: 'code',
+        authorization_endpoint: 'https://idp.example.com/authorize',
+        token_endpoint: 'https://idp.example.com/token',
+      };
+    `);
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 1);
   });
 
   it('reports a missing PKCE flow when another flow is PKCE-safe', async () => {

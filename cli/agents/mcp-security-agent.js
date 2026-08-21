@@ -555,14 +555,15 @@ function braceDepthAt(code, scope, index) {
 }
 
 function objectScopeContaining(code, scopes, firstIndex, secondIndex) {
+  const structuralCode = maskStrings(code);
   return scopes
     .filter((scope) => (
       scope.start <= firstIndex
       && firstIndex < scope.end
       && scope.start <= secondIndex
       && secondIndex < scope.end
-      && braceDepthAt(code, scope, firstIndex) === 1
-      && braceDepthAt(code, scope, secondIndex) === 1
+      && braceDepthAt(structuralCode, scope, firstIndex) === 1
+      && braceDepthAt(structuralCode, scope, secondIndex) === 1
     ))
     .sort((left, right) => (left.end - left.start) - (right.end - right.start))[0] || null;
 }
@@ -661,16 +662,21 @@ function hasExplicitNoPkce(content) {
   ));
 }
 
-function hasTokenRelatedMitigation(scopeContent, tokenName, mitigation) {
-  if (!tokenName) return mitigation.test(scopeContent);
+function hasTokenRelatedMitigation(scopeContent, tokenName, mitigation, directTokenReference) {
+  const tokenReference = tokenName
+    ? new RegExp(`\\b${tokenName.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\b`)
+    : directTokenReference ? maskStrings(directTokenReference) : null;
+  if (!tokenReference) return false;
 
-  const tokenReference = new RegExp(`\\b${tokenName.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\b`);
+  const referencesToken = (content) => tokenName
+    ? tokenReference.test(content)
+    : content.includes(tokenReference);
   return allRegexMatches(mitigation, scopeContent).some((match) => {
-    if (tokenReference.test(match[0])) return true;
+    if (referencesToken(match[0])) return true;
 
     const callEnd = scopeContent.indexOf(')', match.index);
     const end = callEnd === -1 ? Math.min(scopeContent.length, match.index + 280) : callEnd + 1;
-    return tokenReference.test(scopeContent.slice(match.index, end));
+    return referencesToken(scopeContent.slice(match.index, end));
   });
 }
 
@@ -876,8 +882,18 @@ export class MCPSecurityAgent extends BaseAgent {
 
       const scopeContent = code.slice(scope.start, scope.end);
       const mitigationContent = maskStrings(scopeContent);
-      const hasAudienceValidation = hasTokenRelatedMitigation(mitigationContent, incoming[1], audienceValidation);
-      const hasTokenExchange = hasTokenRelatedMitigation(mitigationContent, incoming[1], tokenExchange);
+      const hasAudienceValidation = hasTokenRelatedMitigation(
+        mitigationContent,
+        incoming[1],
+        audienceValidation,
+        incoming[0],
+      );
+      const hasTokenExchange = hasTokenRelatedMitigation(
+        mitigationContent,
+        incoming[1],
+        tokenExchange,
+        incoming[0],
+      );
       if (hasAudienceValidation || hasTokenExchange) continue;
       if (this.isSuppressed(lineText(incoming.index), 'high')) continue;
 
