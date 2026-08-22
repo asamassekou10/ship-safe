@@ -295,6 +295,12 @@ const MCP_OAUTH_TOKEN_EXCHANGE = /(?:exchangeToken|token[_-]?exchange|subject_to
 const MCP_OAUTH_PKCE = /(?:\bcode[_-]?challenge\b|\bcode[_-]?verifier\b|\b(?:use[_-]?pkce|pkce)\b\s*[:=]|\b(?:generate|create|build)\w*code[_-]?(?:challenge|verifier)\b)/i;
 const MCP_OAUTH_EXPLICIT_NO_PKCE = /(?:["']?\b(?:use[_-]?pkce|pkce)\b["']?\s*[:=]\s*(?:false|null|["']?disabled["']?)|["']?\bcode[_-]?challenge\b["']?\s*[:=]\s*null)/i;
 const MCP_OAUTH_MARKER = /(?:\bMCP(?:::|[-_.])?(?:Server|Proxy)\b|@modelcontextprotocol|\bmcp[._-](?:server|proxy)\b|mcp\.NewServer)/i;
+const MCP_OAUTH_TOKEN_SOURCE_ANCHORS = {
+  js: /\b(?:req|request|ctx|event)\b\s*(?:\.\s*(?:headers?|authorization|bearer|get|header)\b|\[)/i,
+  python: /\b(?:request|req|ctx|context)\b\s*(?:\.\s*(?:headers?|authorization|bearer|get)\b|\[)/i,
+  ruby: /\b(?:request|req|context|env|headers)\b\s*(?:\.\s*(?:authorization|bearer)\b|\[)/i,
+  go: /\b(?:r|req|request)\.Header\.Get\s*\(/i,
+};
 
 function isOAuthTokenName(name) {
   const normalized = String(name || '').toLowerCase();
@@ -674,14 +680,51 @@ function sourceScopeContaining(content, code, language, scopes, start, end = sta
   };
 }
 
+function isDirectMcpCallback(callbackHeader) {
+  const functionMatch = allRegexMatches(/\bfunction\b/g, callbackHeader).at(-1);
+  const callback = Math.max(
+    callbackHeader.lastIndexOf('=>'),
+    functionMatch?.index ?? -1,
+  );
+  if (callback === -1 || /;/.test(callbackHeader.slice(0, callback))) return false;
+
+  let parentheses = 0;
+  let braces = 0;
+  for (let index = 0; index < callback; index += 1) {
+    if (callbackHeader[index] === '(') parentheses += 1;
+    if (callbackHeader[index] === ')') parentheses -= 1;
+    if (callbackHeader[index] === '{') braces += 1;
+    if (callbackHeader[index] === '}') braces -= 1;
+  }
+  return parentheses === 1 && braces === 0;
+}
+
+function pythonMcpToolDecoratorReceiver(code, scope) {
+  const lines = code.slice(0, scope.start).split('\n');
+  let depth = 0;
+
+  for (let lineIndex = lines.length - 2; lineIndex >= 0; lineIndex -= 1) {
+    const line = lines[lineIndex].trim();
+    if (!line) {
+      if (depth === 0) break;
+      continue;
+    }
+
+    depth += (line.match(/\)/g) || []).length - (line.match(/\(/g) || []).length;
+    const decorator = line.match(/^@([A-Za-z_]\w*)\.tool(?:\s*\(|\s*$)/);
+    if (decorator && depth === 0) return decorator[1];
+    if (depth === 0) break;
+  }
+
+  return null;
+}
+
 function isMcpToolHandlerScope(code, scope, language) {
   if (language === 'python') {
-    const precedingLines = code.slice(0, scope.start).split('\n');
-    const previousLine = precedingLines.at(-2)?.trim() || '';
-    const decorator = previousLine.match(/^@([A-Za-z_]\w*)\.tool(?:\([^)]*\))?$/);
-    if (!decorator) return false;
+    const receiverName = pythonMcpToolDecoratorReceiver(code, scope);
+    if (!receiverName) return false;
 
-    const receiver = escapeRegex(decorator[1]);
+    const receiver = escapeRegex(receiverName);
     return new RegExp(`\\b${receiver}\\s*=\\s*FastMCP\\s*\\(`).test(code);
   }
 
@@ -692,8 +735,7 @@ function isMcpToolHandlerScope(code, scope, language) {
   if (registrations.length) {
     const registration = registrations.at(-1);
     const callbackHeader = prefix.slice(registration.index);
-    const callback = callbackHeader.search(/=>|\bfunction\b/);
-    return callback !== -1 && !/[{};]/.test(callbackHeader.slice(0, callback));
+    return isDirectMcpCallback(callbackHeader);
   }
 
   const localHeader = code.slice(scope.start, Math.min(code.length, scope.start + 320));
@@ -701,8 +743,7 @@ function isMcpToolHandlerScope(code, scope, language) {
   if (!localRegistration) return false;
 
   const callbackHeader = localHeader.slice(localRegistration.index);
-  const callback = callbackHeader.search(/=>|\bfunction\b/);
-  return callback !== -1 && !/[{};]/.test(callbackHeader.slice(0, callback));
+  return isDirectMcpCallback(callbackHeader);
 }
 
 function isMcpOAuthFunctionScope(code, scope, language) {
@@ -762,6 +803,12 @@ function allRegexMatches(regex, content) {
 function allVisibleRegexMatches(regex, content, visibleContent) {
   return allRegexMatches(regex, content)
     .filter((match) => visibleContent[match.index] === content[match.index]);
+}
+
+function allVisibleOAuthTokenCandidates(regex, content, structuralCode, language) {
+  const sourceAnchor = MCP_OAUTH_TOKEN_SOURCE_ANCHORS[language];
+  return allVisibleRegexMatches(regex, content, structuralCode)
+    .filter((match) => sourceAnchor.test(structuralCode.slice(match.index, match.index + match[0].length)));
 }
 
 function isQuotedObjectKeyAt(content, index, language = 'js') {
@@ -907,8 +954,8 @@ export class MCPSecurityAgent extends BaseAgent {
     }
 
     const scopes = sourceFunctionScopes(content, language, source.structuralCode);
-    const inboundCandidates = allVisibleRegexMatches(shape.inboundToken, code, source.structuralCode);
-    const directCandidates = allVisibleRegexMatches(shape.directToken, code, source.structuralCode)
+    const inboundCandidates = allVisibleOAuthTokenCandidates(shape.inboundToken, code, source.structuralCode, language);
+    const directCandidates = allVisibleOAuthTokenCandidates(shape.directToken, code, source.structuralCode, language)
       .filter((direct) => !inboundCandidates.some((inbound) => (
         inbound.index <= direct.index && direct.index < inbound.index + inbound[0].length
       )));
@@ -938,7 +985,7 @@ export class MCPSecurityAgent extends BaseAgent {
       const tokenName = incoming[1];
       if (!isOAuthTokenName(tokenName)) continue;
       const scope = sourceScopeContaining(content, code, language, scopes, incoming.index, incoming.index + incoming[0].length);
-      if (!scope || !isMcpToolHandlerScope(code, scope, language)) continue;
+      if (!scope || !isMcpToolHandlerScope(source.structuralCode, scope, language)) continue;
       const searchStart = incoming.index + incoming[0].length;
       const searchWindow = source.structuralCode.slice(searchStart, Math.min(scope.end, searchStart + 1200));
       const requestMatch = searchWindow.match(outbound);
@@ -958,7 +1005,7 @@ export class MCPSecurityAgent extends BaseAgent {
     for (const directMatch of directCandidates) {
       const directIndex = directMatch.index;
       const scope = sourceScopeContaining(content, code, language, scopes, directIndex, directIndex + directMatch[0].length);
-      if (!scope || !isMcpToolHandlerScope(code, scope, language)) continue;
+      if (!scope || !isMcpToolHandlerScope(source.structuralCode, scope, language)) continue;
       const beforeStart = Math.max(scope.start, directIndex - 200);
       const beforeWindow = source.structuralCode.slice(beforeStart, directIndex);
       const beforeRequest = beforeWindow.match(outbound);
@@ -994,8 +1041,8 @@ export class MCPSecurityAgent extends BaseAgent {
     }
 
     const scopes = sourceFunctionScopes(content, language, source.structuralCode);
-    const inboundCandidates = allVisibleRegexMatches(shape.inboundToken, code, source.structuralCode);
-    const directCandidates = allVisibleRegexMatches(shape.directToken, code, source.structuralCode)
+    const inboundCandidates = allVisibleOAuthTokenCandidates(shape.inboundToken, code, source.structuralCode, language);
+    const directCandidates = allVisibleOAuthTokenCandidates(shape.directToken, code, source.structuralCode, language)
       .filter((direct) => !inboundCandidates.some((inbound) => (
         inbound.index <= direct.index && direct.index < inbound.index + inbound[0].length
       )));

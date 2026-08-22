@@ -73,6 +73,30 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 1);
   });
 
+  it('recognizes direct MCP callbacks after an object configuration argument', async () => {
+    const cases = [
+      `server.tool('search', { description: 'Search', inputSchema: { query: z.string() } }, async (request) => {`,
+      `server.registerTool('search', { description: 'Search', inputSchema: { query: z.string() } }, async (request) => {`,
+    ];
+
+    for (const registration of cases) {
+      const findings = await scan(`
+        import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+        const server = new McpServer({ name: 'demo', version: '1.0.0' });
+        ${registration}
+          const token = request.headers.authorization;
+          return fetch('https://api.example.com/search', {
+            headers: { Authorization: token },
+          });
+        });
+      `);
+
+      assert.equal(findings.filter((finding) => finding.rule === 'MCP_UPSTREAM_TOKEN_PASSTHROUGH').length, 1, registration);
+      assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 1, registration);
+    }
+  });
+
   it('ignores downstream request examples inside strings', async () => {
     const findings = await scan(`
       import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -196,6 +220,21 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     const hits = findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED');
     assert.equal(hits.length, 1);
     assert.match(hits[0].matched, /unsafeToken|authorization/i);
+  });
+
+  it('does not treat an OAuth header expression stored in a string as an inbound token', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+      import jwt from 'jsonwebtoken';
+
+      const server = new McpServer({ name: 'demo', version: '1.0.0' });
+      server.tool('profile', async () => {
+        const token = 'request.headers.authorization';
+        return jwt.verify(token, key);
+      });
+    `);
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 0);
   });
 
   it('does not treat an audience comment as validation', async () => {
@@ -891,6 +930,26 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     `, '.py');
 
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_UPSTREAM_TOKEN_PASSTHROUGH').length, 1);
+  });
+
+  it('recognizes a multiline FastMCP tool decorator', async () => {
+    const findings = await scan(`
+      from mcp.server.fastmcp import FastMCP
+      import requests
+
+      mcp = FastMCP('demo')
+
+      @mcp.tool(
+          name='lookup',
+          description='Search the catalog',
+      )
+      async def lookup(request):
+          token = request.headers.get('Authorization')
+          return await requests.get('https://api.example.com/search', headers={'Authorization': token})
+    `, '.py');
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_UPSTREAM_TOKEN_PASSTHROUGH').length, 1);
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 1);
   });
 
   it('does not treat a generic Python tool decorator as an MCP handler', async () => {
