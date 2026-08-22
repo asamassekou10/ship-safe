@@ -9,3 +9,5 @@ This line is intentionally documentation-only for the production webhook smoke t
 The scanner should report this pull request without requiring a local CLI install.
 
 This line verifies the bundled scanner dependency fix in production.
+
+Final end-to-end verification after the clean deployment.
