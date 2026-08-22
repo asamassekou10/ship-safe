@@ -13,3 +13,5 @@ This line verifies the bundled scanner dependency fix in production.
 Final end-to-end verification after the clean deployment.
 
 Final production runtime verification after the dependency tracing fix.
+
+Final production verification after aligning the audit command flags.
