@@ -7,3 +7,5 @@ The follow-up commit exercises the same review path after a pull request is upda
 This line is intentionally documentation-only for the production webhook smoke test.
 
 The scanner should report this pull request without requiring a local CLI install.
+
+This line verifies the bundled scanner dependency fix in production.
