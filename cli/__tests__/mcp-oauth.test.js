@@ -73,6 +73,50 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 1);
   });
 
+  it('ignores downstream request examples inside strings', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+      const server = new McpServer({ name: 'demo', version: '1.0.0' });
+      server.tool('search', async (request) => {
+        const token = request.headers.authorization;
+        const example = "fetch(url, { headers: { Authorization: token } })";
+        return example;
+      });
+    `);
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_UPSTREAM_TOKEN_PASSTHROUGH').length, 0);
+  });
+
+  it('tracks JavaScript token identifiers containing dollar signs', async () => {
+    for (const tokenName of ['$token', 'access$token']) {
+      const findings = await scan(`
+        import jwt from 'jsonwebtoken';
+        import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+        const server = new McpServer({ name: 'demo', version: '1.0.0' });
+        server.tool('search', async (request) => {
+          const ${tokenName} = request.headers.authorization;
+          jwt.verify(${tokenName}, key, { audience: 'mcp-server' });
+          return fetch('https://api.example.com/search', {
+            headers: { Authorization: ${tokenName} },
+          });
+        });
+      `);
+
+      assert.equal(
+        findings.filter((finding) => finding.rule === 'MCP_UPSTREAM_TOKEN_PASSTHROUGH').length,
+        1,
+        tokenName,
+      );
+      assert.equal(
+        findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length,
+        0,
+        tokenName,
+      );
+    }
+  });
+
   it('does not treat a custom request id header as an OAuth token', async () => {
     const findings = await scan(`
       import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -277,6 +321,55 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 0);
   });
 
+  it('keeps quoted audience keys visible in token validation calls', async () => {
+    const cases = [
+      {
+        name: 'JavaScript',
+        ext: '.js',
+        code: `
+          import jwt from 'jsonwebtoken';
+          import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+          const server = new McpServer({ name: 'demo' });
+          server.tool('profile', async (request) => {
+            const token = request.headers.authorization;
+            return jwt.verify(token, key, { "audience": 'mcp-server' });
+          });
+        `,
+      },
+      {
+        name: 'Python',
+        ext: '.py',
+        code: `
+          from mcp.server.fastmcp import FastMCP
+          mcp = FastMCP('demo')
+          def profile(request):
+              token = request.headers.get('Authorization')
+              return jwt.decode(token, key, **{"audience": 'mcp-server'})
+        `,
+      },
+      {
+        name: 'Ruby',
+        ext: '.rb',
+        code: `
+          MCPServer.new
+          def profile(request)
+            token = request['authorization']
+            jwt.verify(token, key, 'audience' => 'mcp-server')
+          end
+        `,
+      },
+    ];
+
+    for (const testCase of cases) {
+      const findings = await scan(testCase.code, testCase.ext);
+      assert.equal(
+        findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length,
+        0,
+        testCase.name,
+      );
+    }
+  });
+
   it('does not let unrelated credential exchange hide the inbound token finding', async () => {
     const findings = await scan(`
       import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -398,6 +491,39 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     `);
 
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_STATIC_CLIENT_ID_DYNAMIC_REG').length, 0);
+  });
+
+  it('ignores OAuth config examples inside ordinary strings', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+      const server = new McpServer({ name: 'oauth-proxy', version: '1.0.0' });
+      const docs = {
+        staticExample: "client_id: 'mcp-prod', dynamic_client_registration: true",
+        flowExample: "response_type: 'code'",
+      };
+    `);
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_STATIC_CLIENT_ID_DYNAMIC_REG').length, 0);
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 0);
+  });
+
+  it('keeps JavaScript escaped quotes and template text out of structural matching', async () => {
+    const backtick = String.fromCharCode(96);
+    const findings = await scan([
+      "import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';",
+      "const server = new McpServer({ name: 'oauth-proxy' });",
+      'const escaped = "example \\" // { client_id: \'fake\', dynamic_client_registration: true";',
+      `const template = ${backtick}# } response_type: 'code'; code_challenge: true${backtick};`,
+      'const oauth = {',
+      "  response_type: 'code',",
+      "  authorization_endpoint: 'https://idp.example.com/authorize',",
+      "  token_endpoint: 'https://idp.example.com/token',",
+      '};',
+    ].join('\n'));
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_STATIC_CLIENT_ID_DYNAMIC_REG').length, 0);
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 1);
   });
 
   it('flags an MCP authorization-code flow without PKCE', async () => {
@@ -534,6 +660,64 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     }
   });
 
+  it('ignores OAuth-shaped code inside Python triple-quoted docstrings', async () => {
+    for (const delimiter of ['"""', "'''"]) {
+      const findings = await scan([
+        'from mcp.server.fastmcp import FastMCP',
+        'mcp = FastMCP("demo")',
+        'def documented_handler(request):',
+        `    ${delimiter}Example # { } " ' response_type: code`,
+        "    token = request.headers.get('Authorization')",
+        "    return httpx.get(url, headers={'Authorization': token})",
+        '    validate(token, { audience: "mcp-server" })',
+        '    code_challenge = "example"',
+        `    ${delimiter}`,
+        '    return None',
+      ].join('\n'), '.py');
+
+      const oauthRules = new Set([
+        'MCP_UPSTREAM_TOKEN_PASSTHROUGH',
+        'MCP_TOKEN_AUDIENCE_UNVALIDATED',
+        'MCP_OAUTH_NO_PKCE',
+      ]);
+      assert.equal(
+        findings.filter((finding) => oauthRules.has(finding.rule)).length,
+        0,
+        delimiter,
+      );
+    }
+  });
+
+  it('does not let Python docstring mitigations hide real unsafe OAuth code', async () => {
+    for (const delimiter of ['"""', "'''"]) {
+      const findings = await scan([
+        'from mcp.server.fastmcp import FastMCP',
+        'mcp = FastMCP("demo")',
+        '@mcp.tool()',
+        'def profile(request):',
+        `    ${delimiter}validate(token, { audience: "mcp-server" })`,
+        '    exchangeToken(token) # { }',
+        '    code_challenge = "example"',
+        `    ${delimiter}`,
+        "    token = request.headers.get('Authorization')",
+        '    claims = jwt.decode(token, key)',
+        "    oauth = {'response_type': 'code'}",
+        '    return claims',
+      ].join('\n'), '.py');
+
+      assert.equal(
+        findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length,
+        1,
+        delimiter,
+      );
+      assert.equal(
+        findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length,
+        1,
+        delimiter,
+      );
+    }
+  });
+
   it('uses the Python MCP tool token and outbound request shapes', async () => {
     const cases = [
       {
@@ -622,6 +806,37 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_UPSTREAM_TOKEN_PASSTHROUGH').length, 0);
   });
 
+  it('keeps Ruby audience validation inside methods with nested end blocks', async () => {
+    const blocks = {
+      if: "if request\n    puts 'nested'\n  end",
+      unless: "unless request.nil?\n    puts 'nested'\n  end",
+      case: "case request.path\n  when '/profile'\n    puts 'nested'\n  end",
+      begin: "begin\n    puts 'nested'\n  rescue StandardError\n    puts 'handled'\n  end",
+      do: "[request].each do |item|\n    puts item\n  end",
+      while: "while request.pending?\n    break\n  end",
+      until: "until request.ready?\n    break\n  end",
+      for: "for item in [request]\n    puts item\n  end",
+    };
+
+    for (const [name, block] of Object.entries(blocks)) {
+      const findings = await scan(`
+        MCPServer.new
+
+        def handle(request)
+          token = request['authorization']
+          ${block}
+          jwt.verify(token, key, audience: 'mcp-server')
+        end
+      `, '.rb');
+
+      assert.equal(
+        findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length,
+        0,
+        name,
+      );
+    }
+  });
+
   it('does not flag an unrelated Go helper in an MCP-containing file', async () => {
     const findings = await scan(`
       package main
@@ -673,6 +888,66 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     ].join('\n'), '.rb');
 
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 1);
+  });
+
+  it('ignores OAuth source candidates inside Go raw and Ruby command strings', async () => {
+    const backtick = String.fromCharCode(96);
+    const cases = [
+      {
+        ext: '.go',
+        code: [
+          'package main',
+          'import mcp "github.com/modelcontextprotocol/go-sdk/mcp"',
+          'var server = mcp.NewServer()',
+          `var docs = ${backtick}token := request.Header.Get("Authorization")`,
+          'client_id: "mcp-prod", dynamic_client_registration: true',
+          `response_type: "code" # { } // /* */${backtick}`,
+        ].join('\n'),
+      },
+      {
+        ext: '.rb',
+        code: [
+          "require 'mcp'",
+          'server = MCP::Server.new',
+          `docs = ${backtick}token = request.headers['Authorization']`,
+          "client_id: 'mcp-prod', dynamic_client_registration: true",
+          `response_type: 'code' # { } // /* */${backtick}`,
+        ].join('\n'),
+      },
+    ];
+
+    const oauthRules = new Set([
+      'MCP_TOKEN_AUDIENCE_UNVALIDATED',
+      'MCP_STATIC_CLIENT_ID_DYNAMIC_REG',
+      'MCP_OAUTH_NO_PKCE',
+    ]);
+    for (const testCase of cases) {
+      const findings = await scan(testCase.code, testCase.ext);
+      assert.equal(
+        findings.filter((finding) => oauthRules.has(finding.rule)).length,
+        0,
+        testCase.ext,
+      );
+    }
+  });
+
+  it('fails closed on OAuth-shaped text in an unterminated string', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+      const server = new McpServer({ name: 'demo', version: '1.0.0' });
+      const docs = "token = request.headers.authorization;
+      fetch(url, { headers: { Authorization: token } });
+      client_id: 'mcp-prod'; dynamic_client_registration: true;
+      response_type: 'code';
+    `);
+
+    const oauthRules = new Set([
+      'MCP_UPSTREAM_TOKEN_PASSTHROUGH',
+      'MCP_TOKEN_AUDIENCE_UNVALIDATED',
+      'MCP_STATIC_CLIENT_ID_DYNAMIC_REG',
+      'MCP_OAUTH_NO_PKCE',
+    ]);
+    assert.equal(findings.filter((finding) => oauthRules.has(finding.rule)).length, 0);
   });
 
   it('keeps Ruby hash-rocket PKCE keys visible to mitigation detection', async () => {

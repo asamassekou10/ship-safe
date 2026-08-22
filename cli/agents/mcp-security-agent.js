@@ -306,6 +306,14 @@ function isOAuthTokenName(name) {
     || normalized === 'accesstoken';
 }
 
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function identifierReferenceRegex(name) {
+  return new RegExp(`(?:^|[^\\w$])${escapeRegex(name)}(?![\\w$])`);
+}
+
 function sourceLineHelpers(content) {
   const lines = content.split('\n');
   const lineStarts = [0];
@@ -330,13 +338,13 @@ function sourceLineHelpers(content) {
 function createSourceContext(filePath, content) {
   const language = languageOf(filePath);
   const code = content && stripComments(content, language);
+  const hasOAuthMarker = code && MCP_OAUTH_MARKER.test(code);
   return {
     content,
     language,
     code,
-    structuralCode: code && MCP_OAUTH_MARKER.test(code)
-      ? maskStrings(code, false, language)
-      : null,
+    structuralCode: hasOAuthMarker ? maskStrings(code, false, language) : null,
+    keyCode: hasOAuthMarker ? maskStrings(code, true, language) : null,
     lineHelpers: null,
   };
 }
@@ -344,6 +352,21 @@ function createSourceContext(filePath, content) {
 function sourceLineHelpersFor(source) {
   if (!source.lineHelpers) source.lineHelpers = sourceLineHelpers(source.content);
   return source.lineHelpers;
+}
+
+function stringDelimiterAt(content, index, language) {
+  const char = content[index];
+  if (
+    language === 'python'
+    && (char === '\'' || char === '"')
+    && content[index + 1] === char
+    && content[index + 2] === char
+  ) {
+    return char.repeat(3);
+  }
+  if (char === '\'' || char === '"') return char;
+  if ((language === 'js' || language === 'go' || language === 'ruby') && char === '`') return char;
+  return null;
 }
 
 function createStaticClientIdDynamicRegFinding({ file, line, category, matched }) {
@@ -418,7 +441,8 @@ function stripComments(content, language) {
       const isGoRawString = language === 'go' && quote === '`';
       if (char === '\\' && !isGoRawString) {
         index += 1;
-      } else if (char === quote) {
+      } else if (content.startsWith(quote, index)) {
+        index += quote.length - 1;
         state = 'code';
         quote = '';
       }
@@ -447,9 +471,11 @@ function stripComments(content, language) {
       continue;
     }
 
-    if (char === '\'' || char === '"' || ((language === 'js' || language === 'go' || language === 'ruby') && char === '`')) {
-      quote = char;
+    const delimiter = stringDelimiterAt(content, index, language);
+    if (delimiter) {
+      quote = delimiter;
       state = 'string';
+      index += delimiter.length - 1;
     }
   }
 
@@ -475,12 +501,17 @@ function maskStrings(content, preserveObjectKeys = false, language = 'js') {
       const isGoRawString = language === 'go' && quote === '`';
       if (char === '\\' && !isGoRawString) {
         index += 1;
-      } else if (char === quote) {
-        let next = index + 1;
+      } else if (content.startsWith(quote, index)) {
+        const stringEnd = index + quote.length - 1;
+        let next = stringEnd + 1;
         while (next < content.length && /\s/.test(content[next])) next += 1;
         const isRubyHashKey = language === 'ruby' && content[next] === '=' && content[next + 1] === '>';
-        if (!preserveObjectKeys || (content[next] !== ':' && !isRubyHashKey)) blankRange(stringStart, index);
-        blank(index);
+        const preserveKey = quote.length === 1
+          && preserveObjectKeys
+          && (content[next] === ':' || isRubyHashKey);
+        if (!preserveKey) blankRange(stringStart, stringEnd);
+        else blankRange(index, stringEnd);
+        index = stringEnd;
         state = 'code';
         quote = '';
         stringStart = -1;
@@ -490,10 +521,12 @@ function maskStrings(content, preserveObjectKeys = false, language = 'js') {
       continue;
     }
 
-    if (char === '\'' || char === '"' || char === '`') {
-      quote = char;
+    const delimiter = stringDelimiterAt(content, index, language);
+    if (delimiter) {
+      quote = delimiter;
       state = 'string';
       stringStart = index;
+      index += delimiter.length - 1;
     }
   }
 
@@ -518,9 +551,24 @@ function findBracePairs(content, language, structuralCode = null) {
   return pairs;
 }
 
+function rubyBlockDepthDelta(line) {
+  const trimmed = line.trim();
+  if (!trimmed) return 0;
+
+  const blockKeyword = /(?:^|=\s*)(?:def|class|module|if|unless|case|begin|while|until|for)\b/;
+  const loopKeyword = /(?:^|=\s*)(?:while|until|for)\b/;
+  let opens = blockKeyword.test(trimmed) ? 1 : 0;
+  if (!loopKeyword.test(trimmed) && /\bdo\b(?:\s*\|[^|]*\|)?\s*$/.test(trimmed)) opens += 1;
+
+  const closes = (trimmed.match(/\bend\b/g) || []).length;
+  return opens - closes;
+}
+
 function sourceFunctionScopes(content, language, structuralCode = null) {
   if (language === 'python' || language === 'ruby') {
     const lines = content.split('\n');
+    const scopeCode = structuralCode ?? maskStrings(stripComments(content, language), false, language);
+    const scopeLines = scopeCode.split('\n');
     const offsets = [];
     let offset = 0;
     for (const line of lines) {
@@ -530,7 +578,7 @@ function sourceFunctionScopes(content, language, structuralCode = null) {
 
     const scopes = [];
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
-      const line = lines[lineIndex];
+      const line = scopeLines[lineIndex];
       const match = language === 'python'
         ? line.match(/^(\s*)(?:async\s+)?def\s+/)
         : line.match(/^(\s*)def\s+/);
@@ -540,8 +588,8 @@ function sourceFunctionScopes(content, language, structuralCode = null) {
       let endLine = lines.length;
       if (language === 'python') {
         for (let nextLine = lineIndex + 1; nextLine < lines.length; nextLine += 1) {
-          if (!lines[nextLine].trim()) continue;
-          const nextIndent = lines[nextLine].match(/^\s*/)[0].replace(/\t/g, '    ').length;
+          if (!scopeLines[nextLine].trim()) continue;
+          const nextIndent = scopeLines[nextLine].match(/^\s*/)[0].replace(/\t/g, '    ').length;
           if (nextIndent <= indent) {
             endLine = nextLine;
             break;
@@ -550,9 +598,8 @@ function sourceFunctionScopes(content, language, structuralCode = null) {
       } else {
         let depth = 1;
         for (let nextLine = lineIndex + 1; nextLine < lines.length; nextLine += 1) {
-          if (/^\s*def\b/.test(lines[nextLine])) depth += 1;
-          if (/^\s*end\b/.test(lines[nextLine])) depth -= 1;
-          if (depth === 0) {
+          depth += rubyBlockDepthDelta(scopeLines[nextLine]);
+          if (depth <= 0) {
             endLine = nextLine + 1;
             break;
           }
@@ -634,7 +681,7 @@ function isMcpToolHandlerScope(code, scope, language) {
     const decorator = previousLine.match(/^@([A-Za-z_]\w*)\.tool(?:\([^)]*\))?$/);
     if (!decorator) return false;
 
-    const receiver = decorator[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const receiver = escapeRegex(decorator[1]);
     return new RegExp(`\\b${receiver}\\s*=\\s*FastMCP\\s*\\(`).test(code);
   }
 
@@ -670,6 +717,11 @@ function allRegexMatches(regex, content) {
   return matches;
 }
 
+function allVisibleRegexMatches(regex, content, visibleContent) {
+  return allRegexMatches(regex, content)
+    .filter((match) => visibleContent[match.index] === content[match.index]);
+}
+
 function isQuotedObjectKeyAt(content, index, language = 'js') {
   const quote = content[index];
   if (quote !== '\'' && quote !== '"') return false;
@@ -701,7 +753,7 @@ function hasExplicitNoPkce(content, language = 'js') {
 
 function hasTokenRelatedMitigation(scopeContent, tokenName, mitigation, directTokenReference) {
   const tokenReference = tokenName
-    ? new RegExp(`\\b${tokenName.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\b`)
+    ? identifierReferenceRegex(tokenName)
     : directTokenReference ? maskStrings(directTokenReference) : null;
   if (!tokenReference) return false;
 
@@ -813,8 +865,8 @@ export class MCPSecurityAgent extends BaseAgent {
     }
 
     const scopes = sourceFunctionScopes(content, language, source.structuralCode);
-    const inboundCandidates = allRegexMatches(shape.inboundToken, code);
-    const directCandidates = allRegexMatches(shape.directToken, code)
+    const inboundCandidates = allVisibleRegexMatches(shape.inboundToken, code, source.structuralCode);
+    const directCandidates = allVisibleRegexMatches(shape.directToken, code, source.structuralCode)
       .filter((direct) => !inboundCandidates.some((inbound) => (
         inbound.index <= direct.index && direct.index < inbound.index + inbound[0].length
       )));
@@ -846,13 +898,13 @@ export class MCPSecurityAgent extends BaseAgent {
       const scope = sourceScopeContaining(content, code, language, scopes, incoming.index, incoming.index + incoming[0].length);
       if (!scope || !isMcpToolHandlerScope(code, scope, language)) continue;
       const searchStart = incoming.index + incoming[0].length;
-      const searchWindow = code.slice(searchStart, Math.min(scope.end, searchStart + 1200));
+      const searchWindow = source.structuralCode.slice(searchStart, Math.min(scope.end, searchStart + 1200));
       const requestMatch = searchWindow.match(outbound);
       if (!requestMatch) continue;
 
       const requestIndex = searchStart + requestMatch.index;
-      const requestContext = code.slice(requestIndex, Math.min(scope.end, requestIndex + 600));
-      const tokenReference = new RegExp(`\\b${tokenName}\\b`);
+      const requestContext = source.keyCode.slice(requestIndex, Math.min(scope.end, requestIndex + 600));
+      const tokenReference = identifierReferenceRegex(tokenName);
       if (!/(?:authorization|bearer|headers)/i.test(requestContext) || !tokenReference.test(requestContext)) {
         continue;
       }
@@ -866,12 +918,12 @@ export class MCPSecurityAgent extends BaseAgent {
       const scope = sourceScopeContaining(content, code, language, scopes, directIndex, directIndex + directMatch[0].length);
       if (!scope || !isMcpToolHandlerScope(code, scope, language)) continue;
       const beforeStart = Math.max(scope.start, directIndex - 200);
-      const beforeWindow = code.slice(beforeStart, directIndex);
+      const beforeWindow = source.structuralCode.slice(beforeStart, directIndex);
       const beforeRequest = beforeWindow.match(outbound);
       if (!beforeRequest) continue;
       const requestIndex = beforeStart + beforeRequest.index;
 
-      const requestContext = code.slice(requestIndex, Math.min(scope.end, Math.max(requestIndex + 600, directIndex + directMatch[0].length)));
+      const requestContext = source.keyCode.slice(requestIndex, Math.min(scope.end, Math.max(requestIndex + 600, directIndex + directMatch[0].length)));
       if (!/(?:authorization|bearer|headers)/i.test(requestContext)) continue;
 
       const finding = makeFinding(requestIndex);
@@ -900,8 +952,8 @@ export class MCPSecurityAgent extends BaseAgent {
     }
 
     const scopes = sourceFunctionScopes(content, language, source.structuralCode);
-    const inboundCandidates = allRegexMatches(shape.inboundToken, code);
-    const directCandidates = allRegexMatches(shape.directToken, code)
+    const inboundCandidates = allVisibleRegexMatches(shape.inboundToken, code, source.structuralCode);
+    const directCandidates = allVisibleRegexMatches(shape.directToken, code, source.structuralCode)
       .filter((direct) => !inboundCandidates.some((inbound) => (
         inbound.index <= direct.index && direct.index < inbound.index + inbound[0].length
       )));
@@ -920,8 +972,9 @@ export class MCPSecurityAgent extends BaseAgent {
 
       const scopeContent = code.slice(scope.start, scope.end);
       const mitigationContent = maskStrings(scopeContent, false, language);
+      const audienceMitigationContent = maskStrings(scopeContent, true, language);
       const hasAudienceValidation = hasTokenRelatedMitigation(
-        mitigationContent,
+        audienceMitigationContent,
         incoming[1],
         audienceValidation,
         incoming[0],
@@ -972,8 +1025,8 @@ export class MCPSecurityAgent extends BaseAgent {
     }
 
     const objectScopes = sourceObjectScopes(content, language, source.structuralCode);
-    const clients = allRegexMatches(shape.staticClientId, code);
-    const registrations = allRegexMatches(MCP_OAUTH_DYNAMIC_REGISTRATION, code);
+    const clients = allVisibleRegexMatches(shape.staticClientId, code, source.keyCode);
+    const registrations = allVisibleRegexMatches(MCP_OAUTH_DYNAMIC_REGISTRATION, code, source.keyCode);
     const { lineNumber, lineText } = sourceLineHelpersFor(source);
 
     for (const client of clients) {
@@ -1010,7 +1063,7 @@ export class MCPSecurityAgent extends BaseAgent {
 
     const objectScopes = sourceObjectScopes(content, language, source.structuralCode);
     const functionScopes = sourceFunctionScopes(content, language, source.structuralCode);
-    const codeFlows = allRegexMatches(shape.codeFlow, code);
+    const codeFlows = allVisibleRegexMatches(shape.codeFlow, code, source.keyCode);
     const pkce = MCP_OAUTH_PKCE;
     const { lineNumber, lineText } = sourceLineHelpersFor(source);
     const findings = [];
@@ -1048,17 +1101,19 @@ export class MCPSecurityAgent extends BaseAgent {
     if (!content) return [];
 
     const code = stripComments(content, 'js');
-    const objectScopes = sourceObjectScopes(content, 'js');
+    const structuralCode = maskStrings(code, false, 'js');
+    const keyCode = maskStrings(code, true, 'js');
+    const objectScopes = sourceObjectScopes(content, 'js', structuralCode);
     const staticClientId = /["']?\bclient[_-]?id\b["']?\s*[:=]\s*(["'])(.*?)\1/gi;
-    const clients = allRegexMatches(staticClientId, code);
-    const registrations = allRegexMatches(MCP_OAUTH_DYNAMIC_REGISTRATION, code);
+    const clients = allVisibleRegexMatches(staticClientId, code, keyCode);
+    const registrations = allVisibleRegexMatches(MCP_OAUTH_DYNAMIC_REGISTRATION, code, keyCode);
     const { lineNumber, lineText } = sourceLineHelpers(content);
     const findings = [];
 
     for (const client of clients) {
       if (/\$\{|\b(?:process\.env|os\.environ|getenv|ENV\[|os\.Getenv)\b/i.test(client[2])) continue;
       const registration = registrations.find((candidate) => (
-        objectScopeContaining(code, objectScopes, client.index, candidate.index, 'js')
+        objectScopeContaining(code, objectScopes, client.index, candidate.index, 'js', structuralCode)
       ));
       if (!registration || this.isSuppressed(lineText(client.index), 'high')) continue;
 
@@ -1072,8 +1127,8 @@ export class MCPSecurityAgent extends BaseAgent {
     }
 
     const reportedScopes = new Set();
-    for (const flowMatch of allRegexMatches(MCP_OAUTH_SHAPES.js.codeFlow, code)) {
-      const scope = objectScopeContaining(code, objectScopes, flowMatch.index, flowMatch.index, 'js');
+    for (const flowMatch of allVisibleRegexMatches(MCP_OAUTH_SHAPES.js.codeFlow, code, keyCode)) {
+      const scope = objectScopeContaining(code, objectScopes, flowMatch.index, flowMatch.index, 'js', structuralCode);
       if (!scope || reportedScopes.has(scope.start)) continue;
 
       const scopeContent = code.slice(scope.start, scope.end);
