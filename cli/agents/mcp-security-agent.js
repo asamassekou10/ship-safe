@@ -705,6 +705,48 @@ function isMcpToolHandlerScope(code, scope, language) {
   return callback !== -1 && !/[{};]/.test(callbackHeader.slice(0, callback));
 }
 
+function isMcpOAuthFunctionScope(code, scope, language) {
+  if (language === 'js' || language === 'python') {
+    return isMcpToolHandlerScope(code, scope, language);
+  }
+
+  const scopeContent = code.slice(scope.start, scope.end);
+  if (language === 'ruby') return /\b(?:MCPServer|MCP(?:::\w+)+)\.new\b/.test(scopeContent);
+  if (language === 'go') return /\bmcp\.NewServer\s*\(/.test(scopeContent);
+  return false;
+}
+
+function isMcpOAuthTopLevelObject(code, scope, language) {
+  const prefix = code.slice(0, scope.start);
+
+  if (language === 'js') {
+    if (/\b(?:new\s+)?McpServer\s*\([^)]*$/.test(prefix)) return true;
+    if (/\b(?:server|mcp)\s*\.\s*(?:tool|registerTool|addTool)\s*\([^)]*$/.test(prefix)) return true;
+
+    const declaration = prefix.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*$/);
+    if (!declaration) return false;
+
+    const binding = escapeRegex(declaration[1]);
+    const suffix = code.slice(scope.end);
+    return new RegExp(`\\b(?:server|mcp)\\s*\\.\\s*(?:tool|registerTool|addTool)\\s*\\([\\s\\S]{0,600}\\b${binding}\\b`).test(suffix)
+      || new RegExp(`\\b(?:new\\s+)?McpServer\\s*\\([\\s\\S]{0,600}\\b${binding}\\b`).test(suffix);
+  }
+
+  if (language === 'python') return /\b(?:FastMCP|MCP)\s*\([^)]*$/.test(prefix);
+  if (language === 'ruby') return /\bMCP(?:::\w+)+\b|\bMCPServer\b/.test(prefix);
+  if (language === 'go') return /\bmcp\.NewServer\s*\(/.test(prefix);
+  return false;
+}
+
+function isMcpOAuthSourceScope(code, language, scope, functionScopes, scopeKind) {
+  if (!scope) return false;
+  if (scopeKind === 'function') return isMcpOAuthFunctionScope(code, scope, language);
+
+  const functionScope = scopeContaining(functionScopes, scope.start, scope.end);
+  if (functionScope) return isMcpOAuthFunctionScope(code, functionScope, language);
+  return isMcpOAuthTopLevelObject(code, scope, language);
+}
+
 function allRegexMatches(regex, content) {
   const flags = regex.flags.includes('g') ? regex.flags : `${regex.flags}g`;
   const scanner = new RegExp(regex.source, flags);
@@ -968,7 +1010,11 @@ export class MCPSecurityAgent extends BaseAgent {
     for (const incoming of candidates) {
       if (incoming[1] && !isOAuthTokenName(incoming[1])) continue;
       const scope = sourceScopeContaining(content, code, language, scopes, incoming.index, incoming.index + incoming[0].length);
-      if (!scope || seenScopes.has(scope.start)) continue;
+      if (
+        !scope
+        || !isMcpOAuthSourceScope(source.structuralCode, language, scope, scopes, 'function')
+        || seenScopes.has(scope.start)
+      ) continue;
 
       const scopeContent = code.slice(scope.start, scope.end);
       const mitigationContent = maskStrings(scopeContent, false, language);
@@ -1070,9 +1116,24 @@ export class MCPSecurityAgent extends BaseAgent {
     const reportedScopes = new Set();
 
     for (const flowMatch of codeFlows) {
-      const scope = objectScopeContaining(code, objectScopes, flowMatch.index, flowMatch.index, language, source.structuralCode)
+      const objectScope = objectScopeContaining(
+        code,
+        objectScopes,
+        flowMatch.index,
+        flowMatch.index,
+        language,
+        source.structuralCode,
+      );
+      const scope = objectScope
         || sourceScopeContaining(content, code, language, functionScopes, flowMatch.index, flowMatch.index + flowMatch[0].length);
       if (!scope) continue;
+      if (!isMcpOAuthSourceScope(
+        source.structuralCode,
+        language,
+        scope,
+        functionScopes,
+        objectScope ? 'object' : 'function',
+      )) continue;
 
       const scopeContent = code.slice(scope.start, scope.end);
       const mitigationContent = maskStrings(scopeContent, true, language);

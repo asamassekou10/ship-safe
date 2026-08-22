@@ -449,6 +449,114 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_UPSTREAM_TOKEN_PASSTHROUGH').length, 0);
   });
 
+  it('does not report unrelated OAuth helpers in an MCP-containing source file', async () => {
+    const cases = [
+      {
+        name: 'JavaScript',
+        ext: '.js',
+        code: `
+          import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+          const server = new McpServer({ name: 'demo', version: '1.0.0' });
+
+          function unrelatedOAuth(request) {
+            const token = request.headers.authorization;
+            jwt.verify(token, key);
+            const oauth = {
+              response_type: 'code',
+              authorization_endpoint: 'https://idp.example.com/authorize',
+              token_endpoint: 'https://idp.example.com/token',
+            };
+            return fetch('https://api.example.com', {
+              headers: { Authorization: token },
+            });
+          }
+        `,
+      },
+      {
+        name: 'Python',
+        ext: '.py',
+        code: `
+          from mcp.server.fastmcp import FastMCP
+          import jwt
+          import requests
+
+          mcp = FastMCP('demo')
+
+          def unrelated_oauth(request):
+              token = request.headers.get('Authorization')
+              jwt.decode(token, key)
+              oauth = {'response_type': 'code', 'authorization_endpoint': 'https://idp.example.com/authorize', 'token_endpoint': 'https://idp.example.com/token'}
+              return requests.get('https://api.example.com', headers={'Authorization': token})
+        `,
+      },
+      {
+        name: 'Ruby',
+        ext: '.rb',
+        code: `
+          require 'mcp'
+          require 'net/http'
+          MCPServer.new
+
+          def unrelated_oauth(request)
+            token = request['authorization']
+            JWT.decode(token, key)
+            oauth = { response_type: 'code', authorization_endpoint: 'https://idp.example.com/authorize', token_endpoint: 'https://idp.example.com/token' }
+            Net::HTTP.get(URI('https://api.example.com'))
+          end
+        `,
+      },
+      {
+        name: 'Go',
+        ext: '.go',
+        code: `
+          package main
+
+          import (
+            "net/http"
+            mcp "github.com/modelcontextprotocol/go-sdk/mcp"
+          )
+
+          var server = mcp.NewServer()
+
+          func unrelatedOAuth(w http.ResponseWriter, r *http.Request) {
+            token := r.Header.Get("Authorization")
+            jwt.Verify(token, key)
+            oauth := map[string]string{"response_type": "code", "authorization_endpoint": "https://idp.example.com/authorize", "token_endpoint": "https://idp.example.com/token"}
+            http.Get("https://api.example.com")
+          }
+        `,
+      },
+    ];
+
+    for (const testCase of cases) {
+      const findings = await scan(testCase.code, testCase.ext);
+      const oauthRules = new Set([
+        'MCP_TOKEN_AUDIENCE_UNVALIDATED',
+        'MCP_OAUTH_NO_PKCE',
+      ]);
+      assert.equal(
+        findings.filter((finding) => oauthRules.has(finding.rule)).length,
+        0,
+        testCase.name,
+      );
+    }
+  });
+
+  it('does not report an unrelated top-level JavaScript OAuth object', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+      const server = new McpServer({ name: 'demo', version: '1.0.0' });
+
+      const unrelatedOAuth = {
+        response_type: 'code',
+        authorization_endpoint: 'https://idp.example.com/authorize',
+        token_endpoint: 'https://idp.example.com/token',
+      };
+    `);
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 0);
+  });
+
   it('flags a static OAuth client id combined with dynamic registration', async () => {
     const findings = await scan(`
       import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -520,6 +628,7 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
       "  authorization_endpoint: 'https://idp.example.com/authorize',",
       "  token_endpoint: 'https://idp.example.com/token',",
       '};',
+      "server.tool('oauth', () => oauth);",
     ].join('\n'));
 
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_STATIC_CLIENT_ID_DYNAMIC_REG').length, 0);
@@ -537,6 +646,7 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
         authorization_endpoint: 'https://idp.example.com/authorize',
         token_endpoint: 'https://idp.example.com/token',
       };
+      server.tool('oauth', () => oauth);
     `);
 
     const hits = findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE');
@@ -556,6 +666,7 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
         authorization_endpoint: 'https://idp.example.com/authorize',
         token_endpoint: 'https://idp.example.com/token',
       };
+      server.tool('oauth', () => oauth);
     `);
 
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 1);
@@ -572,6 +683,8 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
         authorization_endpoint: 'https://idp.example.com/authorize',
         token_endpoint: 'https://idp.example.com/token',
       };
+      server.tool('safe', () => safeFlow);
+      server.tool('unsafe', () => unsafeFlow);
     `);
 
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 1);
@@ -583,6 +696,7 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
 
       const server = new McpServer({ name: 'oauth-proxy', version: '1.0.0' });
       const oauth = { response_type: 'code' }; // PKCE will be added later
+      server.tool('oauth', () => oauth);
     `);
 
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 1);
@@ -599,6 +713,7 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
         token_endpoint: 'https://idp.example.com/token',
         note: 'code_challenge will be added',
       };
+      server.tool('oauth', () => oauth);
     `);
 
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 1);
@@ -615,6 +730,7 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
         token_endpoint: 'https://idp.example.com/token',
         note: 'pkce: true',
       };
+      server.tool('oauth', () => oauth);
     `);
 
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 1);
@@ -631,6 +747,7 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
         token_endpoint: 'https://idp.example.com/token',
         note: 'pkce: false',
       };
+      server.tool('oauth', () => oauth);
     `);
 
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 1);
@@ -642,6 +759,7 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
 
       const server = new McpServer({ name: 'oauth-proxy', version: '1.0.0' });
       const oauth = { response_type: 'code', use_pkce: false };
+      server.tool('oauth', () => oauth);
     `);
 
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 1);
@@ -654,6 +772,7 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
 
         const server = new McpServer({ name: 'oauth-proxy', version: '1.0.0' });
         const oauth = { response_type: 'code', ${setting} };
+        server.tool('oauth', () => oauth);
       `);
 
       assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 1, setting);
@@ -998,6 +1117,7 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
           import jwt
 
           mcp = FastMCP('demo')
+          @mcp.tool()
           def profile(request):
               token = request.headers.get('Authorization')
               claims = jwt.decode(token, key)
