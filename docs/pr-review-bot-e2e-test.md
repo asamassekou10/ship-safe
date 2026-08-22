@@ -15,3 +15,5 @@ Final end-to-end verification after the clean deployment.
 Final production runtime verification after the dependency tracing fix.
 
 Final production verification after aligning the audit command flags.
+
+Final verification for report-aware handling of below-threshold audit exits.
