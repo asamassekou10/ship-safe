@@ -308,9 +308,42 @@ function isOAuthTokenName(name) {
 
 function sourceLineHelpers(content) {
   const lines = content.split('\n');
-  const lineNumber = (index) => content.slice(0, index).split('\n').length;
+  const lineStarts = [0];
+  for (let index = 0; index < content.length; index += 1) {
+    if (content[index] === '\n') lineStarts.push(index + 1);
+  }
+
+  const lineNumber = (index) => {
+    let low = 0;
+    let high = lineStarts.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1;
+      if (lineStarts[middle] <= index) low = middle + 1;
+      else high = middle;
+    }
+    return low;
+  };
   const lineText = (index) => (lines[lineNumber(index) - 1] || '').trim().slice(0, 180);
   return { lineNumber, lineText };
+}
+
+function createSourceContext(filePath, content) {
+  const language = languageOf(filePath);
+  const code = content && stripComments(content, language);
+  return {
+    content,
+    language,
+    code,
+    structuralCode: code && MCP_OAUTH_MARKER.test(code)
+      ? maskStrings(code, false, language)
+      : null,
+    lineHelpers: null,
+  };
+}
+
+function sourceLineHelpersFor(source) {
+  if (!source.lineHelpers) source.lineHelpers = sourceLineHelpers(source.content);
+  return source.lineHelpers;
 }
 
 function createStaticClientIdDynamicRegFinding({ file, line, category, matched }) {
@@ -469,8 +502,8 @@ function maskStrings(content, preserveObjectKeys = false, language = 'js') {
   return output.join('');
 }
 
-function findBracePairs(content, language) {
-  const code = maskStrings(stripComments(content, language), false, language);
+function findBracePairs(content, language, structuralCode = null) {
+  const code = structuralCode ?? maskStrings(stripComments(content, language), false, language);
   const stack = [];
   const pairs = [];
 
@@ -485,7 +518,7 @@ function findBracePairs(content, language) {
   return pairs;
 }
 
-function sourceFunctionScopes(content, language) {
+function sourceFunctionScopes(content, language, structuralCode = null) {
   if (language === 'python' || language === 'ruby') {
     const lines = content.split('\n');
     const offsets = [];
@@ -531,8 +564,8 @@ function sourceFunctionScopes(content, language) {
     return scopes;
   }
 
-  const code = maskStrings(stripComments(content, language), false, language);
-  return findBracePairs(content, language)
+  const code = structuralCode ?? maskStrings(stripComments(content, language), false, language);
+  return findBracePairs(content, language, code)
     .filter(({ start }) => isFunctionBrace(code, start, language));
 }
 
@@ -542,9 +575,9 @@ function isFunctionBrace(code, start, language) {
   return language === 'js' && /\bfunction\b[\s\S]{0,160}$|=>\s*$/.test(prefix);
 }
 
-function sourceObjectScopes(content, language) {
-  const code = maskStrings(stripComments(content, language), false, language);
-  return findBracePairs(content, language)
+function sourceObjectScopes(content, language, structuralCode = null) {
+  const code = structuralCode ?? maskStrings(stripComments(content, language), false, language);
+  return findBracePairs(content, language, code)
     .filter(({ start }) => !isFunctionBrace(code, start, language));
 }
 
@@ -557,16 +590,16 @@ function braceDepthAt(code, scope, index) {
   return depth;
 }
 
-function objectScopeContaining(code, scopes, firstIndex, secondIndex, language = 'js') {
-  const structuralCode = maskStrings(code, false, language);
+function objectScopeContaining(code, scopes, firstIndex, secondIndex, language = 'js', structuralCode = null) {
+  const structuralView = structuralCode ?? maskStrings(code, false, language);
   return scopes
     .filter((scope) => (
       scope.start <= firstIndex
       && firstIndex < scope.end
       && scope.start <= secondIndex
       && secondIndex < scope.end
-      && braceDepthAt(structuralCode, scope, firstIndex) === 1
-      && braceDepthAt(structuralCode, scope, secondIndex) === 1
+      && braceDepthAt(structuralView, scope, firstIndex) === 1
+      && braceDepthAt(structuralView, scope, secondIndex) === 1
     ))
     .sort((left, right) => (left.end - left.start) - (right.end - right.start))[0] || null;
 }
@@ -708,11 +741,12 @@ export class MCPSecurityAgent extends BaseAgent {
     });
 
     for (const file of codeFiles) {
-      findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS));
-      findings = findings.concat(this._checkOAuthTokenPassthrough(file));
-      findings = findings.concat(this._checkOAuthAudienceValidation(file));
-      findings = findings.concat(this._checkOAuthConfusedDeputy(file));
-      findings = findings.concat(this._checkOAuthPkce(file));
+      const source = createSourceContext(file, this.readFile(file));
+      findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS, source.content));
+      findings = findings.concat(this._checkOAuthTokenPassthrough(file, source));
+      findings = findings.concat(this._checkOAuthAudienceValidation(file, source));
+      findings = findings.concat(this._checkOAuthConfusedDeputy(file, source));
+      findings = findings.concat(this._checkOAuthPkce(file, source));
     }
 
     // ── 2. Scan MCP config files ─────────────────────────────────────────
@@ -767,25 +801,25 @@ export class MCPSecurityAgent extends BaseAgent {
    * its own shape so a JavaScript expression cannot report on Python, Ruby,
    * or Go by accident (issue #105).
    */
-  _checkOAuthTokenPassthrough(filePath) {
+  _checkOAuthTokenPassthrough(filePath, preparedSource = null) {
     const language = languageOf(filePath);
     const shape = MCP_OAUTH_SHAPES[language];
     if (!shape) return [];
 
-    const content = this.readFile(filePath);
-    const code = content && stripComments(content, language);
+    const source = preparedSource || createSourceContext(filePath, this.readFile(filePath));
+    const { content, code } = source;
     if (!code || !MCP_OAUTH_MARKER.test(code)) {
       return [];
     }
 
-    const scopes = sourceFunctionScopes(content, language);
+    const scopes = sourceFunctionScopes(content, language, source.structuralCode);
     const inboundCandidates = allRegexMatches(shape.inboundToken, code);
     const directCandidates = allRegexMatches(shape.directToken, code)
       .filter((direct) => !inboundCandidates.some((inbound) => (
         inbound.index <= direct.index && direct.index < inbound.index + inbound[0].length
       )));
     const outbound = shape.outboundRequest;
-    const { lineNumber, lineText } = sourceLineHelpers(content);
+    const { lineNumber, lineText } = sourceLineHelpersFor(source);
     const makeFinding = (requestIndex) => {
       if (this.isSuppressed(lineText(requestIndex), 'high')) return null;
 
@@ -854,18 +888,18 @@ export class MCPSecurityAgent extends BaseAgent {
    * server itself. Token exchange is a valid alternative because it mints a
    * new token for the downstream audience.
    */
-  _checkOAuthAudienceValidation(filePath) {
-    const shape = MCP_OAUTH_SHAPES[languageOf(filePath)];
+  _checkOAuthAudienceValidation(filePath, preparedSource = null) {
+    const language = languageOf(filePath);
+    const shape = MCP_OAUTH_SHAPES[language];
     if (!shape) return [];
 
-    const content = this.readFile(filePath);
-    const language = languageOf(filePath);
-    const code = content && stripComments(content, language);
+    const source = preparedSource || createSourceContext(filePath, this.readFile(filePath));
+    const { content, code } = source;
     if (!code || !MCP_OAUTH_MARKER.test(code)) {
       return [];
     }
 
-    const scopes = sourceFunctionScopes(content, language);
+    const scopes = sourceFunctionScopes(content, language, source.structuralCode);
     const inboundCandidates = allRegexMatches(shape.inboundToken, code);
     const directCandidates = allRegexMatches(shape.directToken, code)
       .filter((direct) => !inboundCandidates.some((inbound) => (
@@ -875,7 +909,7 @@ export class MCPSecurityAgent extends BaseAgent {
       .sort((left, right) => left.index - right.index);
     const audienceValidation = shape.audienceValidation;
     const tokenExchange = MCP_OAUTH_TOKEN_EXCHANGE;
-    const { lineNumber, lineText } = sourceLineHelpers(content);
+    const { lineNumber, lineText } = sourceLineHelpersFor(source);
     const findings = [];
     const seenScopes = new Set();
 
@@ -926,26 +960,26 @@ export class MCPSecurityAgent extends BaseAgent {
    * Detect a static OAuth client id used alongside dynamic client
    * registration in an MCP proxy.
    */
-  _checkOAuthConfusedDeputy(filePath) {
+  _checkOAuthConfusedDeputy(filePath, preparedSource = null) {
     const language = languageOf(filePath);
     const shape = MCP_OAUTH_SHAPES[language];
     if (!shape) return [];
 
-    const content = this.readFile(filePath);
-    const code = content && stripComments(content, language);
+    const source = preparedSource || createSourceContext(filePath, this.readFile(filePath));
+    const { content, code } = source;
     if (!code || !MCP_OAUTH_MARKER.test(code)) {
       return [];
     }
 
-    const objectScopes = sourceObjectScopes(content, language);
+    const objectScopes = sourceObjectScopes(content, language, source.structuralCode);
     const clients = allRegexMatches(shape.staticClientId, code);
     const registrations = allRegexMatches(MCP_OAUTH_DYNAMIC_REGISTRATION, code);
-    const { lineNumber, lineText } = sourceLineHelpers(content);
+    const { lineNumber, lineText } = sourceLineHelpersFor(source);
 
     for (const client of clients) {
       if (/\$\{|\b(?:process\.env|os\.environ|getenv|ENV\[|os\.Getenv)\b/i.test(client[2])) continue;
       for (const registration of registrations) {
-        const scope = objectScopeContaining(code, objectScopes, client.index, registration.index, language);
+        const scope = objectScopeContaining(code, objectScopes, client.index, registration.index, language, source.structuralCode);
         if (!scope || this.isSuppressed(lineText(client.index), 'high')) continue;
 
         return [createStaticClientIdDynamicRegFinding({
@@ -963,27 +997,27 @@ export class MCPSecurityAgent extends BaseAgent {
   /**
    * Detect an OAuth authorization-code flow that does not use PKCE.
    */
-  _checkOAuthPkce(filePath) {
+  _checkOAuthPkce(filePath, preparedSource = null) {
     const language = languageOf(filePath);
     const shape = MCP_OAUTH_SHAPES[language];
     if (!shape) return [];
 
-    const content = this.readFile(filePath);
-    const code = content && stripComments(content, language);
+    const source = preparedSource || createSourceContext(filePath, this.readFile(filePath));
+    const { content, code } = source;
     if (!code || !MCP_OAUTH_MARKER.test(code)) {
       return [];
     }
 
-    const objectScopes = sourceObjectScopes(content, language);
-    const functionScopes = sourceFunctionScopes(content, language);
+    const objectScopes = sourceObjectScopes(content, language, source.structuralCode);
+    const functionScopes = sourceFunctionScopes(content, language, source.structuralCode);
     const codeFlows = allRegexMatches(shape.codeFlow, code);
     const pkce = MCP_OAUTH_PKCE;
-    const { lineNumber, lineText } = sourceLineHelpers(content);
+    const { lineNumber, lineText } = sourceLineHelpersFor(source);
     const findings = [];
     const reportedScopes = new Set();
 
     for (const flowMatch of codeFlows) {
-      const scope = objectScopeContaining(code, objectScopes, flowMatch.index, flowMatch.index, language)
+      const scope = objectScopeContaining(code, objectScopes, flowMatch.index, flowMatch.index, language, source.structuralCode)
         || sourceScopeContaining(content, code, language, functionScopes, flowMatch.index, flowMatch.index + flowMatch[0].length);
       if (!scope) continue;
 
