@@ -382,7 +382,8 @@ function stripComments(content, language) {
     }
 
     if (state === 'string') {
-      if (char === '\\') {
+      const isGoRawString = language === 'go' && quote === '`';
+      if (char === '\\' && !isGoRawString) {
         index += 1;
       } else if (char === quote) {
         state = 'code';
@@ -413,7 +414,7 @@ function stripComments(content, language) {
       continue;
     }
 
-    if (char === '\'' || char === '"' || (language === 'js' && char === '`')) {
+    if (char === '\'' || char === '"' || ((language === 'js' || language === 'go' || language === 'ruby') && char === '`')) {
       quote = char;
       state = 'string';
     }
@@ -422,7 +423,7 @@ function stripComments(content, language) {
   return output.join('');
 }
 
-function maskStrings(content, preserveObjectKeys = false) {
+function maskStrings(content, preserveObjectKeys = false, language = 'js') {
   const output = [...content];
   let state = 'code';
   let quote = '';
@@ -438,12 +439,14 @@ function maskStrings(content, preserveObjectKeys = false) {
   for (let index = 0; index < content.length; index += 1) {
     const char = content[index];
     if (state === 'string') {
-      if (char === '\\') {
+      const isGoRawString = language === 'go' && quote === '`';
+      if (char === '\\' && !isGoRawString) {
         index += 1;
       } else if (char === quote) {
         let next = index + 1;
         while (next < content.length && /\s/.test(content[next])) next += 1;
-        if (!preserveObjectKeys || content[next] !== ':') blankRange(stringStart, index);
+        const isRubyHashKey = language === 'ruby' && content[next] === '=' && content[next + 1] === '>';
+        if (!preserveObjectKeys || (content[next] !== ':' && !isRubyHashKey)) blankRange(stringStart, index);
         blank(index);
         state = 'code';
         quote = '';
@@ -467,7 +470,7 @@ function maskStrings(content, preserveObjectKeys = false) {
 }
 
 function findBracePairs(content, language) {
-  const code = maskStrings(stripComments(content, language));
+  const code = maskStrings(stripComments(content, language), false, language);
   const stack = [];
   const pairs = [];
 
@@ -528,7 +531,7 @@ function sourceFunctionScopes(content, language) {
     return scopes;
   }
 
-  const code = maskStrings(stripComments(content, language));
+  const code = maskStrings(stripComments(content, language), false, language);
   return findBracePairs(content, language)
     .filter(({ start }) => isFunctionBrace(code, start, language));
 }
@@ -540,7 +543,7 @@ function isFunctionBrace(code, start, language) {
 }
 
 function sourceObjectScopes(content, language) {
-  const code = maskStrings(stripComments(content, language));
+  const code = maskStrings(stripComments(content, language), false, language);
   return findBracePairs(content, language)
     .filter(({ start }) => !isFunctionBrace(code, start, language));
 }
@@ -554,8 +557,8 @@ function braceDepthAt(code, scope, index) {
   return depth;
 }
 
-function objectScopeContaining(code, scopes, firstIndex, secondIndex) {
-  const structuralCode = maskStrings(code);
+function objectScopeContaining(code, scopes, firstIndex, secondIndex, language = 'js') {
+  const structuralCode = maskStrings(code, false, language);
   return scopes
     .filter((scope) => (
       scope.start <= firstIndex
@@ -634,7 +637,7 @@ function allRegexMatches(regex, content) {
   return matches;
 }
 
-function isQuotedObjectKeyAt(content, index) {
+function isQuotedObjectKeyAt(content, index, language = 'js') {
   const quote = content[index];
   if (quote !== '\'' && quote !== '"') return false;
 
@@ -651,14 +654,15 @@ function isQuotedObjectKeyAt(content, index) {
 
   let next = end + 1;
   while (next < content.length && /\s/.test(content[next])) next += 1;
-  return content[next] === ':';
+  return content[next] === ':'
+    || (language === 'ruby' && content[next] === '=' && content[next + 1] === '>');
 }
 
-function hasExplicitNoPkce(content) {
-  const masked = maskStrings(content);
+function hasExplicitNoPkce(content, language = 'js') {
+  const masked = maskStrings(content, false, language);
   return allRegexMatches(MCP_OAUTH_EXPLICIT_NO_PKCE, content).some((match) => (
     masked[match.index] === content[match.index]
-    || isQuotedObjectKeyAt(content, match.index)
+    || isQuotedObjectKeyAt(content, match.index, language)
   ));
 }
 
@@ -881,7 +885,7 @@ export class MCPSecurityAgent extends BaseAgent {
       if (!scope || seenScopes.has(scope.start)) continue;
 
       const scopeContent = code.slice(scope.start, scope.end);
-      const mitigationContent = maskStrings(scopeContent);
+      const mitigationContent = maskStrings(scopeContent, false, language);
       const hasAudienceValidation = hasTokenRelatedMitigation(
         mitigationContent,
         incoming[1],
@@ -941,7 +945,7 @@ export class MCPSecurityAgent extends BaseAgent {
     for (const client of clients) {
       if (/\$\{|\b(?:process\.env|os\.environ|getenv|ENV\[|os\.Getenv)\b/i.test(client[2])) continue;
       for (const registration of registrations) {
-        const scope = objectScopeContaining(code, objectScopes, client.index, registration.index);
+        const scope = objectScopeContaining(code, objectScopes, client.index, registration.index, language);
         if (!scope || this.isSuppressed(lineText(client.index), 'high')) continue;
 
         return [createStaticClientIdDynamicRegFinding({
@@ -979,13 +983,13 @@ export class MCPSecurityAgent extends BaseAgent {
     const reportedScopes = new Set();
 
     for (const flowMatch of codeFlows) {
-      const scope = objectScopeContaining(code, objectScopes, flowMatch.index, flowMatch.index)
+      const scope = objectScopeContaining(code, objectScopes, flowMatch.index, flowMatch.index, language)
         || sourceScopeContaining(content, code, language, functionScopes, flowMatch.index, flowMatch.index + flowMatch[0].length);
       if (!scope) continue;
 
       const scopeContent = code.slice(scope.start, scope.end);
-      const mitigationContent = maskStrings(scopeContent, true);
-      if (pkce.test(mitigationContent) && !hasExplicitNoPkce(scopeContent)) continue;
+      const mitigationContent = maskStrings(scopeContent, true, language);
+      if (pkce.test(mitigationContent) && !hasExplicitNoPkce(scopeContent, language)) continue;
       if (reportedScopes.has(scope.start)) continue;
       if (this.isSuppressed(lineText(flowMatch.index), 'high')) continue;
       reportedScopes.add(scope.start);
@@ -1020,7 +1024,7 @@ export class MCPSecurityAgent extends BaseAgent {
     for (const client of clients) {
       if (/\$\{|\b(?:process\.env|os\.environ|getenv|ENV\[|os\.Getenv)\b/i.test(client[2])) continue;
       const registration = registrations.find((candidate) => (
-        objectScopeContaining(code, objectScopes, client.index, candidate.index)
+        objectScopeContaining(code, objectScopes, client.index, candidate.index, 'js')
       ));
       if (!registration || this.isSuppressed(lineText(client.index), 'high')) continue;
 
@@ -1035,12 +1039,12 @@ export class MCPSecurityAgent extends BaseAgent {
 
     const reportedScopes = new Set();
     for (const flowMatch of allRegexMatches(MCP_OAUTH_SHAPES.js.codeFlow, code)) {
-      const scope = objectScopeContaining(code, objectScopes, flowMatch.index, flowMatch.index);
+      const scope = objectScopeContaining(code, objectScopes, flowMatch.index, flowMatch.index, 'js');
       if (!scope || reportedScopes.has(scope.start)) continue;
 
       const scopeContent = code.slice(scope.start, scope.end);
-      const mitigationContent = maskStrings(scopeContent, true);
-      if (MCP_OAUTH_PKCE.test(mitigationContent) && !hasExplicitNoPkce(scopeContent)) continue;
+      const mitigationContent = maskStrings(scopeContent, true, 'js');
+      if (MCP_OAUTH_PKCE.test(mitigationContent) && !hasExplicitNoPkce(scopeContent, 'js')) continue;
       if (this.isSuppressed(lineText(flowMatch.index), 'high')) continue;
       reportedScopes.add(scope.start);
 

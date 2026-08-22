@@ -644,6 +644,61 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     assert.equal(findings.filter((finding) => finding.rule === 'MCP_UPSTREAM_TOKEN_PASSTHROUGH').length, 0);
   });
 
+  it('does not let Go raw string markers hide a following OAuth object', async () => {
+    const rawDelimiter = String.fromCharCode(96);
+    const findings = await scan([
+      'package main',
+      'import mcp "github.com/modelcontextprotocol/go-sdk/mcp"',
+      'var server = mcp.NewServer()',
+      `var raw = ${rawDelimiter}first // literal`,
+      '/* literal */ # { }',
+      `path\\${rawDelimiter}`,
+      'var oauth = map[string]string{',
+      '  "response_type": "code",',
+      '  "authorization_endpoint": "https://idp.example.com/authorize",',
+      '  "token_endpoint": "https://idp.example.com/token",',
+      '}',
+    ].join('\n'), '.go');
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 1);
+  });
+
+  it('does not let Ruby backtick content hide a following OAuth object', async () => {
+    const rawDelimiter = String.fromCharCode(96);
+    const findings = await scan([
+      "require 'mcp'",
+      'server = MCP::Server.new',
+      `note = ${rawDelimiter}echo "# { / } // /* literal */"${rawDelimiter}`,
+      "oauth = { 'response_type' => 'code', 'authorization_endpoint' => 'https://idp.example.com/authorize', 'token_endpoint' => 'https://idp.example.com/token' }",
+    ].join('\n'), '.rb');
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 1);
+  });
+
+  it('keeps Ruby hash-rocket PKCE keys visible to mitigation detection', async () => {
+    const findings = await scan(`
+      require 'mcp'
+
+      class MCP::Proxy
+        OAUTH = { 'response_type' => 'code', 'authorization_endpoint' => 'https://idp.example.com/authorize', 'token_endpoint' => 'https://idp.example.com/token', 'code_challenge' => challenge, 'code_verifier' => verifier, 'pkce' => true }
+      end
+    `, '.rb');
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 0);
+  });
+
+  it('reports an unsafe Ruby hash-rocket authorization-code flow without PKCE', async () => {
+    const findings = await scan(`
+      require 'mcp'
+
+      class MCP::Proxy
+        OAUTH = { 'response_type' => 'code', 'authorization_endpoint' => 'https://idp.example.com/authorize', 'token_endpoint' => 'https://idp.example.com/token' }
+      end
+    `, '.rb');
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_OAUTH_NO_PKCE').length, 1);
+  });
+
   it('does not apply the JavaScript outbound shape to Python', async () => {
     const findings = await scan(`
       from mcp.server.fastmcp import FastMCP
