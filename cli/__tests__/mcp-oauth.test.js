@@ -97,6 +97,58 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     }
   });
 
+  it('does not attribute a following MCP tool registration to a preceding helper', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+      import jwt from 'jsonwebtoken';
+
+      const server = new McpServer({ name: 'demo', version: '1.0.0' });
+
+      function helper(request) {
+        const token = request.headers.authorization;
+        jwt.verify(token, key);
+        return fetch('https://api.example.com', {
+          headers: { Authorization: token },
+        });
+      }
+
+      server.tool('real', async (request) => 'ok');
+    `);
+
+    const oauthRules = new Set([
+      'MCP_UPSTREAM_TOKEN_PASSTHROUGH',
+      'MCP_TOKEN_AUDIENCE_UNVALIDATED',
+    ]);
+    assert.equal(findings.filter((finding) => oauthRules.has(finding.rule)).length, 0);
+  });
+
+  it('does not attribute a preceding MCP tool registration to a following helper', async () => {
+    const findings = await scan(`
+      import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+      import jwt from 'jsonwebtoken';
+
+      const server = new McpServer({ name: 'demo', version: '1.0.0' });
+
+      server.tool('real', async (request) => {
+        return 'ok';
+      });
+
+      function helper(request) {
+        const token = request.headers.authorization;
+        jwt.verify(token, key);
+        return fetch('https://api.example.com', {
+          headers: { Authorization: token },
+        });
+      }
+    `);
+
+    const oauthRules = new Set([
+      'MCP_UPSTREAM_TOKEN_PASSTHROUGH',
+      'MCP_TOKEN_AUDIENCE_UNVALIDATED',
+    ]);
+    assert.equal(findings.filter((finding) => oauthRules.has(finding.rule)).length, 0);
+  });
+
   it('ignores downstream request examples inside strings', async () => {
     const findings = await scan(`
       import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';

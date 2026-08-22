@@ -680,7 +680,7 @@ function sourceScopeContaining(content, code, language, scopes, start, end = sta
   };
 }
 
-function isDirectMcpCallback(callbackHeader) {
+function isDirectMcpCallback(callbackHeader, scopeStart = null, headerStart = 0, scopeIsBrace = false) {
   const functionMatch = allRegexMatches(/\bfunction\b/g, callbackHeader).at(-1);
   const callback = Math.max(
     callbackHeader.lastIndexOf('=>'),
@@ -696,7 +696,35 @@ function isDirectMcpCallback(callbackHeader) {
     if (callbackHeader[index] === '{') braces += 1;
     if (callbackHeader[index] === '}') braces -= 1;
   }
-  return parentheses === 1 && braces === 0;
+  if (parentheses !== 1 || braces !== 0) return false;
+  if (scopeStart === null) return true;
+
+  let callbackBodyStart = -1;
+  if (callbackHeader.startsWith('=>', callback)) {
+    callbackBodyStart = callback + 2;
+    while (/\s/.test(callbackHeader[callbackBodyStart] || '')) callbackBodyStart += 1;
+    if (callbackHeader[callbackBodyStart] !== '{') callbackBodyStart = -1;
+  } else {
+    let parameterDepth = 0;
+    let sawParameters = false;
+    for (let index = callback; index < callbackHeader.length; index += 1) {
+      if (callbackHeader[index] === '(') {
+        parameterDepth += 1;
+        sawParameters = true;
+      } else if (callbackHeader[index] === ')' && sawParameters) {
+        parameterDepth -= 1;
+        if (parameterDepth === 0) {
+          callbackBodyStart = index + 1;
+          while (/\s/.test(callbackHeader[callbackBodyStart] || '')) callbackBodyStart += 1;
+          if (callbackHeader[callbackBodyStart] !== '{') callbackBodyStart = -1;
+          break;
+        }
+      }
+    }
+  }
+
+  if (scopeIsBrace && callbackBodyStart === -1) return false;
+  return callbackBodyStart === -1 || headerStart + callbackBodyStart === scopeStart;
 }
 
 function pythonMcpToolDecoratorReceiver(code, scope) {
@@ -730,12 +758,18 @@ function isMcpToolHandlerScope(code, scope, language) {
 
   if (language !== 'js') return false;
 
-  const prefix = code.slice(Math.max(0, scope.start - 320), scope.start);
+  const prefixStart = Math.max(0, scope.start - 320);
+  const prefix = code.slice(prefixStart, Math.min(code.length, scope.start + 1));
   const registrations = allRegexMatches(MCP_TOOL_REGISTRATION, prefix);
   if (registrations.length) {
     const registration = registrations.at(-1);
     const callbackHeader = prefix.slice(registration.index);
-    return isDirectMcpCallback(callbackHeader);
+    return isDirectMcpCallback(
+      callbackHeader,
+      scope.start,
+      prefixStart + registration.index,
+      code[scope.start] === '{',
+    );
   }
 
   const localHeader = code.slice(scope.start, Math.min(code.length, scope.start + 320));
@@ -743,7 +777,12 @@ function isMcpToolHandlerScope(code, scope, language) {
   if (!localRegistration) return false;
 
   const callbackHeader = localHeader.slice(localRegistration.index);
-  return isDirectMcpCallback(callbackHeader);
+  return isDirectMcpCallback(
+    callbackHeader,
+    scope.start,
+    scope.start + localRegistration.index,
+    code[scope.start] === '{',
+  );
 }
 
 function isMcpOAuthFunctionScope(code, scope, language) {
