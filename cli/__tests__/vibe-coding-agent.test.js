@@ -34,6 +34,7 @@ afterEach(() => {
 
 describe('VibeCodingAgent SQL interpolation detection', () => {
   it('does not classify an interpolated shell command as SQL injection', async () => {
+    // Shell interpolation belongs to command-injection detection, not SQL detection.
     const findings = await scan('exec(`deploy ${userInput}`);');
 
     assert.equal(
