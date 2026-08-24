@@ -326,13 +326,14 @@ export class BaseAgent {
   /**
    * Scan file lines against an array of regex patterns.
    * Returns findings for every match.
+   * @param {string} [content] — preloaded source content when the caller already has it.
    */
-  scanFileWithPatterns(filePath, patterns) {
-    const content = this.readFile(filePath);
-    if (!content) return [];
+  scanFileWithPatterns(filePath, patterns, content = undefined) {
+    const source = content === undefined ? this.readFile(filePath) : content;
+    if (!source) return [];
 
     const lang = languageOf(filePath);
-    const lines = content.split('\n');
+    const lines = source.split('\n');
     const findings = [];
 
     for (let i = 0; i < lines.length; i++) {
