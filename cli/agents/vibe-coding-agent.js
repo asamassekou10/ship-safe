@@ -174,7 +174,7 @@ const PATTERNS = [
   {
     rule: 'VIBE_NO_PARAMETERIZED_QUERY',
     title: 'Vibe Code: String Concatenation in SQL',
-    regex: /(?:query|execute|raw|exec)\s*\(\s*(?:`[^`]*\$\{|['"][^'"]*['"]\s*\+\s*(?:req|request|body|params|query|input|user|data))/g,
+    regex: /(?:query|execute|raw)\s*\(\s*(?:`(?=[^`]*\b(?:select|insert|update|delete|replace|merge|alter|drop|create|truncate|with)\b)[^`]*\$\{|['"](?=[^'"]*\b(?:select|insert|update|delete|replace|merge|alter|drop|create|truncate|with)\b)[^'"]*['"]\s*\+\s*(?:req|request|body|params|query|input|user|data))/gi,
     severity: 'critical',
     cwe: 'CWE-89',
     owasp: 'A03:2021',
