@@ -59,6 +59,46 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     assert.match(hits[0].description, /audience/i);
   });
 
+  it('flags bearer-token passthrough in a registered Ruby MCP tool block', async () => {
+    const findings = await scan(`
+      require 'mcp'
+      require 'net/http'
+
+      server = MCP::Server.new(name: 'demo')
+      server.define_tool(name: 'search') do |request|
+        token = request['authorization']
+        Net::HTTP.post(uri, body, { 'Authorization' => token })
+      end
+    `, '.rb');
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_UPSTREAM_TOKEN_PASSTHROUGH').length, 1);
+  });
+
+  it('flags bearer-token passthrough in a registered Go MCP tool handler', async () => {
+    const findings = await scan(`
+      package main
+
+      import (
+        "net/http"
+        mcp "github.com/modelcontextprotocol/go-sdk/mcp"
+      )
+
+      var server = mcp.NewServer()
+
+      func search(w http.ResponseWriter, r *http.Request) {
+        token := r.Header.Get("Authorization")
+        downstream, _ := http.NewRequest("GET", apiURL, nil)
+        downstream.Header.Set("Authorization", token)
+      }
+
+      func registerTools() {
+        mcp.AddTool(server, &mcp.Tool{Name: "search"}, search)
+      }
+    `, '.go');
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_UPSTREAM_TOKEN_PASSTHROUGH').length, 1);
+  });
+
   it('flags a direct inbound authorization header passed to fetch', async () => {
     const findings = await scan(`
       import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -250,6 +290,106 @@ describe('MCPSecurityAgent — OAuth security rules', () => {
     assert.equal(hits.length, 1);
     assert.equal(hits[0].severity, 'high');
     assert.match(hits[0].description, /audience/i);
+  });
+
+  it('flags an inbound token in a registered Ruby MCP tool block', async () => {
+    const findings = await scan(`
+      require 'mcp'
+      require 'jwt'
+
+      server = MCP::Server.new(name: 'demo')
+      server.define_tool(name: 'profile') do |request|
+        token = request['authorization']
+        JWT.decode(token, key)
+      end
+    `, '.rb');
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 1);
+  });
+
+  it('accepts audience validation in a registered Ruby MCP tool block', async () => {
+    const findings = await scan(`
+      require 'mcp'
+      require 'jwt'
+
+      server = MCP::Server.new(name: 'demo')
+      server.define_tool(name: 'profile') do |request|
+        token = request['authorization']
+        JWT.decode(token, key, audience: 'mcp-server')
+      end
+    `, '.rb');
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 0);
+  });
+
+  it('flags an inbound token in a named Go MCP tool handler', async () => {
+    const findings = await scan(`
+      package main
+
+      import (
+        "net/http"
+        mcp "github.com/modelcontextprotocol/go-sdk/mcp"
+      )
+
+      var server = mcp.NewServer()
+
+      func profile(w http.ResponseWriter, r *http.Request) {
+        token := r.Header.Get("Authorization")
+        jwt.Parse(token, key)
+      }
+
+      func registerTools() {
+        mcp.AddTool(server, &mcp.Tool{Name: "profile"}, profile)
+      }
+    `, '.go');
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 1);
+  });
+
+  it('accepts audience validation in a named Go MCP tool handler', async () => {
+    const findings = await scan(`
+      package main
+
+      import (
+        "net/http"
+        mcp "github.com/modelcontextprotocol/go-sdk/mcp"
+      )
+
+      var server = mcp.NewServer()
+
+      func profile(w http.ResponseWriter, r *http.Request) {
+        token := r.Header.Get("Authorization")
+        jwt.ParseWithClaims(token, &claims, key)
+      }
+
+      func registerTools() {
+        mcp.AddTool(server, &mcp.Tool{Name: "profile"}, profile)
+      }
+    `, '.go');
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 0);
+  });
+
+  it('flags an inbound token in an inline Go MCP tool handler', async () => {
+    const findings = await scan(`
+      package main
+
+      import (
+        "net/http"
+        mcp "github.com/modelcontextprotocol/go-sdk/mcp"
+      )
+
+      var server = mcp.NewServer()
+
+      func registerTools() {
+        mcp.AddTool(server, &mcp.Tool{}, func(w http.ResponseWriter, r *http.Request) {
+          token := r.Header.Get("Authorization")
+          jwt.Parse(token, key)
+        })
+      }
+    `, '.go');
+
+    assert.equal(findings.filter((finding) => finding.rule === 'MCP_TOKEN_AUDIENCE_UNVALIDATED').length, 1);
   });
 
   it('does not let a safe handler hide an unsafe handler audience check', async () => {

@@ -570,6 +570,47 @@ function rubyBlockDepthDelta(line) {
   return opens - closes;
 }
 
+function matchingParenthesisEnd(code, openIndex) {
+  let depth = 0;
+  for (let index = openIndex; index < code.length; index += 1) {
+    if (code[index] === '(') depth += 1;
+    if (code[index] !== ')') continue;
+
+    depth -= 1;
+    if (depth === 0) return index + 1;
+  }
+  return -1;
+}
+
+function rubyMcpServerBindings(code) {
+  return new Set(allRegexMatches(
+    /\b([A-Za-z_]\w*)\s*=\s*MCP::Server\.new\b/g,
+    code,
+  ).map((match) => match[1]));
+}
+
+function rubyMcpToolBlockStarts(code) {
+  const serverBindings = rubyMcpServerBindings(code);
+  const starts = new Set();
+  const registration = /\b(?:(MCP::Tool)\.define|([A-Za-z_]\w*)\.define_tool)\s*\(/g;
+
+  for (const match of allRegexMatches(registration, code)) {
+    const receiver = match[2];
+    if (receiver && !serverBindings.has(receiver)) continue;
+
+    const openIndex = match.index + match[0].lastIndexOf('(');
+    const callEnd = matchingParenthesisEnd(code, openIndex);
+    if (callEnd === -1) continue;
+
+    const block = code.slice(callEnd).match(/^\s*do(?:\s*\|[^|]*\|)?/);
+    if (!block) continue;
+
+    const doIndex = callEnd + block[0].search(/\bdo\b/);
+    starts.add(code.lastIndexOf('\n', doIndex - 1) + 1);
+  }
+  return starts;
+}
+
 function sourceFunctionScopes(content, language, structuralCode = null) {
   if (language === 'python' || language === 'ruby') {
     const lines = content.split('\n');
@@ -583,14 +624,16 @@ function sourceFunctionScopes(content, language, structuralCode = null) {
     }
 
     const scopes = [];
+    const rubyToolBlocks = language === 'ruby' ? rubyMcpToolBlockStarts(scopeCode) : null;
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
       const line = scopeLines[lineIndex];
       const match = language === 'python'
         ? line.match(/^(\s*)(?:async\s+)?def\s+/)
         : line.match(/^(\s*)def\s+/);
-      if (!match) continue;
+      const isRubyToolBlock = rubyToolBlocks?.has(offsets[lineIndex]) ?? false;
+      if (!match && !isRubyToolBlock) continue;
 
-      const indent = match[1].replace(/\t/g, '    ').length;
+      const indent = (match?.[1] ?? line.match(/^\s*/)[0]).replace(/\t/g, '    ').length;
       let endLine = lines.length;
       if (language === 'python') {
         for (let nextLine = lineIndex + 1; nextLine < lines.length; nextLine += 1) {
@@ -756,6 +799,9 @@ function isMcpToolHandlerScope(code, scope, language) {
     return new RegExp(`\\b${receiver}\\s*=\\s*FastMCP\\s*\\(`).test(code);
   }
 
+  if (language === 'ruby') return rubyMcpToolBlockStarts(code).has(scope.start);
+  if (language === 'go') return isGoMcpToolHandlerScope(code, scope);
+
   if (language !== 'js') return false;
 
   const prefixStart = Math.max(0, scope.start - 320);
@@ -785,14 +831,69 @@ function isMcpToolHandlerScope(code, scope, language) {
   );
 }
 
+function goMcpServerBindings(code) {
+  return new Set(allRegexMatches(
+    /\b(?:var\s+)?([A-Za-z_]\w*)\s*(?::=|=)\s*mcp\.NewServer\s*\(/g,
+    code,
+  ).map((match) => match[1]));
+}
+
+function goMcpToolRegistrations(code) {
+  const serverBindings = goMcpServerBindings(code);
+  const registrations = [];
+  const registration = /\b(?:mcp\.AddTool|([A-Za-z_]\w*)\.AddTool)\s*\(/g;
+
+  for (const match of allRegexMatches(registration, code)) {
+    const receiver = match[1];
+    if (receiver && !serverBindings.has(receiver)) continue;
+
+    const openIndex = match.index + match[0].lastIndexOf('(');
+    const callEnd = matchingParenthesisEnd(code, openIndex);
+    if (callEnd === -1) continue;
+
+    const call = code.slice(match.index, callEnd);
+    if (!receiver
+      && ![...serverBindings].some((binding) => new RegExp(`\\b${escapeRegex(binding)}\\b`).test(call))
+      && !/\bmcp\.NewServer\s*\(/.test(call)) {
+      continue;
+    }
+    registrations.push({ start: match.index, end: callEnd, call });
+  }
+  return registrations;
+}
+
+function goFunctionName(code, scope) {
+  const prefix = code.slice(Math.max(0, scope.start - 320), scope.start);
+  return prefix.match(/\bfunc\s+([A-Za-z_]\w*)\s*\([^{}]*$/)?.[1] ?? null;
+}
+
+function isGoMcpToolHandlerScope(code, scope) {
+  const registrations = goMcpToolRegistrations(code);
+  if (registrations.some((registration) => (
+    registration.start <= scope.start && scope.end <= registration.end
+  ))) {
+    return true;
+  }
+
+  const functionName = goFunctionName(code, scope);
+  if (!functionName) return false;
+  const handlerReference = new RegExp(`\\b${escapeRegex(functionName)}\\b`);
+  return registrations.some((registration) => handlerReference.test(registration.call));
+}
+
 function isMcpOAuthFunctionScope(code, scope, language) {
   if (language === 'js' || language === 'python') {
     return isMcpToolHandlerScope(code, scope, language);
   }
 
   const scopeContent = code.slice(scope.start, scope.end);
-  if (language === 'ruby') return /\b(?:MCPServer|MCP(?:::\w+)+)\.new\b/.test(scopeContent);
-  if (language === 'go') return /\bmcp\.NewServer\s*\(/.test(scopeContent);
+  if (language === 'ruby') {
+    return rubyMcpToolBlockStarts(code).has(scope.start)
+      || /\b(?:MCPServer|MCP(?:::\w+)+)\.new\b/.test(scopeContent);
+  }
+  if (language === 'go') {
+    return isGoMcpToolHandlerScope(code, scope) || /\bmcp\.NewServer\s*\(/.test(scopeContent);
+  }
   return false;
 }
 
@@ -1033,7 +1134,7 @@ export class MCPSecurityAgent extends BaseAgent {
       const requestIndex = searchStart + requestMatch.index;
       const requestContext = source.keyCode.slice(requestIndex, Math.min(scope.end, requestIndex + 600));
       const tokenReference = identifierReferenceRegex(tokenName);
-      if (!/(?:authorization|bearer|headers)/i.test(requestContext) || !tokenReference.test(requestContext)) {
+      if (!/(?:authorization|bearer|headers?)/i.test(requestContext) || !tokenReference.test(requestContext)) {
         continue;
       }
 
@@ -1052,7 +1153,7 @@ export class MCPSecurityAgent extends BaseAgent {
       const requestIndex = beforeStart + beforeRequest.index;
 
       const requestContext = source.keyCode.slice(requestIndex, Math.min(scope.end, Math.max(requestIndex + 600, directIndex + directMatch[0].length)));
-      if (!/(?:authorization|bearer|headers)/i.test(requestContext)) continue;
+      if (!/(?:authorization|bearer|headers?)/i.test(requestContext)) continue;
 
       const finding = makeFinding(requestIndex);
       if (finding) return [finding];
