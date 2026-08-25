@@ -3,3 +3,5 @@
 export function evaluateUserInput(input) {
   return eval(input);
 }
+
+export const smokeMarker = 'filtered-tree-v2';
