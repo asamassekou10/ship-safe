@@ -3025,3 +3025,51 @@ describe('Unicode tag detection vs emoji flag sequences', async () => {
     assert.ok((await hits(`${flagOf('gbsct')}${tagged('evil')}`)).length > 0);
   });
 });
+
+describe('AgentConfigScanner — agent-config fixture cohort', async () => {
+  const { AgentConfigScanner } = await import('../agents/agent-config-scanner.js');
+  const fixtureRoot = path.resolve('cli/__tests__/fixtures/agent-config');
+  const fileByRoot = {
+    'vulnerable-cursor': '.cursorrules',
+    'vulnerable-claude': 'CLAUDE.md',
+    'vulnerable-agents': 'AGENTS.md',
+    'safe-cursor': '.cursorrules',
+    'safe-claude': 'CLAUDE.md',
+  };
+  const scan = (agent, name) => {
+    const rootPath = path.join(fixtureRoot, name);
+    const file = path.join(rootPath, fileByRoot[name]);
+    return agent.analyze({ rootPath, files: [file], recon: {}, options: {} });
+  };
+
+  it('detects each deliberately vulnerable configuration root', async () => {
+    const expectedRules = {
+      'vulnerable-cursor': 'AGENT_CFG_EXFIL_URL',
+      'vulnerable-claude': 'AGENT_CFG_DOWNLOAD_EXEC',
+      'vulnerable-agents': 'AGENT_CFG_PROMPT_OVERRIDE',
+    };
+    for (const [name, rule] of Object.entries(expectedRules)) {
+      const findings = await scan(new AgentConfigScanner(), name);
+      assert.ok(findings.some((finding) => finding.rule === rule), `${name} should trigger ${rule}`);
+    }
+  });
+
+  it('stays quiet on both ordinary configuration roots', async () => {
+    for (const name of ['safe-cursor', 'safe-claude']) {
+      assert.equal((await scan(new AgentConfigScanner(), name)).length, 0, `${name} should stay quiet`);
+    }
+  });
+
+  it('preserves detection across repeats and clears findings on root transition', async () => {
+    const agent = new AgentConfigScanner();
+    const first = await scan(agent, 'vulnerable-agents');
+    const repeated = await scan(agent, 'vulnerable-agents');
+    const transitioned = await scan(agent, 'safe-cursor');
+    assert.ok(first.length > 0);
+    assert.deepEqual(
+      repeated.map(({ rule, severity, line }) => ({ rule, severity, line })),
+      first.map(({ rule, severity, line }) => ({ rule, severity, line }))
+    );
+    assert.equal(transitioned.length, 0);
+  });
+});

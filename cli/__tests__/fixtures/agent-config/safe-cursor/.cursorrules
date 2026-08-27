@@ -1,0 +1,4 @@
+# Cursor guidance
+Use the repository's existing style and keep changes focused.
+Read relevant files before editing and run the local test suite after changes.
+Keep credentials in environment variables; never copy their values into source.
