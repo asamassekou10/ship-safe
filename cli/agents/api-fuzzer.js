@@ -94,12 +94,12 @@ const PATTERNS = [
     rule: 'API_UPLOAD_NO_TYPE_CHECK',
     langs: ['js'], // Multer file properties are specific to Node upload middleware.
     title: 'API: File Upload Without Type Validation',
-    // Same failure as API_PATH_IN_FILENAME in 9.6.4: an Express upload rule
-    // matching Python. `filename)` and `filename;` occur in every language that
-    // has a variable called filename — `os.path.basename(filename)` alone
-    // accounted for much of the 104 hits on hermes-agent. Require the multer
-    // property access that marks the value as upload-controlled.
-    regex: /\b(?:file|files\[\d*\]|req\.file|req\.files\[\d*\])\s*\.\s*(?:originalname|filename)\s*(?:\)|;|,|\})/g,
+    // A property named `filename` is common in API payloads (GitHub's file
+    // objects are one example). Only inspect the file values exposed by an
+    // upload handler; the surrounding upload-context check below rejects
+    // ordinary data models and API response objects.
+    regex: /\b(?:file|files\s*\[[^\]\n]+\]|req\s*\.\s*files?\s*(?:\[[^\]\n]+\])?)\s*\.\s*(?:originalname|filename)\b/g,
+    skipComments: true,
     severity: 'high',
     cwe: 'CWE-434',
     owasp: 'A04:2021',
@@ -297,7 +297,11 @@ export class APIFuzzer extends BaseAgent {
 
     let findings = [];
     for (const file of codeFiles) {
-      findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS));
+      const content = this.readFile(file);
+      const patterns = content && /\b(?:multer|formidable|busboy|multiparty)\b|\breq\s*\.\s*files?\b|\b(?:upload|uploader)\s*\.\s*(?:single|array|fields)\s*\(/i.test(content)
+        ? PATTERNS
+        : PATTERNS.filter(pattern => pattern.rule !== 'API_UPLOAD_NO_TYPE_CHECK');
+      findings = findings.concat(this.scanFileWithPatterns(file, patterns, content));
     }
 
     // ── Project-level: Rate limiting check ────────────────────────────────────

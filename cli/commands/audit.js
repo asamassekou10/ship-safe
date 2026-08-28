@@ -25,7 +25,7 @@ import { PolicyEngine } from '../agents/policy-engine.js';
 import { HTMLReporter } from '../agents/html-reporter.js';
 import { SBOMGenerator } from '../agents/sbom-generator.js';
 import { autoDetectProvider } from '../providers/llm-provider.js';
-import { runDepsAudit } from './deps.js';
+import { dependencyName, runDepsAudit } from './deps.js';
 import {
   SECRET_PATTERNS,
   SECURITY_PATTERNS,
@@ -715,7 +715,7 @@ function buildRemediationPlan(findings, depVulns, rootPath) {
         severity: sev,
         category: 'deps',
         categoryLabel: 'DEPENDENCIES',
-        title: `Vulnerable: ${d.package || d.id}`,
+        title: `Vulnerable: ${dependencyName(d)}`,
         file: 'package.json',
         action: d.description ? `${d.description.slice(0, 80)}` : 'Update to patched version',
         effort: 'medium',
@@ -859,7 +859,7 @@ function outputJSON(scoreResult, findings, depVulns, recon, agentResults, remedi
       cwe: f.cwe, owasp: f.owasp,
     })),
     depVulns: depVulns.map(d => ({
-      severity: d.severity, package: d.package || d.id, description: d.description,
+      severity: d.severity, package: dependencyName(d), description: d.description,
     })),
     remediationPlan,
     recon,
@@ -1089,8 +1089,8 @@ function outputCSV(findings, depVulns, scoreResult, rootPath) {
   }
   for (const d of depVulns) {
     console.log([
-      escape(d.severity), 'deps', escape(d.id || d.package),
-      'package.json', '', escape(`Vulnerable: ${d.package || d.id}`),
+      escape(d.severity), 'deps', escape(d.id || dependencyName(d)),
+      'package.json', '', escape(`Vulnerable: ${dependencyName(d)}`),
       escape(d.description), escape('Update to patched version'),
     ].join(','));
   }
@@ -1143,7 +1143,7 @@ function outputMarkdown(scoreResult, findings, depVulns, remediationPlan, rootPa
     lines.push('| Severity | Package | Description |');
     lines.push('|----------|---------|-------------|');
     for (const d of depVulns) {
-      lines.push(`| ${d.severity} | ${d.package || d.id} | ${(d.description || '').slice(0, 80)} |`);
+      lines.push(`| ${d.severity} | ${dependencyName(d)} | ${(d.description || '').slice(0, 80)} |`);
     }
     lines.push('');
   }

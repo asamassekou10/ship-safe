@@ -8,6 +8,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [9.7.6] - 2026-08-28
+
+### Fixed
+- Reduced false positives in authentication rate-limit, file-upload type
+  validation, document.write XSS, SSRF, and typosquat detection.
+- Dependency findings now render a stable package name when the scanner
+  receives a vulnerability record with `name` or only `id`.
+
 ## [9.7.5] - 2026-08-19
 
 ### Added

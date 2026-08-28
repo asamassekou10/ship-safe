@@ -53,9 +53,11 @@ const POPULAR_PACKAGES = [
   'next', 'nuxt', 'svelte', 'vue', 'angular',
 ];
 
-// Well-known packages that happen to be close to other popular names
-// (not typosquats — verified legitimate packages)
+// Exact names in the popular list are legitimate package names, not
+// typosquats of a neighbouring framework. Without this allowlist, `next` is
+// reported as a typo of `nuxt` in an otherwise normal Next.js application.
 const KNOWN_SAFE = new Set([
+  ...POPULAR_PACKAGES,
   'ora', 'got', 'ink', 'yup', 'joi', 'ava', 'tap', 'npm', 'nwb',
   'pug', 'koa', 'hap', 'ejs', 'csv', 'ws', 'pg', 'ms',
 ]);
