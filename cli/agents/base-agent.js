@@ -117,6 +117,62 @@ export function languageOf(filePath) {
   return EXT_LANGUAGE[path.extname(String(filePath || '')).toLowerCase()] || null;
 }
 
+/**
+ * Whether an offset in JavaScript source is inside a string or comment.
+ *
+ * Regex rules often describe a runtime sink, but source code also contains
+ * snippets passed to another runtime (for example, a CDP expression). Treat
+ * those snippets as data for the outer file unless a rule explicitly opts in.
+ * This is intentionally a small lexer rather than a parser: it preserves the
+ * precision boundary needed by lexical rules without pretending to understand
+ * the whole JavaScript grammar.
+ */
+export function isInsideJavaScriptNonCode(source, offset) {
+  let quote = null;
+  let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
+
+  for (let i = 0; i < offset; i += 1) {
+    const char = source[i];
+    const next = source[i + 1];
+
+    if (lineComment) {
+      if (char === '\n') lineComment = false;
+      continue;
+    }
+    if (blockComment) {
+      if (char === '*' && next === '/') {
+        blockComment = false;
+        i += 1;
+      }
+      continue;
+    }
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (char === '/' && next === '/') {
+      lineComment = true;
+      i += 1;
+    } else if (char === '/' && next === '*') {
+      blockComment = true;
+      i += 1;
+    } else if (char === "'" || char === '"' || char === '`') {
+      quote = char;
+    }
+  }
+
+  return Boolean(quote || lineComment || blockComment);
+}
+
 // =============================================================================
 // SUPPRESSION FLOOR
 // =============================================================================
@@ -336,6 +392,7 @@ export class BaseAgent {
     const lines = source.split('\n');
     const findings = [];
 
+    let lineStart = 0;
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       // Suppression is decided per pattern, not per line: the floor depends on
@@ -369,9 +426,20 @@ export class BaseAgent {
           if (!p.regex.global) break;
         }
         if (matches.length === 0) continue;
+
+        const relevantMatches = typeof p.isCodeMatch === 'function'
+          ? matches.filter(match => p.isCodeMatch({
+            source,
+            line,
+            lineIndex: i,
+            sourceOffset: lineStart + match.index,
+            match,
+          }))
+          : matches;
+        if (relevantMatches.length === 0) continue;
         if (lineMarked && this.isSuppressed(line, severity)) continue;
 
-        for (const match of matches) {
+        for (const match of relevantMatches) {
           const finding = createFinding({
             file: filePath,
             line: i + 1,
@@ -402,6 +470,8 @@ export class BaseAgent {
           findings.push(finding);
         }
       }
+
+      lineStart += line.length + 1;
     }
 
     return findings;

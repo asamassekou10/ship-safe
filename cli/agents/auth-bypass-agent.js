@@ -8,7 +8,7 @@
  */
 
 import path from 'path';
-import { BaseAgent, createFinding } from './base-agent.js';
+import { BaseAgent, createFinding, isInsideJavaScriptNonCode } from './base-agent.js';
 
 const PATTERNS = [
   // ── JWT Issues ─────────────────────────────────────────────────────────────
@@ -237,7 +237,13 @@ const PATTERNS = [
   {
     rule: 'NO_RATE_LIMIT_LOGIN',
     title: 'No Rate Limiting on Authentication',
-    regex: /(?<!\w)(?:\/login|\/signin|\/auth|\/register|\/signup|\/reset-password)\s*['"]/g,
+    // A link to /login is navigation, not an authentication endpoint. Require
+    // a mutation route registration so presentational JSX cannot become a
+    // medium-severity auth finding merely by containing an auth URL.
+    regex: /\b(?:app|router|server|fastify)\s*\.\s*(?:post|put|patch|delete|all)\s*\(\s*['"]\/(?:[^'"`/\n]+\/)*(?:login|signin|auth|register|signup|reset-password)(?:\/[^'"`\n]*)?['"]\s*,/gi,
+    langs: ['js'],
+    skipComments: true,
+    isCodeMatch: ({ source, sourceOffset }) => !isInsideJavaScriptNonCode(source, sourceOffset),
     severity: 'medium',
     cwe: 'CWE-307',
     owasp: 'A07:2021',
