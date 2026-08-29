@@ -140,6 +140,14 @@ describe('APIFuzzer scoping', async () => {
     assert.ok(!findings.includes('API_SPREAD_BODY'));
     assert.ok(!findings.includes('API_PATH_IN_FILENAME'));
   });
+
+  it('still catches the debug-endpoint shape on JS', async () => {
+    assert.ok((await hits('app.get("/debug/info", handler);', '.js')).includes('API_DEBUG_ENDPOINT'));
+  });
+
+  it('does not apply the Express route rule to Ruby', async () => {
+    assert.ok(!(await hits('app.get("/debug/info", handler);', '.rb')).includes('API_DEBUG_ENDPOINT'));
+  });
 });
 
 describe('LLMRedTeam scoping', async () => {
