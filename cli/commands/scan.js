@@ -116,7 +116,11 @@ export async function scanCommand(targetPath = '.', options = {}) {
     const files = await findFiles(absolutePath, ignorePatterns, options);
 
     // Cache: determine which files changed
-    const useCache = options.cache !== false;
+    // The cache format stores findings but not the documentation-scope mode.
+    // Never reuse or overwrite it for an opt-in example scan, otherwise an
+    // opt-in run could leak Markdown findings into a later default run (or a
+    // default run could hide them from a later opt-in run).
+    const useCache = options.cache !== false && !options.includeDocExamples;
     const cache = new CacheManager(absolutePath);
     const cacheData = useCache ? cache.load() : null;
     let filesToScan = files;

@@ -9,6 +9,7 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -128,6 +129,35 @@ describe('documentation content scope', () => {
       });
       assert.equal(exampleRun.findings.length, 1);
       assert.equal(exampleRun.findings[0].line, 2);
+    } finally { cleanup(ws.dir); }
+  });
+
+  it('does not mix cached default and opt-in scan modes', () => {
+    const ws = fixture('README.md', [
+      'The prose mentions document.write(userInput).',
+      '```js',
+      'document.write(userInput);',
+      '```',
+    ].join('\n'));
+    const cli = path.resolve('cli/bin/ship-safe.js');
+    const run = (includeDocExamples) => spawnSync(
+      process.execPath,
+      [cli, 'scan', ws.dir, '--json', ...(includeDocExamples ? ['--include-doc-examples'] : [])],
+      { encoding: 'utf8', env: { ...process.env, HOME: '/tmp/fakehome' } },
+    );
+
+    try {
+      const defaultBefore = run(false);
+      assert.equal(defaultBefore.status, 0);
+      assert.equal(JSON.parse(defaultBefore.stdout).totalFindings, 0);
+
+      const optIn = run(true);
+      assert.equal(optIn.status, 1);
+      assert.equal(JSON.parse(optIn.stdout).totalFindings, 1);
+
+      const defaultAfter = run(false);
+      assert.equal(defaultAfter.status, 0);
+      assert.equal(JSON.parse(defaultAfter.stdout).totalFindings, 0);
     } finally { cleanup(ws.dir); }
   });
 });
