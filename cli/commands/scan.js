@@ -34,6 +34,7 @@ import {
   MAX_FILE_SIZE,
   loadGitignorePatterns
 } from '../utils/patterns.js';
+import { isDocumentationFile, markdownCodeLines } from '../utils/content-scope.js';
 import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import * as output from '../utils/output.js';
 import { CacheManager } from '../utils/cache-manager.js';
@@ -156,7 +157,7 @@ export async function scanCommand(targetPath = '.', options = {}) {
     let scannedCount = 0;
 
     for (const file of filesToScan) {
-      const findings = await scanFile(file, allPatterns);
+      const findings = await scanFile(file, allPatterns, options);
       if (findings.length > 0) {
         results.push({ file, findings });
       }
@@ -325,12 +326,16 @@ function isTestFile(filePath) {
 // FILE SCANNING
 // =============================================================================
 
-async function scanFile(filePath, patterns = SECRET_PATTERNS) {
+async function scanFile(filePath, patterns = SECRET_PATTERNS, options = {}) {
   const findings = [];
 
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
     const lines = content.split('\n');
+    const documentation = isDocumentationFile(filePath);
+    const docCodeLines = documentation && options.includeDocExamples
+      ? markdownCodeLines(content)
+      : null;
 
     for (let lineNum = 0; lineNum < lines.length; lineNum++) {
       const line = lines[lineNum];
@@ -339,6 +344,11 @@ async function scanFile(filePath, patterns = SECRET_PATTERNS) {
       if (/ship-safe-ignore/i.test(line)) continue;
 
       for (const pattern of patterns) {
+        // Secrets are meaningful in prose and code examples alike, so they
+        // remain in scope. Vulnerability patterns require deployed-code
+        // context unless the caller explicitly opts into fenced examples.
+        const isVulnerability = pattern.category === 'vulnerability';
+        if (documentation && isVulnerability && !docCodeLines?.has(lineNum)) continue;
         // Reset regex state (important for global regexes)
         pattern.pattern.lastIndex = 0;
 

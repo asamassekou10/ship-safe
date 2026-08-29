@@ -64,6 +64,10 @@ export class Orchestrator {
    * Run a single agent with a timeout.
    */
   async runAgent(agent, context, timeout) {
+    // Make command-level scan options available to the shared BaseAgent
+    // helpers. This keeps doc-example opt-in consistent for agents whose
+    // existing helpers do not otherwise need the full context object.
+    agent.scanOptions = context.options || {};
     return Promise.race([
       agent.analyze(context),
       new Promise((_, reject) => {

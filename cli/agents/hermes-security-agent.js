@@ -900,7 +900,9 @@ export class HermesSecurityAgent extends BaseAgent {
       for (const p of PATTERNS) p.regex.lastIndex = 0;
 
       // Single-line pattern scan
-      findings.push(...this.scanFileWithPatterns(filePath, PATTERNS));
+      // Hermes skills and manifests are security-relevant agent context, not
+      // ordinary project documentation. Keep their full content in scope.
+      findings.push(...this.scanFileWithPatterns(filePath, PATTERNS, undefined, { scope: 'agent-context' }));
       findings.push(...this._checkUnicodeTagSmuggling(filePath));
 
       // Structural checks
