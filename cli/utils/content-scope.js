@@ -62,4 +62,3 @@ export function markdownCodeLines(source) {
 
   return codeLines;
 }
-
