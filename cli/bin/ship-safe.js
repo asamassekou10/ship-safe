@@ -48,6 +48,8 @@ import { openclawCommand } from '../commands/openclaw.js';
 import { scanSkillCommand } from '../commands/scan-skill.js';
 import { scanMcpCommand } from '../commands/scan-mcp.js';
 import { abomCommand } from '../commands/abom.js';
+import { capabilitiesCommand } from '../commands/capabilities.js';
+import { investigateCommand } from '../commands/investigate.js';
 import { aibomCommand } from '../commands/aibom.js';
 import { updateIntelCommand } from '../commands/update-intel.js';
 import { hooksCommand } from '../commands/hooks.js';
@@ -462,6 +464,8 @@ program
   .option('--json', 'JSON output')
   .option('--no-deps', 'Skip dependency audit')
   .option('--baseline', 'Only check new findings (not in baseline)')
+  .option('--base-report <file>', 'Compare against a trusted base-branch JSON report and gate only on introduced findings')
+  .option('--write-baseline-report <file>', 'Write a sanitized finding snapshot for later base/head comparison')
   .option('--github-pr', 'Post findings as a GitHub PR comment (requires gh CLI)')
   .option('--github-inline', 'Post critical/high findings as deduplicated inline PR comments (requires gh CLI)')
   .action(ciCommand);
@@ -514,6 +518,32 @@ program
   .description('Analyze an MCP server\'s tool manifest for security issues before connecting')
   .option('--json', 'Output results as JSON')
   .action(scanMcpCommand);
+
+// -----------------------------------------------------------------------------
+// INVESTIGATE COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('investigate [path]')
+  .description('Scan, then investigate each finding: confirmed, likely, unresolved, or refuted — with the evidence')
+  .option('--all', 'Also detail unresolved and refuted findings')
+  .option('--deep', 'Add the LLM analysis pass')
+  .option('--include-tests', 'Also investigate test and fixture files')
+  .option('--local', 'Use a local Ollama model for the LLM pass')
+  .option('--model <model>', 'LLM model for the deep pass')
+  .option('--provider <name>', 'LLM provider for the deep pass')
+  .option('--budget <cents>', 'Max spend in cents for the deep pass', parseInt)
+  .option('--json', 'Output findings and evidence as JSON')
+  .action(investigateCommand);
+
+// -----------------------------------------------------------------------------
+// CAPABILITIES COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('capabilities [path]')
+  .description('Map what an AI agent working here can reach, and which combinations are dangerous together')
+  .option('--env', 'Include MCP servers configured on this machine, not just in the repo')
+  .option('--json', 'Output the graph, chains, and findings as JSON')
+  .action(capabilitiesCommand);
 
 // -----------------------------------------------------------------------------
 // ABOM COMMAND
