@@ -8,6 +8,61 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **Evidence schema on every finding** — each investigation pass now records a
+  claim (source, verdict, rationale, citations) instead of writing its own
+  ad-hoc field, and the finding's verdict is derived from those claims by fixed
+  precedence: `reproduction` > `dataflow`/`chain` > `analysis` >
+  `heuristic`. A cheaper pass can no longer overturn a more expensive one, and
+  a claim whose citations do not resolve against the filesystem is recorded but
+  excluded from the verdict. `VerifierAgent` and `DeepAnalyzer` emit claims;
+  `audit --json` serializes evidence for findings that were actually
+  investigated.
+- **`ship-safe capabilities [path]`** — maps what an AI coding agent working in
+  a repository can reach (permission grants, MCP servers and their tools,
+  credentials, and the instruction files and privileged workflow triggers it
+  ingests), then reports the combinations that are dangerous together while
+  unremarkable apart: repo-controlled instructions reaching an unattended write
+  capability, a wildcard tool approval over a credentialed server, agent write
+  access reaching workflow secrets, and credentials written literally into agent
+  config. Every chain step cites the file and line it was observed at.
+  `--json` for machine output, `--env` to include the operator's own MCP servers.
+- **`ship-safe investigate [path]`** — the evidence-first counterpart to `audit`.
+  Runs the same sensors, then reports by verdict rather than by score: confirmed,
+  likely, unresolved, refuted — each with the pass that decided it, the path the
+  value or capability took, and the lines read to conclude it. Findings are
+  grouped by location, so three rules firing on one `eval()` read as one thing
+  to fix rather than three. Exits 1 on anything confirmed. `--all` details the
+  unresolved and refuted buckets, `--deep` adds the LLM pass, `--json` emits the
+  evidence.
+- **`DataflowInvestigator`** — a deterministic pass that traces a finding's value
+  back to its origin instead of pattern-matching its neighbourhood: it walks
+  assignments, destructurings, and coercions backwards from the sink and files a
+  cited claim saying whether an untrusted source reaches it. Ranks above the LLM
+  pass, so a traced path outranks a model's reading of the same file. JavaScript
+  and TypeScript, within one file, taint-shaped rules only; it files nothing
+  where it cannot see, and refutes only when *every* value reaching the sink is
+  accounted for.
+- **Capability chains in `audit`** — the chains from `ship-safe capabilities`
+  now run as part of a normal audit and are scored with everything else.
+- **Verdict benchmark** — `npm run benchmark:verdicts` scores the investigation
+  layer rather than detection: how many known-real findings it settles, how much
+  labeled noise it refutes, and whether it ever refutes a true positive. False
+  refutations and unlabeled safe-control findings are hard CI failures; the other
+  two metrics are ratchets recorded in `benchmarks/verdicts.json`. Deterministic
+  and gated in CI; `--llm` runs the model pass ungated.
+
+### Fixed
+- **False refutation of live code after a commented-out fix** — the verifier's
+  dead-code check read a `throw` inside a `/* */` block as real control flow and
+  marked the live code below it unreachable, refuting a genuinely exploitable
+  finding. Found against OWASP NodeGoat's `allocations-dao.js`, where a
+  commented-out fix sits directly above the NoSQL injection it was meant to
+  replace.
+- **False refutation of a finding inside a multi-line statement** — a `return {`
+  above a finding was counted as preceding dead code when it was in fact the
+  opening of the statement the finding belongs to.
+
 ## [9.7.4] - 2026-08-09
 
 ### Added
