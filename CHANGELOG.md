@@ -35,6 +35,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   to fix rather than three. Exits 1 on anything confirmed. `--all` details the
   unresolved and refuted buckets, `--deep` adds the LLM pass, `--json` emits the
   evidence.
+- **Secret probing files evidence** — `SecretsVerifier` now records a claim at
+  `reproduction` rank, the only pass that observes rather than reads. A key that
+  authenticates against its provider is `confirmed`; one the provider rejects is
+  `refuted`, with the rationale noting it is still committed. An indeterminate
+  probe files nothing, since at that rank an empty claim would outrank every
+  pass that did real work. Key material never reaches a claim, rationale, or
+  citation. Available as `investigate --verify`; it never runs on its own,
+  because probing discloses the key to a third party.
 - **`AbsenceInvestigator`** — decides rules that assert a control is missing,
   which data-flow tracing cannot speak to at all: on OWASP NodeGoat every one of
   the 48 unresolved findings was of this kind and the tracer looked at none of

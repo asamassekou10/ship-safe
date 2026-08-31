@@ -5,10 +5,21 @@
  * Checks if leaked secrets are still active by probing provider APIs.
  * Only makes safe, read-only API calls (e.g., account info endpoints).
  *
+ * This is the one pass that observes rather than reads, so its claims carry the
+ * 'reproduction' rank and are the only ones that may say 'confirmed' about a
+ * secret. A key that authenticates against its provider is not a pattern that
+ * resembles a key; it is a working credential, and nothing a cheaper pass
+ * concludes should be able to overturn that.
+ *
+ * It never runs on its own. Probing sends the user's credentials to a third
+ * party, so it stays behind an explicit flag and is not part of a default scan.
+ *
  * USAGE:
  *   const verifier = new SecretsVerifier();
  *   const results = await verifier.verify(findings);
  */
+
+import { attachEvidence, createClaim } from './evidence.js';
 
 // =============================================================================
 // PROVIDER PROBES
@@ -164,6 +175,15 @@ async function safeFetch(url, options = {}) {
 
 export class SecretsVerifier {
   /**
+   * @param {object} [options]
+   * @param {object} [options.probes] — probe table override, for tests that must
+   *        not touch the network.
+   */
+  constructor({ probes = PROBES } = {}) {
+    this.probes = probes;
+  }
+
+  /**
    * Verify an array of secret findings.
    * Only probes findings that have a matching provider probe.
    *
@@ -198,6 +218,7 @@ export class SecretsVerifier {
           provider: probe.label,
           info: result.info || (result.active ? 'Key is ACTIVE — rotate immediately' : 'Key is inactive or revoked'),
         };
+        recordClaim(finding, probe.label, result.active);
         results.push({ finding, result: finding.verifyResult });
       } catch {
         finding.verifyResult = { active: null, provider: probe.label, info: 'Verification failed' };
@@ -213,10 +234,10 @@ export class SecretsVerifier {
    */
   _findProbe(rule) {
     // Direct match
-    if (PROBES[rule]) return PROBES[rule];
+    if (this.probes[rule]) return this.probes[rule];
 
     // Partial match (rule may have extra suffixes)
-    for (const [key, probe] of Object.entries(PROBES)) {
+    for (const [key, probe] of Object.entries(this.probes)) {
       if (rule.includes(key) || key.includes(rule)) return probe;
     }
     return null;
@@ -242,6 +263,29 @@ export class SecretsVerifier {
 
     return null;
   }
+}
+
+/**
+ * File a claim for what the probe observed.
+ *
+ * An indeterminate probe files nothing. "We could not tell" is not evidence,
+ * and at this rank an empty claim would outrank every pass that did real work.
+ *
+ * The citation carries no excerpt and the rationale carries no key material:
+ * this pass handles live credentials, and a report is a place they must never
+ * reach.
+ */
+function recordClaim(finding, provider, active) {
+  if (active !== true && active !== false) return;
+
+  attachEvidence(finding, createClaim({
+    source: 'reproduction',
+    verdict: active ? 'confirmed' : 'refuted',
+    rationale: active
+      ? `The key was presented to ${provider} and authenticated. This is a working credential, not a string that resembles one.`
+      : `The key was presented to ${provider} and rejected. It is revoked or expired, so it is not exploitable — though it is still committed, and what it protected while it was live is a separate question.`,
+    citations: finding.file && finding.line ? [{ file: finding.file, line: finding.line }] : [],
+  }));
 }
 
 export default SecretsVerifier;

@@ -17,6 +17,12 @@
  *   ship-safe investigate . --deep         Add the LLM pass
  *   ship-safe investigate . --all          Show unresolved and refuted too
  *   ship-safe investigate . --json         Machine-readable evidence
+ *   ship-safe investigate . --verify       Probe leaked keys against their providers
+ *
+ * --verify is the only part of this command that leaves the machine. It presents
+ * a discovered key to the service it belongs to in order to learn whether it
+ * still works, which is the strongest evidence available about a secret and also
+ * a disclosure of that secret to a third party. It never runs unless asked.
  *
  * Exits 1 when anything is confirmed.
  */
@@ -26,6 +32,7 @@ import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
 import { buildOrchestratorAsync } from '../agents/index.js';
+import { SecretsVerifier } from '../utils/secrets-verifier.js';
 import { summarizeEvidence, decidingClaim } from '../utils/evidence.js';
 import * as output from '../utils/output.js';
 
@@ -69,6 +76,22 @@ export async function investigateCommand(targetPath = '.', options = {}) {
     if (spinner) spinner.fail(chalk.red(`Investigation failed: ${error.message}`));
     else output.error(error.message);
     process.exit(1);
+  }
+
+  // Probing is opt-in and happens after the deterministic passes, so a run
+  // without --verify never puts a credential on the wire.
+  if (options.verify) {
+    const probeSpinner = quiet ? null : ora({ text: 'Probing leaked keys against their providers...', color: 'cyan' }).start();
+    try {
+      const results = await new SecretsVerifier().verify(findings);
+      const active = results.filter((r) => r.result.active === true).length;
+      const dead = results.filter((r) => r.result.active === false).length;
+      if (probeSpinner) {
+        probeSpinner.succeed(chalk.green(`Probed ${results.length} secret(s): ${active} live, ${dead} revoked`));
+      }
+    } catch (error) {
+      if (probeSpinner) probeSpinner.warn(chalk.yellow(`Probing failed: ${error.message}`));
+    }
   }
 
   // Environment-scope findings describe the operator's machine. They are useful

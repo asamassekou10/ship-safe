@@ -527,6 +527,7 @@ program
   .description('Scan, then investigate each finding: confirmed, likely, unresolved, or refuted — with the evidence')
   .option('--all', 'Also detail unresolved and refuted findings')
   .option('--deep', 'Add the LLM analysis pass')
+  .option('--verify', 'Probe leaked keys against their providers (sends the key to that provider)')
   .option('--include-tests', 'Also investigate test and fixture files')
   .option('--local', 'Use a local Ollama model for the LLM pass')
   .option('--model <model>', 'LLM model for the deep pass')
