@@ -125,6 +125,60 @@ describe('when the rule is describing nothing', () => {
   });
 });
 
+describe('absences that are local to a handler', () => {
+  // Found by sweeping the pinned corpus: six API_NO_VALIDATION findings in
+  // hermes-agent were being confirmed by the data-flow tracer because req.body
+  // does reach the line -- with the guard clause sitting two lines below.
+  const handler = (guard) => write('routes/send.js', [
+    "import express from 'express';",
+    'export const app = express();',
+    "app.post('/send', (req, res) => {",
+    '  const { chatId, message } = req.body;',
+    ...guard,
+    '  return res.json({ ok: true });',
+    '});',
+  ]);
+
+  it('refutes when a guard clause follows the destructure', () => {
+    const file = handler([
+      '  if (!chatId || !message) {',
+      "    return res.status(400).json({ error: 'required' });",
+      '  }',
+    ]);
+
+    const { claim } = investigate('API_NO_VALIDATION', [file], { file, line: 4 });
+    assert.equal(claim.verdict, 'refuted');
+
+    // A multi-line `if (...) {` puts the condition and the 4xx response on
+    // different lines; either is the guard, and neither is the destructure.
+    assert.ok(claim.citations[0].line >= 5 && claim.citations[0].line <= 7,
+      `cites the guard block, not the destructure (got line ${claim.citations[0].line})`);
+  });
+
+  it('raises to likely when the handler checks nothing', () => {
+    const file = handler([]);
+    assert.equal(investigate('API_NO_VALIDATION', [file], { file, line: 4 }).claim.verdict, 'likely');
+  });
+
+  it('does not accept a commented-out guard', () => {
+    const file = handler(['  // if (!chatId) return res.status(400).end();']);
+    assert.equal(investigate('API_NO_VALIDATION', [file], { file, line: 4 }).claim.verdict, 'likely');
+  });
+
+  it('does not reach past the window for a guard that guards something else', () => {
+    const file = handler([
+      ...Array.from({ length: 20 }, (_, i) => `  const filler${i} = ${i};`),
+      '  if (!chatId) return res.status(400).end();',
+    ]);
+    assert.equal(investigate('API_NO_VALIDATION', [file], { file, line: 4 }).claim.verdict, 'likely');
+  });
+
+  it('answers without a project file list, because the question is local', () => {
+    const file = handler(['  if (!chatId) return res.status(400).end();']);
+    assert.equal(investigate('API_NO_VALIDATION', [], { file, line: 4 }).claim.verdict, 'refuted');
+  });
+});
+
 describe('staying in its lane', () => {
   it('says nothing about rules that are not absence-shaped', () => {
     const app = write('app.js', EXPRESS_APP);

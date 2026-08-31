@@ -113,6 +113,28 @@ const ABSENCE_RULES = {
     precondition: [/\baddDocuments\s*\(|\bupsert\s*\(|\bingest\w*\s*\(/i],
   },
 
+  /**
+   * Local rather than project-wide. "This handler does not validate its input"
+   * is answered by the handler, not by the repository: a `validate()` in some
+   * other file is not a guard on this one, and searching the project for one
+   * would refute every handler in any codebase that validates anywhere.
+   */
+  API_NO_VALIDATION: {
+    what: 'input validation in this handler',
+    scope: 'local',
+    control: [
+      // `if (!chatId || !message) return res.status(400)` — the guard clause
+      // that follows a destructure, which is how most handlers actually do it.
+      /\bif\s*\([^)]*\)\s*\{?\s*(?:return\s+)?(?:res|reply|ctx)\b/,
+      /\bres(?:ponse)?\.status\s*\(\s*4\d\d\s*\)/,
+      /\b(?:z|schema|joi|yup|v)\.[\w.]*(?:parse|validate|assert)\w*\s*\(/i,
+      /\b(?:validate|assertValid|sanitize|check)\w*\s*\(/i,
+      /\bthrow\s+new\s+\w*(?:Validation|BadRequest|Invalid)\w*Error\b/,
+      /\b(?:Array\.isArray|typeof\s+\w+\s*===)/,
+    ],
+    precondition: [/./],
+  },
+
   LLM_NO_OUTPUT_FILTER: {
     what: 'filtering of model output',
     control: [
@@ -131,6 +153,9 @@ const SEARCHABLE_EXT = new Set([
 
 const MAX_SEARCHED_FILES = 4000;
 
+/** How far past a finding a local guard clause may reasonably sit. */
+const LOCAL_WINDOW = 15;
+
 // =============================================================================
 // PASS
 // =============================================================================
@@ -146,12 +171,18 @@ export class AbsenceInvestigator {
     if (!applicable.length) return findings;
 
     const corpus = this._corpus(files);
-    if (!corpus.length) return findings;              // never crawls the disk on its own
+    const projectScoped = applicable.some((f) => resolveRule(f.rule).scope !== 'local');
+    if (!corpus.length && projectScoped) return findings;   // never crawls the disk on its own
 
     const cache = new Map();
 
     for (const finding of applicable) {
       const spec = resolveRule(finding.rule);
+
+      if (spec.scope === 'local') {
+        this._investigateLocally(finding, spec, cache);
+        continue;
+      }
 
       const precondition = this._search(corpus, spec.precondition, cache);
       if (!precondition) {
@@ -190,6 +221,45 @@ export class AbsenceInvestigator {
     }
 
     return findings;
+  }
+
+  /**
+   * Some absences are a property of the handler, not the project. The window
+   * runs forward from the finding because a guard clause follows the
+   * destructure it guards; a validator above it usually belongs to whatever
+   * came before.
+   */
+  _investigateLocally(finding, spec, cache) {
+    let lines = cache.get(finding.file);
+    if (lines === undefined) {
+      try { lines = fs.readFileSync(finding.file, 'utf-8').split('\n'); } catch { lines = null; }
+      cache.set(finding.file, lines);
+    }
+    if (!lines) return;
+
+    const start = Math.max(0, finding.line - 1);
+    const end = Math.min(lines.length, start + LOCAL_WINDOW);
+
+    for (let i = start; i < end; i++) {
+      const line = lines[i];
+      if (/^\s*(?:\/\/|#|\*)/.test(line)) continue;
+      if (!spec.control.some((pattern) => pattern.test(line))) continue;
+
+      attachEvidence(finding, createClaim({
+        source: 'presence',
+        verdict: 'refuted',
+        rationale: `${capitalize(spec.what)} is present: the value is checked ${i - start === 0 ? 'on this line' : `${i - start} line(s) below`} before it is used.`,
+        citations: [{ file: finding.file, line: i + 1, excerpt: line.trim().slice(0, 120) }],
+      }));
+      return;
+    }
+
+    attachEvidence(finding, createClaim({
+      source: 'presence',
+      verdict: 'likely',
+      rationale: `No ${spec.what} was found in the ${LOCAL_WINDOW} lines that follow, where a guard clause would be.`,
+      citations: [{ file: finding.file, line: finding.line }],
+    }));
   }
 
   _corpus(files) {
