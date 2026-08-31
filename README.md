@@ -58,6 +58,23 @@ npx ship-safe ci . --sarif results.sarif
 npx ship-safe ci . --fail-on high          # stricter: critical or high
 ```
 
+For pull requests, compare a trusted base scan with the head scan so existing
+repository debt remains visible without blocking unrelated changes:
+
+```bash
+# On the trusted base revision
+npx ship-safe ci . --fail-on none --no-deps \
+  --write-baseline-report /tmp/ship-safe-base.json
+
+# On the pull request head
+npx ship-safe ci . --base-report /tmp/ship-safe-base.json --fail-on high
+```
+
+The base artifact contains hashed finding identities, relative paths, and rule
+metadata. It does not store raw matched secrets. PR results classify findings
+as introduced, resolved, unchanged, or uncertain; ambiguous matches are shown
+but do not block the pull request.
+
 ## What Ship Safe Finds
 
 | Area | Examples |

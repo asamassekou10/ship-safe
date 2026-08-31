@@ -156,6 +156,31 @@ jobs:
       - run: npm test
 `;
 
+const CLOUD_OIDC_WITHOUT_SUBJECT = `
+name: Deploy
+on: [push]
+permissions:
+  id-token: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/deploy
+      - run: ./deploy.sh
+`;
+
+const CLOUD_OIDC_SCOPED = CLOUD_OIDC_WITHOUT_SUBJECT.replace(
+  'role-to-assume: arn:aws:iam::123456789012:role/deploy',
+  'role-to-assume: arn:aws:iam::123456789012:role/deploy\n          subject: repo:example-org/example-repo:ref:refs/heads/main'
+);
+
+const CLOUD_OIDC_BROAD = CLOUD_OIDC_WITHOUT_SUBJECT.replace(
+  'role-to-assume: arn:aws:iam::123456789012:role/deploy',
+  'role-to-assume: arn:aws:iam::123456789012:role/deploy\n          subject: repo:*'
+);
+
 // ── Test harness ─────────────────────────────────────────────────────────
 
 function writeFixture(dir, filename, content) {
@@ -253,5 +278,25 @@ describe('CICDScanner: npm publish provenance', () => {
 
     assert.ok(generic.length > 0, 'expected the existing generic permission rule to still fire');
     assert.strictEqual(npmSpecificWriteAll.length, 0);
+  });
+
+  test('scopes OIDC subject checks to cloud-provider workflows', async () => {
+    const unrelated = await scanFixture(SAFE_PROVENANCE_AWARE);
+    assert.strictEqual(
+      unrelated.filter(f => f.rule.startsWith('CICD_OIDC_')).length,
+      0,
+      'npm provenance alone must not create a cloud OIDC finding'
+    );
+
+    const missing = await scanFixture(CLOUD_OIDC_WITHOUT_SUBJECT, 'deploy.yml');
+    assert.ok(missing.some(f => f.rule === 'CICD_OIDC_MISSING_SUBJECT'));
+
+    const scoped = await scanFixture(CLOUD_OIDC_SCOPED, 'deploy.yml');
+    assert.strictEqual(scoped.filter(f => f.rule.startsWith('CICD_OIDC_')).length, 0);
+
+    const broad = await scanFixture(CLOUD_OIDC_BROAD, 'deploy.yml');
+    const broadRule = broad.find(f => f.rule === 'CICD_OIDC_BROAD_SUBJECT');
+    assert.ok(broadRule);
+    assert.strictEqual(broadRule.severity, 'critical');
   });
 });

@@ -24,6 +24,12 @@ import path from 'path';
 import os from 'os';
 import fg from 'fast-glob';
 import { BaseAgent, createFinding } from './base-agent.js';
+import {
+  containsUnicodeTag,
+  describeUnicodeTagPayload,
+  firstNonAllowedUnicodeTagIndex,
+  stripAllowedEmojiFlagTags,
+} from '../utils/unicode-tags.js';
 
 // =============================================================================
 // TARGET FILES
@@ -196,24 +202,6 @@ const PATTERNS = [
 
   // ── Encoded / Obfuscated Payloads ───────────────────────────────────────
   {
-    rule: 'AGENT_CFG_UNICODE_TAGS',
-    title: 'Agent Config: Invisible Unicode Tag Characters',
-    // Excludes RGI emoji flag tag sequences, which are built from these exact
-    // characters: U+1F3F4, a subdivision code in tag letters, then U+E007F.
-    // That is how 🏴󠁧󠁢󠁳󠁣󠁴󠁿, 🏴󠁧󠁢󠁷󠁬󠁳󠁿 and 🏴󠁧󠁢󠁥󠁮󠁧󠁿 are encoded, so any document using one was
-    // reported as critical invisible prompt injection.
-    //
-    // The lookbehind excuses a tag character only while it is still inside a
-    // well-formed sequence, so a payload placed after a legitimate flag — the
-    // obvious evasion — is still caught.
-    regex: /(?<!\u{1F3F4}[\u{E0020}-\u{E007E}]{0,8})[\u{E0001}-\u{E007F}]/gu,
-    severity: 'critical',
-    cwe: 'CWE-116',
-    owasp: 'ASI01',
-    description: 'Agent config contains Unicode Tag characters (U+E0001–U+E007F) used for invisible prompt injection. These are invisible to humans but processed by LLMs.',
-    fix: 'Strip all Unicode Tag characters. This is almost certainly a prompt injection attack.',
-  },
-  {
     rule: 'AGENT_CFG_ZERO_WIDTH',
     title: 'Agent Config: Zero-Width Character Cluster',
     // eslint-disable-next-line no-misleading-character-class
@@ -270,36 +258,79 @@ export class AgentConfigScanner extends BaseAgent {
 
     // ── 2. Scan rules/instruction files with prompt injection patterns ─────
     for (const file of discovered.rulesFiles) {
-      findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS));
+      findings = findings.concat(this._scanAgentConfigFile(file));
       findings = findings.concat(this._checkEncodedPayloads(file));
     }
 
     // ── 3. Scan OpenClaw configs (structural + patterns) ───────────────────
     for (const file of discovered.openclawFiles) {
-      findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS));
+      findings = findings.concat(this._scanAgentConfigFile(file));
       findings = findings.concat(this._scanOpenClawConfig(file));
     }
 
     // ── 3b. Scan openclaude profile files ─────────────────────────────────
     for (const file of discovered.openclaudeFiles) {
-      findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS));
+      findings = findings.concat(this._scanAgentConfigFile(file));
       findings = findings.concat(this._scanOpenClaudeProfile(file));
     }
 
     // ── 3c. Scan claw-code config files ────────────────────────────────────
     for (const file of discovered.clawCodeFiles) {
-      findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS));
+      findings = findings.concat(this._scanAgentConfigFile(file));
       findings = findings.concat(this._scanClawCodeConfig(file));
     }
 
     // ── 4. Scan Claude Code hooks ──────────────────────────────────────────
     for (const file of discovered.claudeSettingsFiles) {
+      findings = findings.concat(this._checkUnicodeTagSmuggling(file));
       findings = findings.concat(this._scanClaudeHooks(file));
     }
 
     // ── 5. Scan agent memory directories for poisoning ─────────────────────
     for (const file of discovered.memoryFiles) {
-      findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS));
+      findings = findings.concat(this._scanAgentConfigFile(file));
+    }
+
+    return findings;
+  }
+
+  _scanAgentConfigFile(filePath) {
+    return [
+      ...this.scanFileWithPatterns(filePath, PATTERNS),
+      ...this._checkUnicodeTagSmuggling(filePath),
+    ];
+  }
+
+  _checkUnicodeTagSmuggling(filePath) {
+    const lines = this.readLines(filePath);
+    const findings = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (!containsUnicodeTag(line)) continue;
+
+      const sanitized = stripAllowedEmojiFlagTags(line);
+      if (!containsUnicodeTag(sanitized)) continue;
+
+      // Critical findings stay visible even when an AI-authored line attempts
+      // to add a ship-safe-ignore suppression marker.
+      if (this.isSuppressed(line, 'critical')) continue;
+
+      findings.push(createFinding({
+        file: filePath,
+        line: i + 1,
+        column: firstNonAllowedUnicodeTagIndex(line) + 1,
+        severity: 'critical',
+        category: this.category,
+        rule: 'AGENT_CFG_UNICODE_TAGS',
+        title: 'Agent Config: Hidden Unicode Tag Payload',
+        description: 'Agent config contains Unicode Tag characters that are invisible to human reviewers but can encode instructions read by an LLM.',
+        matched: describeUnicodeTagPayload(line),
+        confidence: 'high',
+        cwe: 'CWE-116',
+        owasp: 'ASI01',
+        fix: 'Remove the Unicode Tag payload and review the file history for an injected instruction.',
+      }));
     }
 
     return findings;

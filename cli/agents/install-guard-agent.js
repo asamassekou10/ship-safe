@@ -61,11 +61,12 @@ export class InstallGuardAgent extends BaseAgent {
 
   async analyze(context) {
     const { rootPath } = context;
+    const includeTests = Boolean(context.options?.includeTests);
     const findings = [];
 
     findings.push(...this._scanLifecycle(rootPath));
-    findings.push(...await this._scanBindingGyp(rootPath));
-    findings.push(...await this._scanPythonInstallHooks(rootPath));
+    findings.push(...await this._scanBindingGyp(rootPath, includeTests));
+    findings.push(...await this._scanPythonInstallHooks(rootPath, includeTests));
 
     return findings;
   }
@@ -104,7 +105,7 @@ export class InstallGuardAgent extends BaseAgent {
     return findings;
   }
 
-  async _scanBindingGyp(rootPath) {
+  async _scanBindingGyp(rootPath, includeTests = false) {
     const files = await fg(['**/binding.gyp'], {
       cwd: rootPath, absolute: true, onlyFiles: true,
       ignore: Array.from(SKIP_DIRS).map((d) => `**/${d}/**`),
@@ -113,6 +114,7 @@ export class InstallGuardAgent extends BaseAgent {
     const SUSPICIOUS = /(?:curl|wget)\b|https?:\/\/[^\s"']+\.(?:sh|js|py|exe)|node\s+-e\b|child_process|frombase64string|Buffer\.from\s*\([^)]*base64|\beval\s*\(|\.npmrc|\.aws|\.ssh/i;
 
     for (const file of files) {
+      if (!includeTests && this._isNonProductionPath(rootPath, file)) continue;
       const content = this.readFile(file);
       if (!content) continue;
       // A binding.gyp with an "actions"/"action" that runs network/obfuscated
@@ -134,7 +136,7 @@ export class InstallGuardAgent extends BaseAgent {
     return findings;
   }
 
-  async _scanPythonInstallHooks(rootPath) {
+  async _scanPythonInstallHooks(rootPath, includeTests = false) {
     const globOptions = {
       cwd: rootPath,
       absolute: true,
@@ -144,12 +146,14 @@ export class InstallGuardAgent extends BaseAgent {
     const setupFiles = await fg(['**/setup.py'], globOptions);
     const pyprojectFiles = await fg(['**/pyproject.toml'], globOptions);
 
-    const entrypoints = new Set(setupFiles.map((file) => path.resolve(file)));
+    const entrypoints = new Set(setupFiles
+      .map((file) => path.resolve(file))
+      .filter((file) => includeTests || !this._isNonProductionPath(rootPath, file)));
     for (const pyproject of pyprojectFiles) {
       const content = this.readFile(pyproject);
       if (!content) continue;
       for (const backendFile of this._resolveLocalBuildBackend(pyproject, content)) {
-        entrypoints.add(backendFile);
+        if (includeTests || !this._isNonProductionPath(rootPath, backendFile)) entrypoints.add(backendFile);
       }
     }
 
@@ -211,6 +215,11 @@ export class InstallGuardAgent extends BaseAgent {
       }
     }
     return findings;
+  }
+
+  _isNonProductionPath(rootPath, file) {
+    const relative = path.relative(rootPath, file).replace(/\\/g, '/');
+    return /(?:^|\/)(?:__tests__|test|tests|fixture|fixtures|example|examples|benchmark|benchmarks|false-positives)(?:\/|$)|(?:\.test|\.spec)\./i.test(relative);
   }
 
   _resolveLocalBuildBackend(pyproject, content) {

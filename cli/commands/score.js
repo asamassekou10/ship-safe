@@ -9,10 +9,9 @@
  *   npx ship-safe score [path]          Score the project in the current directory
  *   npx ship-safe score . --no-deps     Skip dependency audit (faster)
  *
- * SCORING ALGORITHM (starts at 100):
- *   Secrets:       critical −25, high −15, medium −5   (capped at −40)
- *   Code Vulns:    critical −20, high −10, medium −3   (capped at −30)
- *   Dependencies:  critical −20, high −10, moderate −5 (capped at −30)
+ * Uses the shared versioned posture scorer also used by audit and CI. Findings
+ * in tests, fixtures, documentation, benchmarks, and generated output remain
+ * observable but do not lower repository posture by default.
  *
  * GRADES:
  *   A  90–100  Ship it!
@@ -37,33 +36,12 @@ import {
   SKIP_DIRS,
   SKIP_EXTENSIONS,
   SKIP_FILENAMES,
-  TEST_FILE_PATTERNS,
   MAX_FILE_SIZE
 } from '../utils/patterns.js';
 import { isHighEntropyMatch } from '../utils/entropy.js';
 import { runDepsAudit } from './deps.js';
 import * as output from '../utils/output.js';
-
-// =============================================================================
-// SCORING CONSTANTS
-// =============================================================================
-
-const SECRET_DEDUCTIONS = { critical: 25, high: 15, medium: 5 };
-const SECRET_CAP = 40;
-
-const VULN_DEDUCTIONS = { critical: 20, high: 10, medium: 3 };
-const VULN_CAP = 30;
-
-const DEP_DEDUCTIONS = { critical: 20, high: 10, moderate: 5, medium: 5 };
-const DEP_CAP = 30;
-
-const GRADES = [
-  { min: 90, letter: 'A', label: 'Ship it!' },
-  { min: 75, letter: 'B', label: 'Minor issues to review' },
-  { min: 60, letter: 'C', label: 'Fix before shipping' },
-  { min: 40, letter: 'D', label: 'Significant security risks' },
-  { min: 0,  letter: 'F', label: 'Not safe to ship' },
-];
+import { ScoringEngine } from '../agents/scoring-engine.js';
 
 // =============================================================================
 // MAIN COMMAND
@@ -105,9 +83,6 @@ export async function scoreCommand(targetPath = '.', options = {}) {
     process.exit(1);
   }
 
-  const secretFindings = findings.filter(f => f.category !== 'vulnerability');
-  const vulnFindings   = findings.filter(f => f.category === 'vulnerability');
-
   // ── 2. Dependency audit ──────────────────────────────────────────────────────
   let depVulns = [];
   let pm = null;
@@ -126,63 +101,26 @@ export async function scoreCommand(targetPath = '.', options = {}) {
   }
 
   // ── 3. Compute score ─────────────────────────────────────────────────────────
-  const { score, secretDeduction, vulnDeduction, depDeduction, secretCounts, vulnCounts, depCounts } =
-    computeScore(secretFindings, vulnFindings, depVulns);
-
-  const grade = GRADES.find(g => score >= g.min);
+  const scoreResult = new ScoringEngine().compute(findings, depVulns);
+  const score = Math.round(scoreResult.score * 10) / 10;
+  const grade = scoreResult.grade;
+  const secrets = scoreResult.categories.secrets;
+  const injection = scoreResult.categories.injection;
+  const deps = scoreResult.categories.deps;
 
   // ── 4. Print results ─────────────────────────────────────────────────────────
   printScore(score, grade, {
-    secretDeduction, vulnDeduction, depDeduction,
-    secretCounts, vulnCounts, depCounts,
+    secretDeduction: secrets.deduction,
+    vulnDeduction: injection.deduction,
+    depDeduction: deps.deduction,
+    secretCounts: secrets.counts,
+    vulnCounts: injection.counts,
+    depCounts: deps.counts,
     filesScanned, pm, runDeps
   });
 
   // Exit 0 for A/B, exit 1 for C/D/F
   process.exit(score >= 75 ? 0 : 1);
-}
-
-// =============================================================================
-// SCORE COMPUTATION
-// =============================================================================
-
-function computeScore(secretFindings, vulnFindings, depVulns) {
-  // ── Count by severity ────────────────────────────────────────────────────────
-  const secretCounts = countBySeverity(secretFindings);
-  const vulnCounts   = countBySeverity(vulnFindings);
-  const depCounts    = countBySeverity(depVulns);
-
-  // ── Compute deductions ───────────────────────────────────────────────────────
-  let secretDeduction = 0;
-  for (const [sev, pts] of Object.entries(SECRET_DEDUCTIONS)) {
-    secretDeduction += (secretCounts[sev] || 0) * pts;
-  }
-  secretDeduction = Math.min(secretDeduction, SECRET_CAP);
-
-  let vulnDeduction = 0;
-  for (const [sev, pts] of Object.entries(VULN_DEDUCTIONS)) {
-    vulnDeduction += (vulnCounts[sev] || 0) * pts;
-  }
-  vulnDeduction = Math.min(vulnDeduction, VULN_CAP);
-
-  let depDeduction = 0;
-  for (const [sev, pts] of Object.entries(DEP_DEDUCTIONS)) {
-    depDeduction += (depCounts[sev] || 0) * pts;
-  }
-  depDeduction = Math.min(depDeduction, DEP_CAP);
-
-  const score = Math.max(0, 100 - secretDeduction - vulnDeduction - depDeduction);
-
-  return { score, secretDeduction, vulnDeduction, depDeduction, secretCounts, vulnCounts, depCounts };
-}
-
-function countBySeverity(findings) {
-  const counts = {};
-  for (const f of findings) {
-    const sev = f.severity || 'unknown';
-    counts[sev] = (counts[sev] || 0) + 1;
-  }
-  return counts;
 }
 
 // =============================================================================

@@ -232,6 +232,16 @@ export const MCP_CONFIG_FILES = [
   '.vscode/mcp.json',
 ];
 
+// A package import or a command that merely mentions MCP is not itself an MCP
+// server. Require a server construction/registration signal before applying
+// server-auth rules; this prevents unrelated CLI utilities from being graded
+// as unauthenticated MCP servers.
+const MCP_SERVER_IMPLEMENTATION_RE = /(?:new\s+McpServer\s*\(|createServer\s*\(|server\.(?:tool|resource|prompt)\s*\(|@(?:server|app)\.(?:tool|resource|route)\b)/i;
+
+function isMcpServerImplementation(content) {
+  return MCP_SERVER_IMPLEMENTATION_RE.test(content);
+}
+
 // Well-known official MCP server packages
 const OFFICIAL_MCP_SERVERS = new Set([
   '@modelcontextprotocol/server-filesystem',
@@ -291,7 +301,7 @@ export class MCPSecurityAgent extends BaseAgent {
     // ── 3. Check for MCP server files without auth patterns ──────────────
     const mcpServerFiles = codeFiles.filter(f => {
       const content = this.readFile(f);
-      return content && /(?:McpServer|@modelcontextprotocol|mcp-server|from\s+mcp)/i.test(content);
+      return content && isMcpServerImplementation(content);
     });
 
     for (const file of mcpServerFiles) {

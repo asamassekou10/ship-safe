@@ -68,7 +68,11 @@ const PATTERNS = [
   {
     rule: 'AGENT_NO_INTEGRITY_HASH',
     title: 'Agent: No integrity hash on remote resource (ASI-10)',
-    regex: /["'](?:url|source|registry|endpoint)["']\s*:\s*["']https?:\/\/[^"']{10,}["'](?!\s*,?\s*["']integrity["'])/gi,
+    // URL is also used by package metadata (bugs.url, homepage, and
+    // repository). Those are not agent payloads and must not be treated as
+    // unsigned executable resources. Agent manifests should use source,
+    // registry, or endpoint for remotely loaded resources.
+    regex: /["'](?:source|registry|endpoint)["']\s*:\s*["']https?:\/\/[^"']{10,}["'](?!\s*,?\s*["']integrity["'])/gi,
     severity: 'high',
     cwe: 'CWE-494',
     owasp: 'ASI-10',

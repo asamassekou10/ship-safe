@@ -86,10 +86,12 @@ export class SlopSquatAgent extends BaseAgent {
           reported.add(pkg);
           const line = content.slice(0, m.index).split('\n').length;
           const known = KNOWN_HALLUCINATED.has(pkg);
+          const severity = known ? 'high' : 'medium';
+          if (this.isSuppressed(lines[line - 1] || '', severity)) continue;
           findings.push(createFinding({
             file, line,
             column: (lines[line - 1] || '').indexOf(m[1]) + 1,
-            severity: known ? 'high' : 'medium',
+            severity,
             category: 'supply-chain',
             rule: known ? 'SLOPSQUAT_KNOWN_HALLUCINATION' : 'SLOPSQUAT_PHANTOM_IMPORT',
             title: known
@@ -129,6 +131,7 @@ export class SlopSquatAgent extends BaseAgent {
 
   _pkgName(spec) {
     if (!spec || spec.startsWith('.') || spec.startsWith('/') || spec.startsWith('#')) return null; // relative / absolute / subpath-import
+    if (spec.startsWith('@/') || spec.startsWith('~/')) return null; // project-local aliases
     if (/^[a-zA-Z]+:/.test(spec) && !spec.startsWith('node:')) return null; // url / data: / bun:
     const clean = spec.startsWith('node:') ? spec : spec;
     const parts = clean.split('/');

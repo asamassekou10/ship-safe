@@ -21,6 +21,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import * as output from '../utils/output.js';
+import { fetchSafeUrl } from '../utils/remote-fetch.js';
 
 // Get the directory of this module (for finding config files)
 const __filename = fileURLToPath(import.meta.url); // ship-safe-ignore — module's own path via import.meta.url, not user input
@@ -344,8 +345,10 @@ async function handleHermesInit(targetDir, options) {
   // Fetch the config bundle
   let data;
   try {
-    const { default: fetch } = await import('node-fetch').catch(() => ({ default: globalThis.fetch }));
-    const res = await fetch(fromUrl, { headers: { 'Accept': 'application/json' } });
+    const res = await fetchSafeUrl(fromUrl, {
+      allowLoopback: true,
+      headers: { 'Accept': 'application/json' },
+    });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       throw new Error(body.error ?? `HTTP ${res.status}`);

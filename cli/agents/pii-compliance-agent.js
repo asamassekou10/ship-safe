@@ -178,23 +178,11 @@ const PATTERNS = [
     description: 'Password appears to be stored directly from user input without hashing. Passwords must be hashed before storage.',
     fix: 'Hash passwords with bcrypt, scrypt, or argon2 before storing: await bcrypt.hash(password, 12)',
   },
-  {
-    rule: 'PII_NO_ENCRYPTION_AT_REST',
-    title: 'Privacy: PII Column Without Encryption',
-    regex: /(?:CREATE\s+TABLE|addColumn|column|field|attribute)[\s\S]{0,200}(?:ssn|social_security|credit_card|card_number|bank_account|passport|national_id|driver_license)[\s\S]{0,100}(?:VARCHAR|TEXT|STRING|varchar|text|string)(?![\s\S]{0,100}encrypt)/gi,
-    severity: 'high',
-    cwe: 'CWE-311',
-    owasp: 'A02:2021',
-    confidence: 'medium',
-    description: 'Database column storing sensitive PII (SSN, credit card, passport) without encryption-at-rest annotation.',
-    fix: 'Encrypt sensitive PII columns at the application level or use database-level encryption.',
-  },
-
   // ── IP Address & Geolocation Logging ─────────────────────────────────────
   {
     rule: 'PII_IP_LOGGING',
     title: 'Privacy: IP Address Logged Without Anonymization',
-    regex: /(?:console\.log|logger\.\w+|log\.\w+)\s*\([\s\S]{0,100}(?:(?<![a-z])ip(?![a-z])|ipAddress|ip_address|remoteAddress|x-forwarded-for|client.?ip)/gi,
+    regex: /(?:console\.log|logger\.\w+|log\.\w+)\s*\([\s\S]{0,100}(?:ipAddress|ip_address|remoteAddress|x-forwarded-for|client(?:Ip|_ip)|request\.ip|req\.ip)\b/gi,
     severity: 'medium',
     cwe: 'CWE-532',
     owasp: 'A09:2021',
@@ -251,6 +239,200 @@ const EMAIL_DIRECTORY_THRESHOLD = 10;
  */
 const CREDIT_FILE = /(?:^|\/)(?:\.mailmap|AUTHORS|CONTRIBUTORS|CREDITS)(?:\.[a-z]+)?$|(?:^|\/)contributors?\//i;
 
+const SENSITIVE_PII_FIELD = /\b(?:ssn|social_security|credit_card|card_number|bank_account|passport|national_id|driver_license)\b/i;
+const PII_STORAGE_TYPE = /\b(?:varchar|text|string)\b/i;
+const ENCRYPTION_ANNOTATION = /(?:\b(?:encrypted|encryption|encrypt)\s*[:=]\s*(?:true|(?:aes|gcm|kms|tde|yes|on)\b)|\b(?:ciphertext|tokeniz(?:e|ed|ation)|pgp_(?:sym|pub)_encrypt|kms|tde)\b|\bENCRYPTED\b)/i;
+const QUOTED_ENCRYPTION_ANNOTATION = /\b(?:encrypted|encryption|encrypt)\s*[:=]\s*(['"])(?:aes|gcm|kms|tde|yes|on)\1\b/gi;
+const STORAGE_CALL = /\b(?:addColumn|column|field|attribute)\s*\(/gi;
+const STORAGE_PROPERTY = /\b(?:field|attribute|column)\b/i;
+const STORAGE_OBJECT = /\b(?:field|attribute|column)\s*[:=]\s*\{/gi;
+
+function removeComments(content) {
+  let result = '';
+  let quote = null;
+  let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
+
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+    const next = content[i + 1];
+
+    if (lineComment) {
+      if (char === '\n') {
+        lineComment = false;
+        result += char;
+      } else {
+        result += ' ';
+      }
+      continue;
+    }
+    if (blockComment) {
+      if (char === '*' && next === '/') {
+        blockComment = false;
+        result += '  ';
+        i++;
+      } else {
+        result += char === '\n' ? '\n' : ' ';
+      }
+      continue;
+    }
+    if (quote) {
+      result += char;
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === "'" || char === '"' || char === '`') {
+      quote = char;
+      result += char;
+      continue;
+    }
+    if ((char === '/' && next === '/') || (char === '-' && next === '-') || char === '#') {
+      lineComment = true;
+      result += '  ';
+      if (char !== '#') i++;
+      continue;
+    }
+    if (char === '/' && next === '*') {
+      blockComment = true;
+      result += '  ';
+      i++;
+      continue;
+    }
+    result += char;
+  }
+  return result;
+}
+
+function removeStringLiterals(content) {
+  let result = '';
+  let quote = null;
+  let escaped = false;
+
+  for (const char of content) {
+    if (!quote) {
+      if (char === "'" || char === '"' || char === '`') {
+        quote = char;
+        result += ' ';
+      } else {
+        result += char;
+      }
+      continue;
+    }
+    if (escaped) {
+      escaped = false;
+      result += ' ';
+    } else if (char === '\\') {
+      escaped = true;
+      result += ' ';
+    } else if (char === quote) {
+      quote = null;
+      result += ' ';
+    } else {
+      result += char === '\n' ? '\n' : ' ';
+    }
+  }
+  return result;
+}
+
+function isOutsideString(content, end) {
+  let quote = null;
+  let escaped = false;
+  for (let i = 0; i < end; i++) {
+    const char = content[i];
+    if (!quote) {
+      if (char === "'" || char === '"' || char === '`') quote = char;
+      continue;
+    }
+    if (escaped) {
+      escaped = false;
+    } else if (char === '\\') {
+      escaped = true;
+    } else if (char === quote) {
+      quote = null;
+    }
+  }
+  return quote === null;
+}
+
+function hasEncryptionAnnotation(text) {
+  const withoutComments = removeComments(text);
+  if (ENCRYPTION_ANNOTATION.test(removeStringLiterals(withoutComments))) return true;
+  QUOTED_ENCRYPTION_ANNOTATION.lastIndex = 0;
+  let match;
+  while ((match = QUOTED_ENCRYPTION_ANNOTATION.exec(withoutComments)) !== null) {
+    if (isOutsideString(withoutComments, match.index)) return true;
+  }
+  return false;
+}
+
+function findMatchingDelimiter(content, open, opening, closing) {
+  let depth = 0;
+  let quote = null;
+  let escaped = false;
+
+  for (let i = open; i < content.length; i++) {
+    const char = content[i];
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === "'" || char === '"' || char === '`') {
+      quote = char;
+      continue;
+    }
+    if (char === opening) depth++;
+    if (char === closing && --depth === 0) return i;
+  }
+  return -1;
+}
+
+function splitTopLevel(content, separator) {
+  const parts = [];
+  let start = 0;
+  let depth = 0;
+  let quote = null;
+  let escaped = false;
+
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === "'" || char === '"' || char === '`') {
+      quote = char;
+      continue;
+    }
+    if (char === '(' || char === '[' || char === '{') depth++;
+    if (char === ')' || char === ']' || char === '}') depth--;
+    if (char === separator && depth === 0) {
+      parts.push({ text: content.slice(start, i), offset: start });
+      start = i + 1;
+    }
+  }
+  parts.push({ text: content.slice(start), offset: start });
+  return parts;
+}
+
 export class PIIComplianceAgent extends BaseAgent {
   constructor() {
     super(
@@ -274,6 +456,7 @@ export class PIIComplianceAgent extends BaseAgent {
     for (const file of codeFiles) {
       if (CREDIT_FILE.test(file)) continue;
       findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS));
+      findings = findings.concat(this._checkUnencryptedPiiStorage(file));
     }
 
     // ── 2. Collapse per-file email floods into one directory finding ─────
@@ -283,6 +466,117 @@ export class PIIComplianceAgent extends BaseAgent {
     findings = findings.concat(this._checkDataDeletion(context));
 
     return findings;
+  }
+
+  /**
+   * Detect sensitive storage declarations without letting an unrelated
+   * encryption mention elsewhere in the file suppress the finding.
+   *
+   * The previous regex searched a variable-length window after the type and
+   * used a negative lookahead. That made `ssn TEXT` appear safe when a later,
+   * unrelated line mentioned `encrypt`. Declarations are now bounded to the
+   * SQL field, ORM call, or property line that actually describes the field.
+   */
+  _checkUnencryptedPiiStorage(file) {
+    const content = this.readFile(file);
+    if (!content) return [];
+
+    const declarations = [];
+    const addDeclaration = (text, start) => {
+      if (!SENSITIVE_PII_FIELD.test(text) || !PII_STORAGE_TYPE.test(text)) return;
+      if (hasEncryptionAnnotation(text)) return;
+      const trimmed = text.trimStart();
+      declarations.push({ text: trimmed.trimEnd(), start: start + (text.length - trimmed.length) });
+    };
+
+    // SQL declarations are split at top-level commas so another column or a
+    // later table option cannot influence the result for this field.
+    const createTable = /\bCREATE\s+TABLE\b/gi;
+    let tableMatch;
+    while ((tableMatch = createTable.exec(content)) !== null) {
+      const open = content.indexOf('(', tableMatch.index + tableMatch[0].length);
+      if (open === -1) continue;
+      const close = findMatchingDelimiter(content, open, '(', ')');
+      if (close === -1) continue;
+      for (const part of splitTopLevel(content.slice(open + 1, close), ',')) {
+        const start = open + 1 + part.offset;
+        addDeclaration(part.text, start);
+      }
+    }
+
+    // ORM declarations can span lines and carry encryption options in an
+    // object, so inspect the complete balanced call rather than one line.
+    STORAGE_CALL.lastIndex = 0;
+    let callMatch;
+    while ((callMatch = STORAGE_CALL.exec(content)) !== null) {
+      const open = content.indexOf('(', callMatch.index + callMatch[0].length - 1);
+      if (open === -1) continue;
+      const close = findMatchingDelimiter(content, open, '(', ')');
+      if (close === -1) continue;
+      addDeclaration(content.slice(callMatch.index, close + 1), callMatch.index);
+      STORAGE_CALL.lastIndex = close + 1;
+    }
+
+    // Object-style declarations can span lines and carry metadata alongside
+    // the field name and storage type, so keep the whole balanced object in
+    // the same bounded scope as SQL and ORM declarations.
+    STORAGE_OBJECT.lastIndex = 0;
+    let objectMatch;
+    while ((objectMatch = STORAGE_OBJECT.exec(content)) !== null) {
+      const open = content.indexOf('{', objectMatch.index + objectMatch[0].length - 1);
+      if (open === -1) continue;
+      const close = findMatchingDelimiter(content, open, '{', '}');
+      if (close === -1) continue;
+      addDeclaration(content.slice(objectMatch.index, close + 1), objectMatch.index);
+      STORAGE_OBJECT.lastIndex = close + 1;
+    }
+
+    // Preserve support for object-style declarations that fit on one line.
+    let lineOffset = 0;
+    for (const line of content.split('\n')) {
+      if (STORAGE_PROPERTY.test(line)) addDeclaration(line, lineOffset);
+      lineOffset += line.length + 1;
+    }
+
+    const sourceLines = content.split('\n');
+    const seen = new Set();
+    return declarations.flatMap(({ text, start }) => {
+      const piiOffset = text.search(SENSITIVE_PII_FIELD);
+      const absolute = start + Math.max(0, piiOffset);
+      const before = content.slice(0, absolute);
+      const line = before.split('\n').length;
+      const column = absolute - before.lastIndexOf('\n');
+      const key = `${line}:${column}`;
+      if (seen.has(key)) return [];
+      seen.add(key);
+
+      const lineText = sourceLines[line - 1] || '';
+      if (this.isSuppressed(lineText, 'high')) return [];
+
+      const contextStart = Math.max(0, line - 4);
+      const contextEnd = Math.min(sourceLines.length, line + 3);
+      const finding = createFinding({
+        file,
+        line,
+        column,
+        severity: 'high',
+        category: this.category,
+        rule: 'PII_NO_ENCRYPTION_AT_REST',
+        title: 'Privacy: PII Column Without Encryption',
+        description: 'Database column storing sensitive PII (SSN, credit card, passport) without encryption-at-rest annotation.',
+        matched: text,
+        confidence: 'medium',
+        cwe: 'CWE-311',
+        owasp: 'A02:2021',
+        fix: 'Encrypt sensitive PII columns at the application level or use database-level encryption.',
+      });
+      finding.codeContext = sourceLines.slice(contextStart, contextEnd).map((sourceLine, index) => ({
+        line: contextStart + index + 1,
+        text: sourceLine,
+        highlight: contextStart + index === line - 1,
+      }));
+      return [finding];
+    });
   }
 
   /**

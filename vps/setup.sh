@@ -3,8 +3,10 @@
 # Ship Safe — VPS Setup Script
 # Tested on Ubuntu 22.04 LTS (Hetzner CX21: 2 vCPU, 4 GB RAM)
 #
-# Run as root on a fresh VPS:
-#   curl -fsSL https://raw.githubusercontent.com/asamassekou10/ship-safe/main/vps/setup.sh | bash
+# Run as root on a fresh VPS after reviewing the downloaded script:
+#   curl -fsSLo /tmp/shipsafe-setup.sh https://raw.githubusercontent.com/asamassekou10/ship-safe/main/vps/setup.sh
+#   less /tmp/shipsafe-setup.sh
+#   sudo bash /tmp/shipsafe-setup.sh
 #
 # What this does:
 #   1. Updates system packages
@@ -19,7 +21,7 @@ DOMAIN="shipsafecli.com"
 SUBDOMAIN_BASE="agents.${DOMAIN}"
 ORCHESTRATOR_DIR="/opt/shipsafe-orchestrator"
 ORCHESTRATOR_USER="shipsafe"
-CERTBOT_EMAIL="${CERTBOT_EMAIL:-admin@${DOMAIN}}"
+CERTBOT_EMAIL="${CERTBOT_EMAIL:-}"
 
 # ── 1. System update ──────────────────────────────────────────────────────────
 echo "[setup] Updating system packages..."
@@ -36,8 +38,9 @@ apt-get install -y -qq \
 # ── 3. Install Docker ─────────────────────────────────────────────────────────
 echo "[setup] Installing Docker..."
 install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
-  gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+curl -fsSLo /tmp/docker.asc https://download.docker.com/linux/ubuntu/gpg
+gpg --dearmor --batch --yes -o /etc/apt/keyrings/docker.gpg /tmp/docker.asc
+rm -f /tmp/docker.asc
 chmod a+r /etc/apt/keyrings/docker.gpg
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
   https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | \
@@ -47,7 +50,9 @@ apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugi
 
 # ── 4. Install Node.js 20 ─────────────────────────────────────────────────────
 echo "[setup] Installing Node.js 20..."
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+curl -fsSLo /tmp/nodesource-setup.sh https://deb.nodesource.com/setup_20.x
+bash /tmp/nodesource-setup.sh
+rm -f /tmp/nodesource-setup.sh
 apt-get install -y -qq nodejs
 
 # ── 5. Create orchestrator user ───────────────────────────────────────────────
@@ -147,11 +152,10 @@ EOF
 systemctl enable fail2ban
 systemctl restart fail2ban
 
-# ── 12. Pull Hermes image ─────────────────────────────────────────────────────
-echo "[setup] Building Hermes agent Docker image..."
-if [ -f /tmp/agent.Dockerfile ]; then
-  docker build -t shipsafe/hermes-agent:latest -f /tmp/agent.Dockerfile /tmp/
-fi
+# ── 12. Require an immutable Hermes image ────────────────────────────────────
+# The orchestrator rejects mutable tags by default. Images should be built by
+# the signed CI workflow and referenced by registry digest at runtime.
+echo "[setup] Hermes image build is intentionally handled by CI."
 
 echo ""
 echo "═══════════════════════════════════════════════════════"
@@ -163,7 +167,8 @@ echo "  1. Create ${ORCHESTRATOR_DIR}/.env with:"
 echo "       ORCHESTRATOR_SECRET=<strong-random-secret>"
 echo "       VPS_SUBDOMAIN_BASE=agents.${DOMAIN}"
 echo "       NGINX_SITES_DIR=/etc/nginx/sites-enabled"
-echo "       HERMES_IMAGE=shipsafe/hermes-agent:latest"
+echo "       HERMES_IMAGE=registry.example/hermes-agent@sha256:<64-char-image-digest>"
+echo "       HERMES_UPSTREAM_SHA=<40-char-reviewed-hermes-commit>"
 echo ""
 echo "  2. Run: systemctl start shipsafe-orchestrator"
 echo "  3. Get the wildcard SSL cert (see instructions above)"

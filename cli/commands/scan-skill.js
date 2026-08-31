@@ -18,6 +18,13 @@ import chalk from 'chalk';
 import { createHash } from 'crypto';
 import * as output from '../utils/output.js';
 import { ThreatIntel } from '../utils/threat-intel.js';
+import {
+  containsUnicodeTag,
+  describeUnicodeTagPayload,
+  firstNonAllowedUnicodeTagIndex,
+  stripAllowedEmojiFlagTags,
+} from '../utils/unicode-tags.js';
+import { fetchSafeUrl } from '../utils/remote-fetch.js';
 
 // =============================================================================
 // HERMES SKILL FRONTMATTER PATTERNS (Track D — cross-skill/tool binding)
@@ -142,7 +149,7 @@ export async function scanSkillCommand(target, options = {}) {
   if (target.startsWith('http://') || target.startsWith('https://')) {
     console.log(chalk.gray(`  Fetching skill from: ${target}`));
     try {
-      const response = await fetch(target);
+      const response = await fetchSafeUrl(target, { allowLoopback: true });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       content = await response.text();
       skillName = new URL(target).pathname.split('/').pop() || 'remote-skill';
@@ -187,6 +194,25 @@ async function analyzeSkill(content, skillName, source) {
   const lines = content.split('\n');
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+
+    // Unicode Tag characters are invisible in most editors but can carry
+    // instructions that an agent reads from the skill body. Keep the same
+    // explicit subdivision-flag allowlist used by repository scanning.
+    if (containsUnicodeTag(line)) {
+      const sanitized = stripAllowedEmojiFlagTags(line);
+      if (containsUnicodeTag(sanitized)) {
+        findings.push({
+          check: 'unicode-tag-detection',
+          name: 'Unicode Tag smuggling',
+          severity: 'critical',
+          line: i + 1,
+          column: firstNonAllowedUnicodeTagIndex(line) + 1,
+          matched: describeUnicodeTagPayload(line),
+          note: 'Skill contains invisible Unicode Tag characters that can hide instructions from human reviewers while remaining visible to an agent.',
+        });
+      }
+    }
+
     for (const pattern of SKILL_PATTERNS) {
       pattern.regex.lastIndex = 0;
       if (pattern.regex.test(line)) {
@@ -309,12 +335,22 @@ function parseFrontmatter(content) {
     }
   }
 
-  // Collect multi-line list values (indented - items)
-  const listRe = /^(\w[\w-]*):\s*\n((?:\s+-\s+.+\n?)+)/gm;
-  let m;
-  while ((m = listRe.exec(yamlBlock)) !== null) {
-    const [, key, block] = m;
-    fm[key] = block.match(/-\s+(.+)/g)?.map(s => s.replace(/^-\s+/, '').replace(/['"]/g, '').trim()) ?? [];
+  // Collect multi-line list values without a nested quantifier. Skills are
+  // untrusted input, so frontmatter parsing must stay linear on long or
+  // malformed documents.
+  const lines = yamlBlock.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const keyMatch = lines[i].match(/^(\w[\w-]*):\s*$/);
+    if (!keyMatch) continue;
+
+    const items = [];
+    for (let j = i + 1; j < lines.length; j++) {
+      const itemMatch = lines[j].match(/^\s+-\s+(.+)$/);
+      if (!itemMatch) break;
+      items.push(itemMatch[1].trim().replace(/['"]/g, ''));
+      i = j;
+    }
+    if (items.length > 0) fm[keyMatch[1]] = items;
   }
 
   return fm;
@@ -521,7 +557,7 @@ async function scanAllSkills(rootPath) {
       if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
         console.log(chalk.cyan(`  Scanning skill: ${name}`));
         try {
-          const response = await fetch(url);
+          const response = await fetchSafeUrl(url, { allowLoopback: true });
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const content = await response.text();
           const findings = await analyzeSkill(content, name, url);

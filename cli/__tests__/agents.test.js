@@ -1170,7 +1170,7 @@ describe('VerifierAgent', async () => {
     } finally { cleanup(dir); }
   });
 
-  it('downgrades finding with sanitization upstream', async () => {
+  it('does not treat nearby sanitization as conclusive without data-flow proof', async () => {
     const code = 'app.post("/api", (req, res) => {\n  const name = sanitize(req.body.name);\n  const validated = validator.escape(name);\n  db.query(`SELECT * FROM users WHERE name = ${validated}`);\n  res.send("ok");\n});';
     const { dir, file } = writeTempFile(code);
     try {
@@ -1179,8 +1179,21 @@ describe('VerifierAgent', async () => {
         rule: 'SQL_INJECTION', matched: '`SELECT * FROM users',
       }];
       const verified = verifier.verify(findings);
-      assert.strictEqual(verified[0].verified, false, 'Should not verify sanitized finding');
-      assert.strictEqual(verified[0].confidence, 'medium', 'Should downgrade confidence');
+      assert.strictEqual(verified[0].verified, null, 'Nearby text alone is inconclusive');
+      assert.strictEqual(verified[0].confidence, 'high', 'Should preserve confidence without proof');
+    } finally { cleanup(dir); }
+  });
+
+  it('confirms that a static hardcoded secret is evidence, not a mitigation', async () => {
+    const { dir, file } = writeTempFile('const apiKey = "sk_live_123456789";');
+    try {
+      const findings = [{
+        file, line: 1, severity: 'critical', category: 'secrets', confidence: 'high',
+        rule: 'HARDCODED_SECRET', matched: '"sk_live_123456789"',
+      }];
+      const verified = verifier.verify(findings);
+      assert.strictEqual(verified[0].verified, true);
+      assert.strictEqual(verified[0].confidence, 'high');
     } finally { cleanup(dir); }
   });
 

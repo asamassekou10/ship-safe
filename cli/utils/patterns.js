@@ -1184,6 +1184,10 @@ export const TEST_FILE_PATTERNS = [
   /[/\\]fakes?[/\\]/,
   /\.stories\.[jt]sx?$/,   // Storybook story files
   /\.mock\.[jt]sx?$/,
+  // Benchmark corpora intentionally contain vulnerable applications and
+  // malicious install fixtures. They remain scannable with --include-tests,
+  // but must not lower the default posture score for the scanner repository.
+  /[/\\]benchmarks[/\\](?:[^/\\]+[/\\])*corpus-src[/\\]/i,
 ];
 
 /**

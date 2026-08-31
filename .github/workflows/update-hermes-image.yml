@@ -1,10 +1,12 @@
 name: Update Hermes Agent Image
 
 on:
-  schedule:
-    - cron: '0 3 * * *'   # 03:00 UTC daily
-  workflow_dispatch:       # allow manual trigger
+  workflow_dispatch:
     inputs:
+      hermes_sha:
+        description: 'Full 40-character Hermes commit SHA to build and review'
+        required: true
+        type: string
       dry_run:
         description: 'Build only — do not push the image or roll out to the VPS'
         type: boolean
@@ -20,38 +22,32 @@ jobs:
     outputs:
       rebuilt: ${{ steps.set-rebuilt.outputs.rebuilt }}
       sha: ${{ steps.upstream.outputs.sha }}
+      digest: ${{ steps.build.outputs.digest }}
 
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
-      # ── 1. Resolve the latest tagged Hermes release ──────────────────────────
-      # Deliberately a release, not `main`. This job builds an image that is
-      # rolled straight onto the production VPS, so tracking a moving branch
-      # meant any upstream commit — including a compromised one — reached prod
-      # within 24h with nobody in the loop. A tag is a point upstream chose to
-      # publish, and it gives us something reviewable to pin to.
-      - name: Get upstream Hermes release
+      # ── 1. Validate the reviewed Hermes commit ───────────────────────────────
+      # The operator must choose the exact upstream commit. This workflow never
+      # resolves `main`, `latest`, or a newly published release on its own.
+      - name: Validate Hermes commit
         id: upstream
+        env:
+          HERMES_SHA_INPUT: ${{ inputs.hermes_sha }}
         run: |
           set -euo pipefail
           API="https://api.github.com/repos/NousResearch/hermes-agent"
           H=(-H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
-
-          TAG=$(curl -sf "${H[@]}" "$API/releases/latest" | jq -r '.tag_name')
-          if [[ -z "$TAG" || "$TAG" == "null" ]]; then
-            echo "::error::could not resolve latest hermes-agent release"; exit 1
+          SHA="$HERMES_SHA_INPUT"
+          if [[ ! "$SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::hermes_sha must be a full 40-character commit SHA"; exit 1
           fi
-
-          REF=$(curl -sf "${H[@]}" "$API/git/ref/tags/$TAG")
-          SHA=$(jq -r '.object.sha' <<<"$REF")
-          # Annotated tags point at a tag object; dereference to the commit.
-          if [[ "$(jq -r '.object.type' <<<"$REF")" == "tag" ]]; then
-            SHA=$(curl -sf "${H[@]}" "$API/git/tags/$SHA" | jq -r '.object.sha')
+          RESOLVED=$(curl -sf "${H[@]}" "$API/commits/$SHA" | jq -r '.sha')
+          if [[ "$RESOLVED" != "$SHA" ]]; then
+            echo "::error::Hermes commit could not be resolved exactly"; exit 1
           fi
-
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
-          echo "Upstream release: ${TAG} (${SHA})"
+          echo "Pinned Hermes commit: ${SHA}"
 
       # ── 2. Get SHA baked into the current latest image ────────────────────────
       - name: Get current image SHA
@@ -91,10 +87,9 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/hermes-agent:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/hermes-agent:${{ steps.upstream.outputs.sha }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/hermes-agent:${{ steps.upstream.outputs.tag }}
           labels: |
             org.opencontainers.image.revision=${{ steps.upstream.outputs.sha }}
-            org.opencontainers.image.version=${{ steps.upstream.outputs.tag }}
+            org.opencontainers.image.version=pinned
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -112,6 +107,7 @@ jobs:
   rollout:
     needs: check-and-build
     runs-on: ubuntu-latest
+    environment: hermes-production
     if: needs.check-and-build.outputs.rebuilt == 'true' && inputs.dry_run != true
 
     steps:
@@ -121,6 +117,6 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.ORCHESTRATOR_SECRET }}" \
             -H "Content-Type: application/json" \
             "${{ secrets.ORCHESTRATOR_URL }}/update-image" \
-            -d '{"image": "${{ secrets.DOCKERHUB_USERNAME }}/hermes-agent:latest"}' \
+            -d '{"image": "${{ secrets.DOCKERHUB_USERNAME }}/hermes-agent@${{ needs.check-and-build.outputs.digest }}"}' \
           && echo "Rolling restart triggered." \
           || echo "WARNING: orchestrator unreachable — containers will update on next redeploy."

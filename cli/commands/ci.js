@@ -47,10 +47,17 @@ import {
   isTestFile,
   isExampleFile
 } from '../utils/patterns.js';
-import { projectFindings } from '../agents/base-agent.js';
+import { normalizeFindingMetadata, postureFindings, projectFindings } from '../agents/base-agent.js';
 import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import { postPRComments } from './watch.js';
+import { compareFindingSets, snapshotFinding } from '../utils/finding-delta.js';
 import fg from 'fast-glob';
+
+const DEFAULT_STDOUT_WRITE_TIMEOUT_MS = 10_000;
+const configuredStdoutWriteTimeout = Number.parseInt(process.env.SHIP_SAFE_STDOUT_TIMEOUT_MS, 10);
+const STDOUT_WRITE_TIMEOUT_MS = Number.isInteger(configuredStdoutWriteTimeout) && configuredStdoutWriteTimeout > 0
+  ? configuredStdoutWriteTimeout
+  : DEFAULT_STDOUT_WRITE_TIMEOUT_MS;
 
 // =============================================================================
 // MAIN COMMAND
@@ -141,13 +148,55 @@ export async function ciCommand(targetPath = '.', options = {}) {
   if (options.baseline) {
     allFindings = filterBaseline(allFindings, absolutePath);
   }
+  allFindings = allFindings.map(normalizeFindingMetadata);
+
+  // A base report turns a repository scan into a true PR comparison. Reports
+  // carry hashed snapshots, so this does not require storing raw secret matches.
+  let prDelta = null;
+  if (options.baseReport) {
+    try {
+      const reportPath = path.resolve(options.baseReport);
+      const baseReport = JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
+      const baseFindings = baseReport.findingSnapshots || baseReport.findings;
+      if (!Array.isArray(baseFindings)) {
+        throw new Error('report has no findingSnapshots or findings array');
+      }
+      prDelta = compareFindingSets(baseFindings, allFindings, { headRoot: absolutePath });
+    } catch (error) {
+      console.error(`[ship-safe] Could not load base report: ${error.message}`);
+      process.exit(1);
+    }
+  }
 
   // ── Score ────────────────────────────────────────────────────────────────
   const scoringEngine = new ScoringEngine();
-  const scoreResult = scoringEngine.compute(allFindings, depVulns, { includeEnvironment: checkGlobalAgents });
+  const scoreResult = scoringEngine.compute(allFindings, depVulns, {
+    includeEnvironment: checkGlobalAgents,
+    includeNonProduction: options.includeTests,
+  });
+  const posture = postureFindings(allFindings, { includeNonProduction: options.includeTests });
+  const findingSnapshots = allFindings.map(finding => snapshotFinding(finding, absolutePath));
+  const introducedFindings = prDelta
+    ? prDelta.introduced.map(entry => entry.finding)
+    : allFindings;
+  const gateScoreResult = prDelta
+    ? scoringEngine.compute(introducedFindings, [], { includeNonProduction: options.includeTests })
+    : scoreResult;
   // Round like audit does; without this the JSON emitted 29.900000000000006.
   scoreResult.score = Math.round(scoreResult.score * 10) / 10;
   scoringEngine.saveToHistory(absolutePath, scoreResult);
+
+  if (options.writeBaselineReport) {
+    const baselineReportPath = path.resolve(options.writeBaselineReport);
+    const baselineReport = {
+      schemaVersion: 1,
+      scoreVersion: scoreResult.scoreVersion,
+      createdAt: new Date().toISOString(),
+      findingSnapshots,
+    };
+    fs.mkdirSync(path.dirname(baselineReportPath), { recursive: true });
+    fs.writeFileSync(baselineReportPath, `${JSON.stringify(baselineReport, null, 2)}\n`);
+  }
 
   const duration = ((Date.now() - startTime) / 1000).toFixed(1);
 
@@ -165,31 +214,65 @@ export async function ciCommand(targetPath = '.', options = {}) {
 
   // ── JSON Output ──────────────────────────────────────────────────────────
   if (options.json) {
-    console.log(JSON.stringify({
-      score: scoreResult.score,
-      grade: scoreResult.grade.letter,
-      totalFindings: allFindings.length,
-      totalDepVulns: depVulns.length,
-      critical: allFindings.filter(f => f.severity === 'critical').length,
-      high: allFindings.filter(f => f.severity === 'high').length,
-      medium: allFindings.filter(f => f.severity === 'medium').length,
-      low: allFindings.filter(f => f.severity === 'low').length,
-      findings: projectFindings(allFindings),
-      threshold,
-      pass: determinePass(scoreResult, allFindings, threshold, failOn),
-      duration: `${duration}s`,
-      }));
+    // A large report can be buffered by stdout. Wait for the write callback
+    // before the command's forced exit, otherwise CI consumers may receive a
+    // truncated JSON document.
+    try {
+      await writeStdout(`${JSON.stringify({
+        scoreVersion: scoreResult.scoreVersion,
+        score: scoreResult.score,
+        postureScore: scoreResult.postureScore,
+        grade: scoreResult.grade.letter,
+        totalFindings: allFindings.length,
+        postureFindings: scoreResult.postureFindings,
+        excludedFromPosture: scoreResult.excludedFromPosture,
+        excludedByCodeScope: scoreResult.excludedByCodeScope,
+        aiAffectsScore: scoreResult.aiAffectsScore,
+        findingSnapshots,
+        prDelta,
+        prRiskScore: prDelta ? gateScoreResult.postureScore : null,
+        prRiskGrade: prDelta ? gateScoreResult.grade.letter : null,
+        totalDepVulns: depVulns.length,
+        critical: allFindings.filter(f => f.severity === 'critical').length,
+        high: allFindings.filter(f => f.severity === 'high').length,
+        medium: allFindings.filter(f => f.severity === 'medium').length,
+        low: allFindings.filter(f => f.severity === 'low').length,
+        postureCritical: posture.filter(f => f.severity === 'critical').length,
+        postureHigh: posture.filter(f => f.severity === 'high').length,
+        postureMedium: posture.filter(f => f.severity === 'medium').length,
+        postureLow: posture.filter(f => f.severity === 'low').length,
+        findings: projectFindings(allFindings),
+        threshold,
+        pass: determinePass(gateScoreResult, introducedFindings, threshold, failOn, options.includeTests),
+        duration: `${duration}s`,
+        })}\n`);
+    } catch (error) {
+      const message = error.code === 'SHIP_SAFE_STDOUT_TIMEOUT'
+        ? `Timed out writing JSON output to stdout after ${STDOUT_WRITE_TIMEOUT_MS}ms; the downstream consumer may not be reading.`
+        : `Could not write JSON output to stdout: ${error.message}`;
+      console.error(`[ship-safe] ${message}`);
+      // The report cannot be delivered once stdout is stalled or broken. Exit
+      // immediately so a blocked stream cannot keep the CI process alive.
+      process.exit(1);
+    }
   } else {
     // ── Compact CI Summary ───────────────────────────────────────────────
-    const critical = allFindings.filter(f => f.severity === 'critical').length;
-    const high = allFindings.filter(f => f.severity === 'high').length;
-    const medium = allFindings.filter(f => f.severity === 'medium').length;
+    const gatePosture = prDelta
+      ? postureFindings(introducedFindings, { includeNonProduction: options.includeTests })
+      : posture;
+    const critical = posture.filter(f => f.severity === 'critical').length;
+    const high = posture.filter(f => f.severity === 'high').length;
+    const medium = posture.filter(f => f.severity === 'medium').length;
 
-    console.log(`[ship-safe] Score: ${scoreResult.score}/100 (${scoreResult.grade.letter}) | Findings: ${allFindings.length} (${critical}C ${high}H ${medium}M) | CVEs: ${depVulns.length} | ${duration}s`);
+    const deltaSummary = prDelta
+      ? ` | PR delta: +${prDelta.counts.introduced} -${prDelta.counts.resolved} ?${prDelta.counts.uncertain}`
+      : '';
+    console.log(`[ship-safe] Posture: ${scoreResult.score}/100 (${scoreResult.grade.letter}) | Findings: ${posture.length} (${critical}C ${high}H ${medium}M) | Observed: ${allFindings.length}${deltaSummary} | CVEs: ${depVulns.length} | ${duration}s`);
 
-    if (critical > 0) {
-      console.log(`[ship-safe] Critical findings:`);
-      for (const f of allFindings.filter(f => f.severity === 'critical').slice(0, 5)) {
+    const gateCritical = gatePosture.filter(f => f.severity === 'critical');
+    if (gateCritical.length > 0) {
+      console.log(`[ship-safe] ${prDelta ? 'Introduced critical findings' : 'Critical findings'}:`);
+      for (const f of gateCritical.slice(0, 5)) {
         const rel = path.relative(absolutePath, f.file).replace(/\\/g, '/');
         console.log(`  - ${f.rule} at ${rel}:${f.line}`);
       }
@@ -203,7 +286,7 @@ export async function ciCommand(targetPath = '.', options = {}) {
   // ── GitHub PR Comment ──────────────────────────────────────────────────
   if (options.githubPr) {
     try {
-      postPRComment(scoreResult, allFindings, depVulns, absolutePath, duration);
+      postPRComment(scoreResult, allFindings, depVulns, absolutePath, duration, options.includeTests, prDelta, gateScoreResult);
     } catch (err) {
       console.log(`[ship-safe] Warning: Could not post PR comment: ${err.message}`);
     }
@@ -213,23 +296,27 @@ export async function ciCommand(targetPath = '.', options = {}) {
   // permission and should never be enabled accidentally on untrusted events.
   if (options.githubInline) {
     try {
-      await postPRComments(projectFindings(allFindings), absolutePath, 'ci');
+      const inlineFindings = prDelta ? introducedFindings : projectFindings(allFindings);
+      await postPRComments(projectFindings(inlineFindings), absolutePath, 'ci');
     } catch (err) {
       console.log(`[ship-safe] Warning: Could not post inline PR comments: ${err.message}`);
     }
   }
 
   // ── Exit Code ────────────────────────────────────────────────────────────
-  const pass = determinePass(scoreResult, allFindings, threshold, failOn);
+  const pass = determinePass(gateScoreResult, introducedFindings, threshold, failOn, options.includeTests);
   if (!pass) {
     if (!options.json) {
       if (failOn) {
         const order = ['critical', 'high', 'medium', 'low'];
         const blocking = order.slice(0, order.indexOf(failOn) + 1);
-        const n = allFindings.filter(f => blocking.includes(f.severity)).length;
-        console.log(`[ship-safe] FAIL: ${n} finding(s) at ${failOn} severity or above`);
+        const gatePosture = postureFindings(introducedFindings, { includeNonProduction: options.includeTests });
+        const n = gatePosture.filter(f => blocking.includes(f.severity)).length;
+        const label = prDelta ? 'introduced finding(s)' : 'finding(s)';
+        console.log(`[ship-safe] FAIL: ${n} ${label} at ${failOn} severity or above`);
       } else {
-        console.log(`[ship-safe] FAIL: Score ${scoreResult.score} < threshold ${threshold}`);
+        const label = prDelta ? 'PR risk score' : 'Score';
+        console.log(`[ship-safe] FAIL: ${label} ${gateScoreResult.score} < threshold ${threshold}`);
       }
     }
     process.exit(1);
@@ -241,18 +328,46 @@ export async function ciCommand(targetPath = '.', options = {}) {
   }
 }
 
+function writeStdout(value) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    function finish(error) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      error ? reject(error) : resolve();
+    }
+
+    const timer = setTimeout(() => {
+      const error = new Error('stdout write timed out');
+      error.code = 'SHIP_SAFE_STDOUT_TIMEOUT';
+      finish(error);
+      // A live pipe that is no longer being read can keep the write callback
+      // pending forever. Close it after the bound so CI can fail cleanly.
+      process.stdout.destroy();
+    }, STDOUT_WRITE_TIMEOUT_MS);
+
+    try {
+      process.stdout.write(value, finish);
+    } catch (error) {
+      finish(error);
+    }
+  });
+}
+
 // =============================================================================
 // HELPERS
 // =============================================================================
 
-function determinePass(scoreResult, findings, threshold, failOn) {
+function determinePass(scoreResult, findings, threshold, failOn, includeNonProduction = false) {
+  const gateFindings = postureFindings(findings, { includeNonProduction });
   if (failOn === 'none') return true;
   if (failOn) {
     const sevOrder = ['critical', 'high', 'medium', 'low'];
     const failIndex = sevOrder.indexOf(failOn);
     if (failIndex === -1) return scoreResult.score >= threshold;
     const blockingSevs = sevOrder.slice(0, failIndex + 1);
-    return !findings.some(f => blockingSevs.includes(f.severity));
+    return !gateFindings.some(f => blockingSevs.includes(f.severity));
   }
   return scoreResult.score >= threshold;
 }
@@ -309,7 +424,7 @@ function buildSARIF(findings, rootPath) {
  * Post a summary comment on the current GitHub PR using the `gh` CLI.
  * Requires: `gh` installed and authenticated, running in a PR context.
  */
-function postPRComment(scoreResult, findings, depVulns, rootPath, duration) {
+function postPRComment(scoreResult, findings, depVulns, rootPath, duration, includeNonProduction = false, prDelta = null, gateScoreResult = scoreResult) {
   // Detect PR number from environment (GitHub Actions sets GITHUB_REF)
   let prNumber = process.env.GITHUB_PR_NUMBER || '';
 
@@ -334,10 +449,11 @@ function postPRComment(scoreResult, findings, depVulns, rootPath, duration) {
     }
   }
 
-  const critical = findings.filter(f => f.severity === 'critical').length;
-  const high = findings.filter(f => f.severity === 'high').length;
-  const medium = findings.filter(f => f.severity === 'medium').length;
-  const low = findings.filter(f => f.severity === 'low').length;
+  const posture = postureFindings(findings, { includeNonProduction });
+  const critical = posture.filter(f => f.severity === 'critical').length;
+  const high = posture.filter(f => f.severity === 'high').length;
+  const medium = posture.filter(f => f.severity === 'medium').length;
+  const low = posture.filter(f => f.severity === 'low').length;
 
   const gradeEmoji = { A: '🟢', B: '🔵', C: '🟡', D: '🟠', F: '🔴' };
   const emoji = gradeEmoji[scoreResult.grade.letter] || '⚪';
@@ -346,14 +462,35 @@ function postPRComment(scoreResult, findings, depVulns, rootPath, duration) {
   let body = `## ${emoji} Ship Safe Security Report\n\n`;
   body += `| Metric | Value |\n|--------|-------|\n`;
   body += `| **Score** | ${scoreResult.score}/100 (${scoreResult.grade.letter}) |\n`;
-  body += `| **Findings** | ${findings.length} total (${critical}C ${high}H ${medium}M ${low}L) |\n`;
+  body += `| **Posture findings** | ${scoreResult.postureFindings} |\n`;
+  if (scoreResult.excludedFromPosture > 0) {
+    body += `| **Non-production evidence** | ${scoreResult.excludedFromPosture} excluded from posture score |\n`;
+  }
+  body += `| **Posture severity** | ${critical}C ${high}H ${medium}M ${low}L |\n`;
+  body += `| **Observed findings** | ${findings.length} total |\n`;
   body += `| **Dep CVEs** | ${depVulns.length} |\n`;
   body += `| **Duration** | ${duration}s |\n\n`;
 
-  if (critical > 0 || high > 0) {
+  if (prDelta) {
+    body += `### Pull request risk\n\n`;
+    body += `| Introduced | Resolved | Unchanged | Uncertain | Risk score |\n`;
+    body += `|------------|----------|-----------|-----------|------------|\n`;
+    body += `| ${prDelta.counts.introduced} | ${prDelta.counts.resolved} | ${prDelta.counts.unchanged} | ${prDelta.counts.uncertain} | ${gateScoreResult.score}/100 (${gateScoreResult.grade.letter}) |\n\n`;
+    if (prDelta.counts.uncertain > 0) {
+      body += `> Ambiguous matches are reported as uncertain and do not block this pull request.\n\n`;
+    }
+  }
+
+  const detailedFindings = prDelta
+    ? prDelta.introduced.map(entry => entry.finding)
+    : posture;
+  const detailedCritical = detailedFindings.filter(f => f.severity === 'critical').length;
+  const detailedHigh = detailedFindings.filter(f => f.severity === 'high').length;
+
+  if (detailedCritical > 0 || detailedHigh > 0) {
     body += `### Critical & High Findings\n\n`;
     body += `| Severity | File | Issue |\n|----------|------|-------|\n`;
-    for (const f of findings.filter(f => f.severity === 'critical' || f.severity === 'high').slice(0, 20)) {
+    for (const f of detailedFindings.filter(f => f.severity === 'critical' || f.severity === 'high').slice(0, 20)) {
       const rel = path.relative(rootPath, f.file).replace(/\\/g, '/');
       body += `| ${f.severity.toUpperCase()} | \`${rel}:${f.line}\` | ${(f.title || f.rule).slice(0, 60)} |\n`;
     }
