@@ -1002,7 +1002,7 @@ async function findFiles(rootPath, { includeTests = false } = {}) {
     // credential-shaped strings and minimal apps that skip production controls.
     // `scan` has always excluded it; `audit` and `ci` did not, so the same repo
     // could pass one command and fail another.
-    if (!includeTests && (isTestFile(file) || isExampleFile(file))) return false;
+    if (!includeTests && (isTestFile(file, rootPath) || isExampleFile(file, rootPath))) return false;
     const ext = path.extname(file).toLowerCase();
     if (SKIP_EXTENSIONS.has(ext)) return false;
     if (SKIP_FILENAMES.has(path.basename(file))) return false;

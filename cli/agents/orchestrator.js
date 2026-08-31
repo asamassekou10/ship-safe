@@ -106,7 +106,7 @@ export class Orchestrator {
     // from these paths, including 528 of express's 601 API_NO_SECURITY_HEADERS
     // hits in `test/` against 2 in `lib/`.
     if (!options.includeTests) {
-      files = files.filter(f => !isTestFile(f) && !isExampleFile(f));
+      files = files.filter(f => !isTestFile(f, absolutePath) && !isExampleFile(f, absolutePath));
     }
 
     // ── 3. Filter agents if specific ones requested ───────────────────────────

@@ -1203,8 +1203,36 @@ export const TEST_FILE_PATTERNS = [
  * produced 601 API_NO_SECURITY_HEADERS findings, of which 528 were in `test/`
  * and 2 in `lib/`. A test app that skips security headers is not a defect.
  */
-export function isTestFile(filePath) {
-  return TEST_FILE_PATTERNS.some((pattern) => pattern.test(filePath));
+export function isTestFile(filePath, rootPath = null) {
+  return TEST_FILE_PATTERNS.some((pattern) => pattern.test(scanRelative(filePath, rootPath)));
+}
+
+/**
+ * The part of a path that belongs to the project being scanned.
+ *
+ * These patterns describe a file's role *within* a repository, and matching
+ * them against an absolute path asks a different question: not "is this a
+ * fixture in this project" but "does anything in this machine's directory
+ * structure resemble a fixture". A repository checked out at
+ * `~/fixtures/my-api` is not a fixture, and every file in it was being skipped.
+ *
+ * The concrete failure was the false-positive benchmark. A rule excludes
+ * `benchmarks/**\/corpus-src/**` so that vendored vulnerable applications do
+ * not lower this repository's own posture score — correct when scanning Ship
+ * Safe, and wrong when the corpus *is* the scan target, which is exactly what
+ * that harness does. Express scanned in place reported 1 finding; the same
+ * commit scanned elsewhere reported 20.
+ *
+ * Falling back to the absolute path when the file lies outside the root keeps
+ * the previous behaviour for callers that scan beyond their own tree.
+ */
+function scanRelative(filePath, rootPath) {
+  if (!rootPath) return filePath;
+  const relative = path.relative(rootPath, filePath);
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return filePath;
+  // Leading separator so patterns anchored on a separator still match the
+  // first segment: `test/app.js` has to look like `/test/app.js`.
+  return `${path.sep}${relative}`;
 }
 
 /**
@@ -1218,6 +1246,6 @@ export const EXAMPLE_FILE_PATTERNS = [
   /[/\\]demos?[/\\]/i,
 ];
 
-export function isExampleFile(filePath) {
-  return EXAMPLE_FILE_PATTERNS.some((pattern) => pattern.test(filePath));
+export function isExampleFile(filePath, rootPath = null) {
+  return EXAMPLE_FILE_PATTERNS.some((pattern) => pattern.test(scanRelative(filePath, rootPath)));
 }

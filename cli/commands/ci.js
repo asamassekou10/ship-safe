@@ -528,7 +528,7 @@ async function findFiles(rootPath, { includeTests = false } = {}) {
   return files.filter(file => {
     // Same reasoning as audit: test and example code is illustrative, and
     // scoring a pipeline on it produces failures nobody can act on.
-    if (!includeTests && (isTestFile(file) || isExampleFile(file))) return false;
+    if (!includeTests && (isTestFile(file, rootPath) || isExampleFile(file, rootPath))) return false;
     const ext = path.extname(file).toLowerCase();
     if (SKIP_EXTENSIONS.has(ext)) return false;
     if (SKIP_FILENAMES.has(path.basename(file))) return false;
