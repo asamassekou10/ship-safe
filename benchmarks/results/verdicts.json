@@ -11,12 +11,12 @@
     "The --llm mode is not deterministic and is never gated."
   ],
   "metrics": {
-    "truePositives": 16,
-    "settled": 7,
-    "settledRate": 0.4375,
+    "truePositives": 17,
+    "settled": 8,
+    "settledRate": 0.47058823529411764,
     "falseRefutations": 0,
-    "noiseStanding": 4,
-    "noiseRefuted": 5,
+    "noiseStanding": 3,
+    "noiseRefuted": 7,
     "unlabeled": 0
   },
   "flow": [
@@ -48,6 +48,12 @@
       "id": "interproc",
       "expectedRule": "SQL_INJECTION_TEMPLATE_LITERAL",
       "tainted": "confirmed",
+      "guarded": "refuted"
+    },
+    {
+      "id": "absence-headers",
+      "expectedRule": "API_NO_SECURITY_HEADERS",
+      "tainted": "likely",
       "guarded": "refuted"
     }
   ],
@@ -127,7 +133,7 @@
       "safeControlNoise": [
         {
           "rule": "LLM_NO_OUTPUT_FILTER",
-          "verdict": "confirmed"
+          "verdict": "likely"
         }
       ]
     },
@@ -146,7 +152,7 @@
       "safeControlNoise": [
         {
           "rule": "MCP_SERVER_NO_AUTH",
-          "verdict": "unknown"
+          "verdict": "refuted"
         }
       ]
     },
@@ -179,11 +185,11 @@
       "safeControlNoise": [
         {
           "rule": "RAG_UNSANITIZED_INGESTION",
-          "verdict": "unknown"
+          "verdict": "likely"
         },
         {
           "rule": "RAG_NO_TENANT_ISOLATION",
-          "verdict": "unknown"
+          "verdict": "likely"
         }
       ]
     },

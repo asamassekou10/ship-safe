@@ -71,10 +71,10 @@
     }
   },
   "gate": {
-    "comment": "Ratchets. falseRefutations and unlabeled findings are absolute failures; the other two are the current measured values and may only be improved. Raising minSettledRate or lowering maxNoiseStanding is the deliberate act of banking a gain \u2014 0.16 to 0.40 when DataflowInvestigator landed, 0.40 to 0.43 when it learned to cross a function boundary.",
+    "comment": "Ratchets. falseRefutations and unlabeled findings are absolute failures; the other two are the current measured values and may only be improved. Raising minSettledRate or lowering maxNoiseStanding is the deliberate act of banking a gain \u2014 0.16 with the heuristic pass alone, 0.40 with data-flow tracing, 0.4375 once it crossed a function boundary, 0.47 once absence rules were decided by project-wide search.",
     "maxFalseRefutations": 0,
-    "minSettledRate": 0.43,
-    "maxNoiseStanding": 4
+    "minSettledRate": 0.47,
+    "maxNoiseStanding": 3
   },
   "flowDescription": "Paired fixtures with an actual data path, which the one-line detection fixtures do not have. Each pair holds the same sink reached by a value an attacker controls and by one they do not, so a pass that traces the value is rewarded and a pass that pattern-matches the neighbourhood is not.",
   "flowScenarios": [
@@ -117,6 +117,14 @@
       "tainted": "flow/interproc.tainted.dao.js",
       "guarded": "flow/interproc.guarded.dao.js",
       "why": "The sink is in a helper whose value arrives as a parameter, and the caller lives in another file. This is the shape of most real handler code, and a tracer that stops at the parameter list abstains on all of it."
+    },
+    {
+      "id": "absence-headers",
+      "agent": "APIFuzzer",
+      "expectedRule": "API_NO_SECURITY_HEADERS",
+      "tainted": "absence/unprotected/app.js",
+      "guarded": "absence/protected/app.js",
+      "why": "An absence rule is scoped to a file while its claim is about an application. The pair sits in separate directories because a control in a sibling fixture would be found by the project-wide search and refute the wrong one."
     }
   ]
 }

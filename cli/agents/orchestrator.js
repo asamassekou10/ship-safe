@@ -21,6 +21,7 @@ import chalk from 'chalk';
 import { ReconAgent } from './recon-agent.js';
 import { VerifierAgent } from './verifier-agent.js';
 import { DataflowInvestigator } from './dataflow-investigator.js';
+import { AbsenceInvestigator } from './absence-investigator.js';
 import { DeepAnalyzer } from './deep-analyzer.js';
 import { isTestFile, isExampleFile } from '../utils/patterns.js';
 import { buildCapabilityGraph, findAttackChains, chainFindings } from '../utils/capability-graph.js';
@@ -43,6 +44,7 @@ export class Orchestrator {
     this.reconAgent = new ReconAgent();
     this.verifierAgent = new VerifierAgent();
     this.dataflowInvestigator = new DataflowInvestigator();
+    this.absenceInvestigator = new AbsenceInvestigator();
   }
 
   /**
@@ -270,6 +272,9 @@ export class Orchestrator {
     if (!options.skipDataflow) {
       const flowSpinner = quiet ? null : ora({ text: 'Tracing data flow...', color: 'cyan' }).start();
       allFindings = this.dataflowInvestigator.investigate(allFindings, { rootPath: absolutePath, files });
+      // Absence rules are a different question — not where a value came from,
+      // but whether the control they say is missing exists anywhere.
+      allFindings = this.absenceInvestigator.investigate(allFindings, { rootPath: absolutePath, files });
       const traced = allFindings.filter(f => (f.evidence?.claims || []).some(c => c.source === 'dataflow'));
       const confirmed = traced.filter(f => f.evidence.verdict === 'confirmed').length;
       const refuted = traced.filter(f => f.evidence.verdict === 'refuted').length;

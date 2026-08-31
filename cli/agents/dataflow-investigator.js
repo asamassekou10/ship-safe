@@ -42,6 +42,7 @@
 import fs from 'fs';
 import path from 'path';
 import { attachEvidence, createClaim } from '../utils/evidence.js';
+import { isAbsenceRule } from './absence-investigator.js';
 
 // =============================================================================
 // VOCABULARY
@@ -164,6 +165,13 @@ export class DataflowInvestigator {
   _traceable(finding) {
     if (!finding.file || !finding.line) return false;
     if (!TRACEABLE_EXT.has(path.extname(finding.file).toLowerCase())) return false;
+
+    // A rule asserting a control is missing is not answered by where a value
+    // came from. AbsenceInvestigator owns those, and answering them here means
+    // confirming "model output reaches this line" as though it settled whether
+    // the output is filtered.
+    if (isAbsenceRule(finding.rule)) return false;
+
     return TAINT_CATEGORIES.has(finding.category);
   }
 

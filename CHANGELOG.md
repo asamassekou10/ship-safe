@@ -35,6 +35,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   to fix rather than three. Exits 1 on anything confirmed. `--all` details the
   unresolved and refuted buckets, `--deep` adds the LLM pass, `--json` emits the
   evidence.
+- **`AbsenceInvestigator`** — decides rules that assert a control is missing,
+  which data-flow tracing cannot speak to at all: on OWASP NodeGoat every one of
+  the 48 unresolved findings was of this kind and the tracer looked at none of
+  them. These rules are scoped to a file while the claim they make is about an
+  application, which is what makes them the noisiest category in the tool. The
+  pass asks two questions of the whole project: is the precondition even met —
+  is there an application here that could hold the control — and is the control
+  applied anywhere. Either answer refutes and cites where; absent across the
+  project raises the finding to 'likely' and no higher, since a rate limiter may
+  live in a proxy or gateway this pass cannot see. Imports and commented-out
+  code are never accepted as evidence a control is applied.
 - **`DataflowInvestigator`** — a deterministic pass that traces a finding's value
   back to its origin instead of pattern-matching its neighbourhood: it walks
   assignments, destructurings, and coercions backwards from the sink and files a

@@ -66,3 +66,8 @@ sits in a helper, the value arrives as a parameter, and the caller lives in
 another file. Before the tracer crossed a function boundary it abstained on all
 of it, which is why `settledRate` understated nothing and overstated nothing —
 there was simply no fixture in the corpus with that shape.
+
+The `absence-headers` pair sits in two directories rather than one. Every other
+fixture pair shares a directory, but an absence rule is decided by searching the
+whole project, so a control in a sibling fixture would be found and would refute
+the case it was not written for.

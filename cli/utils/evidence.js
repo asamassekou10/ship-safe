@@ -62,6 +62,7 @@ export const CLAIM_SOURCES = Object.freeze({
   analysis:      1,   // LLM reading of the finding and its file (DeepAnalyzer)
   dataflow:      2,   // traced source→sink path across the code graph
   chain:         2,   // cross-agent capability/attack-chain construction
+  presence:      2,   // project-wide search for a control a rule says is missing
   reproduction:  3,   // executed in a sandbox and observed
 });
 

@@ -49,6 +49,7 @@ import { fileURLToPath } from 'node:url';
 import * as agents from '../cli/agents/index.js';
 import { VerifierAgent } from '../cli/agents/verifier-agent.js';
 import { DataflowInvestigator } from '../cli/agents/dataflow-investigator.js';
+import { AbsenceInvestigator } from '../cli/agents/absence-investigator.js';
 import { DeepAnalyzer } from '../cli/agents/deep-analyzer.js';
 import packageJson from '../package.json' with { type: 'json' };
 
@@ -87,8 +88,9 @@ async function investigate(findings, rootPath, files = null) {
   // Same order as the orchestrator: heuristic first, then the trace that
   // outranks it, then optionally the model. The file list matters: without it
   // the tracer cannot find a caller, and every interprocedural case abstains.
-  const investigated = new DataflowInvestigator()
+  const traced = new DataflowInvestigator()
     .investigate(new VerifierAgent().verify(findings), { rootPath, files });
+  const investigated = new AbsenceInvestigator().investigate(traced, { rootPath, files });
   if (!useLlm) return investigated;
 
   const analyzer = DeepAnalyzer.create(rootPath, { quiet: true });
@@ -126,8 +128,8 @@ for (const scenario of corpus.scenarios) {
   const vulnRoot = path.join(here, 'corpus', path.dirname(scenario.vulnerable));
   const safeRoot = path.join(here, 'corpus', path.dirname(scenario.safe));
 
-  const vulnFindings = await investigate(await scan(scenario.agent, scenario.vulnerable), vulnRoot);
-  const safeFindings = await investigate(await scan(scenario.agent, scenario.safe), safeRoot);
+  const vulnFindings = await investigate(await scan(scenario.agent, scenario.vulnerable), vulnRoot, siblingFiles(vulnRoot));
+  const safeFindings = await investigate(await scan(scenario.agent, scenario.safe), safeRoot, siblingFiles(safeRoot));
 
   // ── The true positive: the target rule on the vulnerable fixture ──────────
   const target = vulnFindings.find((finding) => finding.rule === scenario.expectedRule);
