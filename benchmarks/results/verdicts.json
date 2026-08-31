@@ -1,0 +1,241 @@
+{
+  "schemaVersion": 1,
+  "corpusVersion": "1.0.0",
+  "truthVersion": "1.0",
+  "shipSafeVersion": "9.7.4",
+  "mode": "deterministic",
+  "methodology": "Verdicts resolved from the evidence claims attached by each investigation pass, over the paired synthetic corpus. Measures conclusion quality, not detection: benchmarks/run.mjs measures detection and must pass alongside this.",
+  "limitations": [
+    "Twelve synthetic scenarios. A settled rate here is not a settled rate on production code.",
+    "Safe-control noise labels are first-party judgements about first-party fixtures.",
+    "The --llm mode is not deterministic and is never gated."
+  ],
+  "metrics": {
+    "truePositives": 15,
+    "settled": 6,
+    "settledRate": 0.4,
+    "falseRefutations": 0,
+    "noiseStanding": 4,
+    "noiseRefuted": 4,
+    "unlabeled": 0
+  },
+  "flow": [
+    {
+      "id": "cmd-hop",
+      "expectedRule": "CMD_INJECTION_EXEC_TEMPLATE",
+      "tainted": "confirmed",
+      "guarded": "refuted"
+    },
+    {
+      "id": "sql-coerced",
+      "expectedRule": "SQL_INJECTION_TEMPLATE_LITERAL",
+      "tainted": "confirmed",
+      "guarded": "refuted"
+    },
+    {
+      "id": "sql-literal",
+      "expectedRule": "SQL_INJECTION_TEMPLATE_LITERAL",
+      "tainted": null,
+      "guarded": "refuted"
+    },
+    {
+      "id": "sql-mixed",
+      "expectedRule": "SQL_INJECTION_TEMPLATE_LITERAL",
+      "tainted": "confirmed",
+      "guarded": "refuted"
+    }
+  ],
+  "falseRefutationDetail": [],
+  "unlabeledDetail": [],
+  "scenarios": [
+    {
+      "id": "sql-injection",
+      "agent": "InjectionTester",
+      "expectedRule": "SQL_INJECTION_TEMPLATE_LITERAL",
+      "detected": true,
+      "targetVerdict": "unknown",
+      "decidedBy": [
+        "heuristic"
+      ],
+      "claimSources": [
+        "heuristic"
+      ],
+      "safeControlNoise": []
+    },
+    {
+      "id": "jwt-none",
+      "agent": "AuthBypassAgent",
+      "expectedRule": "JWT_ALG_NONE",
+      "detected": true,
+      "targetVerdict": "unknown",
+      "decidedBy": [
+        "heuristic"
+      ],
+      "claimSources": [
+        "heuristic"
+      ],
+      "safeControlNoise": []
+    },
+    {
+      "id": "user-controlled-ssrf",
+      "agent": "SSRFProber",
+      "expectedRule": "SSRF_USER_URL_FETCH",
+      "detected": true,
+      "targetVerdict": "likely",
+      "decidedBy": [
+        "heuristic"
+      ],
+      "claimSources": [
+        "heuristic"
+      ],
+      "safeControlNoise": []
+    },
+    {
+      "id": "api-mass-assignment",
+      "agent": "APIFuzzer",
+      "expectedRule": "API_SPREAD_BODY",
+      "detected": true,
+      "targetVerdict": "confirmed",
+      "decidedBy": [
+        "dataflow"
+      ],
+      "claimSources": [
+        "heuristic",
+        "dataflow"
+      ],
+      "safeControlNoise": []
+    },
+    {
+      "id": "llm-output-execution",
+      "agent": "LLMRedTeam",
+      "expectedRule": "LLM_OUTPUT_TO_EVAL",
+      "detected": true,
+      "targetVerdict": "confirmed",
+      "decidedBy": [
+        "dataflow"
+      ],
+      "claimSources": [
+        "heuristic",
+        "dataflow"
+      ],
+      "safeControlNoise": [
+        {
+          "rule": "LLM_NO_OUTPUT_FILTER",
+          "verdict": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "mcp-shell-tool",
+      "agent": "MCPSecurityAgent",
+      "expectedRule": "MCP_TOOL_SHELL_EXEC",
+      "detected": true,
+      "targetVerdict": "unknown",
+      "decidedBy": [
+        "heuristic"
+      ],
+      "claimSources": [
+        "heuristic"
+      ],
+      "safeControlNoise": [
+        {
+          "rule": "MCP_SERVER_NO_AUTH",
+          "verdict": "unknown"
+        }
+      ]
+    },
+    {
+      "id": "agent-auto-approval",
+      "agent": "AgenticSecurityAgent",
+      "expectedRule": "AGENT_TOOL_NO_CONFIRMATION",
+      "detected": true,
+      "targetVerdict": "unknown",
+      "decidedBy": [
+        "heuristic"
+      ],
+      "claimSources": [
+        "heuristic"
+      ],
+      "safeControlNoise": []
+    },
+    {
+      "id": "rag-user-upload",
+      "agent": "RAGSecurityAgent",
+      "expectedRule": "RAG_USER_UPLOAD_TO_VECTORDB",
+      "detected": true,
+      "targetVerdict": "unknown",
+      "decidedBy": [
+        "heuristic"
+      ],
+      "claimSources": [
+        "heuristic"
+      ],
+      "safeControlNoise": [
+        {
+          "rule": "RAG_UNSANITIZED_INGESTION",
+          "verdict": "unknown"
+        },
+        {
+          "rule": "RAG_NO_TENANT_ISOLATION",
+          "verdict": "unknown"
+        }
+      ]
+    },
+    {
+      "id": "hermes-tool-dispatch",
+      "agent": "HermesSecurityAgent",
+      "expectedRule": "HERMES_FUNCTION_CALL_NO_ALLOWLIST",
+      "detected": true,
+      "targetVerdict": "unknown",
+      "decidedBy": [
+        "heuristic"
+      ],
+      "claimSources": [
+        "heuristic"
+      ],
+      "safeControlNoise": []
+    },
+    {
+      "id": "unsafe-model-load",
+      "agent": "ModelScanAgent",
+      "expectedRule": "MODEL_TORCH_LOAD_UNSAFE",
+      "detected": true,
+      "targetVerdict": "unknown",
+      "decidedBy": [
+        "heuristic"
+      ],
+      "claimSources": [
+        "heuristic"
+      ],
+      "safeControlNoise": []
+    },
+    {
+      "id": "install-script-exfiltration",
+      "agent": "InstallGuardAgent",
+      "expectedRule": "WORM_LIFECYCLE_EXFIL",
+      "detected": true,
+      "targetVerdict": "unknown",
+      "decidedBy": [
+        "heuristic"
+      ],
+      "claimSources": [
+        "heuristic"
+      ],
+      "safeControlNoise": []
+    },
+    {
+      "id": "clickfix-lure",
+      "agent": "ClickFixAgent",
+      "expectedRule": "CLICKFIX_PASTE_RUN",
+      "detected": true,
+      "targetVerdict": "unknown",
+      "decidedBy": [
+        "heuristic"
+      ],
+      "claimSources": [
+        "heuristic"
+      ],
+      "safeControlNoise": []
+    }
+  ]
+}

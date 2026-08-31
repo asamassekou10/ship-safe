@@ -1,0 +1,114 @@
+{
+  "version": "1.0",
+  "description": "Ground truth for the investigation layer. The detection corpus in corpus.json asks whether a rule fires; this asks whether the passes that run afterwards reach the right conclusion about what fired. Labels state what is true of the fixture, not what Ship Safe currently concludes about it.",
+  "labels": {
+    "sql-injection": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    },
+    "jwt-none": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    },
+    "user-controlled-ssrf": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    },
+    "api-mass-assignment": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    },
+    "llm-output-execution": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": [
+        {
+          "rule": "LLM_NO_OUTPUT_FILTER",
+          "why": "Absence rule. The safe control parses model output as JSON rather than executing it; reporting a missing output filter on it is triage a user inherits for nothing."
+        }
+      ]
+    },
+    "mcp-shell-tool": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": [
+        {
+          "rule": "MCP_SERVER_NO_AUTH",
+          "why": "Absence rule firing on a fixture that declares no server auth because it declares no server."
+        }
+      ]
+    },
+    "agent-auto-approval": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    },
+    "rag-user-upload": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": [
+        {
+          "rule": "RAG_UNSANITIZED_INGESTION",
+          "why": "The safe control ingests pre-reviewed documents; the rule cannot see that loadReviewedDocuments() is the sanitization boundary."
+        },
+        {
+          "rule": "RAG_NO_TENANT_ISOLATION",
+          "why": "Absence rule. A one-line ingestion fixture has no tenancy model to isolate."
+        }
+      ]
+    },
+    "hermes-tool-dispatch": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    },
+    "unsafe-model-load": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    },
+    "install-script-exfiltration": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    },
+    "clickfix-lure": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    }
+  },
+  "gate": {
+    "comment": "Ratchets. falseRefutations and unlabeled findings are absolute failures; the other two are the current measured values and may only be improved. Raising minSettledRate or lowering maxNoiseStanding is the deliberate act of banking a gain \u2014 0.16 to 0.40 was banked when DataflowInvestigator landed.",
+    "maxFalseRefutations": 0,
+    "minSettledRate": 0.4,
+    "maxNoiseStanding": 4
+  },
+  "flowDescription": "Paired fixtures with an actual data path, which the one-line detection fixtures do not have. Each pair holds the same sink reached by a value an attacker controls and by one they do not, so a pass that traces the value is rewarded and a pass that pattern-matches the neighbourhood is not.",
+  "flowScenarios": [
+    {
+      "id": "cmd-hop",
+      "agent": "InjectionTester",
+      "expectedRule": "CMD_INJECTION_EXEC_TEMPLATE",
+      "tainted": "flow/cmd-hop.tainted.js",
+      "guarded": "flow/cmd-hop.guarded.js",
+      "why": "req.body.folder reaches an exec template through one intermediate assignment; the guarded twin routes it through sanitizePathSegment first."
+    },
+    {
+      "id": "sql-coerced",
+      "agent": "InjectionTester",
+      "expectedRule": "SQL_INJECTION_TEMPLATE_LITERAL",
+      "tainted": "flow/sql-coerced.tainted.js",
+      "guarded": "flow/sql-coerced.guarded.js",
+      "why": "req.params.id reaches a SQL template through two assignments; the guarded twin coerces it with parseInt on the way."
+    },
+    {
+      "id": "sql-literal",
+      "agent": "InjectionTester",
+      "expectedRule": "SQL_INJECTION_TEMPLATE_LITERAL",
+      "tainted": null,
+      "guarded": "flow/sql-literal.guarded.js",
+      "why": "The interpolated value is a literal written into the source. No caller controls it, and a pass that only sees a template literal in a query cannot tell."
+    },
+    {
+      "id": "sql-mixed",
+      "agent": "InjectionTester",
+      "expectedRule": "SQL_INJECTION_TEMPLATE_LITERAL",
+      "tainted": "flow/sql-mixed.tainted.js",
+      "guarded": "flow/sql-mixed.guarded.js",
+      "why": "Two values reach one template: one numerically coerced, one raw. A tracer that returns on the first input it resolves refutes a live injection here, which is how the NodeGoat allocations-dao.js false refutation was found."
+    }
+  ]
+}

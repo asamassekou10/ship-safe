@@ -10,6 +10,8 @@
   "scripts": {
     "test": "node --test cli/__tests__/*.test.js",
     "benchmark:corpus": "node benchmarks/run.mjs",
+    "benchmark:verdicts": "node benchmarks/verdicts.mjs",
+    "benchmark:verdicts:write": "node benchmarks/verdicts.mjs --write",
     "benchmark:corpus:write": "node benchmarks/run.mjs --write",
     "lint": "eslint cli/",
     "lint:fix": "eslint cli/ --fix",
