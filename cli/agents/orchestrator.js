@@ -20,8 +20,10 @@ import ora from 'ora';
 import chalk from 'chalk';
 import { ReconAgent } from './recon-agent.js';
 import { VerifierAgent } from './verifier-agent.js';
+import { DataflowInvestigator } from './dataflow-investigator.js';
 import { DeepAnalyzer } from './deep-analyzer.js';
 import { isTestFile, isExampleFile } from '../utils/patterns.js';
+import { buildCapabilityGraph, findAttackChains, chainFindings } from '../utils/capability-graph.js';
 
 // =============================================================================
 // CONSTANTS
@@ -40,6 +42,7 @@ export class Orchestrator {
     this.agents = [];
     this.reconAgent = new ReconAgent();
     this.verifierAgent = new VerifierAgent();
+    this.dataflowInvestigator = new DataflowInvestigator();
   }
 
   /**
@@ -219,6 +222,32 @@ export class Orchestrator {
       }
     }
 
+    // ── 5b. Capability chains ────────────────────────────────────────────────
+    // Runs after the agents because it reasons over configuration none of them
+    // sees together: one agent reads MCP servers, another reads workflows, a
+    // third reads instruction files, and the dangerous combination lives in
+    // none of those files alone.
+    if (!options.skipCapabilityChains) {
+      try {
+        const graph = buildCapabilityGraph(absolutePath);
+        const chains = chainFindings(findAttackChains(graph), absolutePath);
+        if (chains.length) {
+          agentResults.push({
+            agent: 'CapabilityGraph',
+            category: 'agentic',
+            findingCount: chains.length,
+            success: true,
+          });
+          allFindings = allFindings.concat(chains);
+        }
+      } catch (error) {
+        agentResults.push({
+          agent: 'CapabilityGraph', category: 'agentic',
+          findingCount: 0, success: false, error: error.message,
+        });
+      }
+    }
+
     // ── 6. Deduplicate ────────────────────────────────────────────────────────
     allFindings = this.deduplicate(allFindings);
 
@@ -233,6 +262,31 @@ export class Orchestrator {
           `Verified: ${verified} confirmed, ${downgraded} downgraded`
         ));
       }
+    }
+
+    // ── 7b. Data-flow investigation ─────────────────────────────────────────
+    // Runs after the heuristic pass and outranks it: where the verifier asks
+    // what is written near the finding, this follows the value that reaches it.
+    if (!options.skipDataflow) {
+      const flowSpinner = quiet ? null : ora({ text: 'Tracing data flow...', color: 'cyan' }).start();
+      allFindings = this.dataflowInvestigator.investigate(allFindings, { rootPath: absolutePath });
+      const traced = allFindings.filter(f => (f.evidence?.claims || []).some(c => c.source === 'dataflow'));
+      const confirmed = traced.filter(f => f.evidence.verdict === 'confirmed').length;
+      const refuted = traced.filter(f => f.evidence.verdict === 'refuted').length;
+      if (flowSpinner) {
+        flowSpinner.succeed(chalk.green(
+          `Traced ${traced.length} finding(s): ${confirmed} confirmed, ${refuted} refuted`
+        ));
+      }
+    }
+
+    // Deterministic verification and path-aware tuning define the posture
+    // score. Preserve that evidence before optional model analysis annotates
+    // the findings for human triage.
+    allFindings = this.tuneConfidence(allFindings);
+    for (const finding of allFindings) {
+      finding.deterministicConfidence = finding.confidence || 'high';
+      finding.deterministicSeverity = finding.severity || 'medium';
     }
 
     // ── 8. Deep LLM analysis (optional, --deep flag) ───────────────────────
@@ -274,10 +328,7 @@ export class Orchestrator {
       }
     }
 
-    // ── 9. Context-aware confidence tuning ──────────────────────────────────
-    allFindings = this.tuneConfidence(allFindings);
-
-    // ── 10. Sort by severity ──────────────────────────────────────────────────
+    // ── 9. Sort by severity ───────────────────────────────────────────────────
     const sevOrder = { critical: 0, high: 1, medium: 2, low: 3 };
     allFindings.sort((a, b) =>
       (sevOrder[a.severity] ?? 4) - (sevOrder[b.severity] ?? 4)
@@ -313,28 +364,38 @@ export class Orchestrator {
     for (const f of findings) {
       const ext = (f.file || '').match(/\.[^.]+$/)?.[0]?.toLowerCase() || '';
 
+      // Keep scope independent from confidence. Test and documentation
+      // findings remain visible, but the posture scorer can exclude them
+      // without pretending the detector was uncertain about what it saw.
+      if (!f.codeScope) {
+        if (DOC_EXT.has(ext)) f.codeScope = 'docs';
+        else if (/(?:^|\/)(?:fixtures?|testdata)(?:\/|$)/i.test(f.file || '')) f.codeScope = 'fixture';
+        else if (/(?:^|\/)benchmarks?(?:\/|$)/i.test(f.file || '')) f.codeScope = 'benchmark';
+        else if (TEST_PATH.test(f.file || '')) f.codeScope = 'test';
+        else if (EXAMPLE_PATH.test(f.file || '')) f.codeScope = 'fixture';
+        else f.codeScope = f.file ? 'production' : 'unknown';
+      }
+
       // Findings in documentation files
       if (DOC_EXT.has(ext)) {
         f.confidence = 'low';
-        continue;
-      }
-
-      // Findings in test files
-      if (TEST_PATH.test(f.file || '')) {
+      } else if (TEST_PATH.test(f.file || '')) {
+        // Findings in test files
         f.confidence = 'low';
-        continue;
-      }
-
-      // Findings in example/sample/demo paths: high → medium
-      if (EXAMPLE_PATH.test(f.file || '') && f.confidence === 'high') {
+      } else if (EXAMPLE_PATH.test(f.file || '') && f.confidence === 'high') {
+        // Findings in example/sample/demo paths: high → medium
         f.confidence = 'medium';
-        continue;
       }
 
       // Findings on comment lines
       if (f.matched && COMMENT_LINE.test(f.matched)) {
         f.confidence = 'low';
       }
+
+      f.evidenceLevel = f.confidence === 'high' ? 'strong'
+        : f.confidence === 'medium' ? 'heuristic' : 'advisory';
+      f.reachability ||= 'unknown';
+      f.exposure ||= 'unknown';
     }
 
     return findings;
