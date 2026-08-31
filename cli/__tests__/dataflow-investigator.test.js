@@ -13,7 +13,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-import { DataflowInvestigator } from '../agents/dataflow-investigator.js';
+import { DataflowInvestigator, enclosingFunctions } from '../agents/dataflow-investigator.js';
 import { createFinding } from '../agents/base-agent.js';
 import { attachEvidence, createClaim, validateCitations } from '../utils/evidence.js';
 
@@ -199,6 +199,175 @@ describe('abstaining', () => {
       '}',
     ]);
     assert.equal(trace(file, 2).claim, null, 'SELECT and FROM are not values to walk');
+  });
+});
+
+describe('crossing the function boundary', () => {
+  // The dominant shape in real handler code: the sink is in a helper, the value
+  // arrives as a parameter, and the caller lives in another file. Found against
+  // NodeGoat's allocations-dao.js, where the tainted value is destructured in a
+  // route file and passed into a DAO.
+  const withCaller = (callerBody) => {
+    source('dao.js', [
+      'export function runQuery(db, threshold) {',
+      '  return db.raw(`SELECT * FROM s WHERE n > \'${threshold}\'`);',
+      '}',
+    ]);
+    source('caller.js', callerBody);
+    return {
+      dao: path.join(ROOT, 'dao.js'),
+      files: [path.join(ROOT, 'dao.js'), path.join(ROOT, 'caller.js')],
+    };
+  };
+
+  const traceWithFiles = (file, line, files) => {
+    const finding = createFinding({
+      file, line, rule: 'SQL_INJECTION_TEMPLATE_LITERAL', title: 'SQL injection',
+      category: 'injection', severity: 'critical',
+    });
+    new DataflowInvestigator().investigate([finding], { rootPath: ROOT, files });
+    return finding.evidence.claims.find((c) => c.source === 'dataflow') || null;
+  };
+
+  it('confirms through a caller in another file', () => {
+    const { dao, files } = withCaller([
+      "import { runQuery } from './dao.js';",
+      'export function handler(req, db) {',
+      '  const threshold = req.query.threshold;',
+      '  return runQuery(db, threshold);',
+      '}',
+    ]);
+
+    const claim = traceWithFiles(dao, 2, files);
+    assert.equal(claim.verdict, 'confirmed');
+    assert.ok(claim.attackPath.some((step) => step.includes('runQuery is called here')),
+      'the path names the boundary it crossed');
+  });
+
+  it('resolves a value destructured across several lines', () => {
+    const { dao, files } = withCaller([
+      "import { runQuery } from './dao.js';",
+      'export function handler(req, db) {',
+      '  const {',
+      '    threshold',
+      '  } = req.query;',
+      '  return runQuery(db, threshold);',
+      '}',
+    ]);
+
+    assert.equal(traceWithFiles(dao, 2, files).verdict, 'confirmed', 'formatters write destructuring this way constantly');
+  });
+
+  it('cites the caller file for the caller hops', () => {
+    const { dao, files } = withCaller([
+      "import { runQuery } from './dao.js';",
+      'export function handler(req, db) {',
+      '  const threshold = req.query.threshold;',
+      '  return runQuery(db, threshold);',
+      '}',
+    ]);
+
+    const claim = traceWithFiles(dao, 2, files);
+    assert.equal(validateCitations(claim, { rootPath: ROOT }).status, 'valid');
+    const files_ = new Set(claim.citations.map((c) => path.basename(c.file)));
+    assert.deepEqual([...files_].sort(), ['caller.js', 'dao.js'], 'a cross-file trace cites both files');
+  });
+
+  it('refutes when the only caller passes a value it does not control', () => {
+    const { dao, files } = withCaller([
+      "import { runQuery } from './dao.js';",
+      'export function handler(req, db) {',
+      '  return runQuery(db, parseInt(req.query.threshold, 10));',
+      '}',
+    ]);
+
+    assert.equal(traceWithFiles(dao, 2, files).verdict, 'refuted');
+  });
+
+  it('confirms when any one caller is tainted, however safe the others are', () => {
+    source('dao.js', [
+      'export function runQuery(db, threshold) {',
+      '  return db.raw(`SELECT * FROM s WHERE n > \'${threshold}\'`);',
+      '}',
+    ]);
+    source('safe-caller.js', [
+      "import { runQuery } from './dao.js';",
+      'export const a = (db) => runQuery(db, 5);',
+    ]);
+    source('bad-caller.js', [
+      "import { runQuery } from './dao.js';",
+      'export const b = (req, db) => runQuery(db, req.query.threshold);',
+    ]);
+
+    const files = ['dao.js', 'safe-caller.js', 'bad-caller.js'].map((f) => path.join(ROOT, f));
+    assert.equal(traceWithFiles(path.join(ROOT, 'dao.js'), 2, files).verdict, 'confirmed');
+  });
+
+  it('abstains when a caller argument cannot be resolved', () => {
+    const { dao, files } = withCaller([
+      "import { runQuery } from './dao.js';",
+      'export function handler(db, threshold) {',
+      '  return runQuery(db, threshold);',
+      '}',
+    ]);
+
+    assert.equal(traceWithFiles(dao, 2, files), null, 'one boundary, not a call tree');
+  });
+
+  it('does not resolve a common function name without an import link', () => {
+    source('dao.js', [
+      'export function handler(db, threshold) {',
+      '  return db.raw(`SELECT * FROM s WHERE n > \'${threshold}\'`);',
+      '}',
+    ]);
+    source('unrelated.js', [
+      'export const go = (req) => handler(req.db, req.query.threshold);',
+    ]);
+
+    const files = ['dao.js', 'unrelated.js'].map((f) => path.join(ROOT, f));
+    assert.equal(traceWithFiles(path.join(ROOT, 'dao.js'), 2, files), null,
+      'some other `handler` in the repo is not evidence about this one');
+  });
+
+  it('files nothing when no file list was provided', () => {
+    withCaller([
+      "import { runQuery } from './dao.js';",
+      'export function handler(req, db) {',
+      '  return runQuery(db, req.query.threshold);',
+      '}',
+    ]);
+    assert.equal(traceWithFiles(path.join(ROOT, 'dao.js'), 2, null), null,
+      'the pass never crawls the disk on its own');
+  });
+});
+
+describe('enclosing scopes', () => {
+  it('returns outer functions, not just the nearest', () => {
+    const lines = [
+      'this.getByThreshold = (userId, threshold, callback) => {',
+      '  const criteria = () => {',
+      '    if (threshold) {',
+      '      return { $where: `n > ${threshold}` };',
+      '    }',
+      '  };',
+      '};',
+    ];
+    const scopes = enclosingFunctions(lines, 4);
+    const names = scopes.map((s) => s.name);
+
+    assert.ok(names.includes('criteria'), 'the nearest scope');
+    assert.ok(names.includes('getByThreshold'), 'and the one that declares the parameter');
+    assert.equal(names.includes('if'), false, 'a condition is not a parameter list');
+  });
+
+  it('ignores a function whose body closed before the target line', () => {
+    const lines = [
+      'function sibling(a) {',
+      '  return a;',
+      '}',
+      'const x = 1;',
+    ];
+    assert.deepEqual(enclosingFunctions(lines, 4), []);
   });
 });
 

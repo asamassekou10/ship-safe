@@ -83,11 +83,12 @@ async function scan(agentName, relativeFile) {
   return findings.filter((finding) => finding.scope !== 'environment');
 }
 
-async function investigate(findings, rootPath) {
+async function investigate(findings, rootPath, files = null) {
   // Same order as the orchestrator: heuristic first, then the trace that
-  // outranks it, then optionally the model.
+  // outranks it, then optionally the model. The file list matters: without it
+  // the tracer cannot find a caller, and every interprocedural case abstains.
   const investigated = new DataflowInvestigator()
-    .investigate(new VerifierAgent().verify(findings), { rootPath });
+    .investigate(new VerifierAgent().verify(findings), { rootPath, files });
   if (!useLlm) return investigated;
 
   const analyzer = DeepAnalyzer.create(rootPath, { quiet: true });
@@ -99,6 +100,15 @@ async function investigate(findings, rootPath) {
 }
 
 const verdictOf = (finding) => finding.evidence?.verdict || 'unknown';
+
+/** Every file beside a fixture, so a trace can find the caller of its sink. */
+function siblingFiles(dir) {
+  try {
+    return fs.readdirSync(dir)
+      .filter((name) => /\.[cm]?[jt]sx?$/.test(name))
+      .map((name) => path.join(dir, name));
+  } catch { return []; }
+}
 
 const scenarios = [];
 const flow = [];
@@ -174,7 +184,7 @@ for (const scenario of truth.flowScenarios || []) {
 
   if (scenario.tainted) {
     const root = path.join(here, 'corpus', path.dirname(scenario.tainted));
-    const findings = await investigate(await scan(scenario.agent, scenario.tainted), root);
+    const findings = await investigate(await scan(scenario.agent, scenario.tainted), root, siblingFiles(root));
     const target = findings.find((f) => f.rule === scenario.expectedRule);
 
     if (!target) {
@@ -196,7 +206,7 @@ for (const scenario of truth.flowScenarios || []) {
   // The guarded twin is a known false positive: the rule fires, and the value
   // reaching the sink is not the caller's. Refuting it is the correct outcome.
   const guardedRoot = path.join(here, 'corpus', path.dirname(scenario.guarded));
-  const guardedFindings = await investigate(await scan(scenario.agent, scenario.guarded), guardedRoot);
+  const guardedFindings = await investigate(await scan(scenario.agent, scenario.guarded), guardedRoot, siblingFiles(guardedRoot));
   const guardedTarget = guardedFindings.find((f) => f.rule === scenario.expectedRule);
 
   if (guardedTarget) {

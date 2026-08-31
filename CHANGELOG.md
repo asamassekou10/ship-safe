@@ -42,7 +42,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   pass, so a traced path outranks a model's reading of the same file. JavaScript
   and TypeScript, within one file, taint-shaped rules only; it files nothing
   where it cannot see, and refutes only when *every* value reaching the sink is
-  accounted for.
+  accounted for. Crosses one function boundary: when the value arrives as a
+  parameter — the dominant shape in real handler code — it finds calls to the
+  enclosing function and continues in the caller, including across files, with
+  each hop citing the file it was read in.
 - **Capability chains in `audit`** — the chains from `ship-safe capabilities`
   now run as part of a normal audit and are scored with everything else.
 - **Verdict benchmark** — `npm run benchmark:verdicts` scores the investigation

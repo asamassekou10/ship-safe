@@ -71,9 +71,9 @@
     }
   },
   "gate": {
-    "comment": "Ratchets. falseRefutations and unlabeled findings are absolute failures; the other two are the current measured values and may only be improved. Raising minSettledRate or lowering maxNoiseStanding is the deliberate act of banking a gain \u2014 0.16 to 0.40 was banked when DataflowInvestigator landed.",
+    "comment": "Ratchets. falseRefutations and unlabeled findings are absolute failures; the other two are the current measured values and may only be improved. Raising minSettledRate or lowering maxNoiseStanding is the deliberate act of banking a gain \u2014 0.16 to 0.40 when DataflowInvestigator landed, 0.40 to 0.43 when it learned to cross a function boundary.",
     "maxFalseRefutations": 0,
-    "minSettledRate": 0.4,
+    "minSettledRate": 0.43,
     "maxNoiseStanding": 4
   },
   "flowDescription": "Paired fixtures with an actual data path, which the one-line detection fixtures do not have. Each pair holds the same sink reached by a value an attacker controls and by one they do not, so a pass that traces the value is rewarded and a pass that pattern-matches the neighbourhood is not.",
@@ -109,6 +109,14 @@
       "tainted": "flow/sql-mixed.tainted.js",
       "guarded": "flow/sql-mixed.guarded.js",
       "why": "Two values reach one template: one numerically coerced, one raw. A tracer that returns on the first input it resolves refutes a live injection here, which is how the NodeGoat allocations-dao.js false refutation was found."
+    },
+    {
+      "id": "interproc",
+      "agent": "InjectionTester",
+      "expectedRule": "SQL_INJECTION_TEMPLATE_LITERAL",
+      "tainted": "flow/interproc.tainted.dao.js",
+      "guarded": "flow/interproc.guarded.dao.js",
+      "why": "The sink is in a helper whose value arrives as a parameter, and the caller lives in another file. This is the shape of most real handler code, and a tracer that stops at the parameter list abstains on all of it."
     }
   ]
 }

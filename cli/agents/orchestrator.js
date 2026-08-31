@@ -269,7 +269,7 @@ export class Orchestrator {
     // what is written near the finding, this follows the value that reaches it.
     if (!options.skipDataflow) {
       const flowSpinner = quiet ? null : ora({ text: 'Tracing data flow...', color: 'cyan' }).start();
-      allFindings = this.dataflowInvestigator.investigate(allFindings, { rootPath: absolutePath });
+      allFindings = this.dataflowInvestigator.investigate(allFindings, { rootPath: absolutePath, files });
       const traced = allFindings.filter(f => (f.evidence?.claims || []).some(c => c.source === 'dataflow'));
       const confirmed = traced.filter(f => f.evidence.verdict === 'confirmed').length;
       const refuted = traced.filter(f => f.evidence.verdict === 'refuted').length;

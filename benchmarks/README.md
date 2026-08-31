@@ -60,3 +60,9 @@ earlier tracer returned on the first input it resolved, refuted on the coerced
 half, and never looked at the other — which is a live injection reported as
 handled. It was found against OWASP NodeGoat's `allocations-dao.js` and not by
 this corpus, which is the honest reason the pair is here now.
+
+The `interproc` pair covers the shape most real handler code takes: the sink
+sits in a helper, the value arrives as a parameter, and the caller lives in
+another file. Before the tracer crossed a function boundary it abstained on all
+of it, which is why `settledRate` understated nothing and overstated nothing —
+there was simply no fixture in the corpus with that shape.

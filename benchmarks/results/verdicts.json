@@ -11,12 +11,12 @@
     "The --llm mode is not deterministic and is never gated."
   ],
   "metrics": {
-    "truePositives": 15,
-    "settled": 6,
-    "settledRate": 0.4,
+    "truePositives": 16,
+    "settled": 7,
+    "settledRate": 0.4375,
     "falseRefutations": 0,
     "noiseStanding": 4,
-    "noiseRefuted": 4,
+    "noiseRefuted": 5,
     "unlabeled": 0
   },
   "flow": [
@@ -40,6 +40,12 @@
     },
     {
       "id": "sql-mixed",
+      "expectedRule": "SQL_INJECTION_TEMPLATE_LITERAL",
+      "tainted": "confirmed",
+      "guarded": "refuted"
+    },
+    {
+      "id": "interproc",
       "expectedRule": "SQL_INJECTION_TEMPLATE_LITERAL",
       "tainted": "confirmed",
       "guarded": "refuted"
