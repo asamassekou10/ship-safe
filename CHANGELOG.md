@@ -121,6 +121,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   classified as test code and excluded from posture. A deliberately vulnerable
   application scanned in place reported "Findings: 0 | Observed: 73" and passed
   a gate. Scope is now resolved once, centrally, against the root being scanned.
+- **`scan` reporting findings in comments** — the fast path does not run the
+  investigation layer, so nothing downstream refutes a match on prose. A doc
+  comment reading `eval(req.body.x)` as an example was reported as a
+  high-severity code vulnerability. Rules about code that executes are now
+  skipped on comment and docstring lines; secrets are exempt, because a key
+  written in a comment has leaked exactly as thoroughly as one written in code,
+  and documents are exempt, because an instruction in one is the finding.
 - **Findings confirmed against comments** — the data-flow tracer traced prose. A
   doc comment containing an example produced three confirmed critical findings
   against this project's own repository. The tracer skips comments and
