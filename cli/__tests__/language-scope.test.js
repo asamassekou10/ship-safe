@@ -108,6 +108,48 @@ describe('SSRFProber scoping', async () => {
   });
 });
 
+describe('APIFuzzer scoping', async () => {
+  const { APIFuzzer } = await import('../agents/api-fuzzer.js');
+
+  const hits = async (code, ext) => {
+    const { dir, file } = tmpFile(code, ext);
+    try {
+      const f = await new APIFuzzer().analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      return f.map(x => x.rule);
+    } finally { cleanup(dir); }
+  };
+
+  it('still catches Express upload and route shapes in JavaScript', async () => {
+    const findings = await hits(
+      'router.post("/upload", (req, res) => { const body = { ...req.body }; path.join(dir, req.file.originalname); });',
+      '.js'
+    );
+
+    assert.ok(findings.includes('API_NO_AUTH_CHECK'));
+    assert.ok(findings.includes('API_SPREAD_BODY'));
+    assert.ok(findings.includes('API_PATH_IN_FILENAME'));
+  });
+
+  it('does not apply Express upload and route rules to Python', async () => {
+    const findings = await hits(
+      'router.post("/upload", (req, res) => { const body = { ...req.body }; path.join(dir, req.file.originalname); })',
+      '.py'
+    );
+
+    assert.ok(!findings.includes('API_NO_AUTH_CHECK'));
+    assert.ok(!findings.includes('API_SPREAD_BODY'));
+    assert.ok(!findings.includes('API_PATH_IN_FILENAME'));
+  });
+
+  it('still catches the debug-endpoint shape on JS', async () => {
+    assert.ok((await hits('app.get("/debug/info", handler);', '.js')).includes('API_DEBUG_ENDPOINT'));
+  });
+
+  it('does not apply the Express route rule to Ruby', async () => {
+    assert.ok(!(await hits('app.get("/debug/info", handler);', '.rb')).includes('API_DEBUG_ENDPOINT'));
+  });
+});
+
 describe('LLMRedTeam scoping', async () => {
   const { LLMRedTeam } = await import('../agents/llm-redteam.js');
 

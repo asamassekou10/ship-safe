@@ -279,7 +279,7 @@ function parseNpmAudit(jsonStr) {
   // Deduplicate by package name (transitive deps appear multiple times)
   const seen = new Set();
   return vulns.filter(v => {
-    const key = `${v.name}:${v.severity}`;
+    const key = `${dependencyName(v)}:${v.severity}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -431,6 +431,11 @@ async function fetchEPSS(cves) {
 // OUTPUT
 // =============================================================================
 
+/** Return the package identifier used by all audit report formats. */
+export function dependencyName(vulnerability) {
+  return vulnerability?.package || vulnerability?.name || vulnerability?.id || 'unknown';
+}
+
 const SEVERITY_ORDER = { critical: 0, high: 1, moderate: 2, medium: 2, low: 3, unknown: 4 };
 const SEVERITY_COLOR = {
   critical: chalk.red.bold,
@@ -462,7 +467,7 @@ function printDepFindings(vulns, pm) {
 
     console.log(
       `  ${sevColor(sevLabel.padEnd(12))}` +
-      chalk.white(`${v.name}`) +
+      chalk.white(dependencyName(v)) +
       chalk.gray(`@${v.range}`)
     );
     console.log(chalk.gray(`              ${v.title}`));

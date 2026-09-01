@@ -160,7 +160,7 @@ export class SBOMGenerator {
   attachVulnerabilities(bom, depVulns = []) {
     bom.vulnerabilities = depVulns.map((v, i) => ({
       'bom-ref': `vuln-${i}`,
-      id: v.id || v.package || `VULN-${i}`,
+      id: v.id || v.package || v.name || `VULN-${i}`,
       source: { name: 'ship-safe' },
       ratings: [{
         severity: v.severity || 'unknown',
@@ -168,7 +168,7 @@ export class SBOMGenerator {
       }],
       description: v.description || '',
       affects: [{
-        ref: v.package || 'unknown',
+        ref: v.package || v.name || v.id || 'unknown',
       }],
     }));
     return bom;

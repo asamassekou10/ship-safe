@@ -15,6 +15,7 @@ const PATTERNS = [
   // ── Missing Authentication ─────────────────────────────────────────────────
   {
     rule: 'API_NO_AUTH_CHECK',
+    langs: ['js'], // Express route registration and req callback syntax.
     title: 'API: Route Without Auth Check',
     regex: /(?:app|router)\.(?:post|put|patch|delete)\s*\(\s*['"][^'"]+['"]\s*,\s*(?:async\s+)?(?:\(req|function)/g,
     severity: 'high',
@@ -39,6 +40,7 @@ const PATTERNS = [
   },
   {
     rule: 'API_SPREAD_BODY',
+    langs: ['js'], // Object spread is JavaScript/TypeScript syntax.
     title: 'API: Spread Request Body into Operation',
     regex: /\.\.\.\s*(?:req\.body|request\.body|ctx\.request\.body)/g,
     severity: 'high',
@@ -51,6 +53,7 @@ const PATTERNS = [
   // ── Error Handling ─────────────────────────────────────────────────────────
   {
     rule: 'API_STACK_TRACE_RESPONSE',
+    langs: ['js'], // res.json/res.send and Koa's ctx.body are Node web APIs.
     title: 'API: Stack Trace in Response',
     regex: /(?:res\.(?:json|send|status)|ctx\.body)\s*\(\s*(?:\{[^}]*(?:err\.stack|error\.stack|err\.message|error\.message)|err\b|error\b)/g,
     severity: 'medium',
@@ -63,6 +66,7 @@ const PATTERNS = [
   // ── Data Exposure ──────────────────────────────────────────────────────────
   {
     rule: 'API_EXCESSIVE_DATA',
+    langs: ['js'], // res.json/res.send and Koa's ctx.body are Node web APIs.
     title: 'API: Returning Full Database Object',
     regex: /(?:res\.json|res\.send|ctx\.body)\s*\(\s*(?:user|users|record|result|data|row|document)\s*\)/g,
     severity: 'medium',
@@ -76,6 +80,7 @@ const PATTERNS = [
   // ── File Upload ────────────────────────────────────────────────────────────
   {
     rule: 'API_UNRESTRICTED_UPLOAD',
+    langs: ['js'], // multer, formidable, busboy, and multiparty are Node packages.
     title: 'API: Unrestricted File Upload',
     regex: /(?:multer|formidable|busboy|multiparty)\s*\(/g,
     severity: 'medium',
@@ -87,13 +92,14 @@ const PATTERNS = [
   },
   {
     rule: 'API_UPLOAD_NO_TYPE_CHECK',
+    langs: ['js'], // Multer file properties are specific to Node upload middleware.
     title: 'API: File Upload Without Type Validation',
-    // Same failure as API_PATH_IN_FILENAME in 9.6.4: an Express upload rule
-    // matching Python. `filename)` and `filename;` occur in every language that
-    // has a variable called filename — `os.path.basename(filename)` alone
-    // accounted for much of the 104 hits on hermes-agent. Require the multer
-    // property access that marks the value as upload-controlled.
-    regex: /\b(?:file|files\[\d*\]|req\.file|req\.files\[\d*\])\s*\.\s*(?:originalname|filename)\s*(?:\)|;|,|\})/g,
+    // A property named `filename` is common in API payloads (GitHub's file
+    // objects are one example). Only inspect the file values exposed by an
+    // upload handler; the surrounding upload-context check below rejects
+    // ordinary data models and API response objects.
+    regex: /\b(?:file|files\s*\[[^\]\n]+\]|req\s*\.\s*files?\s*(?:\[[^\]\n]+\])?)\s*\.\s*(?:originalname|filename)\b/g,
+    skipComments: true,
     severity: 'high',
     cwe: 'CWE-434',
     owasp: 'A04:2021',
@@ -103,6 +109,7 @@ const PATTERNS = [
   },
   {
     rule: 'API_PATH_IN_FILENAME',
+    langs: ['js'], // path.join with multer/Express request properties is Node-specific.
     title: 'API: Path Traversal in File Upload',
     // Two boundaries matter here, and the original pattern had neither.
     //
@@ -136,6 +143,7 @@ const PATTERNS = [
   },
   {
     rule: 'GRAPHQL_NO_DEPTH_LIMIT',
+    langs: ['js'], // Apollo Server, Yoga, and makeExecutableSchema are JS APIs.
     title: 'GraphQL: No Query Depth Limit',
     regex: /(?:ApolloServer|GraphQLServer|createYoga|makeExecutableSchema)\s*\(/g,
     severity: 'medium',
@@ -158,6 +166,7 @@ const PATTERNS = [
   // ── API Versioning & Documentation ─────────────────────────────────────────
   {
     rule: 'API_DEBUG_ENDPOINT',
+    langs: ['js'], // app/router route registration is Express syntax.
     title: 'API: Debug/Test Endpoint in Code',
     regex: /(?:app|router)\.(?:get|post|all)\s*\(\s*['"]\/(?:debug|test|admin|internal|_internal|healthcheck\/debug)/gi,
     severity: 'high',
@@ -170,6 +179,7 @@ const PATTERNS = [
   // ── Response Headers ───────────────────────────────────────────────────────
   {
     rule: 'API_NO_SECURITY_HEADERS',
+    langs: ['js'], // app.use/app.listen are Express APIs.
     title: 'API: Missing Security Headers (Helmet)',
     regex: /app\.(?:use|listen)\s*\(/g,
     severity: 'low',
@@ -193,6 +203,7 @@ const PATTERNS = [
   },
   {
     rule: 'API_SECRET_IN_URL',
+    langs: ['js'], // app/router route registration is Express syntax.
     title: 'API: Sensitive Data in URL Parameters',
     regex: /(?:app|router)\.(?:get|post)\s*\(\s*['"][^'"]*(?::token|:apiKey|:password|:secret|:key)\b/g,
     severity: 'high',
@@ -205,6 +216,7 @@ const PATTERNS = [
   // ── Server Configuration ───────────────────────────────────────────────────
   {
     rule: 'API_TRUST_PROXY',
+    langs: ['js'], // app.set('trust proxy', ...) is Express configuration.
     title: 'API: Trust Proxy Not Configured',
     regex: /app\.set\s*\(\s*['"]trust proxy['"]\s*,\s*true\s*\)/g,
     severity: 'low',
@@ -217,6 +229,7 @@ const PATTERNS = [
   // ── Denial of Service ──────────────────────────────────────────────────────
   {
     rule: 'API_LARGE_BODY_NO_LIMIT',
+    langs: ['js'], // express.json and bodyParser.json are Node middleware.
     title: 'API: No Request Body Size Limit',
     regex: /(?:express\.json|bodyParser\.json)\s*\(\s*\)/g,
     severity: 'medium',
@@ -284,7 +297,11 @@ export class APIFuzzer extends BaseAgent {
 
     let findings = [];
     for (const file of codeFiles) {
-      findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS));
+      const content = this.readFile(file);
+      const patterns = content && /\b(?:multer|formidable|busboy|multiparty)\b|\breq\s*\.\s*files?\b|\b(?:upload|uploader)\s*\.\s*(?:single|array|fields)\s*\(/i.test(content)
+        ? PATTERNS
+        : PATTERNS.filter(pattern => pattern.rule !== 'API_UPLOAD_NO_TYPE_CHECK');
+      findings = findings.concat(this.scanFileWithPatterns(file, patterns, content));
     }
 
     // ── Project-level: Rate limiting check ────────────────────────────────────

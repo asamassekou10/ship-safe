@@ -12,7 +12,7 @@
  */
 
 import path from 'path';
-import { BaseAgent, createFinding } from './base-agent.js';
+import { BaseAgent, createFinding, isInsideJavaScriptNonCode } from './base-agent.js';
 
 // =============================================================================
 // INJECTION PATTERNS
@@ -193,6 +193,8 @@ const PATTERNS = [
     rule: 'XSS_DOCUMENT_WRITE',
     title: 'XSS via document.write()',
     regex: /\bdocument\.write(?:ln)?\s*\(/g,
+    skipComments: true,
+    isCodeMatch: ({ source, sourceOffset }) => !isInsideJavaScriptNonCode(source, sourceOffset),
     severity: 'medium',
     cwe: 'CWE-79',
     owasp: 'A03:2021',

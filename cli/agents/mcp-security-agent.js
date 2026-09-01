@@ -19,7 +19,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { BaseAgent, createFinding } from './base-agent.js';
+import { BaseAgent, createFinding, languageOf } from './base-agent.js';
 
 // =============================================================================
 // MCP SECURITY PATTERNS
@@ -259,6 +259,755 @@ const OFFICIAL_MCP_SERVERS = new Set([
   '@modelcontextprotocol/server-sequential-thinking',
 ]);
 
+// OAuth request shapes are deliberately language-scoped. These rules inspect
+// source code rather than MCP JSON, so a JS header expression must not be
+// allowed to report on a Python, Ruby, or Go file by accident.
+const MCP_TOOL_REGISTRATION = /(?:\.\s*tool|\b(?:registerTool|addTool))\s*\(/gi;
+const MCP_OAUTH_STATIC_CLIENT_ID = /["']?\bclient[_-]?id\b["']?\s*(?:=>|:=|[:=])\s*(["'])(.*?)\1/gi;
+const MCP_OAUTH_CODE_FLOW = /(?:["']?\bresponse[_-]?type\b["']?\s*[:=]\s*["']code["']|["']?\bgrant[_-]?type\b["']?\s*[:=]\s*["']authorization[_-]?code["']|\bauthorization[_-]?code\b|["']?\bauthorization[_-]?endpoint\b["']?[^\n]{0,240}["']?\btoken[_-]?endpoint\b["']?)/i;
+const MCP_OAUTH_SHAPES = {
+  js: {
+    inboundToken: /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*[^;\n]*\b(?:req|request|ctx|event)\b[^;\n]*(?:\.(?:authorization|bearer)\b|\[\s*['"](?:authorization|bearer|http_authorization)['"]\s*\]|(?:get|header)\s*\(\s*['"](?:authorization|bearer)['"])/gi,
+    directToken: /\b(?:req|request|ctx|event)\b[^;\n]*(?:\.(?:authorization|bearer)\b|\[\s*['"](?:authorization|bearer|http_authorization)['"]\s*\]|(?:get|header)\s*\(\s*['"](?:authorization|bearer)['"])/gi,
+    outboundRequest: /\b(?:fetch|axios(?:\.[A-Za-z_$][\w$]*)?|got|https?\.request)\s*\(/i,
+    audienceValidation: /(?:\b(?:verify|decode|validate|check|assert)\w*[^\n;]{0,180}\baud(?:ience)?\b|\b(?:claims?|payload)\b[^\n;]{0,120}\baud\b\s*(?:===|!==|==|!=|=))/i,
+    staticClientId: MCP_OAUTH_STATIC_CLIENT_ID,
+    codeFlow: /(?:["']?\bresponse[_-]?type\b["']?\s*[:=]\s*["']code["']|["']?\bgrant[_-]?type\b["']?\s*[:=]\s*["']authorization[_-]?code["']|\bauthorization[_-]?code\b|["']?\bauthorization[_-]?endpoint\b["']?[^\n;]{0,240}["']?\btoken[_-]?endpoint\b["']?)/i,
+  },
+  python: {
+    inboundToken: /\b([A-Za-z_]\w*)\s*=\s*(?:request|req|ctx|context)\b[^\n]*(?:\.(?:authorization|bearer)\b|\[\s*['"](?:authorization|bearer|http_authorization)['"]\s*\]|\.get\s*\(\s*['"](?:authorization|bearer)['"])/gi,
+    directToken: /\b(?:request|req|ctx|context)\b[^\n]*(?:\.(?:authorization|bearer)\b|\[\s*['"](?:authorization|bearer|http_authorization)['"]\s*\]|\.get\s*\(\s*['"](?:authorization|bearer)['"])/gi,
+    outboundRequest: /\b(?:requests|httpx)\.(?:get|post|put|patch|delete|request)\s*\(|\b(?:urllib\.request\.)?urlopen\s*\(/i,
+    audienceValidation: /(?:\b(?:verify|decode|validate|check|assert)\w*[^\n]{0,180}\baud(?:ience)?\b|\b(?:claims?|payload)\b[^\n]{0,120}\b(?:aud|audience)\b\s*(?:==|!=|in\b|=))/i,
+    staticClientId: MCP_OAUTH_STATIC_CLIENT_ID,
+    codeFlow: MCP_OAUTH_CODE_FLOW,
+  },
+  ruby: {
+    inboundToken: /\b([A-Za-z_]\w*)\s*=\s*(?:request|req|context|env|headers)\b[^\n]*(?:\.(?:authorization|bearer)\b|\[\s*['"](?:authorization|bearer|http_authorization)['"]\s*\])/gi,
+    directToken: /\b(?:request|req|context|env|headers)\b[^\n]*(?:\.(?:authorization|bearer)\b|\[\s*['"](?:authorization|bearer|http_authorization)['"]\s*\])/gi,
+    outboundRequest: /\b(?:Net::HTTP|Faraday|HTTParty|RestClient)\b[\s\S]{0,120}\b(?:get|post|put|delete|request|call)\b\s*[.(]/i,
+    audienceValidation: /(?:\b(?:verify|decode|validate|check|assert)\w*[^\n]{0,180}\baud(?:ience)?\b|\b(?:claims?|payload)\b[^\n]{0,120}\b(?:aud|audience)\b\s*(?:==|!=|=~|=>))/i,
+    staticClientId: MCP_OAUTH_STATIC_CLIENT_ID,
+    codeFlow: MCP_OAUTH_CODE_FLOW,
+  },
+  go: {
+    inboundToken: /\b([A-Za-z_]\w*)\s*:?=\s*(?:r|req|request)\.Header\.Get\(\s*["']Authorization["']\s*\)/gi,
+    directToken: /\b(?:r|req|request)\.Header\.Get\(\s*["']Authorization["']\s*\)/gi,
+    outboundRequest: /\b(?:http\.(?:NewRequest|Get|Post|PostForm)|[A-Za-z_]\w*\.Do)\s*\(/i,
+    audienceValidation: /(?:\b(?:VerifyAudience|ValidateAudience|ParseWithClaims)\b|\b(?:claims?|payload)\b[\s\S]{0,120}\baud(?:ience)?\b\s*(?:==|!=))/i,
+    staticClientId: /["']?\b(?:client[_-]?id|clientID)\b["']?\s*(?:=>|:=|[:=])\s*(["'])(.*?)\1/gi,
+    codeFlow: /(?:["']?\bresponse[_-]?type\b["']?\s*[:=]\s*["']code["']|["']?\bgrant[_-]?type\b["']?\s*[:=]\s*["']authorization[_-]?code["']|\bauthorization[_-]?code\b|["']?\bauthorization[_-]?endpoint\b["']?[\s\S]{0,240}["']?\btoken[_-]?endpoint\b["']?)/i,
+  },
+};
+
+const MCP_OAUTH_DYNAMIC_REGISTRATION = /["']?(?:dynamic[_-]?client[_-]?registration|dynamicClientRegistration|allow[_-]?dynamic[_-]?registration|enable[_-]?dynamic[_-]?client[_-]?registration|dynamicRegistration|registerClients|RegisterClient)["']?\s*(?:=>|:=|[:=])\s*(?:true|["']?enabled["']?)/i;
+const MCP_OAUTH_TOKEN_EXCHANGE = /(?:exchangeToken|token[_-]?exchange|subject_token|RFC\s*8693|urn:ietf:params:oauth:grant-type:token-exchange)/i;
+const MCP_OAUTH_PKCE = /(?:\bcode[_-]?challenge\b|\bcode[_-]?verifier\b|\b(?:use[_-]?pkce|pkce)\b\s*[:=]|\b(?:generate|create|build)\w*code[_-]?(?:challenge|verifier)\b)/i;
+const MCP_OAUTH_EXPLICIT_NO_PKCE = /(?:["']?\b(?:use[_-]?pkce|pkce)\b["']?\s*[:=]\s*(?:false|null|["']?disabled["']?)|["']?\bcode[_-]?challenge\b["']?\s*[:=]\s*null)/i;
+const MCP_OAUTH_MARKER = /(?:\bMCP(?:::|[-_.])?(?:Server|Proxy)\b|@modelcontextprotocol|\bmcp[._-](?:server|proxy)\b|mcp\.NewServer)/i;
+const MCP_OAUTH_TOKEN_SOURCE_ANCHORS = {
+  js: /\b(?:req|request|ctx|event)\b\s*(?:\.\s*(?:headers?|authorization|bearer|get|header)\b|\[)/i,
+  python: /\b(?:request|req|ctx|context)\b\s*(?:\.\s*(?:headers?|authorization|bearer|get)\b|\[)/i,
+  ruby: /\b(?:request|req|context|env|headers)\b\s*(?:\.\s*(?:authorization|bearer)\b|\[)/i,
+  go: /\b(?:r|req|request)\.Header\.Get\s*\(/i,
+};
+
+function isOAuthTokenName(name) {
+  const normalized = String(name || '').toLowerCase();
+  return normalized.includes('token')
+    || normalized.includes('bearer')
+    || normalized.includes('authorization')
+    || normalized === 'auth'
+    || normalized.startsWith('auth_')
+    || normalized === 'accesstoken';
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function identifierReferenceRegex(name) {
+  return new RegExp(`(?:^|[^\\w$])${escapeRegex(name)}(?![\\w$])`);
+}
+
+function sourceLineHelpers(content) {
+  const lines = content.split('\n');
+  const lineStarts = [0];
+  for (let index = 0; index < content.length; index += 1) {
+    if (content[index] === '\n') lineStarts.push(index + 1);
+  }
+
+  const lineNumber = (index) => {
+    let low = 0;
+    let high = lineStarts.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1;
+      if (lineStarts[middle] <= index) low = middle + 1;
+      else high = middle;
+    }
+    return low;
+  };
+  const lineText = (index) => (lines[lineNumber(index) - 1] || '').trim().slice(0, 180);
+  return { lineNumber, lineText };
+}
+
+function createSourceContext(filePath, content) {
+  const language = languageOf(filePath);
+  const code = content && stripComments(content, language);
+  const hasOAuthMarker = code && MCP_OAUTH_MARKER.test(code);
+  return {
+    content,
+    language,
+    code,
+    structuralCode: hasOAuthMarker ? maskStrings(code, false, language) : null,
+    keyCode: hasOAuthMarker ? maskStrings(code, true, language) : null,
+    lineHelpers: null,
+  };
+}
+
+function sourceLineHelpersFor(source) {
+  if (!source.lineHelpers) source.lineHelpers = sourceLineHelpers(source.content);
+  return source.lineHelpers;
+}
+
+function stringDelimiterAt(content, index, language) {
+  const char = content[index];
+  if (
+    language === 'python'
+    && (char === '\'' || char === '"')
+    && content[index + 1] === char
+    && content[index + 2] === char
+  ) {
+    return char.repeat(3);
+  }
+  if (char === '\'' || char === '"') return char;
+  if ((language === 'js' || language === 'go' || language === 'ruby') && char === '`') return char;
+  return null;
+}
+
+function createStaticClientIdDynamicRegFinding({ file, line, category, matched }) {
+  return createFinding({
+    file,
+    line,
+    column: 1,
+    severity: 'high',
+    category,
+    rule: 'MCP_STATIC_CLIENT_ID_DYNAMIC_REG',
+    title: 'MCP: Static OAuth Client ID With Dynamic Registration',
+    description: 'An MCP proxy combines a fixed third-party OAuth client_id with dynamic client registration. This can enable a confused deputy attack that reuses consent for an attacker-controlled client.',
+    matched,
+    confidence: 'medium',
+    cwe: 'CWE-441',
+    owasp: 'A07:2021',
+    fix: 'Use per-client consent and validate registered client_id and redirect_uri values before starting the third-party authorization flow.',
+  });
+}
+
+function createOAuthNoPkceFinding({ file, line, category, matched }) {
+  return createFinding({
+    file,
+    line,
+    column: 1,
+    severity: 'high',
+    category,
+    rule: 'MCP_OAUTH_NO_PKCE',
+    title: 'MCP: OAuth Authorization-Code Flow Without PKCE',
+    description: 'An MCP OAuth authorization-code flow does not use PKCE. An intercepted authorization code can then be redeemed by an attacker.',
+    matched,
+    confidence: 'medium',
+    cwe: 'CWE-352',
+    owasp: 'A07:2021',
+    fix: 'Use a cryptographically random code_verifier and send its S256 code_challenge with every authorization-code request.',
+  });
+}
+
+function stripComments(content, language) {
+  const supportsLineSlashComments = language === 'js' || language === 'go';
+  const output = [...content];
+  let state = 'code';
+  let quote = '';
+
+  const blank = (index) => {
+    if (output[index] !== '\n' && output[index] !== '\r') output[index] = ' ';
+  };
+
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index];
+    const next = content[index + 1];
+
+    if (state === 'line-comment') {
+      if (char === '\n' || char === '\r') state = 'code';
+      else blank(index);
+      continue;
+    }
+
+    if (state === 'block-comment') {
+      if (char === '*' && next === '/') {
+        blank(index);
+        blank(index + 1);
+        index += 1;
+        state = 'code';
+      } else {
+        blank(index);
+      }
+      continue;
+    }
+
+    if (state === 'string') {
+      const isGoRawString = language === 'go' && quote === '`';
+      if (char === '\\' && !isGoRawString) {
+        index += 1;
+      } else if (content.startsWith(quote, index)) {
+        index += quote.length - 1;
+        state = 'code';
+        quote = '';
+      }
+      continue;
+    }
+
+    if (supportsLineSlashComments && char === '/' && next === '/') {
+      blank(index);
+      blank(index + 1);
+      index += 1;
+      state = 'line-comment';
+      continue;
+    }
+
+    if (supportsLineSlashComments && char === '/' && next === '*') {
+      blank(index);
+      blank(index + 1);
+      index += 1;
+      state = 'block-comment';
+      continue;
+    }
+
+    if ((language === 'python' || language === 'ruby') && char === '#') {
+      blank(index);
+      state = 'line-comment';
+      continue;
+    }
+
+    const delimiter = stringDelimiterAt(content, index, language);
+    if (delimiter) {
+      quote = delimiter;
+      state = 'string';
+      index += delimiter.length - 1;
+    }
+  }
+
+  return output.join('');
+}
+
+function maskStrings(content, preserveObjectKeys = false, language = 'js') {
+  const output = [...content];
+  let state = 'code';
+  let quote = '';
+  let stringStart = -1;
+
+  const blank = (index) => {
+    if (output[index] !== '\n' && output[index] !== '\r') output[index] = ' ';
+  };
+  const blankRange = (start, end) => {
+    for (let index = start; index <= end; index += 1) blank(index);
+  };
+
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index];
+    if (state === 'string') {
+      const isGoRawString = language === 'go' && quote === '`';
+      if (char === '\\' && !isGoRawString) {
+        index += 1;
+      } else if (content.startsWith(quote, index)) {
+        const stringEnd = index + quote.length - 1;
+        let next = stringEnd + 1;
+        while (next < content.length && /\s/.test(content[next])) next += 1;
+        const isRubyHashKey = language === 'ruby' && content[next] === '=' && content[next + 1] === '>';
+        const preserveKey = quote.length === 1
+          && preserveObjectKeys
+          && (content[next] === ':' || isRubyHashKey);
+        if (!preserveKey) blankRange(stringStart, stringEnd);
+        else blankRange(index, stringEnd);
+        index = stringEnd;
+        state = 'code';
+        quote = '';
+        stringStart = -1;
+      } else {
+        continue;
+      }
+      continue;
+    }
+
+    const delimiter = stringDelimiterAt(content, index, language);
+    if (delimiter) {
+      quote = delimiter;
+      state = 'string';
+      stringStart = index;
+      index += delimiter.length - 1;
+    }
+  }
+
+  if (state === 'string' && stringStart !== -1) blankRange(stringStart, content.length - 1);
+
+  return output.join('');
+}
+
+function findBracePairs(content, language, structuralCode = null) {
+  const code = structuralCode ?? maskStrings(stripComments(content, language), false, language);
+  const stack = [];
+  const pairs = [];
+
+  for (let index = 0; index < code.length; index += 1) {
+    if (code[index] === '{') {
+      stack.push(index);
+    } else if (code[index] === '}' && stack.length) {
+      pairs.push({ start: stack.pop(), end: index + 1 });
+    }
+  }
+
+  return pairs;
+}
+
+function rubyBlockDepthDelta(line) {
+  const trimmed = line.trim();
+  if (!trimmed) return 0;
+
+  const blockKeyword = /(?:^|=\s*)(?:def|class|module|if|unless|case|begin|while|until|for)\b/;
+  const loopKeyword = /(?:^|=\s*)(?:while|until|for)\b/;
+  let opens = blockKeyword.test(trimmed) ? 1 : 0;
+  if (!loopKeyword.test(trimmed) && /\bdo\b(?:\s*\|[^|]*\|)?\s*$/.test(trimmed)) opens += 1;
+
+  const closes = (trimmed.match(/\bend\b/g) || []).length;
+  return opens - closes;
+}
+
+function matchingParenthesisEnd(code, openIndex) {
+  let depth = 0;
+  for (let index = openIndex; index < code.length; index += 1) {
+    if (code[index] === '(') depth += 1;
+    if (code[index] !== ')') continue;
+
+    depth -= 1;
+    if (depth === 0) return index + 1;
+  }
+  return -1;
+}
+
+function rubyMcpServerBindings(code) {
+  return new Set(allRegexMatches(
+    /\b([A-Za-z_]\w*)\s*=\s*MCP::Server\.new\b/g,
+    code,
+  ).map((match) => match[1]));
+}
+
+function rubyMcpToolBlockStarts(code) {
+  const serverBindings = rubyMcpServerBindings(code);
+  const starts = new Set();
+  const registration = /\b(?:(MCP::Tool)\.define|([A-Za-z_]\w*)\.define_tool)\s*\(/g;
+
+  for (const match of allRegexMatches(registration, code)) {
+    const receiver = match[2];
+    if (receiver && !serverBindings.has(receiver)) continue;
+
+    const openIndex = match.index + match[0].lastIndexOf('(');
+    const callEnd = matchingParenthesisEnd(code, openIndex);
+    if (callEnd === -1) continue;
+
+    const block = code.slice(callEnd).match(/^\s*do(?:\s*\|[^|]*\|)?/);
+    if (!block) continue;
+
+    const doIndex = callEnd + block[0].search(/\bdo\b/);
+    starts.add(code.lastIndexOf('\n', doIndex - 1) + 1);
+  }
+  return starts;
+}
+
+function sourceFunctionScopes(content, language, structuralCode = null) {
+  if (language === 'python' || language === 'ruby') {
+    const lines = content.split('\n');
+    const scopeCode = structuralCode ?? maskStrings(stripComments(content, language), false, language);
+    const scopeLines = scopeCode.split('\n');
+    const offsets = [];
+    let offset = 0;
+    for (const line of lines) {
+      offsets.push(offset);
+      offset += line.length + 1;
+    }
+
+    const scopes = [];
+    const rubyToolBlocks = language === 'ruby' ? rubyMcpToolBlockStarts(scopeCode) : null;
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+      const line = scopeLines[lineIndex];
+      const match = language === 'python'
+        ? line.match(/^(\s*)(?:async\s+)?def\s+/)
+        : line.match(/^(\s*)def\s+/);
+      const isRubyToolBlock = rubyToolBlocks?.has(offsets[lineIndex]) ?? false;
+      if (!match && !isRubyToolBlock) continue;
+
+      const indent = (match?.[1] ?? line.match(/^\s*/)[0]).replace(/\t/g, '    ').length;
+      let endLine = lines.length;
+      if (language === 'python') {
+        for (let nextLine = lineIndex + 1; nextLine < lines.length; nextLine += 1) {
+          if (!scopeLines[nextLine].trim()) continue;
+          const nextIndent = scopeLines[nextLine].match(/^\s*/)[0].replace(/\t/g, '    ').length;
+          if (nextIndent <= indent) {
+            endLine = nextLine;
+            break;
+          }
+        }
+      } else {
+        let depth = 1;
+        for (let nextLine = lineIndex + 1; nextLine < lines.length; nextLine += 1) {
+          depth += rubyBlockDepthDelta(scopeLines[nextLine]);
+          if (depth <= 0) {
+            endLine = nextLine + 1;
+            break;
+          }
+        }
+      }
+
+      scopes.push({ start: offsets[lineIndex], end: offsets[endLine] ?? content.length });
+    }
+    return scopes;
+  }
+
+  const code = structuralCode ?? maskStrings(stripComments(content, language), false, language);
+  return findBracePairs(content, language, code)
+    .filter(({ start }) => isFunctionBrace(code, start, language));
+}
+
+function isFunctionBrace(code, start, language) {
+  const prefix = code.slice(Math.max(0, start - 180), start);
+  if (language === 'go') return /\bfunc\b[\s\S]{0,160}$/.test(prefix);
+  return language === 'js' && /\bfunction\b[\s\S]{0,160}$|=>\s*$/.test(prefix);
+}
+
+function sourceObjectScopes(content, language, structuralCode = null) {
+  const code = structuralCode ?? maskStrings(stripComments(content, language), false, language);
+  return findBracePairs(content, language, code)
+    .filter(({ start }) => !isFunctionBrace(code, start, language));
+}
+
+function braceDepthAt(code, scope, index) {
+  let depth = 0;
+  for (let position = scope.start; position < index; position += 1) {
+    if (code[position] === '{') depth += 1;
+    if (code[position] === '}') depth -= 1;
+  }
+  return depth;
+}
+
+function objectScopeContaining(code, scopes, firstIndex, secondIndex, language = 'js', structuralCode = null) {
+  const structuralView = structuralCode ?? maskStrings(code, false, language);
+  return scopes
+    .filter((scope) => (
+      scope.start <= firstIndex
+      && firstIndex < scope.end
+      && scope.start <= secondIndex
+      && secondIndex < scope.end
+      && braceDepthAt(structuralView, scope, firstIndex) === 1
+      && braceDepthAt(structuralView, scope, secondIndex) === 1
+    ))
+    .sort((left, right) => (left.end - left.start) - (right.end - right.start))[0] || null;
+}
+
+function scopeContaining(scopes, start, end = start + 1) {
+  return scopes
+    .filter((scope) => scope.start <= start && end <= scope.end)
+    .sort((left, right) => (left.end - left.start) - (right.end - right.start))[0] || null;
+}
+
+function sourceScopeContaining(content, code, language, scopes, start, end = start + 1) {
+  const scope = scopeContaining(scopes, start, end);
+  if (scope || language !== 'js') return scope;
+
+  const arrow = code.lastIndexOf('=>', start);
+  if (arrow === -1) return null;
+
+  const lineStart = code.lastIndexOf('\n', arrow - 1) + 1;
+  const statementEnd = code.indexOf(');', start);
+  const lineEndIndex = code.indexOf('\n', start);
+  const lineEnd = lineEndIndex === -1 ? content.length : lineEndIndex + 1;
+  return {
+    start: lineStart,
+    end: statementEnd === -1 ? lineEnd : statementEnd + 2,
+  };
+}
+
+function isDirectMcpCallback(callbackHeader, scopeStart = null, headerStart = 0, scopeIsBrace = false) {
+  const functionMatch = allRegexMatches(/\bfunction\b/g, callbackHeader).at(-1);
+  const callback = Math.max(
+    callbackHeader.lastIndexOf('=>'),
+    functionMatch?.index ?? -1,
+  );
+  if (callback === -1 || /;/.test(callbackHeader.slice(0, callback))) return false;
+
+  let parentheses = 0;
+  let braces = 0;
+  for (let index = 0; index < callback; index += 1) {
+    if (callbackHeader[index] === '(') parentheses += 1;
+    if (callbackHeader[index] === ')') parentheses -= 1;
+    if (callbackHeader[index] === '{') braces += 1;
+    if (callbackHeader[index] === '}') braces -= 1;
+  }
+  if (parentheses !== 1 || braces !== 0) return false;
+  if (scopeStart === null) return true;
+
+  let callbackBodyStart = -1;
+  if (callbackHeader.startsWith('=>', callback)) {
+    callbackBodyStart = callback + 2;
+    while (/\s/.test(callbackHeader[callbackBodyStart] || '')) callbackBodyStart += 1;
+    if (callbackHeader[callbackBodyStart] !== '{') callbackBodyStart = -1;
+  } else {
+    let parameterDepth = 0;
+    let sawParameters = false;
+    for (let index = callback; index < callbackHeader.length; index += 1) {
+      if (callbackHeader[index] === '(') {
+        parameterDepth += 1;
+        sawParameters = true;
+      } else if (callbackHeader[index] === ')' && sawParameters) {
+        parameterDepth -= 1;
+        if (parameterDepth === 0) {
+          callbackBodyStart = index + 1;
+          while (/\s/.test(callbackHeader[callbackBodyStart] || '')) callbackBodyStart += 1;
+          if (callbackHeader[callbackBodyStart] !== '{') callbackBodyStart = -1;
+          break;
+        }
+      }
+    }
+  }
+
+  if (scopeIsBrace && callbackBodyStart === -1) return false;
+  return callbackBodyStart === -1 || headerStart + callbackBodyStart === scopeStart;
+}
+
+function pythonMcpToolDecoratorReceiver(code, scope) {
+  const lines = code.slice(0, scope.start).split('\n');
+  let depth = 0;
+
+  for (let lineIndex = lines.length - 2; lineIndex >= 0; lineIndex -= 1) {
+    const line = lines[lineIndex].trim();
+    if (!line) {
+      if (depth === 0) break;
+      continue;
+    }
+
+    depth += (line.match(/\)/g) || []).length - (line.match(/\(/g) || []).length;
+    const decorator = line.match(/^@([A-Za-z_]\w*)\.tool(?:\s*\(|\s*$)/);
+    if (decorator && depth === 0) return decorator[1];
+    if (depth === 0) break;
+  }
+
+  return null;
+}
+
+function isMcpToolHandlerScope(code, scope, language) {
+  if (language === 'python') {
+    const receiverName = pythonMcpToolDecoratorReceiver(code, scope);
+    if (!receiverName) return false;
+
+    const receiver = escapeRegex(receiverName);
+    return new RegExp(`\\b${receiver}\\s*=\\s*FastMCP\\s*\\(`).test(code);
+  }
+
+  if (language === 'ruby') return rubyMcpToolBlockStarts(code).has(scope.start);
+  if (language === 'go') return isGoMcpToolHandlerScope(code, scope);
+
+  if (language !== 'js') return false;
+
+  const prefixStart = Math.max(0, scope.start - 320);
+  const prefix = code.slice(prefixStart, Math.min(code.length, scope.start + 1));
+  const registrations = allRegexMatches(MCP_TOOL_REGISTRATION, prefix);
+  if (registrations.length) {
+    const registration = registrations.at(-1);
+    const callbackHeader = prefix.slice(registration.index);
+    return isDirectMcpCallback(
+      callbackHeader,
+      scope.start,
+      prefixStart + registration.index,
+      code[scope.start] === '{',
+    );
+  }
+
+  const localHeader = code.slice(scope.start, Math.min(code.length, scope.start + 320));
+  const localRegistration = allRegexMatches(MCP_TOOL_REGISTRATION, localHeader)[0];
+  if (!localRegistration) return false;
+
+  const callbackHeader = localHeader.slice(localRegistration.index);
+  return isDirectMcpCallback(
+    callbackHeader,
+    scope.start,
+    scope.start + localRegistration.index,
+    code[scope.start] === '{',
+  );
+}
+
+function goMcpServerBindings(code) {
+  return new Set(allRegexMatches(
+    /\b(?:var\s+)?([A-Za-z_]\w*)\s*(?::=|=)\s*mcp\.NewServer\s*\(/g,
+    code,
+  ).map((match) => match[1]));
+}
+
+function goMcpToolRegistrations(code) {
+  const serverBindings = goMcpServerBindings(code);
+  const registrations = [];
+  const registration = /\b(?:mcp\.AddTool|([A-Za-z_]\w*)\.AddTool)\s*\(/g;
+
+  for (const match of allRegexMatches(registration, code)) {
+    const receiver = match[1];
+    if (receiver && !serverBindings.has(receiver)) continue;
+
+    const openIndex = match.index + match[0].lastIndexOf('(');
+    const callEnd = matchingParenthesisEnd(code, openIndex);
+    if (callEnd === -1) continue;
+
+    const call = code.slice(match.index, callEnd);
+    if (!receiver
+      && ![...serverBindings].some((binding) => new RegExp(`\\b${escapeRegex(binding)}\\b`).test(call))
+      && !/\bmcp\.NewServer\s*\(/.test(call)) {
+      continue;
+    }
+    registrations.push({ start: match.index, end: callEnd, call });
+  }
+  return registrations;
+}
+
+function goFunctionName(code, scope) {
+  const prefix = code.slice(Math.max(0, scope.start - 320), scope.start);
+  return prefix.match(/\bfunc\s+([A-Za-z_]\w*)\s*\([^{}]*$/)?.[1] ?? null;
+}
+
+function isGoMcpToolHandlerScope(code, scope) {
+  const registrations = goMcpToolRegistrations(code);
+  if (registrations.some((registration) => (
+    registration.start <= scope.start && scope.end <= registration.end
+  ))) {
+    return true;
+  }
+
+  const functionName = goFunctionName(code, scope);
+  if (!functionName) return false;
+  const handlerReference = new RegExp(`\\b${escapeRegex(functionName)}\\b`);
+  return registrations.some((registration) => handlerReference.test(registration.call));
+}
+
+function isMcpOAuthFunctionScope(code, scope, language) {
+  if (language === 'js' || language === 'python') {
+    return isMcpToolHandlerScope(code, scope, language);
+  }
+
+  const scopeContent = code.slice(scope.start, scope.end);
+  if (language === 'ruby') {
+    return rubyMcpToolBlockStarts(code).has(scope.start)
+      || /\b(?:MCPServer|MCP(?:::\w+)+)\.new\b/.test(scopeContent);
+  }
+  if (language === 'go') {
+    return isGoMcpToolHandlerScope(code, scope) || /\bmcp\.NewServer\s*\(/.test(scopeContent);
+  }
+  return false;
+}
+
+function isMcpOAuthTopLevelObject(code, scope, language) {
+  const prefix = code.slice(0, scope.start);
+
+  if (language === 'js') {
+    if (/\b(?:new\s+)?McpServer\s*\([^)]*$/.test(prefix)) return true;
+    if (/\b(?:server|mcp)\s*\.\s*(?:tool|registerTool|addTool)\s*\([^)]*$/.test(prefix)) return true;
+
+    const declaration = prefix.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*$/);
+    if (!declaration) return false;
+
+    const binding = escapeRegex(declaration[1]);
+    const suffix = code.slice(scope.end);
+    return new RegExp(`\\b(?:server|mcp)\\s*\\.\\s*(?:tool|registerTool|addTool)\\s*\\([\\s\\S]{0,600}\\b${binding}\\b`).test(suffix)
+      || new RegExp(`\\b(?:new\\s+)?McpServer\\s*\\([\\s\\S]{0,600}\\b${binding}\\b`).test(suffix);
+  }
+
+  if (language === 'python') return /\b(?:FastMCP|MCP)\s*\([^)]*$/.test(prefix);
+  if (language === 'ruby') return /\bMCP(?:::\w+)+\b|\bMCPServer\b/.test(prefix);
+  if (language === 'go') return /\bmcp\.NewServer\s*\(/.test(prefix);
+  return false;
+}
+
+function isMcpOAuthSourceScope(code, language, scope, functionScopes, scopeKind) {
+  if (!scope) return false;
+  if (scopeKind === 'function') return isMcpOAuthFunctionScope(code, scope, language);
+
+  const functionScope = scopeContaining(functionScopes, scope.start, scope.end);
+  if (functionScope) return isMcpOAuthFunctionScope(code, functionScope, language);
+  return isMcpOAuthTopLevelObject(code, scope, language);
+}
+
+function allRegexMatches(regex, content) {
+  const flags = regex.flags.includes('g') ? regex.flags : `${regex.flags}g`;
+  const scanner = new RegExp(regex.source, flags);
+  const matches = [];
+  let match;
+  while ((match = scanner.exec(content)) !== null) {
+    matches.push(match);
+    if (!match[0]) scanner.lastIndex += 1;
+  }
+  return matches;
+}
+
+function allVisibleRegexMatches(regex, content, visibleContent) {
+  return allRegexMatches(regex, content)
+    .filter((match) => visibleContent[match.index] === content[match.index]);
+}
+
+function allVisibleOAuthTokenCandidates(regex, content, structuralCode, language) {
+  const sourceAnchor = MCP_OAUTH_TOKEN_SOURCE_ANCHORS[language];
+  return allVisibleRegexMatches(regex, content, structuralCode)
+    .filter((match) => sourceAnchor.test(structuralCode.slice(match.index, match.index + match[0].length)));
+}
+
+function isQuotedObjectKeyAt(content, index, language = 'js') {
+  const quote = content[index];
+  if (quote !== '\'' && quote !== '"') return false;
+
+  let end = index + 1;
+  while (end < content.length) {
+    if (content[end] === '\\') {
+      end += 2;
+      continue;
+    }
+    if (content[end] === quote) break;
+    end += 1;
+  }
+  if (end >= content.length) return false;
+
+  let next = end + 1;
+  while (next < content.length && /\s/.test(content[next])) next += 1;
+  return content[next] === ':'
+    || (language === 'ruby' && content[next] === '=' && content[next + 1] === '>');
+}
+
+function hasExplicitNoPkce(content, language = 'js') {
+  const masked = maskStrings(content, false, language);
+  return allRegexMatches(MCP_OAUTH_EXPLICIT_NO_PKCE, content).some((match) => (
+    masked[match.index] === content[match.index]
+    || isQuotedObjectKeyAt(content, match.index, language)
+  ));
+}
+
+function hasTokenRelatedMitigation(scopeContent, tokenName, mitigation, directTokenReference) {
+  const tokenReference = tokenName
+    ? identifierReferenceRegex(tokenName)
+    : directTokenReference ? maskStrings(directTokenReference) : null;
+  if (!tokenReference) return false;
+
+  const referencesToken = (content) => tokenName
+    ? tokenReference.test(content)
+    : content.includes(tokenReference);
+  return allRegexMatches(mitigation, scopeContent).some((match) => {
+    if (referencesToken(match[0])) return true;
+
+    const callEnd = scopeContent.indexOf(')', match.index);
+    const end = callEnd === -1 ? Math.min(scopeContent.length, match.index + 280) : callEnd + 1;
+    return referencesToken(scopeContent.slice(match.index, end));
+  });
+}
+
 // =============================================================================
 // MCP SECURITY AGENT
 // =============================================================================
@@ -283,7 +1032,12 @@ export class MCPSecurityAgent extends BaseAgent {
     });
 
     for (const file of codeFiles) {
-      findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS));
+      const source = createSourceContext(file, this.readFile(file));
+      findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS, source.content));
+      findings = findings.concat(this._checkOAuthTokenPassthrough(file, source));
+      findings = findings.concat(this._checkOAuthAudienceValidation(file, source));
+      findings = findings.concat(this._checkOAuthConfusedDeputy(file, source));
+      findings = findings.concat(this._checkOAuthPkce(file, source));
     }
 
     // ── 2. Scan MCP config files ─────────────────────────────────────────
@@ -296,6 +1050,7 @@ export class MCPSecurityAgent extends BaseAgent {
     for (const file of configFiles) {
       findings = findings.concat(this.scanFileWithPatterns(file, PATTERNS));
       findings = findings.concat(this._checkConfigFile(file));
+      findings = findings.concat(this._checkOAuthConfig(file));
     }
 
     // ── 3. Check for MCP server files without auth patterns ──────────────
@@ -325,6 +1080,327 @@ export class MCPSecurityAgent extends BaseAgent {
     // runners where a poisoned global config is a real concern.
     if (context.options?.checkGlobalAgents !== false) {
       findings = findings.concat(this._detectShadowMcpConfigs(rootPath));
+    }
+
+    return findings;
+  }
+
+  /**
+   * Detect an inbound MCP bearer token copied into a downstream request.
+   *
+   * Request/header syntax is language-specific. Each supported language gets
+   * its own shape so a JavaScript expression cannot report on Python, Ruby,
+   * or Go by accident (issue #105).
+   */
+  _checkOAuthTokenPassthrough(filePath, preparedSource = null) {
+    const language = languageOf(filePath);
+    const shape = MCP_OAUTH_SHAPES[language];
+    if (!shape) return [];
+
+    const source = preparedSource || createSourceContext(filePath, this.readFile(filePath));
+    const { content, code } = source;
+    if (!code || !MCP_OAUTH_MARKER.test(code)) {
+      return [];
+    }
+
+    const scopes = sourceFunctionScopes(content, language, source.structuralCode);
+    const inboundCandidates = allVisibleOAuthTokenCandidates(shape.inboundToken, code, source.structuralCode, language);
+    const directCandidates = allVisibleOAuthTokenCandidates(shape.directToken, code, source.structuralCode, language)
+      .filter((direct) => !inboundCandidates.some((inbound) => (
+        inbound.index <= direct.index && direct.index < inbound.index + inbound[0].length
+      )));
+    const outbound = shape.outboundRequest;
+    const { lineNumber, lineText } = sourceLineHelpersFor(source);
+    const makeFinding = (requestIndex) => {
+      if (this.isSuppressed(lineText(requestIndex), 'high')) return null;
+
+      return createFinding({
+        file: filePath,
+        line: lineNumber(requestIndex),
+        column: 1,
+        severity: 'high',
+        category: this.category,
+        rule: 'MCP_UPSTREAM_TOKEN_PASSTHROUGH',
+        title: 'MCP: Inbound OAuth Token Passed Through Downstream',
+        description: 'An MCP tool reads an inbound authorization token and forwards it unchanged to a downstream request. This can bypass audience validation and downstream trust boundaries.',
+        matched: lineText(requestIndex),
+        confidence: 'high',
+        cwe: 'CWE-345',
+        owasp: 'ASI03:2026',
+        fix: 'Validate the inbound token for the MCP server and use RFC 8693 token exchange to mint a downstream-audience token instead of forwarding it unchanged.',
+      });
+    };
+
+    for (const incoming of inboundCandidates) {
+      const tokenName = incoming[1];
+      if (!isOAuthTokenName(tokenName)) continue;
+      const scope = sourceScopeContaining(content, code, language, scopes, incoming.index, incoming.index + incoming[0].length);
+      if (!scope || !isMcpToolHandlerScope(source.structuralCode, scope, language)) continue;
+      const searchStart = incoming.index + incoming[0].length;
+      const searchWindow = source.structuralCode.slice(searchStart, Math.min(scope.end, searchStart + 1200));
+      const requestMatch = searchWindow.match(outbound);
+      if (!requestMatch) continue;
+
+      const requestIndex = searchStart + requestMatch.index;
+      const requestContext = source.keyCode.slice(requestIndex, Math.min(scope.end, requestIndex + 600));
+      const tokenReference = identifierReferenceRegex(tokenName);
+      if (!/(?:authorization|bearer|headers?)/i.test(requestContext) || !tokenReference.test(requestContext)) {
+        continue;
+      }
+
+      const finding = makeFinding(requestIndex);
+      if (finding) return [finding];
+    }
+
+    for (const directMatch of directCandidates) {
+      const directIndex = directMatch.index;
+      const scope = sourceScopeContaining(content, code, language, scopes, directIndex, directIndex + directMatch[0].length);
+      if (!scope || !isMcpToolHandlerScope(source.structuralCode, scope, language)) continue;
+      const beforeStart = Math.max(scope.start, directIndex - 200);
+      const beforeWindow = source.structuralCode.slice(beforeStart, directIndex);
+      const beforeRequest = beforeWindow.match(outbound);
+      if (!beforeRequest) continue;
+      const requestIndex = beforeStart + beforeRequest.index;
+
+      const requestContext = source.keyCode.slice(requestIndex, Math.min(scope.end, Math.max(requestIndex + 600, directIndex + directMatch[0].length)));
+      if (!/(?:authorization|bearer|headers?)/i.test(requestContext)) continue;
+
+      const finding = makeFinding(requestIndex);
+      if (finding) return [finding];
+    }
+
+    return [];
+  }
+
+  /**
+   * Detect an inbound MCP token that is accepted without an audience check.
+   *
+   * The MCP authorization guidance requires tokens to be issued for the MCP
+   * server itself. Token exchange is a valid alternative because it mints a
+   * new token for the downstream audience.
+   */
+  _checkOAuthAudienceValidation(filePath, preparedSource = null) {
+    const language = languageOf(filePath);
+    const shape = MCP_OAUTH_SHAPES[language];
+    if (!shape) return [];
+
+    const source = preparedSource || createSourceContext(filePath, this.readFile(filePath));
+    const { content, code } = source;
+    if (!code || !MCP_OAUTH_MARKER.test(code)) {
+      return [];
+    }
+
+    const scopes = sourceFunctionScopes(content, language, source.structuralCode);
+    const inboundCandidates = allVisibleOAuthTokenCandidates(shape.inboundToken, code, source.structuralCode, language);
+    const directCandidates = allVisibleOAuthTokenCandidates(shape.directToken, code, source.structuralCode, language)
+      .filter((direct) => !inboundCandidates.some((inbound) => (
+        inbound.index <= direct.index && direct.index < inbound.index + inbound[0].length
+      )));
+    const candidates = [...inboundCandidates, ...directCandidates]
+      .sort((left, right) => left.index - right.index);
+    const audienceValidation = shape.audienceValidation;
+    const tokenExchange = MCP_OAUTH_TOKEN_EXCHANGE;
+    const { lineNumber, lineText } = sourceLineHelpersFor(source);
+    const findings = [];
+    const seenScopes = new Set();
+
+    for (const incoming of candidates) {
+      if (incoming[1] && !isOAuthTokenName(incoming[1])) continue;
+      const scope = sourceScopeContaining(content, code, language, scopes, incoming.index, incoming.index + incoming[0].length);
+      if (
+        !scope
+        || !isMcpOAuthSourceScope(source.structuralCode, language, scope, scopes, 'function')
+        || seenScopes.has(scope.start)
+      ) continue;
+
+      const scopeContent = code.slice(scope.start, scope.end);
+      const mitigationContent = maskStrings(scopeContent, false, language);
+      const audienceMitigationContent = maskStrings(scopeContent, true, language);
+      const hasAudienceValidation = hasTokenRelatedMitigation(
+        audienceMitigationContent,
+        incoming[1],
+        audienceValidation,
+        incoming[0],
+      );
+      const hasTokenExchange = hasTokenRelatedMitigation(
+        mitigationContent,
+        incoming[1],
+        tokenExchange,
+        incoming[0],
+      );
+      if (hasAudienceValidation || hasTokenExchange) continue;
+      if (this.isSuppressed(lineText(incoming.index), 'high')) continue;
+
+      seenScopes.add(scope.start);
+      findings.push(createFinding({
+        file: filePath,
+        line: lineNumber(incoming.index),
+        column: 1,
+        severity: 'high',
+        category: this.category,
+        rule: 'MCP_TOKEN_AUDIENCE_UNVALIDATED',
+        title: 'MCP: Inbound OAuth Token Audience Not Validated',
+        description: 'An MCP server accepts an inbound authorization token without checking that its audience is the MCP server. Tokens issued for another resource can then cross the MCP trust boundary.',
+        matched: lineText(incoming.index),
+        confidence: 'medium',
+        cwe: 'CWE-287',
+        owasp: 'A07:2021',
+        fix: 'Validate the token audience against the MCP server resource before accepting it, or use RFC 8693 token exchange to mint a token for the target audience.',
+      }));
+    }
+
+    return findings;
+  }
+
+  /**
+   * Detect a static OAuth client id used alongside dynamic client
+   * registration in an MCP proxy.
+   */
+  _checkOAuthConfusedDeputy(filePath, preparedSource = null) {
+    const language = languageOf(filePath);
+    const shape = MCP_OAUTH_SHAPES[language];
+    if (!shape) return [];
+
+    const source = preparedSource || createSourceContext(filePath, this.readFile(filePath));
+    const { content, code } = source;
+    if (!code || !MCP_OAUTH_MARKER.test(code)) {
+      return [];
+    }
+
+    const objectScopes = sourceObjectScopes(content, language, source.structuralCode);
+    const clients = allVisibleRegexMatches(shape.staticClientId, code, source.keyCode);
+    const registrations = allVisibleRegexMatches(MCP_OAUTH_DYNAMIC_REGISTRATION, code, source.keyCode);
+    const { lineNumber, lineText } = sourceLineHelpersFor(source);
+
+    for (const client of clients) {
+      if (/\$\{|\b(?:process\.env|os\.environ|getenv|ENV\[|os\.Getenv)\b/i.test(client[2])) continue;
+      for (const registration of registrations) {
+        const scope = objectScopeContaining(code, objectScopes, client.index, registration.index, language, source.structuralCode);
+        if (!scope || this.isSuppressed(lineText(client.index), 'high')) continue;
+
+        return [createStaticClientIdDynamicRegFinding({
+          file: filePath,
+          line: lineNumber(client.index),
+          category: this.category,
+          matched: lineText(client.index),
+        })];
+      }
+    }
+
+    return [];
+  }
+
+  /**
+   * Detect an OAuth authorization-code flow that does not use PKCE.
+   */
+  _checkOAuthPkce(filePath, preparedSource = null) {
+    const language = languageOf(filePath);
+    const shape = MCP_OAUTH_SHAPES[language];
+    if (!shape) return [];
+
+    const source = preparedSource || createSourceContext(filePath, this.readFile(filePath));
+    const { content, code } = source;
+    if (!code || !MCP_OAUTH_MARKER.test(code)) {
+      return [];
+    }
+
+    const objectScopes = sourceObjectScopes(content, language, source.structuralCode);
+    const functionScopes = sourceFunctionScopes(content, language, source.structuralCode);
+    const codeFlows = allVisibleRegexMatches(shape.codeFlow, code, source.keyCode);
+    const pkce = MCP_OAUTH_PKCE;
+    const { lineNumber, lineText } = sourceLineHelpersFor(source);
+    const findings = [];
+    const reportedScopes = new Set();
+
+    for (const flowMatch of codeFlows) {
+      const objectScope = objectScopeContaining(
+        code,
+        objectScopes,
+        flowMatch.index,
+        flowMatch.index,
+        language,
+        source.structuralCode,
+      );
+      const scope = objectScope
+        || sourceScopeContaining(content, code, language, functionScopes, flowMatch.index, flowMatch.index + flowMatch[0].length);
+      if (!scope) continue;
+      if (!isMcpOAuthSourceScope(
+        source.structuralCode,
+        language,
+        scope,
+        functionScopes,
+        objectScope ? 'object' : 'function',
+      )) continue;
+
+      const scopeContent = code.slice(scope.start, scope.end);
+      const mitigationContent = maskStrings(scopeContent, true, language);
+      if (pkce.test(mitigationContent) && !hasExplicitNoPkce(scopeContent, language)) continue;
+      if (reportedScopes.has(scope.start)) continue;
+      if (this.isSuppressed(lineText(flowMatch.index), 'high')) continue;
+      reportedScopes.add(scope.start);
+
+      findings.push(createOAuthNoPkceFinding({
+        file: filePath,
+        line: lineNumber(flowMatch.index),
+        category: this.category,
+        matched: lineText(flowMatch.index),
+      }));
+    }
+
+    return findings;
+  }
+
+  /**
+   * Check project MCP JSON for OAuth proxy settings. JSON configs have no
+   * source-language extension, so they use their own key/value shapes.
+   */
+  _checkOAuthConfig(filePath) {
+    const content = this.readFile(filePath);
+    if (!content) return [];
+
+    const code = stripComments(content, 'js');
+    const structuralCode = maskStrings(code, false, 'js');
+    const keyCode = maskStrings(code, true, 'js');
+    const objectScopes = sourceObjectScopes(content, 'js', structuralCode);
+    const staticClientId = /["']?\bclient[_-]?id\b["']?\s*[:=]\s*(["'])(.*?)\1/gi;
+    const clients = allVisibleRegexMatches(staticClientId, code, keyCode);
+    const registrations = allVisibleRegexMatches(MCP_OAUTH_DYNAMIC_REGISTRATION, code, keyCode);
+    const { lineNumber, lineText } = sourceLineHelpers(content);
+    const findings = [];
+
+    for (const client of clients) {
+      if (/\$\{|\b(?:process\.env|os\.environ|getenv|ENV\[|os\.Getenv)\b/i.test(client[2])) continue;
+      const registration = registrations.find((candidate) => (
+        objectScopeContaining(code, objectScopes, client.index, candidate.index, 'js', structuralCode)
+      ));
+      if (!registration || this.isSuppressed(lineText(client.index), 'high')) continue;
+
+      findings.push(createStaticClientIdDynamicRegFinding({
+        file: filePath,
+        line: lineNumber(client.index),
+        category: this.category,
+        matched: lineText(client.index),
+      }));
+      break;
+    }
+
+    const reportedScopes = new Set();
+    for (const flowMatch of allVisibleRegexMatches(MCP_OAUTH_SHAPES.js.codeFlow, code, keyCode)) {
+      const scope = objectScopeContaining(code, objectScopes, flowMatch.index, flowMatch.index, 'js', structuralCode);
+      if (!scope || reportedScopes.has(scope.start)) continue;
+
+      const scopeContent = code.slice(scope.start, scope.end);
+      const mitigationContent = maskStrings(scopeContent, true, 'js');
+      if (MCP_OAUTH_PKCE.test(mitigationContent) && !hasExplicitNoPkce(scopeContent, 'js')) continue;
+      if (this.isSuppressed(lineText(flowMatch.index), 'high')) continue;
+      reportedScopes.add(scope.start);
+
+      findings.push(createOAuthNoPkceFinding({
+        file: filePath,
+        line: lineNumber(flowMatch.index),
+        category: this.category,
+        matched: lineText(flowMatch.index),
+      }));
     }
 
     return findings;
@@ -562,8 +1638,57 @@ export class MCPSecurityAgent extends BaseAgent {
       'toolPermissions', 'permissions', 'allowed_tools', 'tool_allowlist',
     ]);
     const aliasKeys = new Set(['toolAliases', 'aliases', 'tool_aliases']);
+    const denyKeys = new Set([
+      'deny', 'denied', 'denyTools', 'blockedTools', 'disallowedTools', 'disallow', 'blocked',
+    ]);
+    const hasWildcard = (obj) => {
+      if (obj === '*' || obj === 'all' || obj === 'any') return true;
+      if (Array.isArray(obj)) return obj.some(hasWildcard);
+      if (obj && typeof obj === 'object') return Object.values(obj).some(hasWildcard);
+      return false;
+    };
+    const hasDenyValue = (value) => {
+      if (value === true || hasWildcard(value)) return true;
+      if (typeof value === 'string') return value.trim().length > 0;
+      if (Array.isArray(value)) return value.some(hasDenyValue);
+      if (value && typeof value === 'object') return Object.values(value).some(hasDenyValue);
+      return false;
+    };
+    const denyTokens = (value) => {
+      if (value === true || hasWildcard(value)) return ['*'];
+      if (typeof value === 'string') return [value];
+      if (Array.isArray(value)) return value.flatMap(denyTokens);
+      if (value && typeof value === 'object') {
+        return Object.entries(value).flatMap(([key, nestedValue]) =>
+          nestedValue === true ? [key] : denyTokens(nestedValue));
+      }
+      return [];
+    };
+    const matchingRegrant = (key, value, pathParts, denials) => {
+      const isAllowField = key === 'allow' || key === 'allowed';
+      const isWildcardAllowlist = allowlistKeys.has(key) && hasWildcard(value);
+      if ((!isAllowField || (value !== true && !hasWildcard(value))) && !isWildcardAllowlist) {
+        return null;
+      }
 
-    const walk = (node, pathParts = []) => {
+      const overrideIndex = Math.max(
+        pathParts.lastIndexOf('overrides'),
+        pathParts.lastIndexOf('override'),
+      );
+      const overrideTarget = overrideIndex >= 0 ? pathParts[overrideIndex + 1] : null;
+      const scopeTarget = overrideTarget || pathParts[pathParts.length - 1];
+
+      return denials.find((denial) => {
+        const denialScope = denial.path.slice(0, -1);
+        const sameScope = denialScope.length === pathParts.length
+          && denialScope.every((part, index) => part === pathParts[index]);
+        const deniedTokens = denial.tokens.map((token) => token.toLowerCase());
+        const targetMatches = scopeTarget && deniedTokens.includes(String(scopeTarget).toLowerCase());
+        return sameScope || deniedTokens.includes('*') || targetMatches;
+      }) || null;
+    };
+
+    const walk = (node, pathParts = [], serverPath = null, inheritedDenials = []) => {
       if (node === null || typeof node !== 'object') return;
 
       if (Array.isArray(node)) {
@@ -584,12 +1709,44 @@ export class MCPSecurityAgent extends BaseAgent {
             fix: 'Replace the wildcard with an explicit list of required tool names. Never use "*" in tool allowlists.',
           });
         }
-        node.forEach((item, i) => walk(item, pathParts.concat(String(i))));
+        node.forEach((item, i) => walk(item, pathParts.concat(String(i)), serverPath, inheritedDenials));
         return;
       }
 
+      const localDenials = serverPath
+        ? Object.entries(node)
+          .filter(([key, value]) => denyKeys.has(key) && hasDenyValue(value))
+          .map(([key, value]) => ({ path: pathParts.concat(key), tokens: denyTokens(value) }))
+        : [];
+      const activeDenials = inheritedDenials.concat(localDenials);
+
       for (const [key, value] of Object.entries(node)) {
         const nextPath = pathParts.concat(key);
+        const entersServerEntry = !serverPath
+          && (pathParts[pathParts.length - 1] === 'mcpServers'
+            || pathParts[pathParts.length - 1] === 'servers');
+        const nextServerPath = serverPath || (entersServerEntry ? nextPath : null);
+
+        // Only report an explicit deny/re-grant relationship within one server entry.
+        const matchingDenial = nextServerPath
+          ? matchingRegrant(key, value, pathParts, activeDenials)
+          : null;
+        if (matchingDenial) {
+          const denialPath = matchingDenial.path;
+          findings.push({
+            file: filePath, line: 1, column: 0,
+            severity: 'medium',
+            category: this.category,
+            rule: 'MCP_NESTED_PERMISSION_OVERRIDE',
+            title: `MCP: Nested permission re-grant at ${nextPath.join('.')}`,
+            description: `Project-local ${base} denies access at "${denialPath.join('.')}" but re-grants it at "${nextPath.join('.')}", which can silently broaden tool access for that server.`,
+            matched: `${denialPath.join('.')} -> ${nextPath.join('.')}: ${JSON.stringify(value).slice(0, 120)}`,
+            confidence: 'medium',
+            cwe: 'CWE-863',
+            owasp: 'ASI03:2026',
+            fix: 'Keep deny and allow rules consistent within each server entry. Do not nest wildcard or allow=true permission blocks beneath a denied scope.',
+          });
+        }
 
         if (allowlistKeys.has(key)) {
           if (value === '*' || value === 'all' || value === 'any') {
@@ -630,16 +1787,16 @@ export class MCPSecurityAgent extends BaseAgent {
         if ((key === 'toolPolicy' || key === 'toolAccess')
             && value && typeof value === 'object'
             && pathParts.some(p => p === 'mcpServers' || p === 'servers')) {
-          const hasWildcard = (obj) => {
+          const hasNestedWildcard = (obj) => {
             if (obj === '*' || obj === 'all' || obj === 'any') return true;
-            if (Array.isArray(obj)) return obj.some(hasWildcard);
+            if (Array.isArray(obj)) return obj.some(hasNestedWildcard);
             if (obj && typeof obj === 'object') {
-              return Object.entries(obj).some(([k, v]) =>
-                allowlistKeys.has(k) ? hasWildcard(v) : false);
+              return Object.entries(obj).some(([nestedKey, nestedValue]) =>
+                allowlistKeys.has(nestedKey) ? hasNestedWildcard(nestedValue) : false);
             }
             return false;
           };
-          if (hasWildcard(value)) {
+          if (hasNestedWildcard(value)) {
             findings.push({
               file: filePath, line: 1, column: 0,
               severity: 'medium',
@@ -656,7 +1813,8 @@ export class MCPSecurityAgent extends BaseAgent {
           }
         }
 
-        walk(value, nextPath);
+        const childDenials = denyKeys.has(key) ? inheritedDenials : activeDenials;
+        walk(value, nextPath, nextServerPath, childDenials);
       }
     };
 

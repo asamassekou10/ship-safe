@@ -17,6 +17,7 @@
 import fs from 'fs';
 import path from 'path';
 import { getComplianceSummary } from '../utils/compliance-map.js';
+import { dependencyName } from '../commands/deps.js';
 
 export class HTMLReporter {
   /**
@@ -248,7 +249,7 @@ small{color:#64748b}
       const sev = d.severity === 'moderate' ? 'medium' : d.severity;
       return `<tr>
         <td><span class="sev sev-${sev}">${(d.severity || 'unknown').toUpperCase()}</span></td>
-        <td><code>${this.esc(d.package || d.id || 'unknown')}</code></td>
+        <td><code>${this.esc(dependencyName(d))}</code></td>
         <td>${this.esc((d.description || '').slice(0, 150))}</td>
       </tr>`;
     }).join('\n');
