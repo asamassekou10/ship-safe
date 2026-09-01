@@ -8,6 +8,52 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [9.9.0] - 2026-09-01
+
+### Added
+- **`CICD_AI_ACTION_UNPINNED`** — flags an AI or agent action in a workflow that
+  is not pinned to a full commit SHA. Severity rises to critical when the
+  workflow also carries broad write permissions or runs on
+  `pull_request_target`; permissions are read per job, so a write grant in one
+  job does not implicate an action in another. Thanks to **@xianjianlf2**.
+- **Three Hermes plugin manifest rules** — a plugin with no author or source, a
+  `register()` that wires a hook the manifest does not declare, and a plugin
+  that binds a network listener without saying so. A Hermes plugin loads with
+  full agent privileges, and the boundary is an operator reading the manifest
+  before install. Thanks to **@AlvaroBalbin**.
+- **Application corpus** — three real applications pinned by commit: an Express
+  API, an auth-heavy Express app, a FastAPI service. The false-positive corpus
+  is five libraries and two teaching fixtures, and a library has no request
+  handlers, so the investigation layer barely engages with it. This corpus has
+  no gate: it prints confirmations with their citations for a person to read,
+  because a confirmation can only be checked by reading the code it cites.
+- **Documentation for custom agent plugins.** Thanks to **@AlvaroBalbin**.
+
+### Fixed
+- **A call's return value read as its tainted argument** — `const result = await
+  getArticles(req.query, id)` was confirmed on the grounds that `result` came
+  from the HTTP request. It came from the database; the request was an argument.
+  Every `const x = await something(req...)` confirmed, which is one of the most
+  common lines in any web application. Transforms that hand their argument back,
+  such as `JSON.parse`, still trace; an unknown call is a barrier, and a barrier
+  this pass cannot see through is not a path it may confirm.
+- **A rule about configuration answered by the tracer** —
+  `RAG_NO_RELEVANCE_THRESHOLD` was confirmed because the query came from the
+  request. True, and unrelated: whether a minimum similarity score is set is not
+  a property of where the query came from. The line is whether the absent
+  control sits on the path the value takes.
+- **Markdown examples scanned as deployed source** — documentation is both prose
+  and a container for code examples, and treating every token in it as shipped
+  code made ordinary security guidance look like a vulnerability. Fenced blocks
+  are now recognised by the CommonMark rules rather than by looking for a bare
+  fence substring.
+
+Both confirmation defects were found by auditing what the tool said about real
+applications, one at a time, by hand. Six runs of the existing corpora had not
+surfaced either: they measure how much the tool says, not whether it is true.
+
+## [9.8.0] - 2026-09-01
+
 ### Added
 - **Absence rules can follow a call one hop** — `AGENT_NO_COST_LIMIT` and
   `AGENT_NO_AUDIT_LOG` are answerable again. Both say the file sets no ceiling or
@@ -17,10 +63,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   site inherits it by calling that. The search now covers the file and the
   bodies of the functions it calls, and stops there — a control two hops away
   costs an unresolved finding rather than a wrong one.
-
-## [9.8.0] - 2026-09-01
-
-### Added
 - **Evidence schema on every finding** — each investigation pass now records a
   claim (source, verdict, rationale, citations) instead of writing its own
   ad-hoc field, and the finding's verdict is derived from those claims by fixed

@@ -74,7 +74,11 @@ jobs:
 
     const [finding] = aiActionFindings(findings);
     assert.ok(finding, 'an unpinned AI action is still a supply-chain risk');
-    assert.strictEqual(finding.severity, 'high');
+    // Read scoping lowers this to medium rather than silencing it. The rule as
+    // first written called it high; an independent implementation of the same
+    // rule declined to report it at all. Neither is unreasonable, and severity
+    // is the mechanism for "real but less urgent".
+    assert.strictEqual(finding.severity, 'medium');
   });
 
   test('stays quiet for a pinned AI action with read-only permissions', async () => {
@@ -103,7 +107,10 @@ jobs:
 
     const [finding] = aiActionFindings(findings);
     assert.ok(finding);
-    assert.strictEqual(finding.severity, 'high');
+    // What this test is about is that the release job's write permission does
+    // not reach the review job. Medium rather than critical demonstrates that
+    // as well as high did; the review job is itself read-scoped.
+    assert.strictEqual(finding.severity, 'medium');
   });
 
   test('does not classify a non-AI action or a comment as an AI step', async () => {
