@@ -133,6 +133,14 @@
       "tainted": "flow-py/tainted_dao.py",
       "guarded": "flow-py-guarded/guarded_dao.py",
       "why": "The same interprocedural shape in Python: an f-string sink in a helper whose value arrives as a parameter, with the Flask handler in another file. Separate directories because the pair would otherwise share a call index."
+    },
+    {
+      "id": "literal-loopback",
+      "agent": "SSRFProber",
+      "expectedRule": "SSRF_INTERNAL_IP",
+      "tainted": null,
+      "guarded": "literal/loopback.js",
+      "why": "An internal address written into the source is exactly what the rule says it is, and loopback is this process talking to itself rather than a request an attacker can redirect. There is no tainted twin because the pass deliberately files nothing for a real private address in real code: whether that is reachable is a question it cannot answer."
     }
   ]
 }

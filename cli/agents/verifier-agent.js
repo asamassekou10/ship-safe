@@ -18,6 +18,7 @@
 import fs from 'fs';
 import path from 'path';
 import { attachEvidence, createClaim } from '../utils/evidence.js';
+import { commentMask } from '../utils/source-context.js';
 
 // =============================================================================
 // HEURISTIC PATTERNS
@@ -117,45 +118,6 @@ const DEAD_CODE_PATTERNS = [
 // =============================================================================
 // VERIFIER AGENT
 // =============================================================================
-
-/**
- * Which of the first `upto` lines sit inside a comment.
- *
- * Line prefixes are not enough: a block comment wrapping real-looking code
- * leaves the inner lines bare, which is exactly the shape of a commented-out
- * fix sitting above the bug it was meant to replace.
- *
- * String literals are not tracked, so a `/*` inside a quoted string would start
- * a phantom block. That direction is safe — it marks more lines as commented,
- * which makes this pass abstain rather than refute.
- */
-function commentMask(lines, upto = lines.length) {
-  const mask = new Array(Math.min(upto, lines.length)).fill(false);
-  let inBlock = false;
-
-  for (let i = 0; i < mask.length; i++) {
-    const line = lines[i] || '';
-    const trimmed = line.trim();
-
-    if (inBlock) {
-      mask[i] = true;
-      if (line.includes('*/')) inBlock = false;
-      continue;
-    }
-
-    if (trimmed.startsWith('//') || trimmed.startsWith('#')) { mask[i] = true; continue; }
-
-    const open = line.indexOf('/*');
-    if (open !== -1 && !line.includes('*/', open)) {
-      inBlock = true;
-      // The opener line may hold code before the comment starts, so it is only
-      // fully commented when nothing precedes it.
-      mask[i] = line.slice(0, open).trim() === '';
-    }
-  }
-
-  return mask;
-}
 
 /** True when a line opens more brackets than it closes. */
 function unclosed(line) {
@@ -348,7 +310,9 @@ export class VerifierAgent {
    * Check if a line is after a return/throw (dead code).
    */
   _isDeadCode(lines, lineNum) {
-    const commented = commentMask(lines, lineNum);
+    // Shared with the literal-context pass: both were reaching wrong
+    // conclusions from line prefixes, and a docstring is invisible to those.
+    const commented = commentMask(lines, { upto: lineNum });
 
     // Check the 5 lines before the finding for return/throw
     for (let i = Math.max(0, lineNum - 6); i < lineNum - 1; i++) {

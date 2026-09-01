@@ -16,7 +16,7 @@
     "settledRate": 0.5555555555555556,
     "falseRefutations": 0,
     "noiseStanding": 3,
-    "noiseRefuted": 8,
+    "noiseRefuted": 9,
     "unlabeled": 0
   },
   "flow": [
@@ -60,6 +60,12 @@
       "id": "interproc-python",
       "expectedRule": "PYTHON_SQL_FSTRING",
       "tainted": "confirmed",
+      "guarded": "refuted"
+    },
+    {
+      "id": "literal-loopback",
+      "expectedRule": "SSRF_INTERNAL_IP",
+      "tainted": null,
       "guarded": "refuted"
     }
   ],

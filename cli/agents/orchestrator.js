@@ -22,6 +22,7 @@ import { ReconAgent } from './recon-agent.js';
 import { VerifierAgent } from './verifier-agent.js';
 import { DataflowInvestigator } from './dataflow-investigator.js';
 import { AbsenceInvestigator } from './absence-investigator.js';
+import { LiteralContextInvestigator } from './literal-context-investigator.js';
 import { DeepAnalyzer } from './deep-analyzer.js';
 import { isTestFile, isExampleFile } from '../utils/patterns.js';
 import { buildCapabilityGraph, findAttackChains, chainFindings } from '../utils/capability-graph.js';
@@ -45,6 +46,7 @@ export class Orchestrator {
     this.verifierAgent = new VerifierAgent();
     this.dataflowInvestigator = new DataflowInvestigator();
     this.absenceInvestigator = new AbsenceInvestigator();
+    this.literalInvestigator = new LiteralContextInvestigator();
   }
 
   /**
@@ -275,6 +277,9 @@ export class Orchestrator {
       // Absence rules are a different question — not where a value came from,
       // but whether the control they say is missing exists anywhere.
       allFindings = this.absenceInvestigator.investigate(allFindings, { rootPath: absolutePath, files });
+      // And a third question for rules about a value written into the source:
+      // not where it came from or what is missing, but what surrounds it.
+      allFindings = this.literalInvestigator.investigate(allFindings, { rootPath: absolutePath });
       const traced = allFindings.filter(f => (f.evidence?.claims || []).some(c => c.source === 'dataflow'));
       const confirmed = traced.filter(f => f.evidence.verdict === 'confirmed').length;
       const refuted = traced.filter(f => f.evidence.verdict === 'refuted').length;

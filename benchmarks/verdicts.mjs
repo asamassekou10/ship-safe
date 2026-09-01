@@ -50,6 +50,7 @@ import * as agents from '../cli/agents/index.js';
 import { VerifierAgent } from '../cli/agents/verifier-agent.js';
 import { DataflowInvestigator } from '../cli/agents/dataflow-investigator.js';
 import { AbsenceInvestigator } from '../cli/agents/absence-investigator.js';
+import { LiteralContextInvestigator } from '../cli/agents/literal-context-investigator.js';
 import { DeepAnalyzer } from '../cli/agents/deep-analyzer.js';
 import packageJson from '../package.json' with { type: 'json' };
 
@@ -90,7 +91,8 @@ async function investigate(findings, rootPath, files = null) {
   // the tracer cannot find a caller, and every interprocedural case abstains.
   const traced = new DataflowInvestigator()
     .investigate(new VerifierAgent().verify(findings), { rootPath, files });
-  const investigated = new AbsenceInvestigator().investigate(traced, { rootPath, files });
+  const decided = new AbsenceInvestigator().investigate(traced, { rootPath, files });
+  const investigated = new LiteralContextInvestigator().investigate(decided, { rootPath });
   if (!useLlm) return investigated;
 
   const analyzer = DeepAnalyzer.create(rootPath, { quiet: true });
