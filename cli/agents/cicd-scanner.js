@@ -439,6 +439,21 @@ const FULL_COMMIT_SHA_RE = /^[a-f0-9]{40}$/i;
 const BROAD_AI_ACTION_PERMISSION_RE =
   /permissions\s*:\s*write-all\b|(?:contents|pull-requests|actions)\s*:\s*write\b/i;
 
+/**
+ * Permissions narrowed to read. From AlvaroBalbin's independent implementation
+ * of this rule (#176), which treated read scoping as reason not to report at
+ * all.
+ *
+ * That goes further than this rule is willing to: an unpinned action still runs
+ * attacker-changeable code inside the workflow, and can read repository content
+ * and every secret in scope even with no write access. But it is genuinely less
+ * exposed than one that can push, and saying so is what severity is for. The
+ * disagreement between the two implementations was about whether to suppress;
+ * expressing it as a rung keeps both positions.
+ */
+const READ_SCOPED_AI_ACTION_PERMISSION_RE =
+  /permissions\s*:\s*(?:read-all\b|[\s\S]{0,280}\bcontents\s*:\s*read\b)/i;
+
 function workflowAndJobScopes(lines, lineIndex) {
   const jobsIndex = lines.findIndex(line => /^\s*jobs\s*:\s*(?:#.*)?$/.test(line));
   const workflow = jobsIndex >= 0 ? lines.slice(0, jobsIndex).join('\n') : lines.join('\n');
@@ -788,6 +803,10 @@ export class CICDScanner extends BaseAgent {
         BROAD_AI_ACTION_PERMISSION_RE.test(scopes.workflow) ||
         BROAD_AI_ACTION_PERMISSION_RE.test(scopes.job);
       const elevated = broadPermissions || privilegedEvent;
+      const readScoped = !elevated && (
+        READ_SCOPED_AI_ACTION_PERMISSION_RE.test(scopes.job) ||
+        READ_SCOPED_AI_ACTION_PERMISSION_RE.test(scopes.workflow)
+      );
       const riskContext = [
         broadPermissions ? 'broad write permissions' : null,
         privilegedEvent ? '`pull_request_target`' : null,
@@ -796,14 +815,15 @@ export class CICDScanner extends BaseAgent {
       findings.push(createFinding({
         file,
         line: index + 1,
-        severity: elevated ? 'critical' : 'high',
+        severity: elevated ? 'critical' : readScoped ? 'medium' : 'high',
         category: this.category,
         rule: 'CICD_AI_ACTION_UNPINNED',
         title: 'CI/CD: AI action uses an unpinned reference',
         description:
           `The AI/agent workflow step uses \`${action}\`, which is not pinned to a full commit SHA. ` +
           'These actions can read prompts, repository content, and pull-request diffs; an upstream ref change can therefore alter code that runs inside this workflow without a reviewed repository change.' +
-          (riskContext ? ` The exposure is critical because the workflow also has ${riskContext}.` : ''),
+          (riskContext ? ` The exposure is critical because the workflow also has ${riskContext}.` : '') +
+          (readScoped ? ' Permissions here are scoped to read, which limits the damage without removing it: the action still runs inside the workflow and can read repository content and any secret in scope.' : ''),
         matched: action.slice(0, 180),
         confidence: 'high',
         cwe: 'CWE-829',
