@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "corpusVersion": "1.0.0",
-  "shipSafeVersion": "9.5.2",
+  "shipSafeVersion": "9.8.0",
   "methodology": "First-party paired synthetic scenarios; one vulnerable and one safe control per target rule.",
   "limitations": [
     "This corpus measures deterministic scenario detection, not prevalence or performance on arbitrary production repositories.",
@@ -9,11 +9,11 @@
     "The evaluation is maintained by the Ship Safe project and is not independent validation."
   ],
   "metrics": {
-    "scenarios": 12,
-    "detected": 12,
+    "scenarios": 13,
+    "detected": 13,
     "scenarioRecall": 1,
-    "targetRuleCleanControls": 12,
-    "targetRuleCleanControlsPassed": 12,
+    "targetRuleCleanControls": 13,
+    "targetRuleCleanControlsPassed": 13,
     "targetRuleCleanControlPassRate": 1
   },
   "scenarios": [
@@ -88,10 +88,12 @@
       "detected": true,
       "cleanControlPassed": true,
       "vulnerableFindingRules": [
+        "MCP_SERVER_NO_AUTH",
         "MCP_SHADOW_CONFIG",
         "MCP_TOOL_SHELL_EXEC"
       ],
       "safeFindingRules": [
+        "MCP_SERVER_NO_AUTH",
         "MCP_SHADOW_CONFIG"
       ]
     },
@@ -169,6 +171,18 @@
       "cleanControlPassed": true,
       "vulnerableFindingRules": [
         "CLICKFIX_PASTE_RUN"
+      ],
+      "safeFindingRules": []
+    },
+    {
+      "id": "embedded-script-xss",
+      "category": "XSS",
+      "agent": "InjectionTester",
+      "expectedRule": "XSS_DOCUMENT_WRITE",
+      "detected": true,
+      "cleanControlPassed": true,
+      "vulnerableFindingRules": [
+        "XSS_DOCUMENT_WRITE"
       ],
       "safeFindingRules": []
     }
