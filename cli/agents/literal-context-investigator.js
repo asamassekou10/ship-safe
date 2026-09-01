@@ -54,6 +54,19 @@ const RESERVED_EMAIL = [
     what: 'a platform identifier rather than an email address' },
 ];
 
+/**
+ * Rules whose subject is code that executes. A match on a comment line is a
+ * description of the vulnerability, not the vulnerability — a doc comment
+ * reading `eval(req.body.x)` produced three critical findings in this project's
+ * own repository.
+ *
+ * Named explicitly rather than derived from a category. Some rules read prose on
+ * purpose: an instruction in a CLAUDE.md telling an agent to run something is
+ * the finding, and refuting it because it sits in a document would delete the
+ * whole trust-boundary class.
+ */
+const EXECUTION_RULE = /^(?:CODE_INJECTION|SQL_INJECTION|NOSQL_INJECTION|CMD_INJECTION|XSS_|SSRF_USER|PATH_TRAVERSAL|VIBE_EVAL|PYTHON_SQL|TEMPLATE_INJECTION|LDAP_INJECTION|PROTOTYPE_POLLUTION)/;
+
 const LITERAL_RULES = {
   SSRF_INTERNAL_IP:    { what: 'an internal address', reserved: RESERVED_ADDRESS },
   PII_EMAIL_HARDCODED: { what: 'an email address',    reserved: RESERVED_EMAIL },
@@ -73,14 +86,19 @@ export class LiteralContextInvestigator {
     const cache = new Map();
 
     for (const finding of findings) {
+      if (!finding.file || !finding.line) continue;
+
       const spec = LITERAL_RULES[finding.rule];
-      if (!spec || !finding.file || !finding.line) continue;
+      const executable = EXECUTION_RULE.test(finding.rule);
+      if (!spec && !executable) continue;
 
       const lines = this._read(finding.file, cache);
       if (!lines || finding.line > lines.length) continue;
 
       const line = lines[finding.line - 1];
-      const claim = this._classify(finding, spec, lines, line);
+      const claim = spec
+        ? this._classify(finding, spec, lines, line)
+        : this._classifyExecution(finding, lines);
       if (claim) attachEvidence(finding, claim);
     }
 
@@ -124,6 +142,19 @@ export class LiteralContextInvestigator {
     // reachable is a question this pass cannot answer, and answering it anyway
     // is the failure it was built to remove.
     return null;
+  }
+
+  /** For an execution rule, only one question applies: does this line run? */
+  _classifyExecution(finding, lines) {
+    const mask = commentMask(lines, { upto: finding.line, file: finding.file });
+    if (!mask[finding.line - 1]) return null;
+
+    return createClaim({
+      source: 'presence',
+      verdict: 'refuted',
+      rationale: 'The line is a comment or docstring. Whatever it describes does not execute, so there is nothing here to exploit.',
+      citations: [{ file: finding.file, line: finding.line }],
+    });
   }
 
   _read(file, cache) {

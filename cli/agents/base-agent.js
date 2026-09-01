@@ -39,6 +39,33 @@ export function inferCodeScope(file = '') {
   return normalized ? 'production' : 'unknown';
 }
 
+/**
+ * Re-derive every finding's code scope against the root actually being scanned.
+ *
+ * `inferCodeScope` classifies a path, and at the moment a finding is created the
+ * only path available is absolute. That asks the wrong question: not "is this
+ * file a test within its project" but "does anything in this machine's
+ * directory structure look like a test". A repository checked out at
+ * ~/projects/test/myapp had every finding classified as test code and dropped
+ * from its own score, reporting 100/100 while holding real findings.
+ *
+ * Scope is therefore settled once, centrally, where the scan root is known.
+ */
+export function resolveCodeScopes(findings, rootPath) {
+  if (!rootPath) return findings;
+
+  for (const finding of findings) {
+    if (!finding?.file) continue;
+    const relative = path.relative(rootPath, finding.file);
+    // A finding outside the scanned tree keeps whatever it was born with:
+    // there is no project-relative path to judge it by.
+    if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) continue;
+    finding.codeScope = inferCodeScope(relative);
+  }
+
+  return findings;
+}
+
 export function evidenceLevelForConfidence(confidence = 'high') {
   if (confidence === 'high') return 'strong';
   if (confidence === 'medium') return 'heuristic';

@@ -456,6 +456,8 @@ program
 program
   .command('ci [path]')
   .description('CI/CD pipeline mode: scan, score, exit 1 on failure — optimized for automation')
+  .option('--fail-on-verdict <verdict>', 'Gate on evidence instead of severity: confirmed, likely, or none')
+  .option('--ignore-refuted', 'Do not block on findings the investigation layer refuted')
   .option('--fail-on <severity>', 'Fail on findings at this severity or above: critical (default), high, medium, none')
   .option('--threshold <score>', 'Gate on the composite score instead of severity (overrides --fail-on default)', parseInt)
   .option('--sarif <file>', 'Write SARIF output for GitHub Code Scanning')

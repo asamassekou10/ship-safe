@@ -47,7 +47,7 @@ import {
   isTestFile,
   isExampleFile
 } from '../utils/patterns.js';
-import { normalizeFindingMetadata, postureFindings, projectFindings } from '../agents/base-agent.js';
+import { normalizeFindingMetadata, postureFindings, projectFindings, resolveCodeScopes } from '../agents/base-agent.js';
 import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import { postPRComments } from './watch.js';
 import { compareFindingSets, snapshotFinding } from '../utils/finding-delta.js';
@@ -148,7 +148,7 @@ export async function ciCommand(targetPath = '.', options = {}) {
   if (options.baseline) {
     allFindings = filterBaseline(allFindings, absolutePath);
   }
-  allFindings = allFindings.map(normalizeFindingMetadata);
+  allFindings = resolveCodeScopes(allFindings.map(normalizeFindingMetadata), absolutePath);
 
   // A base report turns a repository scan into a true PR comparison. Reports
   // carry hashed snapshots, so this does not require storing raw secret matches.
@@ -241,9 +241,12 @@ export async function ciCommand(targetPath = '.', options = {}) {
         postureHigh: posture.filter(f => f.severity === 'high').length,
         postureMedium: posture.filter(f => f.severity === 'medium').length,
         postureLow: posture.filter(f => f.severity === 'low').length,
+        // What the investigation layer concluded, so a pipeline can act on
+        // evidence rather than on a severity label alone.
+        verdicts: countVerdicts(allFindings),
         findings: projectFindings(allFindings),
         threshold,
-        pass: determinePass(gateScoreResult, introducedFindings, threshold, failOn, options.includeTests),
+        pass: determinePass(gateScoreResult, introducedFindings, threshold, failOn, options.includeTests, options),
         duration: `${duration}s`,
         })}\n`);
     } catch (error) {
@@ -304,10 +307,15 @@ export async function ciCommand(targetPath = '.', options = {}) {
   }
 
   // ── Exit Code ────────────────────────────────────────────────────────────
-  const pass = determinePass(gateScoreResult, introducedFindings, threshold, failOn, options.includeTests);
+  const pass = determinePass(gateScoreResult, introducedFindings, threshold, failOn, options.includeTests, options);
   if (!pass) {
     if (!options.json) {
-      if (failOn) {
+      if (options.failOnVerdict && options.failOnVerdict !== 'none') {
+        const blocking = VERDICT_ORDER.slice(0, VERDICT_ORDER.indexOf(options.failOnVerdict) + 1);
+        const n = postureFindings(introducedFindings, { includeNonProduction: options.includeTests })
+          .filter(f => blocking.includes(f.evidence?.verdict)).length;
+        console.log(`[ship-safe] FAIL: ${n} finding(s) at verdict ${options.failOnVerdict} or stronger`);
+      } else if (failOn) {
         const order = ['critical', 'high', 'medium', 'low'];
         const blocking = order.slice(0, order.indexOf(failOn) + 1);
         const gatePosture = postureFindings(introducedFindings, { includeNonProduction: options.includeTests });
@@ -359,8 +367,34 @@ function writeStdout(value) {
 // HELPERS
 // =============================================================================
 
-function determinePass(scoreResult, findings, threshold, failOn, includeNonProduction = false) {
-  const gateFindings = postureFindings(findings, { includeNonProduction });
+/**
+ * Verdicts, from strongest evidence to weakest. A gate set at one level blocks
+ * on it and everything above it.
+ */
+const VERDICT_ORDER = ['confirmed', 'likely'];
+
+export function determinePass(scoreResult, findings, threshold, failOn, includeNonProduction = false, options = {}) {
+  let gateFindings = postureFindings(findings, { includeNonProduction });
+
+  // A finding the investigation layer argued away, with a citation, is not a
+  // reason to stop a build -- but only when asked. Refutation is a judgement,
+  // and a wrong one silently lets a real issue through, so it never changes
+  // what blocks a pipeline unless the pipeline opts in.
+  if (options.ignoreRefuted) {
+    gateFindings = gateFindings.filter(f => f.evidence?.verdict !== 'refuted');
+  }
+
+  // Gating on evidence rather than severity: block what was actually
+  // established, whatever its severity label says.
+  if (options.failOnVerdict) {
+    if (options.failOnVerdict === 'none') return true;
+    const index = VERDICT_ORDER.indexOf(options.failOnVerdict);
+    if (index !== -1) {
+      const blocking = VERDICT_ORDER.slice(0, index + 1);
+      return !gateFindings.some(f => blocking.includes(f.evidence?.verdict));
+    }
+  }
+
   if (failOn === 'none') return true;
   if (failOn) {
     const sevOrder = ['critical', 'high', 'medium', 'low'];
@@ -370,6 +404,15 @@ function determinePass(scoreResult, findings, threshold, failOn, includeNonProdu
     return !gateFindings.some(f => blockingSevs.includes(f.severity));
   }
   return scoreResult.score >= threshold;
+}
+
+function countVerdicts(findings) {
+  const counts = { confirmed: 0, likely: 0, unknown: 0, refuted: 0 };
+  for (const finding of findings) {
+    const verdict = finding.evidence?.verdict || 'unknown';
+    if (verdict in counts) counts[verdict] += 1;
+  }
+  return counts;
 }
 
 function buildSARIF(findings, rootPath) {

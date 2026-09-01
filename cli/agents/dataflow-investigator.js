@@ -43,6 +43,7 @@ import fs from 'fs';
 import path from 'path';
 import { attachEvidence, createClaim } from '../utils/evidence.js';
 import { isAbsenceRule } from './absence-investigator.js';
+import { commentMask } from '../utils/source-context.js';
 
 // =============================================================================
 // VOCABULARY
@@ -267,6 +268,12 @@ export class DataflowInvestigator {
   _trace(finding, lines, lang) {
     const sinkLine = lines[finding.line - 1];
     if (sinkLine === undefined) return null;
+
+    // A comment is not code that runs. Tracing one confirmed `eval(req.body.x)`
+    // written as an example in this project's own documentation — three
+    // critical findings against a doc comment, in the tool's own repository.
+    const prose = commentMask(lines, { upto: finding.line, file: finding.file });
+    if (prose[finding.line - 1]) return null;
 
     const hops = [{
       line: finding.line,

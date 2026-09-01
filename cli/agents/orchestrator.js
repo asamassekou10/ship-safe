@@ -26,6 +26,7 @@ import { LiteralContextInvestigator } from './literal-context-investigator.js';
 import { DeepAnalyzer } from './deep-analyzer.js';
 import { isTestFile, isExampleFile } from '../utils/patterns.js';
 import { buildCapabilityGraph, findAttackChains, chainFindings } from '../utils/capability-graph.js';
+import { resolveCodeScopes } from './base-agent.js';
 
 // =============================================================================
 // CONSTANTS
@@ -254,6 +255,12 @@ export class Orchestrator {
 
     // ── 6. Deduplicate ────────────────────────────────────────────────────────
     allFindings = this.deduplicate(allFindings);
+
+    // Scope is judged against the root being scanned, not the absolute path.
+    // Deciding it at birth asked whether the machine's directory structure
+    // looked like a test tree, which silently emptied the score of any project
+    // checked out under a directory named test, fixtures, or benchmarks.
+    allFindings = resolveCodeScopes(allFindings, absolutePath);
 
     // ── 7. Second-pass verification (confirms or downgrades findings) ───────
     if (!options.skipVerifier) {

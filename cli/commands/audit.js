@@ -20,7 +20,7 @@ import fg from 'fast-glob';
 import { buildOrchestrator, buildOrchestratorAsync } from '../agents/index.js';
 import { LegalRiskAgent } from '../agents/legal-risk-agent.js';
 import { ScoringEngine } from '../agents/scoring-engine.js';
-import { isSuppressible, normalizeFindingMetadata, projectFindings } from '../agents/base-agent.js';
+import { isSuppressible, normalizeFindingMetadata, projectFindings, resolveCodeScopes } from '../agents/base-agent.js';
 import { PolicyEngine } from '../agents/policy-engine.js';
 import { HTMLReporter } from '../agents/html-reporter.js';
 import { SBOMGenerator } from '../agents/sbom-generator.js';
@@ -304,7 +304,7 @@ export async function auditCommand(targetPath = '.', options = {}) {
     }
   }
   const { kept: memFiltered, suppressedCount: memSuppressed } = secMemory.filter(filteredFindings);
-  filteredFindings = memFiltered.map(normalizeFindingMetadata);
+  filteredFindings = resolveCodeScopes(memFiltered.map(normalizeFindingMetadata), absolutePath);
   if (memSuppressed > 0 && !machineOutput) {
     console.log(chalk.gray(`  Memory: ${memSuppressed} previously-confirmed false positive(s) suppressed`));
   }

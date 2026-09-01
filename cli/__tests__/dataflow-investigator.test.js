@@ -233,6 +233,17 @@ describe('abstaining', () => {
     assert.equal(claim, null, 'a hardcoded secret is proven by being a literal, not disproven');
   });
 
+  it('does not trace a line that is a comment', () => {
+    const file = source('documented.js', [
+      '/**',
+      ' * Never write eval(req.body.x) in a handler.',
+      ' */',
+      'export const safe = 1;',
+    ]);
+    assert.equal(trace(file, 2, { rule: 'CODE_INJECTION_EVAL' }).claim, null,
+      'a comment is not code that runs');
+  });
+
   it('says nothing about a file it cannot read', () => {
     const { claim } = trace(path.join(ROOT, 'absent.js'), 3);
     assert.equal(claim, null);

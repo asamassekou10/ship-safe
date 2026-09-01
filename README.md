@@ -82,7 +82,11 @@ npx ship-safe undo
 
 # CI/CD mode — fails on any critical finding
 npx ship-safe ci . --sarif results.sarif
-npx ship-safe ci . --fail-on high          # stricter: critical or high
+npx ship-safe ci . --fail-on high              # stricter: critical or high
+
+# Gate on evidence instead of severity: block only what was established
+npx ship-safe ci . --fail-on-verdict confirmed
+npx ship-safe ci . --ignore-refuted            # do not block on what was argued away
 ```
 
 For pull requests, compare a trusted base scan with the head scan so existing
@@ -224,8 +228,9 @@ All agents run in parallel. Each skips irrelevant projects automatically.
 |------|------|---------------------|
 | **VerifierAgent** | heuristic | Pattern check around the finding. Never states more than "likely" |
 | **DeepAnalyzer** | analysis | LLM taint reading of the finding and its file, with the citation validated |
-| **DataflowInvestigator** | dataflow | Traces the value back to its origin, across one function boundary and into other files |
-| **AbsenceInvestigator** | presence | Searches the whole project for the control a rule says is missing |
+| **DataflowInvestigator** | dataflow | Traces the value back to its origin, across one function boundary and into other files. JavaScript, TypeScript, and Python |
+| **AbsenceInvestigator** | presence | Searches the project, or the handler, for the control a rule says is missing |
+| **LiteralContextInvestigator** | presence | Decides findings about a written-in value by what surrounds it — prose, a help string, or a reserved address |
 | **CapabilityGraph** | chain | Builds attack chains from configuration no single file contains |
 | **SecretsVerifier** | reproduction | Presents a leaked key to its provider. Opt-in: this discloses the key |
 
