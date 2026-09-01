@@ -402,6 +402,24 @@ export class DataflowInvestigator {
       return null;
     }
 
+    // An inline arrow handed straight to an iterator is not a function
+    // boundary worth spending the one hop on. `arr.forEach(x => f(x))` and
+    // `arr.forEach(f)` describe the same flow, and one of them was traceable
+    // while the other was not purely because of how it was written.
+    const shimmed = iteratorArrowReceiver(lines, fromLine, name, lang);
+    if (shimmed) {
+      const hop = {
+        line: shimmed.line,
+        excerpt: (lines[shimmed.line - 1] || '').trim().slice(0, 120),
+        text: `${name} is each ${truncate(shimmed.receiver, 40)} in turn`,
+        file,
+      };
+      const [next] = identifiersIn(shimmed.receiver, lang);
+      if (next && next !== name) {
+        return this._walk(next, shimmed.line, lines, [...hops, hop], depth, file, lang);
+      }
+    }
+
     // Not defined in this file. If it is a parameter of the enclosing function,
     // the value was handed in from somewhere, and that somewhere is knowable.
     return this._walkIntoCallers(name, fromLine, lines, hops, depth, file, lang);
@@ -511,6 +529,34 @@ export class DataflowInvestigator {
 // =============================================================================
 // SYNTAX HELPERS
 // =============================================================================
+
+/**
+ * An inline arrow passed to an iterator, whose parameter list contains `name`.
+ *
+ * The receiver stands in for the parameter: each element of it is what the
+ * arrow is called with. Only JavaScript has this shape; Python's comprehensions
+ * and lambdas are a separate question and get no answer here rather than a
+ * JavaScript-shaped guess.
+ *
+ * The search window is deliberately short. An arrow more than a few lines above
+ * the value is as likely to be a sibling callback as an enclosing one, and a
+ * wrong receiver is a trace into unrelated code.
+ */
+const ITERATOR_ARROW = /([\w$.[\]'"]+)\s*\.\s*(?:forEach|map|flatMap|filter|find|some|every|sort|reduce)\s*\(\s*(?:async\s*)?\(?\s*([^)=]*?)\s*\)?\s*=>/;
+
+const ARROW_WINDOW = 10;
+
+function iteratorArrowReceiver(lines, fromLine, name, lang) {
+  if (lang.id !== 'js') return null;
+
+  for (let i = fromLine - 1; i >= 0 && i >= fromLine - 1 - ARROW_WINDOW; i--) {
+    const match = (lines[i] || '').match(ITERATOR_ARROW);
+    if (!match) continue;
+    if (!splitParams(match[2], lang).includes(name)) continue;
+    return { receiver: match[1], line: i + 1 };
+  }
+  return null;
+}
 
 /** Merge hop lists from several seeds, keeping each line once and in order. */
 /** Say why a traced flow stops short of confirmed. */

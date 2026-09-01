@@ -471,6 +471,96 @@ describe('functions handed to an iterator', () => {
   });
 });
 
+describe('inline arrow callbacks', () => {
+  // `arr.forEach(x => f(x))` and `arr.forEach(f)` describe the same flow. One
+  // was traceable and the other was not, purely because of how it was written.
+  it('traces through an arrow into a named function', () => {
+    const file = source('arrow-call.js', [
+      'function renderRow(user, cell) {',
+      '  cell.innerHTML = "<b>" + user + "</b>";',
+      '}',
+      '',
+      'export function populate(cell) {',
+      '  const users = location.hash.slice(1).split(",");',
+      '  users.forEach((user) => renderRow(user, cell));',
+      '}',
+    ]);
+
+    const finding = createFinding({
+      file, line: 2, rule: 'XSS_INNERHTML', title: 'XSS',
+      category: 'vulnerability', severity: 'high',
+    });
+    new DataflowInvestigator().investigate([finding], { rootPath: ROOT, files: [file] });
+
+    const claim = finding.evidence.claims.find((c) => c.source === 'dataflow');
+    assert.equal(claim.verdict, 'confirmed');
+    assert.ok(claim.attackPath.some((s) => s.includes('is each users in turn')));
+  });
+
+  it('traces when the sink sits directly inside the arrow', () => {
+    const file = source('arrow-inline.js', [
+      'export function populate(cell) {',
+      '  const users = location.hash.slice(1).split(",");',
+      '  users.forEach((user) => {',
+      '    cell.innerHTML = user;',
+      '  });',
+      '}',
+    ]);
+    assert.equal(trace(file, 4, { rule: 'XSS_INNERHTML' }).claim.verdict, 'confirmed');
+  });
+
+  it('refutes when the collection was sanitized', () => {
+    const file = source('arrow-safe.js', [
+      'export function populate(cell) {',
+      '  const users = escapeHtml(location.hash.slice(1)).split(",");',
+      '  users.forEach((user) => {',
+      '    cell.innerHTML = user;',
+      '  });',
+      '}',
+    ]);
+    assert.equal(trace(file, 4, { rule: 'XSS_INNERHTML' }).claim.verdict, 'refuted');
+  });
+
+  it('does not borrow a receiver from an unrelated arrow', () => {
+    const file = source('arrow-sibling.js', [
+      'export function populate(cell, safe) {',
+      '  const tainted = location.hash.slice(1).split(",");',
+      '  tainted.forEach((other) => track(other));',
+      '  safe.forEach((user) => {',
+      '    cell.innerHTML = user;',
+      '  });',
+      '}',
+    ]);
+    const claim = trace(file, 5, { rule: 'XSS_INNERHTML' }).claim;
+    assert.notEqual(claim?.verdict, 'confirmed', 'the tainted collection belongs to a different callback');
+  });
+
+  it('does not apply the arrow shim to Python lambdas', () => {
+    // The sink's value is a lambda parameter. Resolving it would need the same
+    // reasoning as a JavaScript arrow, and guessing at Python's shapes with a
+    // JavaScript-shaped rule is how a trace ends up in the wrong collection.
+    const dao = source('render.py', [
+      'def render(user, db):',
+      '    return db.execute(f"SELECT * FROM t WHERE n = {user}")',
+    ]);
+    const routes = source('routes.py', [
+      'from flask import request',
+      'from render import render',
+      '',
+      'def populate(db):',
+      '    users = request.args.get("u").split(",")',
+      '    list(map(lambda u: render(u, db), users))',
+    ]);
+
+    const finding = createFinding({
+      file: dao, line: 2, rule: 'PYTHON_SQL_FSTRING', title: 'x',
+      category: 'injection', severity: 'critical',
+    });
+    new DataflowInvestigator().investigate([finding], { rootPath: ROOT, files: [dao, routes] });
+    assert.equal(finding.evidence.verdict, 'unknown', 'abstains rather than guessing');
+  });
+});
+
 describe('crossing the function boundary', () => {
   // The dominant shape in real handler code: the sink is in a helper, the value
   // arrives as a parameter, and the caller lives in another file. Found against
