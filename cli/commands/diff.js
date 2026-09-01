@@ -18,7 +18,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { SECRET_PATTERNS, SECURITY_PATTERNS, SKIP_EXTENSIONS, SKIP_FILENAMES } from '../utils/patterns.js';
 import { buildOrchestrator } from '../agents/index.js';
-import { ScoringEngine } from '../agents/scoring-engine.js';
+import { ScoringEngine, SCORE_VERSION } from '../agents/scoring-engine.js';
 
 // =============================================================================
 // DIFF COMMAND
@@ -174,7 +174,7 @@ export async function diffCommand(ref, options) {
     console.log();
     console.log(chalk.cyan('  ' + '─'.repeat(56)));
     console.log(
-      chalk.white.bold('  Diff Score: ') +
+      chalk.white.bold('  Changed-files risk score: ') +
       scoreColor(`${scoreResult.score}/100 ${scoreResult.grade.letter}`)
     );
     console.log(chalk.cyan('  ' + '─'.repeat(56)));
@@ -184,6 +184,9 @@ export async function diffCommand(ref, options) {
   if (options.json) {
     const output = {
       command: 'diff',
+      analysisScope: 'changed-files',
+      scoreVersion: SCORE_VERSION,
+      repositoryPosture: null,
       ref: ref || (options.staged ? '--staged' : 'HEAD'),
       changedFiles: changedFiles.map(f => path.relative(absolutePath, f)),
       findings,

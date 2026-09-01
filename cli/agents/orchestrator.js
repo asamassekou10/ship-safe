@@ -20,8 +20,14 @@ import ora from 'ora';
 import chalk from 'chalk';
 import { ReconAgent } from './recon-agent.js';
 import { VerifierAgent } from './verifier-agent.js';
+import { DataflowInvestigator } from './dataflow-investigator.js';
+import { AbsenceInvestigator } from './absence-investigator.js';
+import { LiteralContextInvestigator } from './literal-context-investigator.js';
+import { RedosReproducer } from './redos-reproducer.js';
 import { DeepAnalyzer } from './deep-analyzer.js';
 import { isTestFile, isExampleFile } from '../utils/patterns.js';
+import { buildCapabilityGraph, findAttackChains, chainFindings } from '../utils/capability-graph.js';
+import { resolveCodeScopes } from './base-agent.js';
 
 // =============================================================================
 // CONSTANTS
@@ -40,6 +46,10 @@ export class Orchestrator {
     this.agents = [];
     this.reconAgent = new ReconAgent();
     this.verifierAgent = new VerifierAgent();
+    this.dataflowInvestigator = new DataflowInvestigator();
+    this.absenceInvestigator = new AbsenceInvestigator();
+    this.literalInvestigator = new LiteralContextInvestigator();
+    this.redosReproducer = new RedosReproducer();
   }
 
   /**
@@ -101,7 +111,7 @@ export class Orchestrator {
     // from these paths, including 528 of express's 601 API_NO_SECURITY_HEADERS
     // hits in `test/` against 2 in `lib/`.
     if (!options.includeTests) {
-      files = files.filter(f => !isTestFile(f) && !isExampleFile(f));
+      files = files.filter(f => !isTestFile(f, absolutePath) && !isExampleFile(f, absolutePath));
     }
 
     // ── 3. Filter agents if specific ones requested ───────────────────────────
@@ -219,8 +229,40 @@ export class Orchestrator {
       }
     }
 
+    // ── 5b. Capability chains ────────────────────────────────────────────────
+    // Runs after the agents because it reasons over configuration none of them
+    // sees together: one agent reads MCP servers, another reads workflows, a
+    // third reads instruction files, and the dangerous combination lives in
+    // none of those files alone.
+    if (!options.skipCapabilityChains) {
+      try {
+        const graph = buildCapabilityGraph(absolutePath);
+        const chains = chainFindings(findAttackChains(graph), absolutePath);
+        if (chains.length) {
+          agentResults.push({
+            agent: 'CapabilityGraph',
+            category: 'agentic',
+            findingCount: chains.length,
+            success: true,
+          });
+          allFindings = allFindings.concat(chains);
+        }
+      } catch (error) {
+        agentResults.push({
+          agent: 'CapabilityGraph', category: 'agentic',
+          findingCount: 0, success: false, error: error.message,
+        });
+      }
+    }
+
     // ── 6. Deduplicate ────────────────────────────────────────────────────────
     allFindings = this.deduplicate(allFindings);
+
+    // Scope is judged against the root being scanned, not the absolute path.
+    // Deciding it at birth asked whether the machine's directory structure
+    // looked like a test tree, which silently emptied the score of any project
+    // checked out under a directory named test, fixtures, or benchmarks.
+    allFindings = resolveCodeScopes(allFindings, absolutePath);
 
     // ── 7. Second-pass verification (confirms or downgrades findings) ───────
     if (!options.skipVerifier) {
@@ -233,6 +275,44 @@ export class Orchestrator {
           `Verified: ${verified} confirmed, ${downgraded} downgraded`
         ));
       }
+    }
+
+    // ── 7b. Data-flow investigation ─────────────────────────────────────────
+    // Runs after the heuristic pass and outranks it: where the verifier asks
+    // what is written near the finding, this follows the value that reaches it.
+    if (!options.skipDataflow) {
+      const flowSpinner = quiet ? null : ora({ text: 'Tracing data flow...', color: 'cyan' }).start();
+      allFindings = this.dataflowInvestigator.investigate(allFindings, { rootPath: absolutePath, files });
+      // Absence rules are a different question — not where a value came from,
+      // but whether the control they say is missing exists anywhere.
+      allFindings = this.absenceInvestigator.investigate(allFindings, { rootPath: absolutePath, files });
+      // And a third question for rules about a value written into the source:
+      // not where it came from or what is missing, but what surrounds it.
+      allFindings = this.literalInvestigator.investigate(allFindings, { rootPath: absolutePath });
+
+      // The one pass that runs something: a flagged pattern against generated
+      // input, in a worker with a deadline. Shape is a proxy for backtracking;
+      // this settles it by measurement.
+      if (!options.skipReproduction) {
+        allFindings = await this.redosReproducer.investigate(allFindings);
+      }
+      const traced = allFindings.filter(f => (f.evidence?.claims || []).some(c => c.source === 'dataflow'));
+      const confirmed = traced.filter(f => f.evidence.verdict === 'confirmed').length;
+      const refuted = traced.filter(f => f.evidence.verdict === 'refuted').length;
+      if (flowSpinner) {
+        flowSpinner.succeed(chalk.green(
+          `Traced ${traced.length} finding(s): ${confirmed} confirmed, ${refuted} refuted`
+        ));
+      }
+    }
+
+    // Deterministic verification and path-aware tuning define the posture
+    // score. Preserve that evidence before optional model analysis annotates
+    // the findings for human triage.
+    allFindings = this.tuneConfidence(allFindings);
+    for (const finding of allFindings) {
+      finding.deterministicConfidence = finding.confidence || 'high';
+      finding.deterministicSeverity = finding.severity || 'medium';
     }
 
     // ── 8. Deep LLM analysis (optional, --deep flag) ───────────────────────
@@ -274,10 +354,7 @@ export class Orchestrator {
       }
     }
 
-    // ── 9. Context-aware confidence tuning ──────────────────────────────────
-    allFindings = this.tuneConfidence(allFindings);
-
-    // ── 10. Sort by severity ──────────────────────────────────────────────────
+    // ── 9. Sort by severity ───────────────────────────────────────────────────
     const sevOrder = { critical: 0, high: 1, medium: 2, low: 3 };
     allFindings.sort((a, b) =>
       (sevOrder[a.severity] ?? 4) - (sevOrder[b.severity] ?? 4)
@@ -313,28 +390,38 @@ export class Orchestrator {
     for (const f of findings) {
       const ext = (f.file || '').match(/\.[^.]+$/)?.[0]?.toLowerCase() || '';
 
+      // Keep scope independent from confidence. Test and documentation
+      // findings remain visible, but the posture scorer can exclude them
+      // without pretending the detector was uncertain about what it saw.
+      if (!f.codeScope) {
+        if (DOC_EXT.has(ext)) f.codeScope = 'docs';
+        else if (/(?:^|\/)(?:fixtures?|testdata)(?:\/|$)/i.test(f.file || '')) f.codeScope = 'fixture';
+        else if (/(?:^|\/)benchmarks?(?:\/|$)/i.test(f.file || '')) f.codeScope = 'benchmark';
+        else if (TEST_PATH.test(f.file || '')) f.codeScope = 'test';
+        else if (EXAMPLE_PATH.test(f.file || '')) f.codeScope = 'fixture';
+        else f.codeScope = f.file ? 'production' : 'unknown';
+      }
+
       // Findings in documentation files
       if (DOC_EXT.has(ext)) {
         f.confidence = 'low';
-        continue;
-      }
-
-      // Findings in test files
-      if (TEST_PATH.test(f.file || '')) {
+      } else if (TEST_PATH.test(f.file || '')) {
+        // Findings in test files
         f.confidence = 'low';
-        continue;
-      }
-
-      // Findings in example/sample/demo paths: high → medium
-      if (EXAMPLE_PATH.test(f.file || '') && f.confidence === 'high') {
+      } else if (EXAMPLE_PATH.test(f.file || '') && f.confidence === 'high') {
+        // Findings in example/sample/demo paths: high → medium
         f.confidence = 'medium';
-        continue;
       }
 
       // Findings on comment lines
       if (f.matched && COMMENT_LINE.test(f.matched)) {
         f.confidence = 'low';
       }
+
+      f.evidenceLevel = f.confidence === 'high' ? 'strong'
+        : f.confidence === 'medium' ? 'heuristic' : 'advisory';
+      f.reachability ||= 'unknown';
+      f.exposure ||= 'unknown';
     }
 
     return findings;

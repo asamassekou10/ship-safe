@@ -35,6 +35,9 @@ jobs:
       - name: Run deterministic security corpus
         run: npm run benchmark:corpus
 
+      - name: Run verdict benchmark
+        run: npm run benchmark:verdicts
+
       - name: Run ship-safe on itself
         run: node cli/bin/ship-safe.js scan .
 

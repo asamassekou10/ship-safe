@@ -68,6 +68,7 @@ export { HTMLReporter } from './agents/html-reporter.js';
 
 // ── Caching ──────────────────────────────────────────────────────────────────
 export { CacheManager } from './utils/cache-manager.js';
+export { compareFindingSets, snapshotFinding, findingRelocationFingerprint } from './utils/finding-delta.js';
 
 // ── LLM Providers ─────────────────────────────────────────────────────────────
 export { createProvider, autoDetectProvider } from './providers/llm-provider.js';

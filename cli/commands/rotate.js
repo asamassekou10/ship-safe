@@ -23,7 +23,7 @@
 import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import chalk from 'chalk';
 import ora from 'ora';
 import fg from 'fast-glob';
@@ -36,6 +36,7 @@ import {
 } from '../utils/patterns.js';
 import { isHighEntropyMatch } from '../utils/entropy.js';
 import * as output from '../utils/output.js';
+import { fetchSafeUrl } from '../utils/remote-fetch.js';
 
 // =============================================================================
 // PROVIDER ROTATION INFO
@@ -391,10 +392,12 @@ async function revokeGitHubToken(token) {
 
 function openBrowser(url) {
   try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') throw new Error('Provider URL must use HTTPS');
     const platform = process.platform;
-    if (platform === 'win32') execSync(`start "" "${url}"`, { stdio: 'ignore' }); // ship-safe-ignore — url is hardcoded provider dashboard URL
-    else if (platform === 'darwin') execSync(`open "${url}"`, { stdio: 'ignore' }); // ship-safe-ignore
-    else execSync(`xdg-open "${url}"`, { stdio: 'ignore' }); // ship-safe-ignore
+    if (platform === 'win32') execFileSync('rundll32.exe', ['url.dll,FileProtocolHandler', parsed.href], { stdio: 'ignore' });
+    else if (platform === 'darwin') execFileSync('open', [parsed.href], { stdio: 'ignore' });
+    else execFileSync('xdg-open', [parsed.href], { stdio: 'ignore' });
     return true;
   } catch {
     return false;
@@ -497,8 +500,8 @@ function promptHidden(question) {
 async function updateVercelEnvVar(token, projectId, envId, envType, newValue, teamId) {
   const params = new URLSearchParams();
   if (teamId) params.set('teamId', teamId);
-  const url = `https://api.vercel.com/v9/projects/${projectId}/env/${envId}?${params}`;
-  const r = await fetch(url, {
+  const endpoint = `https://api.vercel.com/v9/projects/${encodeURIComponent(projectId)}/env/${encodeURIComponent(envId)}?${params}`;
+  const r = await fetchSafeUrl(endpoint, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ value: newValue, type: envType || 'encrypted' }),

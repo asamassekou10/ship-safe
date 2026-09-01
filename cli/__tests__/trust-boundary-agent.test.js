@@ -51,6 +51,22 @@ describe('TrustBoundaryAgent — symlinks (GhostApproval)', () => {
       assert.equal(f.filter((x) => x.rule.startsWith('SYMLINK')).length, 0);
     } finally { cleanup(dir); }
   });
+
+  it('skips benchmark symlink fixtures by default but scans them with --include-tests', async () => {
+    const dir = tmp();
+    const corpus = path.join(dir, 'benchmarks', 'false-positives', 'corpus-src');
+    fs.mkdirSync(corpus, { recursive: true });
+    try {
+      fs.symlinkSync('../../../../outside.txt', path.join(corpus, 'fixture.json'));
+      const defaultFindings = await scan(dir);
+      assert.equal(defaultFindings.filter((x) => x.rule === 'SYMLINK_ESCAPES_REPO').length, 0);
+
+      const includedFindings = await new TrustBoundaryAgent().analyze({
+        rootPath: dir, files: [], recon: {}, options: { includeTests: true },
+      });
+      assert.ok(includedFindings.some((x) => x.rule === 'SYMLINK_ESCAPES_REPO'));
+    } finally { cleanup(dir); }
+  });
 });
 
 describe('TrustBoundaryAgent — Friendly Fire', () => {

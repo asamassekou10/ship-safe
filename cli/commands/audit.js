@@ -20,7 +20,7 @@ import fg from 'fast-glob';
 import { buildOrchestrator, buildOrchestratorAsync } from '../agents/index.js';
 import { LegalRiskAgent } from '../agents/legal-risk-agent.js';
 import { ScoringEngine } from '../agents/scoring-engine.js';
-import { isSuppressible, projectFindings } from '../agents/base-agent.js';
+import { isSuppressible, normalizeFindingMetadata, projectFindings, resolveCodeScopes } from '../agents/base-agent.js';
 import { PolicyEngine } from '../agents/policy-engine.js';
 import { HTMLReporter } from '../agents/html-reporter.js';
 import { SBOMGenerator } from '../agents/sbom-generator.js';
@@ -46,6 +46,7 @@ import { ScanPlaybook } from '../utils/scan-playbook.js';
 import { generatePDF, generatePrintHTML, isChromeAvailable } from '../utils/pdf-generator.js';
 import { SecretsVerifier } from '../utils/secrets-verifier.js';
 import { applyInlineAnnotations } from './autofix.js';
+import { hasEvidence, summarizeEvidence } from '../utils/evidence.js';
 
 // =============================================================================
 // CONSTANTS
@@ -209,6 +210,7 @@ export async function auditCommand(targetPath = '.', options = {}) {
     // Suppress individual agent spinners by using quiet mode
     // Pass changedFiles for incremental scanning if cache is valid
     const orchestratorOpts = { quiet: true };
+    if (options.includeTests) orchestratorOpts.includeTests = true;
     if (options.deep) orchestratorOpts.deep = true;
     if (options.local) orchestratorOpts.local = true;
     if (options.model) orchestratorOpts.model = options.model;
@@ -290,13 +292,6 @@ export async function auditCommand(targetPath = '.', options = {}) {
     }
   }
 
-  // ── Scan Playbook — update with latest recon + findings ─────────────────
-  try {
-    const playbook = new ScanPlaybook(absolutePath);
-    const suppressedRules = new SecurityMemory(absolutePath).list().map(e => e.rule).filter(Boolean);
-    playbook.update(recon, { score: scoreResult.score, grade: scoreResult.grade?.letter || scoreResult.grade, totalFindings: filteredFindings.length }, filteredFindings, suppressedRules);
-  } catch { /* non-fatal */ }
-
   // ── Security Memory Filter ──────────────────────────────────────────────
   // Auto-learn false positives from deep analysis results, then suppress
   // any finding that memory recognises from a previous scan.
@@ -309,7 +304,7 @@ export async function auditCommand(targetPath = '.', options = {}) {
     }
   }
   const { kept: memFiltered, suppressedCount: memSuppressed } = secMemory.filter(filteredFindings);
-  filteredFindings = memFiltered;
+  filteredFindings = resolveCodeScopes(memFiltered.map(normalizeFindingMetadata), absolutePath);
   if (memSuppressed > 0 && !machineOutput) {
     console.log(chalk.gray(`  Memory: ${memSuppressed} previously-confirmed false positive(s) suppressed`));
   }
@@ -323,6 +318,17 @@ export async function auditCommand(targetPath = '.', options = {}) {
   // Round score to 1 decimal place to avoid floating-point noise (e.g., 63.300000000000004)
   scoreResult.score = Math.round(scoreResult.score * 10) / 10;
   scoringEngine.saveToHistory(absolutePath, scoreResult, suppressions);
+
+  // ── Scan Playbook — update with latest recon + scored findings ──────────
+  try {
+    const playbook = new ScanPlaybook(absolutePath);
+    const suppressedRules = new SecurityMemory(absolutePath).list().map(e => e.rule).filter(Boolean);
+    playbook.update(recon, {
+      score: scoreResult.score,
+      grade: scoreResult.grade?.letter || scoreResult.grade,
+      totalFindings: filteredFindings.length,
+    }, filteredFindings, suppressedRules);
+  } catch { /* non-fatal */ }
 
   const gradeColor = scoreResult.score >= 75 ? chalk.green.bold : scoreResult.score >= 60 ? chalk.yellow.bold : chalk.red.bold;
   if (scoreSpinner) scoreSpinner.succeed(
@@ -450,7 +456,7 @@ export async function auditCommand(targetPath = '.', options = {}) {
   } else if (options.md) {
     outputMarkdown(scoreResult, emittedFindings, depVulns, remediationPlan, absolutePath);
   } else if (options.json) {
-    outputJSON(scoreResult, emittedFindings, depVulns, recon, agentResults, remediationPlan, suppressions, options.compare ? scoringEngine.loadHistory(absolutePath) : null);
+    outputJSON(scoreResult, emittedFindings, depVulns, recon, agentResults, remediationPlan, suppressions, options.compare ? scoringEngine.loadHistory(absolutePath) : null, absolutePath);
   } else if (options.sarif) {
     outputSARIF(emittedFindings, absolutePath);
   } else {
@@ -838,12 +844,18 @@ function printReport(scoreResult, findings, depVulns, recon, plan, rootPath, fil
 // JSON OUTPUT
 // =============================================================================
 
-function outputJSON(scoreResult, findings, depVulns, recon, agentResults, remediationPlan, suppressions, history) {
+function outputJSON(scoreResult, findings, depVulns, recon, agentResults, remediationPlan, suppressions, history, rootPath = process.cwd()) {
   const output = {
+    scoreVersion: scoreResult.scoreVersion,
     score: scoreResult.score,
+    postureScore: scoreResult.postureScore,
     grade: scoreResult.grade.letter,
     gradeLabel: scoreResult.grade.label,
     totalFindings: findings.length,
+    postureFindings: scoreResult.postureFindings,
+    excludedFromPosture: scoreResult.excludedFromPosture,
+    excludedByCodeScope: scoreResult.excludedByCodeScope,
+    aiAffectsScore: scoreResult.aiAffectsScore,
     totalDepVulns: depVulns.length,
     categories: Object.fromEntries(
       Object.entries(scoreResult.categories).map(([k, v]) => [k, {
@@ -856,7 +868,12 @@ function outputJSON(scoreResult, findings, depVulns, recon, agentResults, remedi
     findings: findings.map(f => ({
       file: f.file, line: f.line, severity: f.severity, category: f.category,
       rule: f.rule, title: f.title, description: f.description, fix: f.fix,
-      cwe: f.cwe, owasp: f.owasp,
+      cwe: f.cwe, owasp: f.owasp, scope: f.scope,
+      codeScope: f.codeScope, evidenceLevel: f.evidenceLevel,
+      reachability: f.reachability, exposure: f.exposure,
+      // Only findings some pass actually investigated carry evidence; an empty
+      // container on every finding would be noise in every report.
+      ...(hasEvidence(f) ? { evidence: summarizeEvidence(f, rootPath) } : {}),
     })),
     depVulns: depVulns.map(d => ({
       severity: d.severity, package: dependencyName(d), description: d.description,
@@ -985,7 +1002,7 @@ async function findFiles(rootPath, { includeTests = false } = {}) {
     // credential-shaped strings and minimal apps that skip production controls.
     // `scan` has always excluded it; `audit` and `ci` did not, so the same repo
     // could pass one command and fail another.
-    if (!includeTests && (isTestFile(file) || isExampleFile(file))) return false;
+    if (!includeTests && (isTestFile(file, rootPath) || isExampleFile(file, rootPath))) return false;
     const ext = path.extname(file).toLowerCase();
     if (SKIP_EXTENSIONS.has(ext)) return false;
     if (SKIP_FILENAMES.has(path.basename(file))) return false;

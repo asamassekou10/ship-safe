@@ -24,6 +24,7 @@ import { createHash } from 'crypto';
 import * as output from '../utils/output.js';
 import { ThreatIntel } from '../utils/threat-intel.js';
 import { MCPSecurityAgent, MCP_CONFIG_FILES } from '../agents/mcp-security-agent.js';
+import { fetchSafeUrl } from '../utils/remote-fetch.js';
 
 // =============================================================================
 // MCP TOOL DESCRIPTION PATTERNS
@@ -380,7 +381,8 @@ async function fetchMcpManifest(baseUrl) {
     params: {},
   });
 
-  const jsonRpcRes = await fetch(`${url}`, {
+  const jsonRpcRes = await fetchSafeUrl(`${url}`, {
+    allowLoopback: true,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: jsonRpcBody,
@@ -393,7 +395,8 @@ async function fetchMcpManifest(baseUrl) {
   }
 
   // Fall back to GET /tools (some servers expose this)
-  const getRes = await fetch(`${url}/tools`, {
+  const getRes = await fetchSafeUrl(`${url}/tools`, {
+    allowLoopback: true,
     signal: AbortSignal.timeout(10000),
   }).catch(() => null);
 
@@ -402,7 +405,8 @@ async function fetchMcpManifest(baseUrl) {
   }
 
   // Fall back to root endpoint
-  const rootRes = await fetch(`${url}`, {
+  const rootRes = await fetchSafeUrl(`${url}`, {
+    allowLoopback: true,
     signal: AbortSignal.timeout(10000),
   }).catch(() => null);
 

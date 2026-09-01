@@ -129,7 +129,7 @@ const PATTERNS = [
   {
     rule: 'RAG_METADATA_IN_RESPONSE',
     title: 'RAG: Internal Metadata Exposed in Response',
-    regex: /(?:metadata|source|file_path|filePath|url|author|timestamp)[\s\S]{0,100}(?:res\.json|res\.send|response\.json|return\s*\{|jsonify)/g,
+    regex: /(?:\b(?:metadata|source|file_path|filePath|author|timestamp)\s*:\s*[^,\n}]+)[\s\S]{0,100}(?:res\.json|res\.send|response\.json|return\s*\{|jsonify)/g,
     severity: 'medium',
     cwe: 'CWE-200',
     owasp: 'A01:2021',

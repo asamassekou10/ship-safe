@@ -19,6 +19,71 @@ import fs from 'fs';
 import path from 'path';
 import fg from 'fast-glob';
 import { SKIP_DIRS, SKIP_EXTENSIONS, SKIP_FILENAMES, MAX_FILE_SIZE, loadGitignorePatterns } from '../utils/patterns.js';
+import { emptyEvidence } from '../utils/evidence.js';
+
+const DOC_EXTENSIONS = new Set(['.md', '.mdx', '.txt', '.rst', '.adoc', '.rdoc']);
+
+/**
+ * Classify where code lives without changing the existing project/environment
+ * meaning of `scope`. Unknown paths stay in posture scoring for compatibility.
+ */
+export function inferCodeScope(file = '') {
+  const normalized = String(file).replace(/\\/g, '/').toLowerCase();
+  const ext = path.extname(normalized);
+
+  if (DOC_EXTENSIONS.has(ext) || /(?:^|\/)docs?(?:\/|$)/.test(normalized)) return 'docs';
+  if (/(?:^|\/)(?:fixtures?|testdata|malicious-fixtures?|examples?|samples?|demos?|mocks?)(?:\/|$)/.test(normalized)) return 'fixture';
+  if (/(?:^|\/)benchmarks?(?:\/|$)/.test(normalized)) return 'benchmark';
+  if (/(?:^|\/)(?:__tests__|tests?|spec)(?:\/|$)|\.(?:test|spec)\.[^./]+$/.test(normalized)) return 'test';
+  if (/(?:^|\/)(?:dist|build|coverage|generated)(?:\/|$)|\.(?:min\.js|map)$/.test(normalized)) return 'generated';
+  return normalized ? 'production' : 'unknown';
+}
+
+/**
+ * Re-derive every finding's code scope against the root actually being scanned.
+ *
+ * `inferCodeScope` classifies a path, and at the moment a finding is created the
+ * only path available is absolute. That asks the wrong question: not "is this
+ * file a test within its project" but "does anything in this machine's
+ * directory structure look like a test". A repository checked out at
+ * ~/projects/test/myapp had every finding classified as test code and dropped
+ * from its own score, reporting 100/100 while holding real findings.
+ *
+ * Scope is therefore settled once, centrally, where the scan root is known.
+ */
+export function resolveCodeScopes(findings, rootPath) {
+  if (!rootPath) return findings;
+
+  for (const finding of findings) {
+    if (!finding?.file) continue;
+    const relative = path.relative(rootPath, finding.file);
+    // A finding outside the scanned tree keeps whatever it was born with:
+    // there is no project-relative path to judge it by.
+    if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) continue;
+    finding.codeScope = inferCodeScope(relative);
+  }
+
+  return findings;
+}
+
+export function evidenceLevelForConfidence(confidence = 'high') {
+  if (confidence === 'high') return 'strong';
+  if (confidence === 'medium') return 'heuristic';
+  return 'advisory';
+}
+
+/** Add score-contract metadata to findings from legacy and plugin detectors. */
+export function normalizeFindingMetadata(finding) {
+  const confidence = finding.deterministicConfidence || finding.confidence || 'high';
+  return {
+    ...finding,
+    codeScope: finding.codeScope || inferCodeScope(finding.file),
+    evidenceLevel: finding.evidenceLevel || evidenceLevelForConfidence(confidence),
+    reachability: finding.reachability || 'unknown',
+    exposure: finding.exposure || 'unknown',
+    evidence: finding.evidence || emptyEvidence(),
+  };
+}
 
 // =============================================================================
 // FINDING FACTORY
@@ -56,6 +121,11 @@ export function createFinding({
   owasp = null,
   fix = null,
   scope = 'project',
+  codeScope = inferCodeScope(file),
+  evidenceLevel = evidenceLevelForConfidence(confidence),
+  reachability = 'unknown',
+  exposure = 'unknown',
+  evidence = emptyEvidence(),
 }) {
   return {
     file,
@@ -72,6 +142,13 @@ export function createFinding({
     owasp,
     fix,
     scope,
+    codeScope,
+    evidenceLevel,
+    reachability,
+    exposure,
+    // Every finding carries an evidence container from birth so no later pass
+    // has to test for its absence before recording what it concluded.
+    evidence,
   };
 }
 
@@ -238,6 +315,16 @@ export function projectFindings(findings) {
 /** Findings about the machine running the scan. Interactive display only. */
 export function environmentFindings(findings) {
   return (findings || []).filter(f => f.scope === 'environment');
+}
+
+const NON_PRODUCTION_SCOPES = new Set(['test', 'fixture', 'benchmark', 'docs', 'generated']);
+
+/** Findings that describe deployable code and belong in repository posture. */
+export function postureFindings(findings, { includeNonProduction = false } = {}) {
+  return projectFindings(findings).filter(f => {
+    if (includeNonProduction) return true;
+    return !NON_PRODUCTION_SCOPES.has(f.codeScope || inferCodeScope(f.file));
+  });
 }
 
 /** Whether a finding of this severity may be silenced by an inline comment. */

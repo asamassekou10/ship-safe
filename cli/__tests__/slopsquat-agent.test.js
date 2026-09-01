@@ -94,4 +94,14 @@ describe('SlopSquatAgent', () => {
       assert.ok(!names.includes('@scope/real'));
     } finally { cleanup(dir); }
   });
+
+  it('honors an inline suppression for an intentional template dependency', async () => {
+    const { dir, files } = project({ dependencies: {} }, {
+      'secure-client.ts': "import { createClient } from '@supabase/supabase-js'; // ship-safe-ignore — template dependency belongs to the copied application\n",
+    });
+    try {
+      const f = await scan(dir, files);
+      assert.equal(f.filter((x) => x.rule === 'SLOPSQUAT_PHANTOM_IMPORT').length, 0);
+    } finally { cleanup(dir); }
+  });
 });

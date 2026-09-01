@@ -64,6 +64,10 @@ describe('absence rules stay quiet when the mitigation is present', async () => 
     quiet(AgenticSecurityAgent, 'AGENT_NO_COST_LIMIT',
       'await client.chat.completions.create({ model: "gpt-4", max_tokens: 500 });'));
 
+  it('AGENT_NO_COST_LIMIT: unrelated generator calls are not treated as LLM calls', () =>
+    quiet(AgenticSecurityAgent, 'AGENT_NO_COST_LIMIT',
+      'const report = reportGenerator.generate({ format: "json" });'));
+
   it('AGENT_NO_OUTPUT_SCHEMA: parsed output validated by a schema', () =>
     quiet(AgenticSecurityAgent, 'AGENT_NO_OUTPUT_SCHEMA',
       'const parsed = JSON.parse(completion);\nconst safe = ResultSchema.parse(parsed);'));
@@ -71,6 +75,10 @@ describe('absence rules stay quiet when the mitigation is present', async () => 
   it('RAG_NO_TENANT_ISOLATION: namespace and filter supplied', () =>
     quiet(RAGSecurityAgent, 'RAG_NO_TENANT_ISOLATION',
       'await pinecone.upsert(vectors, { namespace: tenantId, filter: { user_id: uid } });'));
+
+  it('RAG_METADATA_IN_RESPONSE: unrelated response parsing is not metadata exposure', () =>
+    quiet(RAGSecurityAgent, 'RAG_METADATA_IN_RESPONSE',
+      'const { url } = await res.json();\nreturn url;'));
 
   it('PII_TRACKING_NO_CONSENT: consent checked before init', () =>
     quiet(PIIComplianceAgent, 'PII_TRACKING_NO_CONSENT',
@@ -80,6 +88,9 @@ describe('absence rules stay quiet when the mitigation is present', async () => 
     quiet(MCPSecurityAgent, 'MCP_REMOTE_UNPINNED',
       'const mcpServers = {\n  docs: { command: "npx mcp-docs", version: "1.4.2" }\n};\n'));
 
+  it('MCP_SERVER_NO_AUTH: a tool registry helper is not a server', () =>
+    quiet(MCPSecurityAgent, 'MCP_SERVER_NO_AUTH',
+      'for (const tool of TOOLS) toolRegistry.registerTool(tool);'));
   it('AGENT_CHAIN_NO_ISOLATION: permission scoped between chained steps', () =>
     quiet(AgenticSecurityAgent, 'AGENT_CHAIN_NO_ISOLATION',
       'const chain = orchestrateAgents([agent, step], { permission: "scoped", isolat: true });'));

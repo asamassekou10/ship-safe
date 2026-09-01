@@ -78,10 +78,15 @@ describe('ci JSON output', () => {
       child.stderr.on('data', (chunk) => stderr.push(chunk));
 
       const result = await new Promise((resolve, reject) => {
+        // Generous, because the assertion is "does not hang", not "finishes
+        // quickly". The scan itself takes about three seconds, `node --test`
+        // runs files in parallel, and a budget only slightly above the
+        // measured time turns every added test elsewhere in the suite into a
+        // failure here. A genuine hang is still caught, just later.
         const timer = setTimeout(() => {
           child.kill('SIGKILL');
           reject(new Error('ci command hung with a stalled stdout consumer'));
-        }, 5_000);
+        }, 30_000);
 
         child.once('error', reject);
         child.once('exit', (code, signal) => {

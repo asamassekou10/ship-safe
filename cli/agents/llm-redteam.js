@@ -256,16 +256,25 @@ export class LLMRedTeam extends BaseAgent {
 
     let findings = [];
     for (const file of codeFiles) {
+      const content = this.readFile(file) || '';
       // Honor per-pattern skipFile predicates so rules that are clearly false
       // positives in known contexts (server-side prompts, redteam test data)
       // never get sent to the agent for "fixing".
-      const applicable = PATTERNS.filter(p => !p.skipFile || !p.skipFile(file));
+      const applicable = PATTERNS.filter(p => {
+        if (p.skipFile && p.skipFile(file)) return false;
+        if (p.rule === 'LLM_NO_RATE_LIMIT' && this._hasRateLimitControl(content)) return false;
+        return true;
+      });
       if (applicable.length === 0) continue;
       findings = findings.concat(this.scanFileWithPatterns(file, applicable));
     }
 
     findings = findings.concat(this._checkCostControls(codeFiles));
     return findings;
+  }
+
+  _hasRateLimitControl(content) {
+    return /(?:rateLimit|rateLimiter|rate_limit|rate-limit|throttl\w*|_allow_\w*request|CHAT_RATE_LIMIT|Retry-After|express-rate-limit|@upstash\/ratelimit|limiter)/i.test(content);
   }
 
   /**

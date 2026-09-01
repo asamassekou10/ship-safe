@@ -50,6 +50,7 @@ const PATTERNS = [
     rule: 'AGENT_UNRESTRICTED_TOOLS',
     title: 'Agent: Unrestricted Tool Access',
     regex: /(?:tools|actions|capabilities|functions)\s*[:=]\s*(?:\[\s*\.{3}|"all"|'all'|"\*"|'\*'|Object\.keys|getAll|listAll)/g,
+    skipComments: true,
     severity: 'critical',
     cwe: 'CWE-269',
     owasp: 'A01:2021',
@@ -567,7 +568,7 @@ const AGENT_STRUCTURAL_RULES = [
     fix: 'Set max_tokens on every completion call and enforce a per-session cost budget.',
     test(content) {
       const callsModel =
-        /(?:chat\.completions\.create|messages\.create|responses\.create|createChatCompletion|\.generate(?:_content)?\s*\(|completion\s*\()/i.test(content);
+        /(?:chat\.completions\.create|messages\.create|responses\.create|createChatCompletion|(?:model|llm|client|openai|anthropic|gemini)\s*\.\s*generate(?:_content)?\s*\(|completion\s*\()/i.test(content);
       if (!callsModel) return false;
 
       const hasCeiling =
@@ -679,7 +680,7 @@ export class AgenticSecurityAgent extends BaseAgent {
       AGENT_TOOL_CALL_REPLAY_MISSING_ASSISTANT: /(?:role\s*:\s*['"]tool['"]|tool_call_id|toolCallId)/i,
       AGENT_NO_AUDIT_LOG: /(?:executeTool|callTool|invokeTool|runTool|dispatchTool|tool\.run)/i,
       AGENT_MEMORY_NO_EXPIRY: /(?:memory|longTermMemory|persistent_?[Ss]tate)/i,
-      AGENT_NO_COST_LIMIT: /(?:completions\.create|messages\.create|responses\.create|createChatCompletion|\.generate)/i,
+      AGENT_NO_COST_LIMIT: /(?:completions\.create|messages\.create|responses\.create|createChatCompletion|(?:model|llm|client|openai|anthropic|gemini)\s*\.\s*generate)/i,
       AGENT_NO_OUTPUT_SCHEMA: /(?:JSON\.parse|json\.loads)/i,
       AGENT_CHAIN_NO_ISOLATION: /\b(?:pipe|chain|sequence|workflow)\b/i,
     };

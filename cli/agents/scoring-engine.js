@@ -10,7 +10,7 @@
  */
 
 import fs from 'fs';
-import { projectFindings } from './base-agent.js';
+import { normalizeFindingMetadata, postureFindings, projectFindings } from './base-agent.js';
 import path from 'path';
 import { getComplianceSummary, getAgenticSummary, enrichAgenticRisk } from '../utils/compliance-map.js';
 
@@ -79,6 +79,8 @@ const GRADES = [
   { min: 0,  letter: 'F', label: 'Not safe to ship',             color: 'red' },
 ];
 
+export const SCORE_VERSION = 2;
+
 /**
  * Bound a category's deduction by its weight without ever reaching it.
  *
@@ -119,12 +121,26 @@ export class ScoringEngine {
    * @param {object[]} depVulns   — Array of dependency CVE objects
    * @returns {object}            — { score, grade, categories, breakdown }
    */
-  compute(findings = [], depVulns = [], { includeEnvironment = false } = {}) {
+  compute(findings = [], depVulns = [], {
+    includeEnvironment = false,
+    includeNonProduction = false,
+  } = {}) {
     // A grade describes the repository. Environment findings are about the
     // machine running the scan, so a maintainer having an agent tool installed
     // must not move the project's score. A caller that passed
     // --check-global-agents has declared the environment in scope and opts in.
     if (!includeEnvironment) findings = projectFindings(findings);
+
+    // Normalize legacy/plugin findings at the scoring boundary. This keeps the
+    // public finding shape additive and lets older integrations participate in
+    // score v2 without being rewritten in lockstep.
+    findings = findings.map(normalizeFindingMetadata);
+
+    const allProjectFindings = findings;
+    findings = includeEnvironment
+      ? findings.filter(f => includeNonProduction || !['test', 'fixture', 'benchmark', 'docs', 'generated'].includes(f.codeScope))
+      : postureFindings(findings, { includeNonProduction });
+    const excludedFromPosture = allProjectFindings.filter(f => !findings.includes(f));
 
     const categoryResults = {};
 
@@ -150,7 +166,7 @@ export class ScoringEngine {
       const cat = this.resolveCategory(finding.category);
       if (!cat || !categoryResults[cat]) continue;
 
-      const sev = finding.severity || 'medium';
+      const sev = finding.deterministicSeverity || finding.severity || 'medium';
       categoryResults[cat].counts[sev] = (categoryResults[cat].counts[sev] || 0) + 1;
       categoryResults[cat].findings.push(finding);
     }
@@ -178,9 +194,9 @@ export class ScoringEngine {
       // Per-finding confidence-weighted deductions for agent findings
       if (key !== 'deps') {
         for (const finding of result.findings) {
-          const sev = finding.severity || 'medium';
+          const sev = finding.deterministicSeverity || finding.severity || 'medium';
           const pts = config.deductions[sev] || 0;
-          const confidence = finding.confidence || 'high';
+          const confidence = finding.deterministicConfidence || finding.confidence || 'high';
           const multiplier = CONFIDENCE_MULTIPLIER[confidence] || 1.0;
           deduction += pts * multiplier;
         }
@@ -236,11 +252,23 @@ export class ScoringEngine {
     }
 
     return {
+      scoreVersion: SCORE_VERSION,
       score,
+      postureScore: score,
       grade,
+      postureGrade: grade,
       categories: categoryResults,
       totalFindings: findings.length,
+      totalObservedFindings: allProjectFindings.length,
+      postureFindings: findings.length,
+      excludedFromPosture: excludedFromPosture.length,
+      excludedByCodeScope: excludedFromPosture.reduce((counts, finding) => {
+        const scope = finding.codeScope || 'unknown';
+        counts[scope] = (counts[scope] || 0) + 1;
+        return counts;
+      }, {}),
       totalDepVulns: depVulns.length,
+      aiAffectsScore: false,
       compliance,
       agenticSummary,
     };
@@ -278,6 +306,7 @@ export class ScoringEngine {
 
       const entry = {
         timestamp: new Date().toISOString(),
+        scoreVersion: scoreResult.scoreVersion || 1,
         score: scoreResult.score,
         grade: scoreResult.grade.letter,
         totalFindings: scoreResult.totalFindings,

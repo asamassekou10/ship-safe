@@ -36,6 +36,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { autoDetectProvider } from '../providers/llm-provider.js';
 import { auditCommand } from './audit.js';
+import { classifyFixOutcome, describeFixOutcome } from '../utils/fix-verification.js';
 import * as output from '../utils/output.js';
 
 const SEV_RANK   = { critical: 4, high: 3, medium: 2, low: 1, info: 0 };
@@ -271,11 +272,29 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
     const verifySpinner = ora({ text: 'Verifying...', color: 'cyan', indent: 6 }).start();
     const verified = await verifyFile(root, filePath, fileFindings);
     if (verified.allResolved) {
-      verifySpinner.succeed(chalk.green(`Fix verified — ${fileFindings.length} finding(s) resolved`));
+      verifySpinner.succeed(chalk.green(`Fix verified — ${describeFixOutcome(verified.verification)}`));
     } else if (verified.someResolved) {
-      verifySpinner.warn(chalk.yellow(`Partial: ${verified.resolvedCount}/${fileFindings.length} resolved`));
+      verifySpinner.warn(chalk.yellow(`Partial — ${describeFixOutcome(verified.verification)}`));
     } else {
-      verifySpinner.warn(chalk.yellow('Fix applied, but findings still appear'));
+      verifySpinner.warn(chalk.yellow(verified.verification
+        ? `Fix applied, but nothing closed — ${describeFixOutcome(verified.verification)}`
+        : 'Fix applied, but findings still appear'));
+    }
+
+    // A fix is an edit like any other. The only thing worse than an unfixed
+    // finding is a new one nobody looked for.
+    for (const created of verified.verification?.introduced ?? []) {
+      console.log(chalk.red(`      ! new confirmed finding: ${created.rule} at line ${created.line}`));
+      if (created.evidence) console.log(chalk.dim(`        ${created.evidence}`));
+    }
+
+    // Where a fix left the pattern in place and closed the path, say so with
+    // the reason: that is the evidence the fix worked, and it reads as a
+    // failure without it.
+    for (const outcome of verified.verification?.outcomes ?? []) {
+      if (outcome.outcome !== 'neutralised') continue;
+      console.log(chalk.green(`      ✓ ${outcome.rule} still matches but is now refuted`));
+      if (outcome.evidence) console.log(chalk.dim(`        ${outcome.evidence}`));
     }
 
     // Per-fix commit (if branch isolation in use)
@@ -681,27 +700,31 @@ function applyEdit(root, fileChange) {
 // VERIFY
 // =============================================================================
 
+/**
+ * Re-scan and judge the fix on evidence rather than on whether the rule stopped
+ * firing.
+ *
+ * The two readings disagree in both directions. Renaming a variable silences a
+ * detector and changes nothing an attacker can do; adding validation upstream
+ * leaves the matched line exactly where it was and closes the path. Reporting
+ * only the first tells a person their fix failed when it worked, and worse,
+ * tells them it worked when it only hid.
+ */
 async function verifyFile(root, filePath, originalFindings) {
   try {
     const result = await auditCommand(root, { _agenticInner: true, deep: false, deps: false, noAi: true });
-    const remaining = (result.findings ?? []).filter(f => f.file === filePath);
-
-    let resolvedCount = 0;
-    for (const orig of originalFindings) {
-      const stillThere = remaining.some(f =>
-        f.rule === orig.rule &&
-        Math.abs((f.line ?? 0) - (orig.line ?? 0)) <= 2,
-      );
-      if (!stillThere) resolvedCount++;
-    }
+    const after = (result.findings ?? []).filter(f => f.file === filePath);
+    const verification = classifyFixOutcome(originalFindings, after);
+    const { summary } = verification;
 
     return {
-      allResolved:  resolvedCount === originalFindings.length,
-      someResolved: resolvedCount > 0,
-      resolvedCount,
+      allResolved:  summary.verified,
+      someResolved: summary.resolved + summary.neutralised > 0,
+      resolvedCount: summary.resolved + summary.neutralised,
+      verification,
     };
   } catch {
-    return { allResolved: false, someResolved: false, resolvedCount: 0 };
+    return { allResolved: false, someResolved: false, resolvedCount: 0, verification: null };
   }
 }
 

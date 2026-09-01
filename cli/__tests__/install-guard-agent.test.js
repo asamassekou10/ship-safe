@@ -90,9 +90,30 @@ describe('InstallGuardAgent — binding.gyp', () => {
 });
 
 describe('InstallGuardAgent - Python install hooks', () => {
+  it('skips malicious fixture paths by default but scans them with --include-tests', async () => {
+    const rootPath = tmp();
+    const fixtureDir = path.join(rootPath, 'tests', 'fixtures', 'malicious-setup');
+    fs.mkdirSync(fixtureDir, { recursive: true });
+    fs.copyFileSync(
+      path.join(FIXTURES, 'malicious-setup', 'setup.py'),
+      path.join(fixtureDir, 'setup.py')
+    );
+    try {
+      const defaultFindings = await new InstallGuardAgent().analyze({
+        rootPath, files: [], recon: {}, options: {},
+      });
+      assert.equal(defaultFindings.length, 0);
+
+      const includedFindings = await new InstallGuardAgent().analyze({
+        rootPath, files: [], recon: {}, options: { includeTests: true },
+      });
+      assert.ok(includedFindings.some((x) => x.rule === 'WORM_PYTHON_INSTALL_CRED_HARVEST'));
+    } finally { cleanup(rootPath); }
+  });
+
   it('flags credential access in setup.py without exposing credential values', async () => {
     const rootPath = path.join(FIXTURES, 'malicious-setup');
-    const f = await new InstallGuardAgent().analyze({ rootPath, files: [], recon: {}, options: {} });
+    const f = await new InstallGuardAgent().analyze({ rootPath, files: [], recon: {}, options: { includeTests: true } });
     const finding = f.find((x) => x.rule === 'WORM_PYTHON_INSTALL_CRED_HARVEST');
     assert.ok(finding);
     assert.equal(finding.severity, 'critical');
@@ -102,7 +123,7 @@ describe('InstallGuardAgent - Python install hooks', () => {
 
   it('flags secret exfiltration, decoded execution, and home deletion in setup.py', async () => {
     const rootPath = path.join(FIXTURES, 'malicious-setup');
-    const f = await new InstallGuardAgent().analyze({ rootPath, files: [], recon: {}, options: {} });
+    const f = await new InstallGuardAgent().analyze({ rootPath, files: [], recon: {}, options: { includeTests: true } });
     assert.ok(f.some((x) => x.rule === 'WORM_PYTHON_INSTALL_EXFIL'));
     assert.ok(f.some((x) => x.rule === 'WORM_PYTHON_INSTALL_OBFUSCATED_EXEC'));
     assert.ok(f.some((x) => x.rule === 'WORM_PYTHON_INSTALL_DESTRUCTIVE'));
@@ -110,7 +131,7 @@ describe('InstallGuardAgent - Python install hooks', () => {
 
   it('scans a local PEP 517 backend declared by pyproject.toml', async () => {
     const rootPath = path.join(FIXTURES, 'malicious-backend');
-    const f = await new InstallGuardAgent().analyze({ rootPath, files: [], recon: {}, options: {} });
+    const f = await new InstallGuardAgent().analyze({ rootPath, files: [], recon: {}, options: { includeTests: true } });
     assert.ok(f.some((x) => x.rule === 'WORM_PYTHON_INSTALL_EXFIL' && x.file.endsWith('backend.py')));
   });
 

@@ -192,7 +192,10 @@ const PATTERNS = [
   {
     rule: 'HERMES_ADDITIONAL_PROPERTIES_TRUE',
     title: 'Hermes: Tool Schema Allows Arbitrary Properties (additionalProperties: true)',
-    regex: /additionalProperties\s*[:=]\s*true/gi,
+    // Require an object-property boundary so prose such as
+    // "schema bypass (additionalProperties: true)" is not treated as a
+    // live tool schema.
+    regex: /(?:^|[,{]\s*)additionalProperties\s*[:=]\s*true\b/gi,
     severity: 'high',
     cwe: 'CWE-20',
     owasp: 'ASI03',

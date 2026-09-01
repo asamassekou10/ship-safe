@@ -1,37 +1,55 @@
 {
   "tool": "ship-safe",
-  "version": "9.7.0",
-  "methodology": "Findings reported by `ship-safe ci --no-deps` against pinned checkouts. Clean corpus: mature projects with no known active vulnerabilities, where every finding is triage a user inherits. Vulnerable corpus: deliberately insecure applications, present so a reduction in noise cannot be mistaken for lost detection. Counts are a proxy for a false-positive rate, not a verified one.",
+  "version": "9.8.0",
+  "methodology": "Findings reported by `ship-safe ci --no-deps` against pinned checkouts, plus what `ship-safe investigate` concluded about them. Clean corpus: mature projects with no known active vulnerabilities, where every finding is triage a user inherits. Vulnerable corpus: deliberately insecure applications, present so a reduction in noise cannot be mistaken for lost detection. Counts are a proxy for a false-positive rate, not a verified one.",
   "clean": [
     {
       "id": "express",
       "repo": "expressjs/express",
       "commit": "a3714473feb3d2908add734d340e7755fd85e0a3",
-      "findings": 22,
+      "findings": 20,
       "critical": 0,
-      "high": 5,
-      "score": 81.2,
-      "grade": "B"
+      "high": 4,
+      "score": 80.1,
+      "grade": "B",
+      "verdicts": {
+        "confirmed": 0,
+        "likely": 2,
+        "unknown": 7,
+        "refuted": 11
+      }
     },
     {
       "id": "requests",
       "repo": "psf/requests",
       "commit": "414f0513c33883adf6f2b46901d4f0b38a455851",
-      "findings": 11,
-      "critical": 1,
+      "findings": 7,
+      "critical": 0,
       "high": 2,
-      "score": 87,
-      "grade": "D"
+      "score": 95.5,
+      "grade": "A",
+      "verdicts": {
+        "confirmed": 0,
+        "likely": 0,
+        "unknown": 4,
+        "refuted": 3
+      }
     },
     {
       "id": "flask",
       "repo": "pallets/flask",
       "commit": "6a2f545bfd8ed31e19066a299296917e034aca58",
-      "findings": 20,
+      "findings": 18,
       "critical": 0,
       "high": 7,
-      "score": 81.6,
-      "grade": "B"
+      "score": 82,
+      "grade": "B",
+      "verdicts": {
+        "confirmed": 0,
+        "likely": 5,
+        "unknown": 11,
+        "refuted": 1
+      }
     },
     {
       "id": "chalk",
@@ -40,18 +58,30 @@
       "findings": 4,
       "critical": 0,
       "high": 4,
-      "score": 91.8,
-      "grade": "A"
+      "score": 89.4,
+      "grade": "B",
+      "verdicts": {
+        "confirmed": 0,
+        "likely": 0,
+        "unknown": 4,
+        "refuted": 0
+      }
     },
     {
       "id": "hermes-agent",
       "repo": "NousResearch/hermes-agent",
       "commit": "743dc94ab90adb0529bb233b8498c6fd6ee0e020",
-      "findings": 787,
-      "critical": 101,
-      "high": 227,
-      "score": 20.9,
-      "grade": "F"
+      "findings": 738,
+      "critical": 100,
+      "high": 224,
+      "score": 19.9,
+      "grade": "F",
+      "verdicts": {
+        "confirmed": 3,
+        "likely": 81,
+        "unknown": 372,
+        "refuted": 244
+      }
     }
   ],
   "vulnerable": [
@@ -59,9 +89,15 @@
       "id": "NodeGoat",
       "repo": "OWASP/NodeGoat",
       "commit": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
-      "findings": 74,
+      "findings": 73,
       "critical": 9,
-      "high": 18
+      "high": 18,
+      "verdicts": {
+        "confirmed": 7,
+        "likely": 19,
+        "unknown": 27,
+        "refuted": 5
+      }
     },
     {
       "id": "DVWA",
@@ -69,14 +105,23 @@
       "commit": "d45ba3c4e7efa7f023f25f58ab4af9912c887057",
       "findings": 71,
       "critical": 1,
-      "high": 55
+      "high": 55,
+      "verdicts": {
+        "confirmed": 0,
+        "likely": 4,
+        "unknown": 51,
+        "refuted": 1
+      }
     }
   ],
   "summary": {
     "cleanProjects": 5,
-    "cleanFindings": 844,
-    "cleanCriticalFindings": 102,
+    "cleanFindings": 787,
+    "cleanCriticalFindings": 100,
     "vulnerableProjects": 2,
-    "vulnerableFindings": 145
+    "vulnerableFindings": 144,
+    "cleanConfirmed": 3,
+    "cleanRefuted": 259,
+    "vulnerableConfirmed": 7
   }
 }

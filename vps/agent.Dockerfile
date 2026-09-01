@@ -26,11 +26,12 @@ RUN apt-get update -qq && \
 # stay on disk rather than being discarded after install.
 #
 # Single-commit fetch rather than a clone: we always build one pinned revision,
-# so there is no reason to carry history. Works for both a full SHA and the
-# `HEAD` default. Git metadata is dropped once the install is done — it is ~82MB
-# and nothing at runtime reads it.
-ARG HERMES_SHA=HEAD
+# so there is no reason to carry history. The build refuses branches and other
+# mutable refs so the image can be traced back to one reviewed upstream commit.
+ARG HERMES_SHA
 RUN git init -q /opt/hermes && \
+    test -n "${HERMES_SHA}" && \
+    printf '%s' "${HERMES_SHA}" | grep -Eq '^[0-9a-fA-F]{40}$' && \
     cd /opt/hermes && \
     git remote add origin https://github.com/NousResearch/hermes-agent.git && \
     git fetch -q --depth 1 origin "${HERMES_SHA}" && \
@@ -52,7 +53,7 @@ RUN useradd --no-create-home --shell /bin/bash hermes && \
 USER hermes
 ENV HOME=/home/hermes
 # Baked in at build time so the update workflow can compare versions
-ARG HERMES_SHA=HEAD
+ARG HERMES_SHA
 ENV HERMES_UPSTREAM_SHA=${HERMES_SHA}
 
 EXPOSE 8080

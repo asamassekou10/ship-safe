@@ -25,7 +25,7 @@
 import fs from 'fs';
 import path from 'path';
 import { BaseAgent, createFinding } from './base-agent.js';
-import { SKIP_DIRS } from '../utils/patterns.js';
+import { isTestFile, SKIP_DIRS } from '../utils/patterns.js';
 
 // Sensitive targets a symlink should never point at from inside a repo.
 const SENSITIVE_TARGET = [
@@ -71,7 +71,7 @@ export class TrustBoundaryAgent extends BaseAgent {
     const findings = [];
 
     // 1. Symlink inspection — walk the tree with lstat (glob skips symlinks).
-    this._walkSymlinks(rootPath, rootPath, findings, 0);
+    this._walkSymlinks(rootPath, rootPath, findings, 0, Boolean(context.options?.includeTests));
 
     // 2. Friendly Fire — agent-ingested files that direct running code.
     for (const file of this.getFilesToScan(context)) {
@@ -86,7 +86,7 @@ export class TrustBoundaryAgent extends BaseAgent {
 
   // ── Symlinks ────────────────────────────────────────────────────────────────
 
-  _walkSymlinks(dir, root, findings, depth) {
+  _walkSymlinks(dir, root, findings, depth, includeTests = false) {
     if (depth > 12) return;
     let entries;
     try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
@@ -94,10 +94,11 @@ export class TrustBoundaryAgent extends BaseAgent {
     for (const entry of entries) {
       const full = path.join(dir, entry.name);
       if (entry.isSymbolicLink()) {
+        if (!includeTests && isTestFile(full)) continue;
         this._checkSymlink(full, root, findings);
       } else if (entry.isDirectory()) {
         if (SKIP_DIRS.has(entry.name)) continue;
-        this._walkSymlinks(full, root, findings, depth + 1);
+        this._walkSymlinks(full, root, findings, depth + 1, includeTests);
       }
     }
   }
