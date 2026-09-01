@@ -457,7 +457,18 @@ function buildSARIF(findings, rootPath) {
         // Carried into SARIF so a policy-aware consumer can filter on it. Only
         // findings whose target publishes a trust model have one today, so the
         // key is omitted rather than defaulted when absent.
-        ...(f.posture ? { properties: { posture: f.posture } } : {}),
+        // The verdict travels into code scanning, where a severity label is
+        // otherwise the only thing distinguishing a traced finding from an
+        // unexamined one.
+        ...((f.posture || f.evidence?.verdict) ? {
+          properties: {
+            ...(f.posture ? { posture: f.posture } : {}),
+            ...(f.evidence?.verdict ? {
+              verdict: f.evidence.verdict,
+              ...(f.evidence.decidedBy ? { decidedBy: f.evidence.decidedBy.join(', ') } : {}),
+            } : {}),
+          },
+        } : {}),
       })),
     }],
   };

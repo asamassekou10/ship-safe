@@ -35,6 +35,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   to fix rather than three. Exits 1 on anything confirmed. `--all` details the
   unresolved and refuted buckets, `--deep` adds the LLM pass, `--json` emits the
   evidence.
+- **Fixes are verified against the evidence, not the pattern** — `ship-safe
+  agent` now judges a fix by whether the path closed. A finding whose detector
+  stops firing is `resolved`; one that still matches but is now refuted is
+  `neutralised`, which the old check reported as a failure even though it is
+  usually the better fix; one where the evidence still stands is `unchanged`;
+  and one that merely became uncertain is `weakened`, which is not proof of
+  anything. Confirmed findings the edit introduced are reported separately,
+  because a fix is an edit like any other.
+- **Verdicts in SARIF** — findings carry their verdict and deciding pass into
+  GitHub code scanning, where severity was otherwise the only thing separating a
+  traced finding from an unexamined one.
 - **Client-side taint sources and iterator call sites** — the tracer reaches DOM
   XSS. `location.hash`, `document.referrer`, `event.data` from postMessage and
   `window.name` are confirmed; an XHR or fetch response and browser storage stop

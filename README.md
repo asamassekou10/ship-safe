@@ -72,7 +72,7 @@ npx ship-safe capabilities .
 # AI agent red-team scenarios for agent-readable content
 npx ship-safe red-team . --gpt-red
 
-# Interactive fix agent: plan, diff, approve, verify
+# Interactive fix agent: plan, diff, approve, verify the path closed
 npx ship-safe agent .
 npx ship-safe agent . --severity critical   # critical findings only
 npx ship-safe agent . --branch --pr         # fix on a branch + open a PR
