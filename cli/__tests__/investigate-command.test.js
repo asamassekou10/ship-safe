@@ -9,13 +9,17 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
 
 import { groupByVerdict, groupByLocation } from '../commands/investigate.js';
 import { createFinding } from '../agents/base-agent.js';
 import { attachEvidence, createClaim } from '../utils/evidence.js';
 
-const CLI = path.resolve(import.meta.dirname, '../bin/ship-safe.js');
+// Not `import.meta.dirname` — that landed in Node 20.11 and this package
+// supports 18.
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const CLI = path.resolve(HERE, '../bin/ship-safe.js');
 
 const finding = (overrides = {}) => createFinding({
   file: '/repo/src/app.js', line: 10, rule: 'RULE_A', title: 'Injection',
