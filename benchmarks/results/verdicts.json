@@ -11,12 +11,12 @@
     "The --llm mode is not deterministic and is never gated."
   ],
   "metrics": {
-    "truePositives": 17,
-    "settled": 8,
-    "settledRate": 0.47058823529411764,
+    "truePositives": 18,
+    "settled": 9,
+    "settledRate": 0.5,
     "falseRefutations": 0,
     "noiseStanding": 3,
-    "noiseRefuted": 7,
+    "noiseRefuted": 8,
     "unlabeled": 0
   },
   "flow": [
@@ -54,6 +54,12 @@
       "id": "absence-headers",
       "expectedRule": "API_NO_SECURITY_HEADERS",
       "tainted": "likely",
+      "guarded": "refuted"
+    },
+    {
+      "id": "interproc-python",
+      "expectedRule": "PYTHON_SQL_FSTRING",
+      "tainted": "confirmed",
       "guarded": "refuted"
     }
   ],

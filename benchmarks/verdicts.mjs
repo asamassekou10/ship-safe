@@ -107,7 +107,7 @@ const verdictOf = (finding) => finding.evidence?.verdict || 'unknown';
 function siblingFiles(dir) {
   try {
     return fs.readdirSync(dir)
-      .filter((name) => /\.[cm]?[jt]sx?$/.test(name))
+      .filter((name) => /\.(?:[cm]?[jt]sx?|py)$/.test(name))
       .map((name) => path.join(dir, name));
   } catch { return []; }
 }

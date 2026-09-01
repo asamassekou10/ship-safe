@@ -48,7 +48,104 @@ import { isAbsenceRule } from './absence-investigator.js';
 // VOCABULARY
 // =============================================================================
 
-const TRACEABLE_EXT = new Set(['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts']);
+/**
+ * Per-language vocabulary.
+ *
+ * The walk itself is the same in every language: from the sink, take the
+ * identifiers that feed it, follow assignments backwards, and ask what each one
+ * resolves to. What changes is what an assignment looks like, what counts as a
+ * source, how a string interpolates, and — the part that is not cosmetic — how a
+ * language says where a function ends. JavaScript closes a scope with a brace
+ * and Python closes it by dedenting, so containment cannot be shared.
+ *
+ * Adding a language means filling in this table, not touching the algorithm.
+ */
+export const LANGUAGES = {
+  js: {
+    id: 'js',
+    extensions: ['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts'],
+    comment: /^\s*(?:\/\/|\/\*|\*)/,
+    scope: 'braces',
+
+    sources: [
+      { re: /\breq(?:uest)?\.(?:body|query|params|headers|cookies|url|originalUrl)\b/, what: 'the HTTP request' },
+      { re: /\bctx\.(?:request|query|params|body|headers)\b/,                          what: 'the HTTP request' },
+      { re: /\bevent\.(?:body|queryStringParameters|pathParameters|headers)\b/,        what: 'the invocation event' },
+      { re: /\b(?:searchParams|URLSearchParams)\b/,                                    what: 'the URL query string' },
+      { re: /\bformData\b/,                                                            what: 'submitted form data' },
+      { re: /\bprocess\.argv\b/,                                                       what: 'the command line' },
+      { re: /\bawait\s+(?:req|request)\.(?:json|text|formData)\s*\(/,                  what: 'the HTTP request body' },
+      { re: /\b(?:completion|response|message|choice)s?\.(?:content|text|message|output)\b/, what: 'model output' },
+      { re: /\bwindow\.location\b|\bdocument\.(?:URL|referrer|cookie)\b/,              what: 'the browser environment' },
+    ],
+
+    sanitizers: [
+      { re: /\b(?:parseInt|parseFloat|Number|BigInt)\s*\(/,        what: 'numeric coercion' },
+      { re: /\bencodeURIComponent\s*\(/,                           what: 'URI encoding' },
+      { re: /\b(?:escape|escapeHtml|sanitize\w*|purify|DOMPurify\.sanitize)\s*\(/i, what: 'escaping or sanitization' },
+      { re: /\b\w*(?:[sS]chema|validator)\w*\.(?:parse|validate|assert)\s*\(/,      what: 'schema validation' },
+      { re: /\bz\.[\w.]+\.parse\s*\(/,                             what: 'zod validation' },
+      { re: /\b(?:validate|assertValid|checkAllowed|isAllowed)\w*\s*\(/i,           what: 'an explicit validation call' },
+      { re: /\bALLOW(?:ED|LIST)\w*\.(?:includes|has)\s*\(/i,       what: 'an allowlist membership test' },
+      { re: /\.(?:includes|indexOf)\s*\(\s*\w+\s*\)\s*\?/,         what: 'an allowlist ternary' },
+    ],
+
+    literal: /^\s*(?:'[^']*'|"[^"]*"|`[^`$]*`|-?\d+(?:\.\d+)?|true|false|null)\s*$/,
+    interpolation: /\$\{([^}]*)\}/g,
+
+    functionDefs: [
+      /(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(([^)]*)\)/,
+      /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(([^)]*)\)\s*=>/,
+      /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?function\s*\*?\s*\(([^)]*)\)/,
+      /this\.([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(([^)]*)\)\s*=>/,
+      /this\.([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?function\s*\(([^)]*)\)/,
+      /^\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*\{/,
+    ],
+  },
+
+  py: {
+    id: 'py',
+    extensions: ['.py', '.pyi'],
+    comment: /^\s*#/,
+    scope: 'indent',
+
+    sources: [
+      { re: /\brequest\.(?:args|form|json|data|values|files|cookies|headers|get_json)\b/, what: 'the Flask request' },
+      { re: /\brequest\.(?:GET|POST|FILES|COOKIES|META|body)\b/,                          what: 'the Django request' },
+      { re: /\bsys\.argv\b/,                                                             what: 'the command line' },
+      { re: /\b(?:input|raw_input)\s*\(/,                                                 what: 'standard input' },
+      { re: /\bos\.environ(?:\.get)?\b/,                                                  what: 'the environment' },
+      { re: /\b(?:completion|response|message|choice)s?\.(?:content|text|message|output)\b/, what: 'model output' },
+      { re: /\bawait\s+request\.(?:json|body|form)\s*\(/,                                what: 'the HTTP request body' },
+    ],
+
+    sanitizers: [
+      { re: /\b(?:int|float|bool)\s*\(/,                       what: 'numeric coercion' },
+      { re: /\b(?:shlex\.quote|urllib\.parse\.quote|quote_plus|re\.escape)\s*\(/, what: 'quoting or escaping' },
+      { re: /\b(?:escape|bleach\.clean|html\.escape|sanitize\w*)\s*\(/i, what: 'escaping or sanitization' },
+      { re: /\b\w*(?:Schema|Model)\w*\.(?:parse_obj|model_validate|validate)\s*\(/, what: 'schema validation' },
+      { re: /\b(?:validate|assert_valid|is_allowed|check_allowed)\w*\s*\(/i, what: 'an explicit validation call' },
+      { re: /\bALLOW(?:ED|LIST)\w*\s*(?:\.__contains__|\bin\b)/i,  what: 'an allowlist membership test' },
+    ],
+
+    // Python has no template-literal backtick; f-strings use the same quotes.
+    literal: /^\s*(?:'[^']*'|"[^"]*"|-?\d+(?:\.\d+)?|True|False|None)\s*$/,
+    interpolation: /\{([^{}]+)\}/g,
+
+    functionDefs: [
+      /^\s*(?:async\s+)?def\s+([A-Za-z_][\w]*)\s*\(([^)]*)\)/,
+    ],
+  },
+};
+
+const BY_EXTENSION = new Map(
+  Object.values(LANGUAGES).flatMap((lang) => lang.extensions.map((ext) => [ext, lang])),
+);
+
+/** The language table entry for a path, or null when it is not one we trace. */
+function languageFor(file) {
+  return BY_EXTENSION.get(path.extname(String(file)).toLowerCase()) || null;
+}
 
 /**
  * Categories where the value reaching the sink is what makes the finding real.
@@ -56,39 +153,6 @@ const TRACEABLE_EXT = new Set(['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.m
  * the value being present, not about where it came from.
  */
 const TAINT_CATEGORIES = new Set(['vulnerability', 'api', 'injection', 'auth', 'llm']);
-
-/** Expressions that introduce a value an attacker controls. */
-const UNTRUSTED_SOURCE = [
-  { re: /\breq(?:uest)?\.(?:body|query|params|headers|cookies|url|originalUrl)\b/, what: 'the HTTP request' },
-  { re: /\bctx\.(?:request|query|params|body|headers)\b/,                          what: 'the HTTP request' },
-  { re: /\bevent\.(?:body|queryStringParameters|pathParameters|headers)\b/,        what: 'the invocation event' },
-  { re: /\b(?:searchParams|URLSearchParams)\b/,                                    what: 'the URL query string' },
-  { re: /\bformData\b/,                                                            what: 'submitted form data' },
-  { re: /\bprocess\.argv\b/,                                                       what: 'the command line' },
-  { re: /\bawait\s+(?:req|request)\.(?:json|text|formData)\s*\(/,                  what: 'the HTTP request body' },
-  { re: /\b(?:completion|response|message|choice)s?\.(?:content|text|message|output)\b/, what: 'model output' },
-  { re: /\bwindow\.location\b|\bdocument\.(?:URL|referrer|cookie)\b/,              what: 'the browser environment' },
-];
-
-/**
- * Calls whose return value is no longer the attacker's to shape. Applied only
- * to the expression actually assigned to the traced variable — a validator
- * called on some other value is not a mitigation, which is precisely the
- * mistake the heuristic pass makes.
- */
-const SANITIZER = [
-  { re: /\b(?:parseInt|parseFloat|Number|BigInt)\s*\(/,        what: 'numeric coercion' },
-  { re: /\bencodeURIComponent\s*\(/,                           what: 'URI encoding' },
-  { re: /\b(?:escape|escapeHtml|sanitize\w*|purify|DOMPurify\.sanitize)\s*\(/i, what: 'escaping or sanitization' },
-  { re: /\b\w*(?:[sS]chema|validator)\w*\.(?:parse|validate|assert)\s*\(/,      what: 'schema validation' },
-  { re: /\bz\.[\w.]+\.parse\s*\(/,                             what: 'zod validation' },
-  { re: /\b(?:validate|assertValid|checkAllowed|isAllowed)\w*\s*\(/i,           what: 'an explicit validation call' },
-  { re: /\bALLOW(?:ED|LIST)\w*\.(?:includes|has)\s*\(/i,       what: 'an allowlist membership test' },
-  { re: /\.(?:includes|indexOf)\s*\(\s*\w+\s*\)\s*\?/,         what: 'an allowlist ternary' },
-];
-
-/** A value written into the source rather than arriving from outside. */
-const LITERAL = /^\s*(?:'[^']*'|"[^"]*"|`[^`$]*`|-?\d+(?:\.\d+)?|true|false|null)\s*$/;
 
 const MAX_HOPS = 12;
 const MAX_SEEDS = 4;
@@ -140,7 +204,7 @@ export class DataflowInvestigator {
       const lines = this._read(finding.file, fileCache);
       if (!lines) continue;
 
-      const trace = this._trace(finding, lines);
+      const trace = this._trace(finding, lines, languageFor(finding.file));
       if (!trace) continue;
 
       attachEvidence(finding, createClaim({
@@ -164,7 +228,7 @@ export class DataflowInvestigator {
 
   _traceable(finding) {
     if (!finding.file || !finding.line) return false;
-    if (!TRACEABLE_EXT.has(path.extname(finding.file).toLowerCase())) return false;
+    if (!languageFor(finding.file)) return false;
 
     // A rule asserting a control is missing is not answered by where a value
     // came from. AbsenceInvestigator owns those, and answering them here means
@@ -187,7 +251,7 @@ export class DataflowInvestigator {
 
   // ── The trace ────────────────────────────────────────────────────────────
 
-  _trace(finding, lines) {
+  _trace(finding, lines, lang) {
     const sinkLine = lines[finding.line - 1];
     if (sinkLine === undefined) return null;
 
@@ -199,7 +263,7 @@ export class DataflowInvestigator {
     }];
 
     // A source written directly into the sink needs no walk.
-    const direct = matchAny(UNTRUSTED_SOURCE, sinkLine);
+    const direct = matchAny(lang.sources, sinkLine);
     if (direct) {
       return {
         verdict: 'confirmed',
@@ -208,10 +272,10 @@ export class DataflowInvestigator {
       };
     }
 
-    const seeds = identifiersIn(sinkLine).slice(0, MAX_SEEDS);
+    const seeds = identifiersIn(sinkLine, lang).slice(0, MAX_SEEDS);
     if (!seeds.length) return null;
 
-    const traces = seeds.map((seed) => this._walk(seed, finding.line, lines, hops.slice(), 0, finding.file));
+    const traces = seeds.map((seed) => this._walk(seed, finding.line, lines, hops.slice(), 0, finding.file, lang));
 
     // One tainted input is enough to confirm: the sink receives a value the
     // caller shaped, whatever else it also receives.
@@ -239,12 +303,12 @@ export class DataflowInvestigator {
   }
 
   /** Walk one identifier backwards through the file. */
-  _walk(name, fromLine, lines, hops, depth, file) {
+  _walk(name, fromLine, lines, hops, depth, file, lang) {
     if (depth >= MAX_HOPS) return null;
 
     for (let i = fromLine - 2; i >= 0; i--) {
       const line = lines[i];
-      const rhs = assignmentTo(name, line) ?? destructuredAcrossLines(lines, i, name);
+      const rhs = assignmentTo(name, line, lang) ?? destructuredAcrossLines(lines, i, name);
       if (rhs === null || rhs === undefined) continue;
 
       const hop = {
@@ -255,7 +319,7 @@ export class DataflowInvestigator {
       };
       const path_ = [...hops, hop];
 
-      const sanitizer = matchAny(SANITIZER, rhs);
+      const sanitizer = matchAny(lang.sanitizers, rhs);
       if (sanitizer) {
         return {
           verdict: 'refuted',
@@ -264,7 +328,7 @@ export class DataflowInvestigator {
         };
       }
 
-      const source = matchAny(UNTRUSTED_SOURCE, rhs);
+      const source = matchAny(lang.sources, rhs);
       if (source) {
         return {
           verdict: 'confirmed',
@@ -273,7 +337,7 @@ export class DataflowInvestigator {
         };
       }
 
-      if (LITERAL.test(rhs)) {
+      if (lang.literal.test(rhs)) {
         return {
           verdict: 'refuted',
           rationale: `${name} resolves to a literal written into the source, so no caller controls the value reaching the sink.`,
@@ -282,15 +346,15 @@ export class DataflowInvestigator {
       }
 
       // The value came from another identifier — keep walking that one.
-      const next = identifiersIn(rhs).find((id) => id !== name);
-      if (next) return this._walk(next, i + 1, lines, path_, depth + 1, file);
+      const next = identifiersIn(rhs, lang).find((id) => id !== name);
+      if (next) return this._walk(next, i + 1, lines, path_, depth + 1, file, lang);
 
       return null;
     }
 
     // Not defined in this file. If it is a parameter of the enclosing function,
     // the value was handed in from somewhere, and that somewhere is knowable.
-    return this._walkIntoCallers(name, fromLine, lines, hops, depth, file);
+    return this._walkIntoCallers(name, fromLine, lines, hops, depth, file, lang);
   }
 
   // ── Across the function boundary ─────────────────────────────────────────
@@ -301,12 +365,12 @@ export class DataflowInvestigator {
    * into a DAO three files away, and a tracer that stops at the parameter list
    * abstains on the majority of genuine findings.
    */
-  _walkIntoCallers(name, fromLine, lines, hops, depth, file) {
+  _walkIntoCallers(name, fromLine, lines, hops, depth, file, lang) {
     if (depth > 0) return null;                       // one boundary, not a call tree
 
     // Innermost first, so the closest function that actually declares this
     // parameter wins when nested scopes share a name.
-    const scopes = enclosingFunctions(lines, fromLine, file);
+    const scopes = enclosingFunctions(lines, fromLine, file, lang);
     const enclosing = scopes.find((scope) => scope.name && scope.params.includes(name));
     if (!enclosing) return null;                      // not a parameter; genuinely unknown
 
@@ -323,6 +387,12 @@ export class DataflowInvestigator {
       const callerLines = this._read(site.file, this._fileCache);
       if (!callerLines) return null;
 
+      // A caller may be in another language entirely — a Python worker invoked
+      // from a Node script shares a name and nothing else. Read the caller with
+      // its own vocabulary rather than the callee's.
+      const callerLang = languageFor(site.file);
+      if (!callerLang) return null;
+
       const hop = {
         line: site.line,
         excerpt: (callerLines[site.line - 1] || '').trim().slice(0, 120),
@@ -334,7 +404,7 @@ export class DataflowInvestigator {
       // `parseInt(req.query.threshold, 10)` contains an untrusted source and is
       // still not attacker-shaped. Checking the source first reports every
       // sanitized call site as tainted.
-      if (matchAny(SANITIZER, argument) || LITERAL.test(argument)) {
+      if (matchAny(lang.sanitizers, argument) || lang.literal.test(argument)) {
         verdicts.push({
           verdict: 'refuted',
           rationale: `${name} is the ${ordinal(index + 1)} argument to ${enclosing.name}, and every call site passes a value the caller does not control.`,
@@ -343,7 +413,7 @@ export class DataflowInvestigator {
         continue;
       }
 
-      const source = matchAny(UNTRUSTED_SOURCE, argument);
+      const source = matchAny(lang.sources, argument);
       if (source) {
         verdicts.push({
           verdict: 'confirmed',
@@ -354,10 +424,10 @@ export class DataflowInvestigator {
       }
 
       // The argument is itself an identifier — resolve it in the caller.
-      const [argName] = identifiersIn(argument);
+      const [argName] = identifiersIn(argument, callerLang);
       if (!argName) return null;
 
-      const traced = this._walk(argName, site.line, callerLines, [...hops, hop], depth + 1, site.file);
+      const traced = this._walk(argName, site.line, callerLines, [...hops, hop], depth + 1, site.file, callerLang);
       if (!traced) return null;                       // one unresolved caller ends it
       verdicts.push(traced);
     }
@@ -419,10 +489,16 @@ const KEYWORD = new Set([
  * walk and returns nothing. So: interpolations first, then call arguments, and
  * string contents never.
  */
-function identifiersIn(line) {
+function identifiersIn(line, lang = LANGUAGES.js) {
   const body = line.replace(/^\s*(?:const|let|var)\s+[\w{}[\],\s:]+=\s*/, '');
 
-  const interpolated = [...body.matchAll(/\$\{([^}]*)\}/g)].map((m) => m[1]).join(' ');
+  // Only an f-string interpolates in Python. Reading `{...}` out of a plain
+  // string would turn a dict literal or a format placeholder into an
+  // identifier to chase.
+  const interpolates = lang.id !== 'py' || /\bf['"]/.test(body);
+  const interpolated = interpolates
+    ? [...body.matchAll(new RegExp(lang.interpolation.source, 'g'))].map((m) => m[1]).join(' ')
+    : '';
   const scope = interpolated || stripStrings(body);
 
   const names = [];
@@ -479,8 +555,26 @@ function destructuredAcrossLines(lines, index, name) {
  * The right-hand side if this line assigns to `name`, otherwise null.
  * Handles declarations, bare reassignment, and object destructuring.
  */
-function assignmentTo(name, line) {
+function assignmentTo(name, line, lang = LANGUAGES.js) {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  if (lang.id === 'py') {
+    // `name = expr`, with an optional annotation. Python has no declaration
+    // keyword, so the bare form is the only form.
+    const assigned = line.match(new RegExp(`^\\s*${escaped}\\s*(?::[^=]+)?=\\s*(.+?)\\s*$`));
+    if (assigned && !assigned[1].startsWith('=')) return assigned[1];
+
+    // Tuple unpacking: `a, b = expr`. The whole right-hand side is returned,
+    // which is imprecise but never claims more than it saw.
+    const unpacked = line.match(new RegExp(`^\\s*(?=[^=]*\\b${escaped}\\b)[\\w\\s,()*]+=\\s*(.+?)\\s*$`));
+    if (unpacked) return unpacked[1];
+
+    // `for name in expr:` binds too.
+    const loop = line.match(new RegExp(`\\bfor\\s+(?=[^:]*\\b${escaped}\\b)[\\w\\s,]+\\s+in\\s+(.+?):\\s*$`));
+    if (loop) return loop[1];
+
+    return null;
+  }
 
   const declaration = line.match(new RegExp(`(?:const|let|var)\\s+${escaped}\\s*(?::[^=]+)?=\\s*(.+?);?\\s*$`));
   if (declaration) return declaration[1];
@@ -527,14 +621,15 @@ const FUNCTION_DEF = [
  * close before the target line is a sibling, not a parent, and treating one as
  * a parent is how a trace ends up in the wrong function's caller.
  */
-export function enclosingFunctions(lines, lineNum, file = null) {
+export function enclosingFunctions(lines, lineNum, file = null, lang = LANGUAGES.js) {
   const found = [];
+  const targetIndent = lang.scope === 'indent' ? indentOf(lines[lineNum - 1] || '') : 0;
 
   for (let i = lineNum - 1; i >= 0; i--) {
     const line = lines[i];
     if (!line) continue;
 
-    const match = FUNCTION_DEF.reduce((hit, re) => hit || line.match(re), null);
+    const match = lang.functionDefs.reduce((hit, re) => hit || line.match(re), null);
     if (!match) continue;
 
     // `if (threshold) {` has the shape of a method shorthand. Reading it as a
@@ -542,18 +637,48 @@ export function enclosingFunctions(lines, lineNum, file = null) {
     // the trace then goes looking for callers of `if`.
     if (KEYWORD.has(match[1]) || CONTROL_FLOW.has(match[1])) continue;
 
-    let depth = 0;
-    let closedEarly = false;
-    for (let j = i; j < lineNum - 1; j++) {
-      depth += bracketDelta(lines[j] || '');
-      if (j > i && depth <= 0) { closedEarly = true; break; }
-    }
-    if (closedEarly || depth <= 0) continue;
+    if (!contains(lines, i, lineNum, lang, targetIndent)) continue;
 
-    found.push({ name: match[1], params: splitParams(match[2]), line: i + 1, file });
+    found.push({ name: match[1], params: splitParams(match[2], lang), line: i + 1, file });
   }
 
   return found;
+}
+
+/**
+ * Does the function defined at `defIndex` still contain `lineNum`?
+ *
+ * Braces answer this by balance and indentation answers it by depth, and the
+ * two cannot share an implementation. In Python a `def` owns every following
+ * line indented further than itself, and the scope ends at the first line that
+ * is not — so a target indented no further than the `def` is outside it, which
+ * is what separates a parent from a sibling defined just above.
+ */
+function contains(lines, defIndex, lineNum, lang, targetIndent) {
+  if (lang.scope === 'indent') {
+    const defIndent = indentOf(lines[defIndex]);
+    if (targetIndent <= defIndent) return false;
+
+    for (let j = defIndex + 1; j < lineNum - 1; j++) {
+      const line = lines[j];
+      if (!line.trim() || lang.comment.test(line)) continue;
+      // A line back at or above the def's own indent closed the body.
+      if (indentOf(line) <= defIndent) return false;
+    }
+    return true;
+  }
+
+  let depth = 0;
+  for (let j = defIndex; j < lineNum - 1; j++) {
+    depth += bracketDelta(lines[j] || '');
+    if (j > defIndex && depth <= 0) return false;
+  }
+  return depth > 0;
+}
+
+function indentOf(line) {
+  const match = String(line).match(/^[ \t]*/);
+  return match ? match[0].replace(/\t/g, '    ').length : 0;
 }
 
 function bracketDelta(line) {
@@ -570,8 +695,18 @@ function bracketDelta(line) {
  * slot: the position still counts, so later parameters keep their index, but
  * nothing is claimed about what the value inside it is.
  */
-function splitParams(text) {
-  return splitTopLevel(text).map((param) => {
+function splitParams(text, lang = LANGUAGES.js) {
+  const params = splitTopLevel(text);
+
+  // `self` and `cls` are the receiver, not an argument any caller passes.
+  // Dropping them rather than blanking them keeps every later parameter at the
+  // index a call site will actually use: `obj.method(threshold)` puts threshold
+  // at 0, while the definition lists it second.
+  const positional = lang.id === 'py'
+    ? params.filter((param) => !/^\s*(?:self|cls)\s*$/.test(param))
+    : params;
+
+  return positional.map((param) => {
     const cleaned = param.replace(/=[\s\S]*$/, '').replace(/:[\s\S]*$/, '').trim();
     return /^[A-Za-z_$][\w$]*$/.test(cleaned) ? cleaned : '';
   });
@@ -609,7 +744,7 @@ function splitTopLevel(text) {
  */
 function buildCallIndex(files, rootPath, cache) {
   const index = new Map();
-  const list = (files || []).filter((f) => TRACEABLE_EXT.has(path.extname(f).toLowerCase()));
+  const list = (files || []).filter((f) => languageFor(f));
   if (!list.length) return index;
 
   for (const file of list.slice(0, MAX_INDEXED_FILES)) {
@@ -630,7 +765,7 @@ function buildCallIndex(files, rootPath, cache) {
         // regex, and counting the definition as its own caller traces a
         // parameter to itself.
         const before = line.slice(0, match.index).trimEnd();
-        if (/\b(?:function|class)$/.test(before) || /(?:const|let|var)\s+[\w$.]*\s*=?\s*$/.test(before)) continue;
+        if (/\b(?:function|class|def)$/.test(before) || /(?:const|let|var)\s+[\w$.]*\s*=?\s*$/.test(before)) continue;
 
         const args = splitTopLevel(argumentText(line, match.index + match[0].length));
         if (!index.has(name)) index.set(name, []);
@@ -655,13 +790,27 @@ function argumentText(line, start) {
   return out;
 }
 
-/** Whether a caller file imports or requires the file a function is defined in. */
+/**
+ * Whether a caller file imports the file a function is defined in.
+ *
+ * This is the only thing standing between a common name and a wrong trace, so
+ * it has to understand the import syntax of every language traced. A
+ * JavaScript-shaped test silently answers "no" for every Python caller, which
+ * makes the ambiguous-name guard reject the very call sites it exists to
+ * qualify — `from dao import UserDAO` begins with `from`, not `import`.
+ */
+const IMPORT_FORMS = [
+  // import x from './dao.js'  /  const x = require('./dao')
+  /^\s*(?:import\b|const\s|let\s|var\s).*(?:from\s*['"`]|require\s*\(\s*['"`])/,
+  // from dao import UserDAO  /  import dao  /  from app.data.dao import X
+  /^\s*(?:from\s+[\w.]+\s+import\b|import\s+[\w.]+)/,
+];
+
 function importsFrom(callerLines, definedIn) {
   if (!callerLines || !definedIn) return false;
   const base = path.basename(definedIn).replace(/\.[^.]+$/, '');
   return callerLines.some((line) =>
-    /^\s*(?:import\b|const\s|let\s|var\s).*(?:from\s*['"`]|require\s*\(\s*['"`])/.test(line)
-    && line.includes(base));
+    IMPORT_FORMS.some((form) => form.test(line)) && line.includes(base));
 }
 
 function truncate(value, max = 60) {

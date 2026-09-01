@@ -13,7 +13,9 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-import { DataflowInvestigator, enclosingFunctions } from '../agents/dataflow-investigator.js';
+import { DataflowInvestigator, enclosingFunctions, LANGUAGES } from '../agents/dataflow-investigator.js';
+
+const PY = LANGUAGES.py;
 import { createFinding } from '../agents/base-agent.js';
 import { attachEvidence, createClaim, validateCitations } from '../utils/evidence.js';
 
@@ -168,11 +170,12 @@ describe('abstaining', () => {
     assert.equal(finding.evidence.verdict, 'unknown');
   });
 
-  it('leaves languages it cannot parse alone', () => {
-    const file = source('handler.py', [
-      'def handler(request, db):',
-      '    user_id = request.GET["id"]',
-      '    return db.raw(f"SELECT * FROM users WHERE id = {user_id}")',
+  it('leaves languages it has no vocabulary for alone', () => {
+    const file = source('handler.go', [
+      'func handler(r *http.Request, db *sql.DB) {',
+      '\tuserID := r.URL.Query().Get("id")',
+      '\tdb.Query("SELECT * FROM users WHERE id = " + userID)',
+      '}',
     ]);
     assert.equal(trace(file, 3).claim, null);
   });
@@ -199,6 +202,110 @@ describe('abstaining', () => {
       '}',
     ]);
     assert.equal(trace(file, 2).claim, null, 'SELECT and FROM are not values to walk');
+  });
+});
+
+describe('Python', () => {
+  // The walk is the same; the vocabulary and the scope rule are not. Python
+  // closes a function by dedenting, so containment cannot be shared with a
+  // language that closes it with a brace.
+  it('confirms a value from the Flask request', () => {
+    const file = source('app.py', [
+      'from flask import request',
+      '',
+      'def get_user(db):',
+      '    user_id = request.args.get("id")',
+      '    query = f"SELECT * FROM users WHERE id = {user_id}"',
+      '    return db.execute(query)',
+    ]);
+
+    const { claim } = trace(file, 5);
+    assert.equal(claim.verdict, 'confirmed');
+    assert.match(claim.rationale, /Flask request/);
+  });
+
+  it('refutes a coerced value', () => {
+    const file = source('coerced.py', [
+      'from flask import request',
+      '',
+      'def get_user(db):',
+      '    user_id = int(request.args.get("id"))',
+      '    query = f"SELECT * FROM users WHERE id = {user_id}"',
+      '    return db.execute(query)',
+    ]);
+    assert.equal(trace(file, 5).claim.verdict, 'refuted');
+  });
+
+  it('does not read braces in a plain string as interpolation', () => {
+    const file = source('plain.py', [
+      'def render(db):',
+      '    query = "SELECT * FROM users WHERE meta = {}"',
+      '    return db.execute(query)',
+    ]);
+    assert.equal(trace(file, 3).claim, null, 'only an f-string interpolates');
+  });
+
+  it('drops self so parameter indexes line up with call sites', () => {
+    const dao = source('dao.py', [
+      'class UserDAO:',
+      '    def __init__(self, db):',
+      '        self.db = db',
+      '',
+      '    def find(self, threshold):',
+      '        return self.db.execute(f"SELECT * FROM s WHERE n > {threshold}")',
+    ]);
+    const routes = source('routes.py', [
+      'from flask import request',
+      'from dao import UserDAO',
+      '',
+      'def allocations(dao):',
+      '    threshold = request.args.get("threshold")',
+      '    return dao.find(threshold)',
+    ]);
+
+    const finding = createFinding({
+      file: dao, line: 6, rule: 'SQL_INJECTION_TEMPLATE_LITERAL', title: 'SQL injection',
+      category: 'injection', severity: 'critical',
+    });
+    new DataflowInvestigator().investigate([finding], { rootPath: ROOT, files: [dao, routes] });
+
+    const claim = finding.evidence.claims.find((c) => c.source === 'dataflow');
+    assert.equal(claim.verdict, 'confirmed', 'threshold is the first argument a caller passes, not the second');
+    assert.equal(validateCitations(claim, { rootPath: ROOT }).status, 'valid');
+  });
+
+  it('does not treat a sibling def above the sink as its parent', () => {
+    const lines = [
+      'def sibling(threshold):',
+      '    return threshold',
+      '',
+      'def target(db):',
+      '    return db.execute(f"SELECT {threshold}")',
+    ];
+    const scopes = enclosingFunctions(lines, 5, null, PY);
+    assert.deepEqual(scopes.map((s) => s.name), ['target'], 'the sibling dedented before the sink');
+  });
+
+  it('sees an outer def when the sink is nested inside a block', () => {
+    const lines = [
+      'def handler(threshold, db):',
+      '    if threshold:',
+      '        return db.execute(f"SELECT {threshold}")',
+    ];
+    assert.deepEqual(enclosingFunctions(lines, 3, null, PY).map((s) => s.name), ['handler']);
+  });
+
+  it('does not index a def as a call to itself', () => {
+    const dao = source('selfcall.py', [
+      'def find(threshold):',
+      '    return db.execute(f"SELECT {threshold}")',
+    ]);
+    const finding = createFinding({
+      file: dao, line: 2, rule: 'SQL_INJECTION_TEMPLATE_LITERAL', title: 'x',
+      category: 'injection', severity: 'critical',
+    });
+    new DataflowInvestigator().investigate([finding], { rootPath: ROOT, files: [dao] });
+    assert.equal(finding.evidence.verdict, 'unknown', 'no caller exists, so nothing is established');
   });
 });
 

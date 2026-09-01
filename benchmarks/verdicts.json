@@ -71,9 +71,9 @@
     }
   },
   "gate": {
-    "comment": "Ratchets. falseRefutations and unlabeled findings are absolute failures; the other two are the current measured values and may only be improved. Raising minSettledRate or lowering maxNoiseStanding is the deliberate act of banking a gain \u2014 0.16 with the heuristic pass alone, 0.40 with data-flow tracing, 0.4375 once it crossed a function boundary, 0.47 once absence rules were decided by project-wide search.",
+    "comment": "Ratchets. falseRefutations and unlabeled findings are absolute failures; the other two are the current measured values and may only be improved. Raising minSettledRate or lowering maxNoiseStanding is the deliberate act of banking a gain \u2014 0.16 with the heuristic pass alone, 0.40 with data-flow tracing, 0.4375 across a function boundary, 0.47 once absence rules were decided by search, 0.50 once the tracer learned Python.",
     "maxFalseRefutations": 0,
-    "minSettledRate": 0.47,
+    "minSettledRate": 0.5,
     "maxNoiseStanding": 3
   },
   "flowDescription": "Paired fixtures with an actual data path, which the one-line detection fixtures do not have. Each pair holds the same sink reached by a value an attacker controls and by one they do not, so a pass that traces the value is rewarded and a pass that pattern-matches the neighbourhood is not.",
@@ -125,6 +125,14 @@
       "tainted": "absence/unprotected/app.js",
       "guarded": "absence/protected/app.js",
       "why": "An absence rule is scoped to a file while its claim is about an application. The pair sits in separate directories because a control in a sibling fixture would be found by the project-wide search and refute the wrong one."
+    },
+    {
+      "id": "interproc-python",
+      "agent": "InjectionTester",
+      "expectedRule": "PYTHON_SQL_FSTRING",
+      "tainted": "flow-py/tainted_dao.py",
+      "guarded": "flow-py-guarded/guarded_dao.py",
+      "why": "The same interprocedural shape in Python: an f-string sink in a helper whose value arrives as a parameter, with the Flask handler in another file. Separate directories because the pair would otherwise share a call index."
     }
   ]
 }
