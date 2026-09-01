@@ -173,6 +173,38 @@ describe('absences that are local to a handler', () => {
     assert.equal(investigate('API_NO_VALIDATION', [file], { file, line: 4 }).claim.verdict, 'likely');
   });
 
+  it('does not let the tracer answer a rule about a configuration argument', () => {
+    // RAG_NO_RELEVANCE_THRESHOLD was confirmed against a real application on the
+    // grounds that the question came from the HTTP request — true, and unrelated.
+    // Whether a minimum similarity score is set is not a property of where the
+    // query came from. The line between what the tracer can settle and what it
+    // cannot is whether the absent control sits on the data path.
+    const file = write('rag.js', [
+      'exports.ask = async (req, res, vectorStore) => {',
+      "  const question = (req.body.question || '').slice(0, 500);",
+      '  const docs = await vectorStore.similaritySearch(question, 8);',
+      '  return res.json(docs);',
+      '};',
+    ]);
+
+    const { claim } = investigate('RAG_NO_RELEVANCE_THRESHOLD', [file], { file, line: 3 });
+    assert.equal(claim.verdict, 'likely', 'absent threshold is a gap, not a traced path');
+    assert.match(claim.rationale, /^A relevance threshold/, 'reads as a sentence, not "No a threshold"');
+  });
+
+  it('refutes when a threshold is set at the call', () => {
+    const file = write('rag-ok.js', [
+      'exports.ask = async (req, res, vectorStore) => {',
+      '  const question = req.body.question;',
+      '  const docs = await vectorStore.similaritySearch(question, 8, {',
+      '    scoreThreshold: 0.75,',
+      '  });',
+      '  return res.json(docs);',
+      '};',
+    ]);
+    assert.equal(investigate('RAG_NO_RELEVANCE_THRESHOLD', [file], { file, line: 3 }).claim.verdict, 'refuted');
+  });
+
   it('does not refute a finding with the line the finding is on', () => {
     // AGENT_TOOL_CALL_REPLAY matched `tool_calls` on the very line whose
     // handling of tool_calls it objected to, refuting itself 30 times on
