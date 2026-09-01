@@ -71,9 +71,9 @@
     }
   },
   "gate": {
-    "comment": "Ratchets. falseRefutations and unlabeled findings are absolute failures; the other two are the current measured values and may only be improved. Raising minSettledRate or lowering maxNoiseStanding is the deliberate act of banking a gain \u2014 0.16 with the heuristic pass alone, 0.40 with data-flow tracing, 0.4375 across a function boundary, 0.47 with absence rules, 0.50 with Python, 0.55 as the absence registry grew.",
+    "comment": "Ratchets. falseRefutations and unlabeled findings are absolute failures; the other two are the current measured values and may only be improved. Raising minSettledRate or lowering maxNoiseStanding is the deliberate act of banking a gain \u2014 0.16 with the heuristic pass alone, 0.40 with data-flow tracing, 0.4375 across a function boundary, 0.47 with absence rules, 0.50 with Python, 0.55 as the absence registry grew, 0.57 once the tracer reached the DOM.",
     "maxFalseRefutations": 0,
-    "minSettledRate": 0.55,
+    "minSettledRate": 0.57,
     "maxNoiseStanding": 3
   },
   "flowDescription": "Paired fixtures with an actual data path, which the one-line detection fixtures do not have. Each pair holds the same sink reached by a value an attacker controls and by one they do not, so a pass that traces the value is rewarded and a pass that pattern-matches the neighbourhood is not.",
@@ -141,6 +141,14 @@
       "tainted": null,
       "guarded": "literal/loopback.js",
       "why": "An internal address written into the source is exactly what the rule says it is, and loopback is this process talking to itself rather than a request an attacker can redirect. There is no tainted twin because the pass deliberately files nothing for a real private address in real code: whether that is reachable is a question it cannot answer."
+    },
+    {
+      "id": "dom-xss",
+      "agent": "InjectionTester",
+      "expectedRule": "XSS_INNERHTML",
+      "tainted": "dom-xss/render.js",
+      "guarded": "dom-xss-guarded/render.js",
+      "why": "Front-end taint: the value comes from location.hash, reaches innerHTML through a function handed to forEach, and the guarded twin escapes it on the way. Both halves exercise parts the tracer was blind to -- a browser source, and a call site that a search for the function name never finds."
     }
   ]
 }

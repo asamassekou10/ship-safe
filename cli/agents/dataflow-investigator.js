@@ -545,7 +545,13 @@ const KEYWORD = new Set([
  * string contents never.
  */
 function identifiersIn(line, lang = LANGUAGES.js) {
-  const body = line.replace(/^\s*(?:const|let|var)\s+[\w{}[\],\s:]+=\s*/, '');
+  // Everything left of the assignment is where the value lands, not where it
+  // came from. `document.body.innerHTML = "<b>" + user` has one input and three
+  // words that only name the sink; seeding from those costs nothing when
+  // confirming, because one tainted seed is enough, and silently blocks every
+  // refutation, because that requires all of them to resolve. An assignment
+  // sink could therefore never be refuted.
+  const body = line.replace(ASSIGNMENT_TARGET, '');
 
   // Only an f-string interpolates in Python. Reading `{...}` out of a plain
   // string would turn a dict literal or a format placeholder into an
@@ -564,6 +570,12 @@ function identifiersIn(line, lang = LANGUAGES.js) {
   }
   return names;
 }
+
+/**
+ * A leading assignment target, including a declaration keyword and compound
+ * operators. Deliberately does not match `==`, `===`, `=>`, or `!=`.
+ */
+const ASSIGNMENT_TARGET = /^\s*(?:(?:const|let|var)\s+)?[\w$.[\]'"]+(?:\s*[+\-*/|&?]{1,2})?\s*=(?!=|>)\s*/;
 
 /** Remove quoted text so words inside a message are never mistaken for values. */
 function stripStrings(text) {

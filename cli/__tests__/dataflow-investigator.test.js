@@ -363,6 +363,41 @@ describe('Python', () => {
   });
 });
 
+describe('assignment sinks', () => {
+  // `document.body.innerHTML = "<b>" + user` has one input and three words that
+  // only name the sink. Confirmation needs one seed so it worked; refutation
+  // needs all of them, so an assignment sink could never be refuted.
+  it('refutes a sanitized value assigned to a property sink', () => {
+    const file = source('assign.js', [
+      'export function render(raw) {',
+      '  const safe = escapeHtml(raw);',
+      '  document.body.innerHTML = "<b>" + safe + "</b>";',
+      '}',
+    ]);
+    assert.equal(trace(file, 3, { rule: 'XSS_INNERHTML' }).claim.verdict, 'refuted');
+  });
+
+  it('still confirms a tainted value assigned to the same sink', () => {
+    const file = source('assign2.js', [
+      'export function render() {',
+      '  const name = location.hash.slice(1);',
+      '  document.body.innerHTML = "<b>" + name + "</b>";',
+      '}',
+    ]);
+    assert.equal(trace(file, 3, { rule: 'XSS_INNERHTML' }).claim.verdict, 'confirmed');
+  });
+
+  it('does not mistake a comparison for an assignment', () => {
+    const file = source('compare.js', [
+      'export function check(db, req) {',
+      '  const id = req.query.id;',
+      '  return db.raw(`SELECT * FROM t WHERE a == ${id}`);',
+      '}',
+    ]);
+    assert.equal(trace(file, 3).claim.verdict, 'confirmed', 'the seed is still on the right of ==');
+  });
+});
+
 describe('client-side sources', () => {
   it('confirms a value from the page URL', () => {
     const file = source('dom.js', [

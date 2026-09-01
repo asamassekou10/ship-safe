@@ -11,12 +11,12 @@
     "The --llm mode is not deterministic and is never gated."
   ],
   "metrics": {
-    "truePositives": 18,
-    "settled": 10,
-    "settledRate": 0.5555555555555556,
+    "truePositives": 19,
+    "settled": 11,
+    "settledRate": 0.5789473684210527,
     "falseRefutations": 0,
     "noiseStanding": 3,
-    "noiseRefuted": 9,
+    "noiseRefuted": 10,
     "unlabeled": 0
   },
   "flow": [
@@ -66,6 +66,12 @@
       "id": "literal-loopback",
       "expectedRule": "SSRF_INTERNAL_IP",
       "tainted": null,
+      "guarded": "refuted"
+    },
+    {
+      "id": "dom-xss",
+      "expectedRule": "XSS_INNERHTML",
+      "tainted": "confirmed",
       "guarded": "refuted"
     }
   ],
