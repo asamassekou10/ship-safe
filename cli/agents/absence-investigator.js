@@ -31,6 +31,8 @@
 import fs from 'fs';
 import path from 'path';
 import { attachEvidence, createClaim } from '../utils/evidence.js';
+import { buildDefinitionIndex, functionBody, calledNames } from '../utils/function-bodies.js';
+import { commentMask } from '../utils/source-context.js';
 
 // =============================================================================
 // WHAT EACH ABSENCE RULE IS ACTUALLY CLAIMING
@@ -58,19 +60,51 @@ const FRAMEWORK_CONSUMER = /(?:require\s*\(\s*['"`]|from\s+['"`])(?:express|fast
  * exactly the silent-loss error this layer exists to prevent.
  */
 /**
- * Two rules are deliberately absent from this table: AGENT_NO_COST_LIMIT and
- * AGENT_NO_AUDIT_LOG. Both say, in their own text, that the file issuing
- * completions or dispatching tools sets no ceiling or writes no log *anywhere
- * in it*. A project-wide search contradicts the claim rather than testing it:
- * max_tokens is a per-call argument and does not propagate, and a logger in
- * another module does not record this dispatcher's calls.
- *
- * Registering them refuted 25 and 7 findings against a single unrelated line in
- * one batch runner. Answering a question wrongly is worse than leaving it open,
- * so they stay unanswered until there is a pass that can follow a call into a
- * shared wrapper and see what it sets.
+ * How far a search follows a call before giving up. One hop: the file's own
+ * callees, and no further. A ceiling set two wrappers deep is real and this
+ * pass will miss it, which costs an unresolved finding rather than a wrong one.
  */
+const WRAPPER_HOPS = 1;
+
 const ABSENCE_RULES = {
+  /**
+   * A token ceiling is a per-call argument, so a project-wide search answers
+   * the wrong question: max_tokens in an unrelated batch runner says nothing
+   * about this file. But the ceiling is normally set once, in whatever wraps
+   * the provider client, and every call site inherits it by calling that.
+   *
+   * So the search follows the calls this file makes. Registered naively against
+   * the whole project it refuted twenty-five findings against a single line;
+   * scoped to the file's own callees it answers the question the rule asks.
+   */
+  AGENT_NO_COST_LIMIT: {
+    what: 'a token ceiling or cost budget',
+    scope: 'callees',
+    control: [
+      /\bmax_?(?:output_?|completion_?)?tokens\b\s*[:=]/i,
+      /\b(?:budget|cost|spend)_?(?:limit|cap|ceiling|cents|usd)\b\s*[:=]/i,
+      /\bmaxTokens\b\s*[:=]/,
+    ],
+    // Unused at this scope: the finding's existence is the precondition.
+    precondition: [/./],
+  },
+
+  /**
+   * Same shape. A dispatcher that calls a shared logger is recorded even though
+   * nothing at the call site says so, and a logger in an unrelated module is
+   * not evidence about this dispatcher.
+   */
+  AGENT_NO_AUDIT_LOG: {
+    what: 'logging or telemetry around tool dispatch',
+    scope: 'callees',
+    control: [
+      /\b(?:logger|log|audit|telemetry|tracer)\.(?:info|debug|warn|error|event|record|span)\s*\(/i,
+      /\b(?:console\.(?:log|info|warn|error)|print)\s*\(/,
+      /\b(?:structlog|winston|pino|bunyan|opentelemetry)\b/i,
+    ],
+    precondition: [/./],
+  },
+
   API_NO_SECURITY_HEADERS: {
     what: 'security headers middleware',
     control: [
@@ -254,6 +288,22 @@ const MAX_SEARCHED_FILES = 4000;
 /** How far past a finding a local guard clause may reasonably sit. */
 const LOCAL_WINDOW = 15;
 
+/** Callees examined per finding, and definitions examined per name. */
+const MAX_CALLEES = 40;
+const MAX_DEFINITIONS = 3;
+
+/** First line matching any control pattern, skipping prose. */
+function findControl(lines, patterns, file) {
+  const prose = commentMask(lines, { file });
+  for (let i = 0; i < lines.length; i++) {
+    if (prose[i]) continue;
+    if (patterns.some((pattern) => pattern.test(lines[i]))) {
+      return { line: i + 1, excerpt: lines[i].trim().slice(0, 120) };
+    }
+  }
+  return null;
+}
+
 // =============================================================================
 // PASS
 // =============================================================================
@@ -279,6 +329,11 @@ export class AbsenceInvestigator {
 
       if (spec.scope === 'local') {
         this._investigateLocally(finding, spec, cache);
+        continue;
+      }
+
+      if (spec.scope === 'callees') {
+        this._investigateCallees(finding, spec, cache, corpus, rootPath);
         continue;
       }
 
@@ -319,6 +374,94 @@ export class AbsenceInvestigator {
     }
 
     return findings;
+  }
+
+  /** Read a file once per run, cached with everything else this pass reads. */
+  _read(file, cache) {
+    if (cache.has(file)) return cache.get(file);
+    let lines;
+    try { lines = fs.readFileSync(file, 'utf-8').split('\n'); } catch { lines = null; }
+    cache.set(file, lines);
+    return lines;
+  }
+
+  /**
+   * Look in this file, then one hop into what it calls.
+   *
+   * The rule's own claim is about the file, and the file is where the answer
+   * usually is not: a wrapper sets the ceiling and the call site inherits it.
+   * Following the calls answers what the rule meant rather than what it said,
+   * without letting an unrelated module in another directory speak for this one.
+   */
+  _investigateCallees(finding, spec, cache, corpus, rootPath) {
+    const lines = this._read(finding.file, cache);
+    if (!lines) return;
+
+    // No precondition check here, deliberately. The detector already decided
+    // this file does the thing the control would protect -- that is why the
+    // finding exists. Re-deriving it with a second, narrower pattern and
+    // refuting when the two disagree is not evidence about the control; it is
+    // this pass overruling the detector on the detector's own question. Written
+    // that way it refuted twenty-four findings with no citation at all, which
+    // is the shape of every refutation that turned out to be wrong.
+    const local = findControl(lines, spec.control, finding.file);
+    if (local) {
+      attachEvidence(finding, createClaim({
+        source: 'presence',
+        verdict: 'refuted',
+        rationale: `${capitalize(spec.what)} is set in this file.`,
+        citations: [{ file: finding.file, line: local.line, excerpt: local.excerpt }],
+      }));
+      return;
+    }
+
+    const wrapper = this._searchCallees(finding, spec, cache, corpus);
+    if (wrapper) {
+      attachEvidence(finding, createClaim({
+        source: 'presence',
+        verdict: 'refuted',
+        rationale: `${capitalize(spec.what)} is set in ${wrapper.name}, which this file calls. The call site inherits it without saying so.`,
+        citations: [{ file: wrapper.file, line: wrapper.line, excerpt: wrapper.excerpt }],
+        attackPath: [`${finding.file.split('/').pop()} calls ${wrapper.name}`, `${wrapper.name} sets ${spec.what}`],
+      }));
+      return;
+    }
+
+    attachEvidence(finding, createClaim({
+      source: 'presence',
+      verdict: 'likely',
+      rationale: `No ${spec.what} was found in this file or in what it calls. It may still be set further down the call chain than this pass follows.`,
+      citations: [{ file: finding.file, line: finding.line }],
+    }));
+  }
+
+  /** One hop: the definitions of the names this file calls. */
+  _searchCallees(finding, spec, cache, corpus) {
+    if (!corpus.length) return null;
+
+    if (!this._definitions) this._definitions = buildDefinitionIndex(corpus);
+    const lines = this._read(finding.file, cache);
+
+    for (const name of calledNames(lines).slice(0, MAX_CALLEES)) {
+      for (const def of (this._definitions.get(name) || []).slice(0, MAX_DEFINITIONS)) {
+        if (def.file === finding.file) continue;         // already searched above
+
+        const defLines = this._read(def.file, cache);
+        if (!defLines) continue;
+
+        // functionBody returns each line with its own absolute number, which
+        // differs by language: a Python body starts below its `def` and a
+        // braced one starts on the signature. Recomputing the offset here got
+        // that wrong; carrying the line the body already knows cannot.
+        const body = functionBody(defLines, def.line, def.file);
+        const hit = findControl(body.map((b) => b.text), spec.control, def.file);
+        if (hit) {
+          return { name, file: def.file, line: body[hit.line - 1].line, excerpt: hit.excerpt };
+        }
+      }
+    }
+
+    return null;
   }
 
   /**

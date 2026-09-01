@@ -8,6 +8,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **Absence rules can follow a call one hop** — `AGENT_NO_COST_LIMIT` and
+  `AGENT_NO_AUDIT_LOG` are answerable again. Both say the file sets no ceiling or
+  writes no log *anywhere in it*, which a project-wide search contradicts rather
+  than tests: `max_tokens` is a per-call argument and does not propagate. But it
+  is normally set once, in whatever wraps the provider client, and every call
+  site inherits it by calling that. The search now covers the file and the
+  bodies of the functions it calls, and stops there — a control two hops away
+  costs an unresolved finding rather than a wrong one.
+
 ## [9.8.0] - 2026-09-01
 
 ### Added
