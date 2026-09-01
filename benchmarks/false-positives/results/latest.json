@@ -7,16 +7,16 @@
       "id": "express",
       "repo": "expressjs/express",
       "commit": "a3714473feb3d2908add734d340e7755fd85e0a3",
-      "findings": 20,
+      "findings": 18,
       "critical": 0,
       "high": 4,
-      "score": 80.1,
+      "score": 81.4,
       "grade": "B",
       "verdicts": {
         "confirmed": 0,
         "likely": 2,
         "unknown": 7,
-        "refuted": 11
+        "refuted": 9
       }
     },
     {
@@ -71,16 +71,16 @@
       "id": "hermes-agent",
       "repo": "NousResearch/hermes-agent",
       "commit": "743dc94ab90adb0529bb233b8498c6fd6ee0e020",
-      "findings": 738,
-      "critical": 100,
-      "high": 224,
-      "score": 19.9,
+      "findings": 695,
+      "critical": 66,
+      "high": 223,
+      "score": 20.1,
       "grade": "F",
       "verdicts": {
         "confirmed": 3,
-        "likely": 81,
-        "unknown": 372,
-        "refuted": 244
+        "likely": 95,
+        "unknown": 352,
+        "refuted": 223
       }
     }
   ],
@@ -89,15 +89,21 @@
       "id": "NodeGoat",
       "repo": "OWASP/NodeGoat",
       "commit": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
-      "findings": 73,
+      "findings": 67,
       "critical": 9,
       "high": 18,
       "verdicts": {
         "confirmed": 7,
-        "likely": 19,
+        "likely": 13,
         "unknown": 27,
         "refuted": 5
-      }
+      },
+      "mustDetect": [
+        "CODE_INJECTION_EVAL",
+        "NOSQL_INJECTION_WHERE",
+        "MASS_ASSIGNMENT"
+      ],
+      "missingFromFloor": []
     },
     {
       "id": "DVWA",
@@ -111,17 +117,22 @@
         "likely": 4,
         "unknown": 51,
         "refuted": 1
-      }
+      },
+      "mustDetect": [
+        "XSS_DOCUMENT_WRITE",
+        "XSS_INNERHTML"
+      ],
+      "missingFromFloor": []
     }
   ],
   "summary": {
     "cleanProjects": 5,
-    "cleanFindings": 787,
-    "cleanCriticalFindings": 100,
+    "cleanFindings": 742,
+    "cleanCriticalFindings": 66,
     "vulnerableProjects": 2,
-    "vulnerableFindings": 144,
+    "vulnerableFindings": 138,
     "cleanConfirmed": 3,
-    "cleanRefuted": 259,
+    "cleanRefuted": 236,
     "vulnerableConfirmed": 7
   }
 }
