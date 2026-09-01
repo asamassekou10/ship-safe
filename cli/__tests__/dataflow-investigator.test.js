@@ -363,6 +363,79 @@ describe('Python', () => {
   });
 });
 
+describe('client-side sources', () => {
+  it('confirms a value from the page URL', () => {
+    const file = source('dom.js', [
+      'export function render(el) {',
+      '  const name = location.hash.slice(1);',
+      '  el.innerHTML = `<b>${name}</b>`;',
+      '}',
+    ]);
+    const { claim } = trace(file, 3, { rule: 'XSS_INNERHTML' });
+    assert.equal(claim.verdict, 'confirmed');
+    assert.match(claim.rationale, /page URL/);
+  });
+
+  it('confirms a postMessage payload', () => {
+    const file = source('msg.js', [
+      'window.addEventListener("message", (event) => {',
+      '  const body = event.data;',
+      '  document.body.innerHTML = body;',
+      '});',
+    ]);
+    assert.equal(trace(file, 3, { rule: 'XSS_INNERHTML' }).claim.verdict, 'confirmed');
+  });
+
+  it('stops at likely for a server response, and says why', () => {
+    const file = source('xhr.js', [
+      'export function render(el, xhr) {',
+      '  const users = JSON.parse(xhr.responseText);',
+      '  el.innerHTML = users;',
+      '}',
+    ]);
+    const { claim } = trace(file, 3, { rule: 'XSS_INNERHTML' });
+    assert.equal(claim.verdict, 'likely');
+    assert.match(claim.rationale, /depends on what produced it/);
+    assert.doesNotMatch(claim.rationale, /already runs this process/, 'that is a different reason entirely');
+  });
+});
+
+describe('functions handed to an iterator', () => {
+  // users.forEach(updateTable) is a call site that a search for `updateTable(`
+  // never finds. Twenty innerHTML findings in DVWA were unresolved because of it.
+  it('treats an iterator receiver as the argument', () => {
+    const file = source('table.js', [
+      'export function populate(xhr, table) {',
+      '  const users = JSON.parse(xhr.responseText);',
+      '  users.forEach(updateTable);',
+      '',
+      '  function updateTable(user) {',
+      '    table.innerHTML = user;',
+      '  }',
+      '}',
+    ]);
+
+    const finding = createFinding({
+      file, line: 6, rule: 'XSS_INNERHTML', title: 'XSS',
+      category: 'vulnerability', severity: 'high',
+    });
+    new DataflowInvestigator().investigate([finding], { rootPath: ROOT, files: [file] });
+
+    const claim = finding.evidence.claims.find((c) => c.source === 'dataflow');
+    assert.equal(claim.verdict, 'likely');
+    assert.ok(claim.attackPath.some((s) => s.includes('updateTable is called here')));
+  });
+
+  it('does not treat an inline arrow as a named callback', () => {
+    const file = source('inline.js', [
+      'export function run(items, el) {',
+      '  items.forEach((item) => { el.innerHTML = item; });',
+      '}',
+    ]);
+    assert.equal(trace(file, 2, { rule: 'XSS_INNERHTML' }).claim, null, 'nothing named to look up');
+  });
+});
+
 describe('crossing the function boundary', () => {
   // The dominant shape in real handler code: the sink is in a helper, the value
   // arrives as a parameter, and the caller lives in another file. Found against

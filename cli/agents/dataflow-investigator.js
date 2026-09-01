@@ -61,6 +61,15 @@ import { commentMask } from '../utils/source-context.js';
  *
  * Adding a language means filling in this table, not touching the algorithm.
  */
+export /**
+ * Why a traced flow stops short of confirmed. A ceiling without a reason reads
+ * as hedging, and the two reasons here are not interchangeable: one says the
+ * source belongs to the operator, the other says the source is real but its
+ * contents came from somewhere this pass cannot see.
+ */
+const OPERATOR_CONTROLLED = 'Whoever controls that already runs this process, so the flow is real but not reachable by a remote caller.';
+const FROM_ELSEWHERE = 'Whether the value is attacker-shaped depends on what produced it, which is not visible from here.';
+
 export const LANGUAGES = {
   js: {
     id: 'js',
@@ -86,11 +95,21 @@ export const LANGUAGES = {
       { re: /\bevent\.(?:body|queryStringParameters|pathParameters|headers)\b/,        what: 'the invocation event' },
       { re: /\b(?:searchParams|URLSearchParams)\b/,                                    what: 'the URL query string' },
       { re: /\bformData\b/,                                                            what: 'submitted form data' },
-      { re: /\bprocess\.argv\b/,          what: 'the command line',  ceiling: 'likely' },
-      { re: /\bprocess\.env\b/,           what: 'the environment',   ceiling: 'likely' },
+      { re: /\bprocess\.argv\b/,          what: 'the command line',  ceiling: 'likely', because: OPERATOR_CONTROLLED },
+      { re: /\bprocess\.env\b/,           what: 'the environment',   ceiling: 'likely', because: OPERATOR_CONTROLLED },
       { re: /\bawait\s+(?:req|request)\.(?:json|text|formData)\s*\(/,                  what: 'the HTTP request body' },
       { re: /\b(?:completion|response|message|choice)s?\.(?:content|text|message|output)\b/, what: 'model output' },
-      { re: /\bwindow\.location\b|\bdocument\.(?:URL|referrer|cookie)\b/,              what: 'the browser environment' },
+      { re: /\b(?:window\.)?location\.(?:hash|search|href|pathname)\b|\bdocument\.(?:URL|referrer|documentURI)\b/, what: 'the page URL, which the person following a link controls' },
+      { re: /\bdocument\.cookie\b|\bwindow\.name\b/,                                  what: 'browser state a same-site page can set' },
+      { re: /\bevent\.data\b|\b(?:message|msg)Event\.data\b/,                          what: 'a postMessage payload, which any window holding a reference can send' },
+
+      // Data from elsewhere rather than from an attacker directly. It is the
+      // classic stored-XSS path and it is also how most applications legitimately
+      // move their own data around, so it is reported without being called
+      // confirmed: whether the far end sanitises is not visible from here.
+      { re: /\.responseText\b|\bXMLHttpRequest\b/,                                      what: 'an XHR response', ceiling: 'likely', because: FROM_ELSEWHERE },
+      { re: /\bawait\s+\w+\.json\s*\(\s*\)|\.then\s*\(\s*\w*\s*=>\s*\w+\.json\s*\(/, what: 'a fetch response', ceiling: 'likely', because: FROM_ELSEWHERE },
+      { re: /\b(?:local|session)Storage\.getItem\s*\(/,                                 what: 'browser storage', ceiling: 'likely', because: FROM_ELSEWHERE },
     ],
 
     sanitizers: [
@@ -126,9 +145,9 @@ export const LANGUAGES = {
     sources: [
       { re: /\brequest\.(?:args|form|json|data|values|files|cookies|headers|get_json)\b/, what: 'the Flask request' },
       { re: /\brequest\.(?:GET|POST|FILES|COOKIES|META|body)\b/,                          what: 'the Django request' },
-      { re: /\bsys\.argv\b/,              what: 'the command line', ceiling: 'likely' },
-      { re: /\b(?:input|raw_input)\s*\(/,  what: 'standard input',   ceiling: 'likely' },
-      { re: /\bos\.environ(?:\.get)?\b/,   what: 'the environment',  ceiling: 'likely' },
+      { re: /\bsys\.argv\b/,              what: 'the command line', ceiling: 'likely', because: OPERATOR_CONTROLLED },
+      { re: /\b(?:input|raw_input)\s*\(/,  what: 'standard input',   ceiling: 'likely', because: OPERATOR_CONTROLLED },
+      { re: /\bos\.environ(?:\.get)?\b/,   what: 'the environment',  ceiling: 'likely', because: OPERATOR_CONTROLLED },
       { re: /\b(?:completion|response|message|choice)s?\.(?:content|text|message|output)\b/, what: 'model output' },
       { re: /\bawait\s+request\.(?:json|body|form)\s*\(/,                                what: 'the HTTP request body' },
     ],
@@ -173,6 +192,17 @@ const MAX_SEEDS = 4;
 
 /** Call sites examined per function before the pass gives up on distinguishing them. */
 const MAX_CALL_SITES = 12;
+
+/**
+ * Array methods that call a function with an element of their receiver.
+ *
+ * `users.forEach(updateTable)` is a call site, and one that a search for
+ * `updateTable(` never finds. It is how most real JavaScript hands data to a
+ * function, and without it the trace ends at the parameter list — which is what
+ * left twenty innerHTML findings unresolved in DVWA, where the elements come
+ * from an XHR response two lines above.
+ */
+const ITERATION_CALL = /([\w$.[\]'"]+)\s*\.\s*(?:forEach|map|flatMap|filter|find|some|every|sort|reduce)\s*\(\s*([A-Za-z_$][\w$]*)\s*[),]/g;
 
 /** Files scanned when looking for callers. Beyond this the index is not worth its cost. */
 const MAX_INDEXED_FILES = 4000;
@@ -485,9 +515,7 @@ export class DataflowInvestigator {
 /** Merge hop lists from several seeds, keeping each line once and in order. */
 /** Say why a traced flow stops short of confirmed. */
 function ceilingNote(source) {
-  return source.ceiling
-    ? ' Whoever controls that already runs this process, so the flow is real but the finding is not reachable by a remote caller.'
-    : '';
+  return source.ceiling && source.because ? ` ${source.because}` : '';
 }
 
 function dedupeHops(hops) {
@@ -784,6 +812,15 @@ function buildCallIndex(files, rootPath, cache) {
     if (!lines) continue;
 
     lines.forEach((line, i) => {
+      // A function handed to an iterator is called with an element of what it
+      // iterates, so the receiver stands in for the argument.
+      for (const match of line.matchAll(ITERATION_CALL)) {
+        const name = match[2];
+        if (KEYWORD.has(name)) continue;
+        if (!index.has(name)) index.set(name, []);
+        index.get(name).push({ file, line: i + 1, args: [match[1]] });
+      }
+
       for (const match of line.matchAll(/(?:\b|\.)([A-Za-z_$][\w$]*)\s*\(/g)) {
         const name = match[1];
         if (KEYWORD.has(name)) continue;

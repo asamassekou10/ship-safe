@@ -35,6 +35,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   to fix rather than three. Exits 1 on anything confirmed. `--all` details the
   unresolved and refuted buckets, `--deep` adds the LLM pass, `--json` emits the
   evidence.
+- **Client-side taint sources and iterator call sites** — the tracer reaches DOM
+  XSS. `location.hash`, `document.referrer`, `event.data` from postMessage and
+  `window.name` are confirmed; an XHR or fetch response and browser storage stop
+  at `likely`, because whether the value is attacker-shaped depends on what
+  produced it. A function handed to `forEach`, `map`, or `filter` is now a call
+  site whose argument is the receiver — `users.forEach(updateTable)` is how most
+  real JavaScript passes data to a function, and a search for `updateTable(`
+  never finds it.
 - **`RedosReproducer`** — settles a backtracking finding by running it. The rule
   fires on the shape of a pattern; whether it actually backtracks depends on
   whether its parts are genuinely ambiguous, which a regex over a regex cannot
