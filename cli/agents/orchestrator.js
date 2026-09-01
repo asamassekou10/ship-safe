@@ -23,6 +23,7 @@ import { VerifierAgent } from './verifier-agent.js';
 import { DataflowInvestigator } from './dataflow-investigator.js';
 import { AbsenceInvestigator } from './absence-investigator.js';
 import { LiteralContextInvestigator } from './literal-context-investigator.js';
+import { RedosReproducer } from './redos-reproducer.js';
 import { DeepAnalyzer } from './deep-analyzer.js';
 import { isTestFile, isExampleFile } from '../utils/patterns.js';
 import { buildCapabilityGraph, findAttackChains, chainFindings } from '../utils/capability-graph.js';
@@ -48,6 +49,7 @@ export class Orchestrator {
     this.dataflowInvestigator = new DataflowInvestigator();
     this.absenceInvestigator = new AbsenceInvestigator();
     this.literalInvestigator = new LiteralContextInvestigator();
+    this.redosReproducer = new RedosReproducer();
   }
 
   /**
@@ -287,6 +289,13 @@ export class Orchestrator {
       // And a third question for rules about a value written into the source:
       // not where it came from or what is missing, but what surrounds it.
       allFindings = this.literalInvestigator.investigate(allFindings, { rootPath: absolutePath });
+
+      // The one pass that runs something: a flagged pattern against generated
+      // input, in a worker with a deadline. Shape is a proxy for backtracking;
+      // this settles it by measurement.
+      if (!options.skipReproduction) {
+        allFindings = await this.redosReproducer.investigate(allFindings);
+      }
       const traced = allFindings.filter(f => (f.evidence?.claims || []).some(c => c.source === 'dataflow'));
       const confirmed = traced.filter(f => f.evidence.verdict === 'confirmed').length;
       const refuted = traced.filter(f => f.evidence.verdict === 'refuted').length;

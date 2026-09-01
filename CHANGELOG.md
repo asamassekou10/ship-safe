@@ -35,6 +35,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   to fix rather than three. Exits 1 on anything confirmed. `--all` details the
   unresolved and refuted buckets, `--deep` adds the LLM pass, `--json` emits the
   evidence.
+- **`RedosReproducer`** — settles a backtracking finding by running it. The rule
+  fires on the shape of a pattern; whether it actually backtracks depends on
+  whether its parts are genuinely ambiguous, which a regex over a regex cannot
+  see. The pattern is executed against generated input in a worker with a hard
+  deadline: blowing the budget confirms the finding and records the input,
+  finishing with linear growth refutes it. No network, no filesystem, no side
+  effects. It declines patterns built at runtime, because guessing at one would
+  run something the file does not contain.
+- **Evidence-based CI gating** — `ci --fail-on-verdict confirmed|likely|none`
+  blocks on what was established rather than on a severity label, and
+  `--ignore-refuted` drops findings the investigation layer argued away. Both
+  opt-in: refutation is a judgement, and a wrong one lets a real issue through
+  silently. `ci --json` gains verdict counts.
 - **Secret probing files evidence** — `SecretsVerifier` now records a claim at
   `reproduction` rank, the only pass that observes rather than reads. A key that
   authenticates against its provider is `confirmed`; one the provider rejects is

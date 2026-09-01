@@ -232,6 +232,7 @@ All agents run in parallel. Each skips irrelevant projects automatically.
 | **AbsenceInvestigator** | presence | Searches the project, or the handler, for the control a rule says is missing |
 | **LiteralContextInvestigator** | presence | Decides findings about a written-in value by what surrounds it — prose, a help string, or a reserved address |
 | **CapabilityGraph** | chain | Builds attack chains from configuration no single file contains |
+| **RedosReproducer** | reproduction | Runs a flagged pattern against generated input in a worker with a deadline |
 | **SecretsVerifier** | reproduction | Presents a leaked key to its provider. Opt-in: this discloses the key |
 
 A claim whose cited file or line does not resolve is recorded but never decides a verdict. Two passes of equal rank that disagree resolve to unresolved rather than to whichever verdict is scarier.

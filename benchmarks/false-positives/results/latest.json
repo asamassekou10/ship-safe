@@ -10,12 +10,12 @@
       "findings": 20,
       "critical": 0,
       "high": 4,
-      "score": 100,
-      "grade": "A",
+      "score": 80.1,
+      "grade": "B",
       "verdicts": {
         "confirmed": 0,
-        "likely": 0,
-        "unknown": 15,
+        "likely": 2,
+        "unknown": 13,
         "refuted": 5
       }
     },
@@ -26,13 +26,13 @@
       "findings": 7,
       "critical": 0,
       "high": 2,
-      "score": 100,
+      "score": 95.5,
       "grade": "A",
       "verdicts": {
         "confirmed": 0,
         "likely": 0,
-        "unknown": 7,
-        "refuted": 0
+        "unknown": 5,
+        "refuted": 2
       }
     },
     {
@@ -42,12 +42,12 @@
       "findings": 18,
       "critical": 0,
       "high": 7,
-      "score": 100,
-      "grade": "A",
+      "score": 82,
+      "grade": "B",
       "verdicts": {
         "confirmed": 0,
-        "likely": 0,
-        "unknown": 16,
+        "likely": 5,
+        "unknown": 11,
         "refuted": 0
       }
     },
@@ -58,8 +58,8 @@
       "findings": 4,
       "critical": 0,
       "high": 4,
-      "score": 100,
-      "grade": "A",
+      "score": 89.4,
+      "grade": "B",
       "verdicts": {
         "confirmed": 0,
         "likely": 0,
@@ -74,13 +74,13 @@
       "findings": 738,
       "critical": 100,
       "high": 224,
-      "score": 100,
-      "grade": "A",
+      "score": 19.9,
+      "grade": "F",
       "verdicts": {
-        "confirmed": 2,
-        "likely": 25,
-        "unknown": 613,
-        "refuted": 47
+        "confirmed": 4,
+        "likely": 81,
+        "unknown": 383,
+        "refuted": 231
       }
     }
   ],
@@ -93,10 +93,10 @@
       "critical": 9,
       "high": 18,
       "verdicts": {
-        "confirmed": 6,
-        "likely": 29,
-        "unknown": 19,
-        "refuted": 3
+        "confirmed": 7,
+        "likely": 19,
+        "unknown": 27,
+        "refuted": 5
       }
     },
     {
@@ -109,8 +109,8 @@
       "verdicts": {
         "confirmed": 0,
         "likely": 0,
-        "unknown": 56,
-        "refuted": 0
+        "unknown": 55,
+        "refuted": 1
       }
     }
   ],
@@ -120,8 +120,8 @@
     "cleanCriticalFindings": 100,
     "vulnerableProjects": 2,
     "vulnerableFindings": 144,
-    "cleanConfirmed": 2,
-    "cleanRefuted": 52,
-    "vulnerableConfirmed": 6
+    "cleanConfirmed": 4,
+    "cleanRefuted": 238,
+    "vulnerableConfirmed": 7
   }
 }

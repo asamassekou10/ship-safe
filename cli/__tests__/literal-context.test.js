@@ -133,7 +133,7 @@ describe('execution rules on prose', () => {
     ], 2, 'CODE_INJECTION_EVAL');
 
     assert.equal(claim.verdict, 'refuted');
-    assert.match(claim.rationale, /does not execute/);
+    assert.match(claim.rationale, /not code that runs/);
   });
 
   it('refutes one that matched a Python docstring', () => {
@@ -147,6 +147,18 @@ describe('execution rules on prose', () => {
 
   it('says nothing about the same rule on a line that runs', () => {
     assert.equal(check('live.js', ['eval(req.body.x);'], 1, 'CODE_INJECTION_EVAL'), null);
+  });
+
+  it('refutes a structural rule that matched a doc comment', () => {
+    // AGENT_CHAIN_NO_ISOLATION matched a paragraph in this project describing
+    // what a capability chain is.
+    const claim = check('graph.js', [
+      '/**',
+      ' * Combinations that are dangerous together and unremarkable apart.',
+      ' */',
+      'export const x = 1;',
+    ], 2, 'AGENT_CHAIN_NO_ISOLATION');
+    assert.equal(claim.verdict, 'refuted');
   });
 
   it('leaves rules that read prose on purpose alone', () => {

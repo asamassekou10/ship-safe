@@ -67,6 +67,22 @@ const RESERVED_EMAIL = [
  */
 const EXECUTION_RULE = /^(?:CODE_INJECTION|SQL_INJECTION|NOSQL_INJECTION|CMD_INJECTION|XSS_|SSRF_USER|PATH_TRAVERSAL|VIBE_EVAL|PYTHON_SQL|TEMPLATE_INJECTION|LDAP_INJECTION|PROTOTYPE_POLLUTION)/;
 
+/**
+ * Categories where a comment cannot be the vulnerability, so a match on one is
+ * a description of the problem rather than the problem.
+ *
+ * Secrets and compliance are deliberately absent: a key or an SSN written in a
+ * comment has leaked exactly as thoroughly as one written in code.
+ */
+const PROSE_REFUTABLE_CATEGORY = new Set(['vulnerability', 'injection', 'api', 'auth', 'agentic', 'llm', 'quality']);
+
+/**
+ * Files an agent reads as content rather than compiles. Prose in a document is
+ * not a comment about code — it is the thing the agent acts on, and a rule
+ * pointing at it is describing a real trust boundary.
+ */
+const AGENT_READABLE = /\.(?:md|mdx|markdown|txt|rst)$|(?:^|[/\\])(?:\.cursorrules|\.windsurfrules|\.clinerules)$/i;
+
 const LITERAL_RULES = {
   SSRF_INTERNAL_IP:    { what: 'an internal address', reserved: RESERVED_ADDRESS },
   PII_EMAIL_HARDCODED: { what: 'an email address',    reserved: RESERVED_EMAIL },
@@ -89,8 +105,9 @@ export class LiteralContextInvestigator {
       if (!finding.file || !finding.line) continue;
 
       const spec = LITERAL_RULES[finding.rule];
-      const executable = EXECUTION_RULE.test(finding.rule);
-      if (!spec && !executable) continue;
+      const proseRefutable = EXECUTION_RULE.test(finding.rule)
+        || (PROSE_REFUTABLE_CATEGORY.has(finding.category) && !AGENT_READABLE.test(finding.file));
+      if (!spec && !proseRefutable) continue;
 
       const lines = this._read(finding.file, cache);
       if (!lines || finding.line > lines.length) continue;
@@ -98,7 +115,7 @@ export class LiteralContextInvestigator {
       const line = lines[finding.line - 1];
       const claim = spec
         ? this._classify(finding, spec, lines, line)
-        : this._classifyExecution(finding, lines);
+        : this._classifyProse(finding, lines);
       if (claim) attachEvidence(finding, claim);
     }
 
@@ -144,15 +161,15 @@ export class LiteralContextInvestigator {
     return null;
   }
 
-  /** For an execution rule, only one question applies: does this line run? */
-  _classifyExecution(finding, lines) {
+  /** For a rule about code, only one question applies: does this line run? */
+  _classifyProse(finding, lines) {
     const mask = commentMask(lines, { upto: finding.line, file: finding.file });
     if (!mask[finding.line - 1]) return null;
 
     return createClaim({
       source: 'presence',
       verdict: 'refuted',
-      rationale: 'The line is a comment or docstring. Whatever it describes does not execute, so there is nothing here to exploit.',
+      rationale: 'The line is a comment or docstring. Whatever it describes is not code that runs, so there is nothing here to exploit.',
       citations: [{ file: finding.file, line: finding.line }],
     });
   }
