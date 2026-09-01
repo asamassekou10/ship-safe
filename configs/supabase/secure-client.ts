@@ -17,7 +17,7 @@
  *   import { supabaseAdmin } from '@/lib/supabase';
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js'; // ship-safe-ignore — template dependency belongs to the copied application
 
 // =============================================================================
 // ENVIRONMENT VARIABLE VALIDATION

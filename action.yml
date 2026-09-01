@@ -35,6 +35,14 @@ inputs:
     description: 'Only report new findings (compare against baseline)'
     required: false
     default: 'false'
+  base-report:
+    description: 'Path to a trusted sanitized base-branch report for PR delta gating'
+    required: false
+    default: ''
+  write-baseline-report:
+    description: 'Path to write a sanitized report for a later base/head comparison'
+    required: false
+    default: ''
   comment:
     description: 'Post scan summary as PR comment'
     required: false
@@ -67,6 +75,15 @@ outputs:
   cves:
     description: 'Number of dependency CVEs'
     value: ${{ steps.scan.outputs.cves }}
+  introduced:
+    description: 'Findings introduced by the pull request when base-report is set'
+    value: ${{ steps.scan.outputs.introduced }}
+  resolved:
+    description: 'Findings resolved by the pull request when base-report is set'
+    value: ${{ steps.scan.outputs.resolved }}
+  uncertain:
+    description: 'Ambiguous finding matches not used to block the pull request'
+    value: ${{ steps.scan.outputs.uncertain }}
   sarif-file:
     description: 'Path to SARIF file (if generated)'
     value: ${{ steps.scan.outputs.sarif_file }}
@@ -101,6 +118,8 @@ runs:
         SHIP_SAFE_DEEP: ${{ inputs.deep }}
         SHIP_SAFE_DEPS: ${{ inputs.deps }}
         SHIP_SAFE_BASELINE: ${{ inputs.baseline }}
+        SHIP_SAFE_BASE_REPORT: ${{ inputs.base-report }}
+        SHIP_SAFE_WRITE_BASELINE_REPORT: ${{ inputs.write-baseline-report }}
         SHIP_SAFE_SARIF: ${{ inputs.sarif }}
         SHIP_SAFE_INLINE: ${{ inputs.inline }}
         GH_TOKEN: ${{ inputs.token }}
@@ -117,6 +136,8 @@ runs:
           FLAGS+=(--no-deps)
         fi
         if [ "$SHIP_SAFE_BASELINE" = "true" ]; then FLAGS+=(--baseline); fi
+        if [ -n "$SHIP_SAFE_BASE_REPORT" ]; then FLAGS+=(--base-report "$SHIP_SAFE_BASE_REPORT"); fi
+        if [ -n "$SHIP_SAFE_WRITE_BASELINE_REPORT" ]; then FLAGS+=(--write-baseline-report "$SHIP_SAFE_WRITE_BASELINE_REPORT"); fi
         if [ -n "$SHIP_SAFE_FAIL_ON" ]; then
           FLAGS+=(--fail-on "$SHIP_SAFE_FAIL_ON")
         else
@@ -151,6 +172,10 @@ runs:
         SECRETS=$(echo "$JSON_LINE" | jq -r '[.findings[]? | select(.category == "secrets")] | length')
         VULNS=$(echo "$JSON_LINE" | jq -r '[.findings[]? | select(.category == "injection" or .category == "auth")] | length')
         CVES=$(echo "$JSON_LINE" | jq -r '.totalDepVulns // 0')
+        PASS=$(echo "$JSON_LINE" | jq -r '.pass // false')
+        INTRODUCED=$(echo "$JSON_LINE" | jq -r '.prDelta.counts.introduced // 0')
+        RESOLVED=$(echo "$JSON_LINE" | jq -r '.prDelta.counts.resolved // 0')
+        UNCERTAIN=$(echo "$JSON_LINE" | jq -r '.prDelta.counts.uncertain // 0')
 
         # Set outputs
         echo "score=$SCORE" >> $GITHUB_OUTPUT
@@ -159,6 +184,9 @@ runs:
         echo "secrets=$SECRETS" >> $GITHUB_OUTPUT
         echo "vulns=$VULNS" >> $GITHUB_OUTPUT
         echo "cves=$CVES" >> $GITHUB_OUTPUT
+        echo "introduced=$INTRODUCED" >> $GITHUB_OUTPUT
+        echo "resolved=$RESOLVED" >> $GITHUB_OUTPUT
+        echo "uncertain=$UNCERTAIN" >> $GITHUB_OUTPUT
         if [ "$SHIP_SAFE_SARIF" = "true" ] && [ -f /tmp/ship-safe-results.sarif ]; then
           echo "sarif_file=/tmp/ship-safe-results.sarif" >> $GITHUB_OUTPUT
         fi
@@ -187,20 +215,14 @@ runs:
         | **Secrets** | $SECRETS |
         | **Code Vulns** | $VULNS |
         | **CVEs** | $CVES |
+        | **PR delta** | +$INTRODUCED / -$RESOLVED / ?$UNCERTAIN |
 
         EOF
 
         # Determine pass/fail
         FAIL=0
-        if [ -n "$SHIP_SAFE_FAIL_ON" ]; then
-          SEVERITY="$SHIP_SAFE_FAIL_ON"
-          COUNT=$(echo "$JSON_LINE" | jq -r "[.findings[]? | select(.severity == \"$SEVERITY\")] | length")
-          if [ "$COUNT" -gt 0 ]; then
-            echo "::error::Found $COUNT $SEVERITY findings"
-            FAIL=1
-          fi
-        elif [ "$SCORE" -lt "$SHIP_SAFE_THRESHOLD" ]; then
-          echo "::error::Security score $SCORE is below threshold $SHIP_SAFE_THRESHOLD"
+        if [ "$PASS" != "true" ]; then
+          echo "::error::Ship Safe security gate failed"
           FAIL=1
         fi
 
@@ -228,6 +250,9 @@ runs:
         SECRETS="${{ steps.scan.outputs.secrets }}"
         VULNS="${{ steps.scan.outputs.vulns }}"
         CVES="${{ steps.scan.outputs.cves }}"
+        INTRODUCED="${{ steps.scan.outputs.introduced }}"
+        RESOLVED="${{ steps.scan.outputs.resolved }}"
+        UNCERTAIN="${{ steps.scan.outputs.uncertain }}"
         if [ -n "$SHIP_SAFE_FAIL_ON" ]; then
           GATE="severity: $SHIP_SAFE_FAIL_ON"
         else
@@ -252,6 +277,7 @@ runs:
         | **Secrets** | $SECRETS |
         | **Code Vulns** | $VULNS |
         | **CVEs** | $CVES |
+        | **PR delta** | +$INTRODUCED / -$RESOLVED / ?$UNCERTAIN |
         | **Gate** | $GATE |
 
         "

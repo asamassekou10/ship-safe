@@ -43,10 +43,20 @@ declares which file types it reads. Most detection is regex patterns run per
 line; some is structural, reading a whole file and answering a question about
 it.
 
-**Findings** carry a rule ID, severity, confidence, a CWE and OWASP mapping
-where one applies, and a fix.
+**Findings** carry a rule ID, severity, confidence, code scope, evidence level,
+reachability, exposure, a CWE and OWASP mapping where one applies, and a fix.
 
-**Scoring** turns findings into a 0–100 number and a letter grade.
+**Scoring** turns deployable-code findings into a versioned 0–100 repository
+posture and a letter grade. Findings in tests, fixtures, documentation,
+benchmarks, and generated output remain observable but are excluded from
+posture unless the caller explicitly includes them. Optional LLM analysis is
+advisory and cannot silently change the deterministic score.
+
+For pull requests, CI can compare a sanitized base-branch report with the head
+scan. Exact identities match first, followed by unique path-independent matches
+for renamed or moved files. Non-unique matches are `uncertain` rather than
+guessed. Only `introduced` posture findings participate in the PR gate; the full
+repository posture remains visible as a separate metric.
 
 **The gate** decides the exit code for `ci`.
 

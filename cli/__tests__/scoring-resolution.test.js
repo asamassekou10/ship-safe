@@ -16,7 +16,8 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ScoringEngine, CATEGORIES } from '../agents/scoring-engine.js';
+import { ScoringEngine, CATEGORIES, SCORE_VERSION } from '../agents/scoring-engine.js';
+import { createFinding, inferCodeScope, normalizeFindingMetadata } from '../agents/base-agent.js';
 
 const cats = Object.keys(CATEGORIES);
 
@@ -134,5 +135,82 @@ describe('the grade cannot contradict the gate', () => {
       const r = engine().compute([finding(sev)], []);
       assert.equal(r.grade.letter, 'A', `a single ${sev} should not cap`);
     }
+  });
+});
+
+describe('score v2 posture contract', () => {
+  const engine = new ScoringEngine();
+
+  it('classifies common non-production paths without overloading scope', () => {
+    assert.equal(inferCodeScope('/repo/src/auth.js'), 'production');
+    assert.equal(inferCodeScope('/repo/test/auth.test.js'), 'test');
+    assert.equal(inferCodeScope('/repo/fixtures/malicious.js'), 'fixture');
+    assert.equal(inferCodeScope('/repo/examples/insecure.js'), 'fixture');
+    assert.equal(inferCodeScope('/repo/benchmarks/corpus.js'), 'benchmark');
+    assert.equal(inferCodeScope('/repo/docs/security.md'), 'docs');
+
+    const finding = createFinding({ file: '/repo/test/auth.test.js', rule: 'R', title: 'test' });
+    assert.equal(finding.scope, 'project');
+    assert.equal(finding.codeScope, 'test');
+
+    const legacy = normalizeFindingMetadata({ file: '/repo/docs/example.md', confidence: 'medium' });
+    assert.equal(legacy.codeScope, 'docs');
+    assert.equal(legacy.evidenceLevel, 'heuristic');
+    assert.equal(legacy.reachability, 'unknown');
+  });
+
+  it('excludes non-production evidence from posture while retaining observation counts', () => {
+    const fixture = {
+      file: '/repo/fixtures/malicious.js', line: 1, rule: 'R', title: 'fixture',
+      severity: 'critical', category: 'injection', confidence: 'high',
+    };
+    const result = engine.compute([fixture], []);
+
+    assert.equal(result.scoreVersion, SCORE_VERSION);
+    assert.equal(result.postureScore, 100);
+    assert.equal(result.totalObservedFindings, 1);
+    assert.equal(result.postureFindings, 0);
+    assert.equal(result.excludedFromPosture, 1);
+    assert.deepEqual(result.excludedByCodeScope, { fixture: 1 });
+  });
+
+  it('can explicitly include non-production findings', () => {
+    const result = engine.compute([{
+      file: '/repo/tests/injection.test.js', line: 1, rule: 'R', title: 'test',
+      severity: 'critical', category: 'injection', confidence: 'high',
+    }], [], { includeNonProduction: true });
+
+    assert.ok(result.score < 100);
+    assert.equal(result.postureFindings, 1);
+  });
+
+  it('does not let an AI classification silently alter deterministic posture', () => {
+    const base = {
+      file: '/repo/src/query.js', line: 1, rule: 'R', title: 'query',
+      severity: 'high', category: 'injection', confidence: 'high',
+    };
+    const real = engine.compute([{ ...base, aiClassification: 'REAL' }], []);
+    const falsePositive = engine.compute([{ ...base, aiClassification: 'FALSE_POSITIVE' }], []);
+
+    assert.equal(real.score, falsePositive.score);
+    assert.equal(real.aiAffectsScore, false);
+  });
+
+  it('uses preserved deterministic evidence when deep analysis changes confidence', () => {
+    const base = {
+      file: '/repo/src/handler.js', line: 12, rule: 'COMMAND_INJECTION', title: 'command injection',
+      severity: 'critical', category: 'injection', confidence: 'high',
+    };
+    const withoutDeep = engine.compute([{ ...base }], []);
+    const afterDeep = engine.compute([{
+      ...base,
+      deterministicConfidence: 'high',
+      deterministicSeverity: 'critical',
+      confidence: 'low',
+      deepAnalysis: { exploitability: 'false_positive' },
+    }], []);
+
+    assert.equal(afterDeep.score, withoutDeep.score);
+    assert.equal(afterDeep.grade.letter, withoutDeep.grade.letter);
   });
 });

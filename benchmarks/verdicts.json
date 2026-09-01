@@ -1,0 +1,159 @@
+{
+  "version": "1.0",
+  "description": "Ground truth for the investigation layer. The detection corpus in corpus.json asks whether a rule fires; this asks whether the passes that run afterwards reach the right conclusion about what fired. Labels state what is true of the fixture, not what Ship Safe currently concludes about it.",
+  "labels": {
+    "sql-injection": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    },
+    "jwt-none": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    },
+    "user-controlled-ssrf": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    },
+    "api-mass-assignment": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    },
+    "llm-output-execution": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": [
+        {
+          "rule": "LLM_NO_OUTPUT_FILTER",
+          "why": "Absence rule. The safe control parses model output as JSON rather than executing it; reporting a missing output filter on it is triage a user inherits for nothing."
+        }
+      ]
+    },
+    "mcp-shell-tool": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": [
+        {
+          "rule": "MCP_SERVER_NO_AUTH",
+          "why": "Absence rule firing on a fixture that declares no server auth because it declares no server."
+        }
+      ]
+    },
+    "agent-auto-approval": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    },
+    "rag-user-upload": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": [
+        {
+          "rule": "RAG_UNSANITIZED_INGESTION",
+          "why": "The safe control ingests pre-reviewed documents; the rule cannot see that loadReviewedDocuments() is the sanitization boundary."
+        },
+        {
+          "rule": "RAG_NO_TENANT_ISOLATION",
+          "why": "Absence rule. A one-line ingestion fixture has no tenancy model to isolate."
+        }
+      ]
+    },
+    "hermes-tool-dispatch": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    },
+    "unsafe-model-load": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    },
+    "install-script-exfiltration": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    },
+    "clickfix-lure": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    },
+    "embedded-script-xss": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
+    }
+  },
+  "gate": {
+    "comment": "Ratchets. falseRefutations and unlabeled findings are absolute failures; the others are current measured values and may only be improved. minSettled is the count and minSettledRate the proportion, and both are here because they fail differently: adding a hard case to the corpus lowers the rate without any capability being lost, which would let a rate-only gate be weakened by growing the corpus. The count cannot be diluted that way. Banked: 0.16 heuristic only, 0.40 data-flow, 0.4375 across a function boundary, 0.47 absence rules, 0.50 Python, 0.55 wider absence registry, 0.58 DOM. The rate reads 0.55 now because the corpus gained a PHP case the tracer cannot reach; settled held at 11.",
+    "maxFalseRefutations": 0,
+    "minSettledRate": 0.55,
+    "maxNoiseStanding": 3,
+    "minSettled": 11
+  },
+  "flowDescription": "Paired fixtures with an actual data path, which the one-line detection fixtures do not have. Each pair holds the same sink reached by a value an attacker controls and by one they do not, so a pass that traces the value is rewarded and a pass that pattern-matches the neighbourhood is not.",
+  "flowScenarios": [
+    {
+      "id": "cmd-hop",
+      "agent": "InjectionTester",
+      "expectedRule": "CMD_INJECTION_EXEC_TEMPLATE",
+      "tainted": "flow/cmd-hop.tainted.js",
+      "guarded": "flow/cmd-hop.guarded.js",
+      "why": "req.body.folder reaches an exec template through one intermediate assignment; the guarded twin routes it through sanitizePathSegment first."
+    },
+    {
+      "id": "sql-coerced",
+      "agent": "InjectionTester",
+      "expectedRule": "SQL_INJECTION_TEMPLATE_LITERAL",
+      "tainted": "flow/sql-coerced.tainted.js",
+      "guarded": "flow/sql-coerced.guarded.js",
+      "why": "req.params.id reaches a SQL template through two assignments; the guarded twin coerces it with parseInt on the way."
+    },
+    {
+      "id": "sql-literal",
+      "agent": "InjectionTester",
+      "expectedRule": "SQL_INJECTION_TEMPLATE_LITERAL",
+      "tainted": null,
+      "guarded": "flow/sql-literal.guarded.js",
+      "why": "The interpolated value is a literal written into the source. No caller controls it, and a pass that only sees a template literal in a query cannot tell."
+    },
+    {
+      "id": "sql-mixed",
+      "agent": "InjectionTester",
+      "expectedRule": "SQL_INJECTION_TEMPLATE_LITERAL",
+      "tainted": "flow/sql-mixed.tainted.js",
+      "guarded": "flow/sql-mixed.guarded.js",
+      "why": "Two values reach one template: one numerically coerced, one raw. A tracer that returns on the first input it resolves refutes a live injection here, which is how the NodeGoat allocations-dao.js false refutation was found."
+    },
+    {
+      "id": "interproc",
+      "agent": "InjectionTester",
+      "expectedRule": "SQL_INJECTION_TEMPLATE_LITERAL",
+      "tainted": "flow/interproc.tainted.dao.js",
+      "guarded": "flow/interproc.guarded.dao.js",
+      "why": "The sink is in a helper whose value arrives as a parameter, and the caller lives in another file. This is the shape of most real handler code, and a tracer that stops at the parameter list abstains on all of it."
+    },
+    {
+      "id": "absence-headers",
+      "agent": "APIFuzzer",
+      "expectedRule": "API_NO_SECURITY_HEADERS",
+      "tainted": "absence/unprotected/app.js",
+      "guarded": "absence/protected/app.js",
+      "why": "An absence rule is scoped to a file while its claim is about an application. The pair sits in separate directories because a control in a sibling fixture would be found by the project-wide search and refute the wrong one."
+    },
+    {
+      "id": "interproc-python",
+      "agent": "InjectionTester",
+      "expectedRule": "PYTHON_SQL_FSTRING",
+      "tainted": "flow-py/tainted_dao.py",
+      "guarded": "flow-py-guarded/guarded_dao.py",
+      "why": "The same interprocedural shape in Python: an f-string sink in a helper whose value arrives as a parameter, with the Flask handler in another file. Separate directories because the pair would otherwise share a call index."
+    },
+    {
+      "id": "literal-loopback",
+      "agent": "SSRFProber",
+      "expectedRule": "SSRF_INTERNAL_IP",
+      "tainted": null,
+      "guarded": "literal/loopback.js",
+      "why": "An internal address written into the source is exactly what the rule says it is, and loopback is this process talking to itself rather than a request an attacker can redirect. There is no tainted twin because the pass deliberately files nothing for a real private address in real code: whether that is reachable is a question it cannot answer."
+    },
+    {
+      "id": "dom-xss",
+      "agent": "InjectionTester",
+      "expectedRule": "XSS_INNERHTML",
+      "tainted": "dom-xss/render.js",
+      "guarded": "dom-xss-guarded/render.js",
+      "why": "Front-end taint: the value comes from location.hash, reaches innerHTML through a function handed to forEach, and the guarded twin escapes it on the way. Both halves exercise parts the tracer was blind to -- a browser source, and a call site that a search for the function name never finds."
+    }
+  ]
+}

@@ -8,6 +8,159 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **Absence rules can follow a call one hop** — `AGENT_NO_COST_LIMIT` and
+  `AGENT_NO_AUDIT_LOG` are answerable again. Both say the file sets no ceiling or
+  writes no log *anywhere in it*, which a project-wide search contradicts rather
+  than tests: `max_tokens` is a per-call argument and does not propagate. But it
+  is normally set once, in whatever wraps the provider client, and every call
+  site inherits it by calling that. The search now covers the file and the
+  bodies of the functions it calls, and stops there — a control two hops away
+  costs an unresolved finding rather than a wrong one.
+
+## [9.8.0] - 2026-09-01
+
+### Added
+- **Evidence schema on every finding** — each investigation pass now records a
+  claim (source, verdict, rationale, citations) instead of writing its own
+  ad-hoc field, and the finding's verdict is derived from those claims by fixed
+  precedence: `reproduction` > `dataflow`/`chain` > `analysis` >
+  `heuristic`. A cheaper pass can no longer overturn a more expensive one, and
+  a claim whose citations do not resolve against the filesystem is recorded but
+  excluded from the verdict. `VerifierAgent` and `DeepAnalyzer` emit claims;
+  `audit --json` serializes evidence for findings that were actually
+  investigated.
+- **`ship-safe capabilities [path]`** — maps what an AI coding agent working in
+  a repository can reach (permission grants, MCP servers and their tools,
+  credentials, and the instruction files and privileged workflow triggers it
+  ingests), then reports the combinations that are dangerous together while
+  unremarkable apart: repo-controlled instructions reaching an unattended write
+  capability, a wildcard tool approval over a credentialed server, agent write
+  access reaching workflow secrets, and credentials written literally into agent
+  config. Every chain step cites the file and line it was observed at.
+  `--json` for machine output, `--env` to include the operator's own MCP servers.
+- **`ship-safe investigate [path]`** — the evidence-first counterpart to `audit`.
+  Runs the same sensors, then reports by verdict rather than by score: confirmed,
+  likely, unresolved, refuted — each with the pass that decided it, the path the
+  value or capability took, and the lines read to conclude it. Findings are
+  grouped by location, so three rules firing on one `eval()` read as one thing
+  to fix rather than three. Exits 1 on anything confirmed. `--all` details the
+  unresolved and refuted buckets, `--deep` adds the LLM pass, `--json` emits the
+  evidence.
+- **Fixes are verified against the evidence, not the pattern** — `ship-safe
+  agent` now judges a fix by whether the path closed. A finding whose detector
+  stops firing is `resolved`; one that still matches but is now refuted is
+  `neutralised`, which the old check reported as a failure even though it is
+  usually the better fix; one where the evidence still stands is `unchanged`;
+  and one that merely became uncertain is `weakened`, which is not proof of
+  anything. Confirmed findings the edit introduced are reported separately,
+  because a fix is an edit like any other.
+- **Verdicts in SARIF** — findings carry their verdict and deciding pass into
+  GitHub code scanning, where severity was otherwise the only thing separating a
+  traced finding from an unexamined one.
+- **Client-side taint sources and iterator call sites** — the tracer reaches DOM
+  XSS. `location.hash`, `document.referrer`, `event.data` from postMessage and
+  `window.name` are confirmed; an XHR or fetch response and browser storage stop
+  at `likely`, because whether the value is attacker-shaped depends on what
+  produced it. A function handed to `forEach`, `map`, or `filter` is now a call
+  site whose argument is the receiver — `users.forEach(updateTable)` is how most
+  real JavaScript passes data to a function, and a search for `updateTable(`
+  never finds it.
+- **`RedosReproducer`** — settles a backtracking finding by running it. The rule
+  fires on the shape of a pattern; whether it actually backtracks depends on
+  whether its parts are genuinely ambiguous, which a regex over a regex cannot
+  see. The pattern is executed against generated input in a worker with a hard
+  deadline: blowing the budget confirms the finding and records the input,
+  finishing with linear growth refutes it. No network, no filesystem, no side
+  effects. It declines patterns built at runtime, because guessing at one would
+  run something the file does not contain.
+- **Evidence-based CI gating** — `ci --fail-on-verdict confirmed|likely|none`
+  blocks on what was established rather than on a severity label, and
+  `--ignore-refuted` drops findings the investigation layer argued away. Both
+  opt-in: refutation is a judgement, and a wrong one lets a real issue through
+  silently. `ci --json` gains verdict counts.
+- **Secret probing files evidence** — `SecretsVerifier` now records a claim at
+  `reproduction` rank, the only pass that observes rather than reads. A key that
+  authenticates against its provider is `confirmed`; one the provider rejects is
+  `refuted`, with the rationale noting it is still committed. An indeterminate
+  probe files nothing, since at that rank an empty claim would outrank every
+  pass that did real work. Key material never reaches a claim, rationale, or
+  citation. Available as `investigate --verify`; it never runs on its own,
+  because probing discloses the key to a third party.
+- **`AbsenceInvestigator`** — decides rules that assert a control is missing,
+  which data-flow tracing cannot speak to at all: on OWASP NodeGoat every one of
+  the 48 unresolved findings was of this kind and the tracer looked at none of
+  them. These rules are scoped to a file while the claim they make is about an
+  application, which is what makes them the noisiest category in the tool. The
+  pass asks two questions of the whole project: is the precondition even met —
+  is there an application here that could hold the control — and is the control
+  applied anywhere. Either answer refutes and cites where; absent across the
+  project raises the finding to 'likely' and no higher, since a rate limiter may
+  live in a proxy or gateway this pass cannot see. Imports and commented-out
+  code are never accepted as evidence a control is applied.
+- **`DataflowInvestigator`** — a deterministic pass that traces a finding's value
+  back to its origin instead of pattern-matching its neighbourhood: it walks
+  assignments, destructurings, and coercions backwards from the sink and files a
+  cited claim saying whether an untrusted source reaches it. Ranks above the LLM
+  pass, so a traced path outranks a model's reading of the same file. JavaScript
+  and TypeScript, within one file, taint-shaped rules only; it files nothing
+  where it cannot see, and refutes only when *every* value reaching the sink is
+  accounted for. Crosses one function boundary: when the value arrives as a
+  parameter — the dominant shape in real handler code — it finds calls to the
+  enclosing function and continues in the caller, including across files, with
+  each hop citing the file it was read in.
+- **Capability chains in `audit`** — the chains from `ship-safe capabilities`
+  now run as part of a normal audit and are scored with everything else.
+- **Verdict benchmark** — `npm run benchmark:verdicts` scores the investigation
+  layer rather than detection: how many known-real findings it settles, how much
+  labeled noise it refutes, and whether it ever refutes a true positive. False
+  refutations and unlabeled safe-control findings are hard CI failures; the other
+  two metrics are ratchets recorded in `benchmarks/verdicts.json`. Deterministic
+  and gated in CI; `--llm` runs the model pass ungated.
+
+### Fixed
+- **Scans of a repository checked out under a directory named `test`,
+  `fixtures`, `examples`, or `benchmarks`** — test and example exclusions
+  matched the absolute path, so a project at `~/fixtures/my-api` had every file
+  skipped. The same rule silenced the project's own false-positive harness: a
+  pinned checkout of express reported 1 finding scanned in place and 20 scanned
+  anywhere else. These patterns describe a file's role within a project and are
+  now matched against the path relative to the scan root.
+- **Scores that reported 100/100 while holding findings** — code scope was
+  inferred from the absolute path too, so findings in such a repository were
+  classified as test code and excluded from posture. A deliberately vulnerable
+  application scanned in place reported "Findings: 0 | Observed: 73" and passed
+  a gate. Scope is now resolved once, centrally, against the root being scanned.
+- **`scan` reporting findings in comments** — the fast path does not run the
+  investigation layer, so nothing downstream refutes a match on prose. A doc
+  comment reading `eval(req.body.x)` as an example was reported as a
+  high-severity code vulnerability. Rules about code that executes are now
+  skipped on comment and docstring lines; secrets are exempt, because a key
+  written in a comment has leaked exactly as thoroughly as one written in code,
+  and documents are exempt, because an instruction in one is the finding.
+- **Findings confirmed against comments** — the data-flow tracer traced prose. A
+  doc comment containing an example produced three confirmed critical findings
+  against this project's own repository. The tracer skips comments and
+  docstrings, and rules about code that matched one are refuted outright.
+- **Traces seeded from the name being assigned to** — seeding took identifiers
+  from the whole line, including the assignment target. Two consequences, in
+  opposite directions. An assignment sink such as `element.innerHTML = safe`
+  could never be shown safe, because refutation requires every input to resolve
+  and the target never does. And a variable reassigned later in a file was
+  traced back to its own previous value: in hermes-agent, `signed_content = ...`
+  at one line was confirmed on the strength of a different assignment to the
+  same name seventy lines earlier, which that line overwrites. Seeds now come
+  from the right of an assignment.
+- **False refutation of live code after a commented-out fix** — the verifier's
+  dead-code check read a `throw` inside a `/* */` block as real control flow and
+  marked the live code below it unreachable, refuting a genuinely exploitable
+  finding. Found against OWASP NodeGoat's `allocations-dao.js`, where a
+  commented-out fix sits directly above the NoSQL injection it was meant to
+  replace.
+- **False refutation of a finding inside a multi-line statement** — a `return {`
+  above a finding was counted as preceding dead code when it was in fact the
+  opening of the statement the finding belongs to.
+
 ## [9.7.6] - 2026-08-28
 
 ### Fixed

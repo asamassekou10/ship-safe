@@ -1170,7 +1170,7 @@ describe('VerifierAgent', async () => {
     } finally { cleanup(dir); }
   });
 
-  it('downgrades finding with sanitization upstream', async () => {
+  it('does not treat nearby sanitization as conclusive without data-flow proof', async () => {
     const code = 'app.post("/api", (req, res) => {\n  const name = sanitize(req.body.name);\n  const validated = validator.escape(name);\n  db.query(`SELECT * FROM users WHERE name = ${validated}`);\n  res.send("ok");\n});';
     const { dir, file } = writeTempFile(code);
     try {
@@ -1179,8 +1179,21 @@ describe('VerifierAgent', async () => {
         rule: 'SQL_INJECTION', matched: '`SELECT * FROM users',
       }];
       const verified = verifier.verify(findings);
-      assert.strictEqual(verified[0].verified, false, 'Should not verify sanitized finding');
-      assert.strictEqual(verified[0].confidence, 'medium', 'Should downgrade confidence');
+      assert.strictEqual(verified[0].verified, null, 'Nearby text alone is inconclusive');
+      assert.strictEqual(verified[0].confidence, 'high', 'Should preserve confidence without proof');
+    } finally { cleanup(dir); }
+  });
+
+  it('confirms that a static hardcoded secret is evidence, not a mitigation', async () => {
+    const { dir, file } = writeTempFile('const apiKey = "sk_live_123456789";');
+    try {
+      const findings = [{
+        file, line: 1, severity: 'critical', category: 'secrets', confidence: 'high',
+        rule: 'HARDCODED_SECRET', matched: '"sk_live_123456789"',
+      }];
+      const verified = verifier.verify(findings);
+      assert.strictEqual(verified[0].verified, true);
+      assert.strictEqual(verified[0].confidence, 'high');
     } finally { cleanup(dir); }
   });
 
@@ -1855,6 +1868,20 @@ describe('HermesSecurityAgent', async () => {
     return { dir, file };
   }
 
+  // Helper: write a plugins/<name>/plugin.yaml manifest plus an __init__.py
+  // in the same directory, matching the real plugins/security-guidance layout.
+  function writePlugin(manifestYaml, initSource = '') {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-hermes-plugin-'));
+    const pluginDir = path.join(dir, 'plugins', 'test-plugin');
+    fs.mkdirSync(pluginDir, { recursive: true });
+    const manifestFile = path.join(pluginDir, 'plugin.yaml');
+    fs.writeFileSync(manifestFile, manifestYaml);
+    if (initSource) {
+      fs.writeFileSync(path.join(pluginDir, '__init__.py'), initSource);
+    }
+    return { dir, manifestFile };
+  }
+
   it('detects remote tool registry URL (critical — ASI-05)', async () => {
     const { dir, file } = writeHermesFile(
       // loadRegistry(process.env.URL) — matches HERMES_REGISTRY_ENV_VAR_URL
@@ -2049,6 +2076,81 @@ describe('HermesSecurityAgent', async () => {
       const findings = await agent.analyze({ rootPath: dir, files: [file], recon: { files: [file] }, options: {} });
       assert.ok(!findings.some(f => f.rule === 'HERMES_XURL_READ_WRITE_LOOP'),
         'Human-approval gate should suppress the read/write-loop finding');
+    } finally { cleanup(dir); }
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Plugin manifest coverage (plugins/*/plugin.yaml)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  it('detects a plugin manifest with no author or source (low — ASI-10)', async () => {
+    const { dir, manifestFile } = writePlugin(
+      'name: test-plugin\nversion: "0.1.0"\ndescription: "does a thing"\nhooks:\n  - pre_tool_call\n'
+    );
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [manifestFile], recon: { files: [manifestFile] }, options: {} });
+      assert.ok(findings.some(f => f.rule === 'HERMES_PLUGIN_NO_PROVENANCE'),
+        'Should detect a manifest with no author or source');
+    } finally { cleanup(dir); }
+  });
+
+  it('does NOT flag provenance when the manifest declares an author', async () => {
+    const { dir, manifestFile } = writePlugin(
+      'name: test-plugin\nversion: "0.1.0"\ndescription: "does a thing"\nauthor: "NousResearch"\nhooks:\n  - pre_tool_call\n'
+    );
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [manifestFile], recon: { files: [manifestFile] }, options: {} });
+      assert.ok(!findings.some(f => f.rule === 'HERMES_PLUGIN_NO_PROVENANCE'),
+        'Should not flag a manifest that declares an author');
+    } finally { cleanup(dir); }
+  });
+
+  it('detects a plugin registering a hook its manifest does not declare (medium — ASI-10)', async () => {
+    const { dir, manifestFile } = writePlugin(
+      'name: test-plugin\nversion: "0.1.0"\ndescription: "does a thing"\nauthor: "NousResearch"\nhooks:\n  - pre_tool_call\n',
+      'def register(ctx) -> None:\n    ctx.register_hook("pre_tool_call", _on_pre_tool_call)\n    ctx.register_hook("on_session_end", _on_session_end)\n'
+    );
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [manifestFile], recon: { files: [manifestFile] }, options: {} });
+      const f = findings.find(f => f.rule === 'HERMES_PLUGIN_UNDECLARED_HOOK');
+      assert.ok(f, 'Should detect on_session_end registered but not declared');
+      assert.match(f.title, /on_session_end/);
+    } finally { cleanup(dir); }
+  });
+
+  it('does NOT flag a hook that is both registered and declared', async () => {
+    const { dir, manifestFile } = writePlugin(
+      'name: test-plugin\nversion: "0.1.0"\ndescription: "does a thing"\nauthor: "NousResearch"\nhooks:\n  - pre_tool_call\n  - on_session_end\n',
+      'def register(ctx) -> None:\n    ctx.register_hook("pre_tool_call", _on_pre_tool_call)\n    ctx.register_hook("on_session_end", _on_session_end)\n'
+    );
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [manifestFile], recon: { files: [manifestFile] }, options: {} });
+      assert.ok(!findings.some(f => f.rule === 'HERMES_PLUGIN_UNDECLARED_HOOK'),
+        'Should not flag hooks that are declared in the manifest');
+    } finally { cleanup(dir); }
+  });
+
+  it('detects a plugin binding a network listener without declaring it (high — ASI-04)', async () => {
+    const { dir, manifestFile } = writePlugin(
+      'name: test-plugin\nversion: "0.1.0"\ndescription: "does a thing"\nauthor: "NousResearch"\nhooks:\n  - on_session_end\n',
+      'import socketserver\n\ndef register(ctx) -> None:\n    ctx.register_hook("on_session_end", _on_session_end)\n\ndef _start():\n    httpd = socketserver.TCPServer(("127.0.0.1", 8765), Handler)\n'
+    );
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [manifestFile], recon: { files: [manifestFile] }, options: {} });
+      assert.ok(findings.some(f => f.rule === 'HERMES_PLUGIN_NETWORK_LISTENER_UNDECLARED'),
+        'Should detect an undeclared network listener');
+    } finally { cleanup(dir); }
+  });
+
+  it('does NOT flag a network listener the manifest description already mentions', async () => {
+    const { dir, manifestFile } = writePlugin(
+      'name: test-plugin\nversion: "0.1.0"\ndescription: "Runs a small local dashboard server."\nauthor: "NousResearch"\nhooks:\n  - on_session_end\n',
+      'import socketserver\n\ndef register(ctx) -> None:\n    ctx.register_hook("on_session_end", _on_session_end)\n\ndef _start():\n    httpd = socketserver.TCPServer(("127.0.0.1", 8765), Handler)\n'
+    );
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [manifestFile], recon: { files: [manifestFile] }, options: {} });
+      assert.ok(!findings.some(f => f.rule === 'HERMES_PLUGIN_NETWORK_LISTENER_UNDECLARED'),
+        'Should not flag a listener the manifest description already describes');
     } finally { cleanup(dir); }
   });
 });
@@ -3023,5 +3125,53 @@ describe('Unicode tag detection vs emoji flag sequences', async () => {
 
   it('flags a payload glued directly onto a flag sequence', async () => {
     assert.ok((await hits(`${flagOf('gbsct')}${tagged('evil')}`)).length > 0);
+  });
+});
+
+describe('AgentConfigScanner — agent-config fixture cohort', async () => {
+  const { AgentConfigScanner } = await import('../agents/agent-config-scanner.js');
+  const fixtureRoot = path.resolve('cli/__tests__/fixtures/agent-config');
+  const fileByRoot = {
+    'vulnerable-cursor': '.cursorrules',
+    'vulnerable-claude': 'CLAUDE.md',
+    'vulnerable-agents': 'AGENTS.md',
+    'safe-cursor': '.cursorrules',
+    'safe-claude': 'CLAUDE.md',
+  };
+  const scan = (agent, name) => {
+    const rootPath = path.join(fixtureRoot, name);
+    const file = path.join(rootPath, fileByRoot[name]);
+    return agent.analyze({ rootPath, files: [file], recon: {}, options: {} });
+  };
+
+  it('detects each deliberately vulnerable configuration root', async () => {
+    const expectedRules = {
+      'vulnerable-cursor': 'AGENT_CFG_EXFIL_URL',
+      'vulnerable-claude': 'AGENT_CFG_DOWNLOAD_EXEC',
+      'vulnerable-agents': 'AGENT_CFG_PROMPT_OVERRIDE',
+    };
+    for (const [name, rule] of Object.entries(expectedRules)) {
+      const findings = await scan(new AgentConfigScanner(), name);
+      assert.ok(findings.some((finding) => finding.rule === rule), `${name} should trigger ${rule}`);
+    }
+  });
+
+  it('stays quiet on both ordinary configuration roots', async () => {
+    for (const name of ['safe-cursor', 'safe-claude']) {
+      assert.equal((await scan(new AgentConfigScanner(), name)).length, 0, `${name} should stay quiet`);
+    }
+  });
+
+  it('preserves detection across repeats and clears findings on root transition', async () => {
+    const agent = new AgentConfigScanner();
+    const first = await scan(agent, 'vulnerable-agents');
+    const repeated = await scan(agent, 'vulnerable-agents');
+    const transitioned = await scan(agent, 'safe-cursor');
+    assert.ok(first.length > 0);
+    assert.deepEqual(
+      repeated.map(({ rule, severity, line }) => ({ rule, severity, line })),
+      first.map(({ rule, severity, line }) => ({ rule, severity, line }))
+    );
+    assert.equal(transitioned.length, 0);
   });
 });

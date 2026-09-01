@@ -88,6 +88,7 @@ stripe-cli-config.toml
 !webapp/scripts/migrate-llm-credentials.ts
 *secrets*
 !cli/utils/secrets-verifier.js
+!cli/__tests__/secrets-verifier-evidence.test.js
 !webapp/lib/agent-secrets.ts
 !webapp/lib/agent-secrets.test.ts
 !webapp/scripts/migrate-agent-secrets.ts

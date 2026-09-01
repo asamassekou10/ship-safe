@@ -18,6 +18,7 @@ import re
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 from queue import Queue, Empty
 
@@ -37,6 +38,40 @@ except json.JSONDecodeError:
 HERMES_HOME   = Path.home() / ".hermes"
 CONFIG_PATH   = HERMES_HOME / "config.yaml"
 MEMORY_PATH   = HERMES_HOME / "memories"
+
+CHAT_RATE_LIMIT = max(1, int(os.environ.get("CHAT_RATE_LIMIT", "10")))
+CHAT_RATE_WINDOW_SECONDS = max(1, int(os.environ.get("CHAT_RATE_WINDOW_SECONDS", "60")))
+CHAT_MAX_MESSAGE_CHARS = max(1, int(os.environ.get("CHAT_MAX_MESSAGE_CHARS", "20000")))
+_chat_rate_lock = threading.Lock()
+_chat_rate_buckets = {}
+
+
+def _client_identity():
+    """Identify clients without trusting spoofable proxy headers by default."""
+    if os.environ.get("TRUST_PROXY") == "1":
+        forwarded = request.headers.get("X-Forwarded-For", "")
+        if forwarded:
+            return forwarded.split(",", 1)[0].strip() or "unknown"
+    return request.remote_addr or "unknown"
+
+
+def _allow_chat_request(identity):
+    now = time.monotonic()
+    cutoff = now - CHAT_RATE_WINDOW_SECONDS
+    with _chat_rate_lock:
+        for key in list(_chat_rate_buckets):
+            fresh = [stamp for stamp in _chat_rate_buckets[key] if stamp > cutoff]
+            if fresh:
+                _chat_rate_buckets[key] = fresh
+            else:
+                del _chat_rate_buckets[key]
+
+        stamps = _chat_rate_buckets.setdefault(identity, [])
+        if len(stamps) >= CHAT_RATE_LIMIT:
+            retry_after = max(1, int(CHAT_RATE_WINDOW_SECONDS - (now - stamps[0])))
+            return False, retry_after
+        stamps.append(now)
+        return True, 0
 
 
 def _detect_provider_and_model():
@@ -279,6 +314,14 @@ def chat():
 
     if not message:
         return jsonify({"error": "message is required"}), 400
+    if len(message) > CHAT_MAX_MESSAGE_CHARS:
+        return jsonify({"error": f"message exceeds {CHAT_MAX_MESSAGE_CHARS} characters"}), 413
+
+    allowed, retry_after = _allow_chat_request(_client_identity())
+    if not allowed:
+        response = jsonify({"error": "chat rate limit exceeded"})
+        response.headers["Retry-After"] = str(retry_after)
+        return response, 429
 
     queue = Queue()
 

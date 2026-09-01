@@ -51,6 +51,22 @@ describe('TrustBoundaryAgent — symlinks (GhostApproval)', () => {
       assert.equal(f.filter((x) => x.rule.startsWith('SYMLINK')).length, 0);
     } finally { cleanup(dir); }
   });
+
+  it('skips benchmark symlink fixtures by default but scans them with --include-tests', async () => {
+    const dir = tmp();
+    const corpus = path.join(dir, 'benchmarks', 'false-positives', 'corpus-src');
+    fs.mkdirSync(corpus, { recursive: true });
+    try {
+      fs.symlinkSync('../../../../outside.txt', path.join(corpus, 'fixture.json'));
+      const defaultFindings = await scan(dir);
+      assert.equal(defaultFindings.filter((x) => x.rule === 'SYMLINK_ESCAPES_REPO').length, 0);
+
+      const includedFindings = await new TrustBoundaryAgent().analyze({
+        rootPath: dir, files: [], recon: {}, options: { includeTests: true },
+      });
+      assert.ok(includedFindings.some((x) => x.rule === 'SYMLINK_ESCAPES_REPO'));
+    } finally { cleanup(dir); }
+  });
 });
 
 describe('TrustBoundaryAgent — Friendly Fire', () => {
@@ -82,5 +98,49 @@ describe('TrustBoundaryAgent — Friendly Fire', () => {
       const f = await scan(dir, [file]);
       assert.equal(f.length, 0);
     } finally { cleanup(dir); }
+  });
+});
+
+describe('TrustBoundaryAgent — agent-config fixture cohort', () => {
+  const fixtureRoot = path.resolve('cli/__tests__/fixtures/agent-config');
+  const fileByRoot = {
+    'vulnerable-cursor': '.cursorrules',
+    'vulnerable-claude': 'CLAUDE.md',
+    'vulnerable-agents': 'AGENTS.md',
+    'safe-cursor': '.cursorrules',
+    'safe-claude': 'CLAUDE.md',
+  };
+  const scanFixture = (agent, name) => {
+    const rootPath = path.join(fixtureRoot, name);
+    const file = path.join(rootPath, fileByRoot[name]);
+    return agent.analyze({ rootPath, files: [file], recon: {}, options: {} });
+  };
+
+  it('detects Friendly Fire in the two applicable configuration roots', async () => {
+    for (const name of ['vulnerable-cursor', 'vulnerable-claude']) {
+      const findings = await scanFixture(new TrustBoundaryAgent(), name);
+      assert.ok(findings.some((finding) => finding.rule === 'AGENT_REMOTE_EXEC_INSTRUCTION'),
+        `${name} should trigger Friendly Fire`);
+    }
+  });
+
+  it('stays quiet on both ordinary configuration roots', async () => {
+    for (const name of ['safe-cursor', 'safe-claude']) {
+      assert.equal((await scanFixture(new TrustBoundaryAgent(), name)).length, 0,
+        `${name} should stay quiet`);
+    }
+  });
+
+  it('preserves detection across repeats and clears findings on root transition', async () => {
+    const agent = new TrustBoundaryAgent();
+    const first = await scanFixture(agent, 'vulnerable-claude');
+    const repeated = await scanFixture(agent, 'vulnerable-claude');
+    const transitioned = await scanFixture(agent, 'safe-claude');
+    assert.ok(first.length > 0);
+    assert.deepEqual(
+      repeated.map(({ rule, severity, line }) => ({ rule, severity, line })),
+      first.map(({ rule, severity, line }) => ({ rule, severity, line }))
+    );
+    assert.equal(transitioned.length, 0);
   });
 });

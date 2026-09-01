@@ -192,7 +192,10 @@ const PATTERNS = [
   {
     rule: 'HERMES_ADDITIONAL_PROPERTIES_TRUE',
     title: 'Hermes: Tool Schema Allows Arbitrary Properties (additionalProperties: true)',
-    regex: /additionalProperties\s*[:=]\s*true/gi,
+    // Require an object-property boundary so prose such as
+    // "schema bypass (additionalProperties: true)" is not treated as a
+    // live tool schema.
+    regex: /(?:^|[,{]\s*)additionalProperties\s*[:=]\s*true\b/gi,
     severity: 'high',
     cwe: 'CWE-20',
     owasp: 'ASI03',
@@ -640,6 +643,146 @@ function checkMemoryFileDeserialization(content, filePath, agent) {
 }
 
 // =============================================================================
+// TRACK A-8: Plugin Manifest (plugin.yaml)
+// =============================================================================
+// A directory plugin under plugins/<name>/plugin.yaml loads into the agent
+// process with full agent privileges. SECURITY.md §2.5 puts the boundary at
+// operator review before install, not at Hermes itself — a malicious plugin
+// is not a vulnerability in Hermes. So these checks are hygiene, not
+// boundary: they make that review easier by surfacing what a manifest
+// declares against what the plugin's `register(ctx)` actually does.
+//
+// Verified against plugins/security-guidance/plugin.yaml, plugins/disk-
+// cleanup/plugin.yaml and hermes_cli/plugins.py at
+// NousResearch/hermes-agent@a871948d8d4b0f774d4ec40467bab1078a9f28d5. Real
+// manifests declare hooks under a `hooks:` list; plugins register them via
+// `ctx.register_hook("hook_name", handler)` inside `register(ctx)`.
+// PluginContext.register_hook() accepts any hook name and only logs a
+// warning on a mismatch — nothing stops the manifest from understating what
+// the plugin does.
+
+const HERMES_PLUGIN_MANIFEST_RE = /(^|\/)plugins\/[^/]+\/plugin\.yaml$/i;
+const PLUGIN_HOOK_NAMES = ['pre_tool_call', 'post_tool_call', 'transform_tool_result', 'on_session_end'];
+const PLUGIN_SOURCE_RE = /\.(?:py|js|ts|mjs|cjs)$/i;
+const REGISTER_HOOK_RE = new RegExp(`register_hook\\s*\\(\\s*['"](${PLUGIN_HOOK_NAMES.join('|')})['"]`, 'g');
+// Covers the ways a plugin can bind a listening socket directly — Hermes
+// gives plugins no register_route()/register_server() API, so this is the
+// only way one shows up. Python-first (Hermes plugins are Python) with the
+// common JS server calls included too.
+const PLUGIN_NETWORK_LISTEN_RE = /\.listen\s*\(|socketserver\.\w*Server\s*\(|http\.server\.HTTPServer\s*\(|asyncio\.start_server\s*\(|uvicorn\.run\s*\(|web\.run_app\s*\(|websockets\.serve\s*\(|app\.run\s*\(\s*host|socket\.socket\s*\([^)]*SOCK_STREAM/;
+// If the manifest already talks about a listener/server in its own words
+// (most often in `description:`), treat that as declared rather than flag it.
+const PLUGIN_NETWORK_MENTION_RE = /\b(?:listen(?:s|ing)?|server|socket|webhook|dashboard|network|daemon)\b/i;
+
+function extractDeclaredHooks(manifest) {
+  const blockMatch = manifest.match(/^hooks\s*:\s*\n((?:[ \t]*-[ \t]*.+\n?)+)/mi);
+  if (blockMatch) {
+    return [...blockMatch[1].matchAll(/-\s*['"]?([\w.]+)['"]?/g)].map((m) => m[1]);
+  }
+  const flowMatch = manifest.match(/^hooks\s*:\s*\[([^\]]*)\]/mi);
+  if (flowMatch) {
+    return flowMatch[1].split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+  }
+  return [];
+}
+
+function hasPluginProvenance(manifest) {
+  const authorMatch = manifest.match(/^author\s*:\s*(.+)$/mi);
+  const author = authorMatch ? authorMatch[1].trim().replace(/^['"]|['"]$/g, '') : '';
+  if (author) return true;
+  return /^(?:source|repository|homepage)\s*:\s*\S/mi.test(manifest);
+}
+
+/**
+ * Check a plugin.yaml manifest against its own directory: missing
+ * provenance, hooks registered in code but not declared in the manifest, and
+ * network listeners the manifest gives no way to declare.
+ */
+function checkPluginManifest(content, filePath, agent) {
+  const findings = [];
+  if (!HERMES_PLUGIN_MANIFEST_RE.test(filePath.replace(/\\/g, '/'))) return findings;
+
+  if (!hasPluginProvenance(content)) {
+    findings.push(createFinding({
+      file: filePath,
+      line: 1,
+      severity: 'low',
+      category: agent.category,
+      rule: 'HERMES_PLUGIN_NO_PROVENANCE',
+      title: 'Hermes: Plugin Manifest Has No Author or Source',
+      description: 'This plugin.yaml declares no author, source, or repository. A Hermes plugin loads into the agent process with full agent privileges; the boundary SECURITY.md §2.5 relies on is the operator reviewing it before install, and an anonymous manifest gives that review nothing to check the plugin against.',
+      matched: content.split('\n')[0]?.slice(0, 120) || '',
+      confidence: 'high',
+      cwe: 'CWE-1059',
+      owasp: 'ASI10',
+      fix: 'Add an author field (and ideally a source or repository URL) to plugin.yaml.',
+    }));
+  }
+
+  const declaredHooks = new Set(extractDeclaredHooks(content));
+  const declaresNetwork = PLUGIN_NETWORK_MENTION_RE.test(content);
+  const dir = path.dirname(filePath);
+  let entries;
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { entries = []; }
+
+  const seenHooks = new Set();
+  let networkFinding = null;
+
+  for (const entry of entries) {
+    if (!entry.isFile() || !PLUGIN_SOURCE_RE.test(entry.name)) continue;
+    const siblingPath = path.join(dir, entry.name);
+    const siblingContent = agent.readFile(siblingPath);
+    if (!siblingContent) continue;
+
+    REGISTER_HOOK_RE.lastIndex = 0;
+    let m;
+    while ((m = REGISTER_HOOK_RE.exec(siblingContent)) !== null) {
+      const hookName = m[1];
+      if (declaredHooks.has(hookName) || seenHooks.has(hookName)) continue;
+      seenHooks.add(hookName);
+      const line = siblingContent.slice(0, m.index).split('\n').length;
+      findings.push(createFinding({
+        file: siblingPath,
+        line,
+        severity: 'medium',
+        category: agent.category,
+        rule: 'HERMES_PLUGIN_UNDECLARED_HOOK',
+        title: `Hermes: Plugin Registers Undeclared Hook "${hookName}"`,
+        description: `register(ctx) wires the "${hookName}" hook here, but plugin.yaml does not list it under hooks:. Hermes accepts the registration regardless — register_hook() only logs a warning that an operator reviewing the manifest never sees — so the manifest understates what this plugin actually does.`,
+        matched: m[0].trim(),
+        confidence: 'high',
+        cwe: 'CWE-1059',
+        owasp: 'ASI10',
+        fix: `Add "${hookName}" to the hooks list in plugin.yaml, or remove the registration if it should not run.`,
+      }));
+    }
+
+    if (!networkFinding && !declaresNetwork && PLUGIN_NETWORK_LISTEN_RE.test(siblingContent)) {
+      const nm = siblingContent.match(PLUGIN_NETWORK_LISTEN_RE);
+      const line = siblingContent.slice(0, siblingContent.indexOf(nm[0])).split('\n').length;
+      networkFinding = createFinding({
+        file: siblingPath,
+        line,
+        severity: 'high',
+        category: agent.category,
+        rule: 'HERMES_PLUGIN_NETWORK_LISTENER_UNDECLARED',
+        title: 'Hermes: Plugin Binds a Network Listener Without Declaring It',
+        description: 'This plugin binds a listening socket or starts a server, and nothing in plugin.yaml says so. SECURITY.md §2.5 calls out background services and network listeners specifically, because they are the part of a plugin an operator reviewing the manifest is least likely to notice.',
+        matched: nm[0].trim(),
+        confidence: 'medium',
+        cwe: 'CWE-923',
+        owasp: 'ASI04',
+        fix: 'Document the listener in plugin.yaml (for example in description) so operator review can see it before install.',
+      });
+    }
+  }
+
+  if (networkFinding) findings.push(networkFinding);
+
+  return findings;
+}
+
+// =============================================================================
 // HERMES v0.13.0 / v2026.5.7 — "TENACITY RELEASE" STRUCTURAL CHECKS
 // =============================================================================
 // Three patches in Hermes Agent v0.13.0 (May 7, 2026) closed P0
@@ -911,6 +1054,7 @@ export class HermesSecurityAgent extends BaseAgent {
       findings.push(...checkAdapterAllowlistFailOpen(content, filePath, this));
       findings.push(...checkSkillFrontmatter(content, filePath, this));
       findings.push(...checkMemoryFileDeserialization(content, filePath, this));
+      findings.push(...checkPluginManifest(content, filePath, this));
       // Hermes v0.13.0 "Tenacity Release" coverage
       findings.push(...checkAuthJsonTOCTOU(content, filePath, this));
       findings.push(...checkCronSkillInjection(content, filePath, this));
@@ -978,6 +1122,12 @@ export class HermesSecurityAgent extends BaseAgent {
 
       // Skill files
       if (/\/skills\/[^/]+\.md$/i.test(rel) || /\/hermes-skills\//i.test(rel)) {
+        hermesFiles.add(file);
+        continue;
+      }
+
+      // Plugin manifest (plugins/<name>/plugin.yaml)
+      if (HERMES_PLUGIN_MANIFEST_RE.test(rel)) {
         hermesFiles.add(file);
         continue;
       }

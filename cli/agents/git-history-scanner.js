@@ -62,6 +62,7 @@ export class GitHistoryScanner extends BaseAgent {
       let currentCommit = '';
       let currentDate = '';
       const lines = diffOutput.split('\n');
+      const testPath = /(?:^|[\\/])(?:__tests__|test|tests|fixtures?)(?:[\\/]|$)|(?:\.test|\.spec)\.[^.]+$/i;
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
@@ -79,6 +80,7 @@ export class GitHistoryScanner extends BaseAgent {
           const match = line.match(/diff --git a\/(.+) b\//);
           if (match) currentFile = match[1];
         }
+        if (!options?.includeTests && testPath.test(currentFile)) continue;
 
         // Only check added lines (lines starting with +)
         if (!line.startsWith('+') || line.startsWith('+++')) continue;

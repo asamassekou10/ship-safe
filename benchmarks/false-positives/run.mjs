@@ -67,6 +67,33 @@ function scan(dir) {
   return JSON.parse(out);
 }
 
+/**
+ * What the investigation layer concluded about the same checkout.
+ *
+ * Counting findings measures the sensor layer alone, and on a clean project the
+ * number a user actually inherits is not how many rules fired but how many
+ * survived investigation. A finding refuted with a citation costs a reader far
+ * less than one left unresolved, and neither is visible in a total.
+ *
+ * `investigate` exits 1 when something is confirmed, which is not a failure of
+ * the harness — on the deliberately vulnerable corpus it is the expected result.
+ */
+function investigate(dir) {
+  try {
+    const out = execFileSync(
+      process.execPath,
+      [cli, 'investigate', dir, '--json'],
+      { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, env: { ...process.env, NO_COLOR: '1' } },
+    );
+    return JSON.parse(out);
+  } catch (error) {
+    if (error.stdout) {
+      try { return JSON.parse(error.stdout); } catch { /* fall through */ }
+    }
+    return null;
+  }
+}
+
 if (clone) cloneCorpus();
 
 const missing = [...corpus.clean, ...corpus.vulnerable]
@@ -79,7 +106,9 @@ if (missing.length > 0) {
 }
 
 const clean = corpus.clean.map((entry) => {
-  const r = scan(path.join(srcDir, entry.id));
+  const dir = path.join(srcDir, entry.id);
+  const r = scan(dir);
+  const i = investigate(dir);
   return {
     id: entry.id,
     repo: entry.repo,
@@ -89,11 +118,35 @@ const clean = corpus.clean.map((entry) => {
     high: r.high,
     score: r.score,
     grade: r.grade,
+    verdicts: i ? i.locationCounts : null,
   };
 });
 
+/**
+ * Rules that must still fire on a deliberately vulnerable application.
+ *
+ * Counting findings measures noise, and a change that quietly stops detecting
+ * something looks exactly like a change that reduced it. That is how a guard
+ * added to cut false positives on XSS_DOCUMENT_WRITE took the true positives
+ * with it, in every page with an inline script, while every number here moved
+ * in the direction that reads as an improvement.
+ *
+ * A floor is not a recall measurement. It is a small set of things known to be
+ * present, whose disappearance is always a regression and never a win.
+ */
+function checkFloor(entry, result) {
+  const required = entry.mustDetect || [];
+  if (!required.length) return { required: [], missing: [] };
+
+  const found = new Set((result.findings || []).map((f) => f.rule));
+  return { required, missing: required.filter((rule) => !found.has(rule)) };
+}
+
 const vulnerable = corpus.vulnerable.map((entry) => {
-  const r = scan(path.join(srcDir, entry.id));
+  const dir = path.join(srcDir, entry.id);
+  const r = scan(dir);
+  const i = investigate(dir);
+  const floor = checkFloor(entry, r);
   return {
     id: entry.id,
     repo: entry.repo,
@@ -101,8 +154,15 @@ const vulnerable = corpus.vulnerable.map((entry) => {
     findings: r.totalFindings,
     critical: r.critical,
     high: r.high,
+    verdicts: i ? i.locationCounts : null,
+    mustDetect: floor.required,
+    missingFromFloor: floor.missing,
   };
 });
+
+function sumVerdict(rows, verdict) {
+  return rows.reduce((n, r) => n + (r.verdicts?.[verdict] || 0), 0);
+}
 
 const totalClean = clean.reduce((n, r) => n + r.findings, 0);
 const criticalClean = clean.reduce((n, r) => n + r.critical, 0);
@@ -111,7 +171,7 @@ const result = {
   tool: 'ship-safe',
   version: JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')).version,
   methodology:
-    'Findings reported by `ship-safe ci --no-deps` against pinned checkouts. Clean corpus: mature projects with no known active vulnerabilities, where every finding is triage a user inherits. Vulnerable corpus: deliberately insecure applications, present so a reduction in noise cannot be mistaken for lost detection. Counts are a proxy for a false-positive rate, not a verified one.',
+    'Findings reported by `ship-safe ci --no-deps` against pinned checkouts, plus what `ship-safe investigate` concluded about them. Clean corpus: mature projects with no known active vulnerabilities, where every finding is triage a user inherits. Vulnerable corpus: deliberately insecure applications, present so a reduction in noise cannot be mistaken for lost detection. Counts are a proxy for a false-positive rate, not a verified one.',
   clean,
   vulnerable,
   summary: {
@@ -120,6 +180,11 @@ const result = {
     cleanCriticalFindings: criticalClean,
     vulnerableProjects: vulnerable.length,
     vulnerableFindings: vulnerable.reduce((n, r) => n + r.findings, 0),
+    // The asymmetry is the point: confirmations should concentrate in the
+    // deliberately vulnerable corpus, and refutations in the mature one.
+    cleanConfirmed: sumVerdict(clean, 'confirmed'),
+    cleanRefuted: sumVerdict(clean, 'refuted'),
+    vulnerableConfirmed: sumVerdict(vulnerable, 'confirmed'),
   },
 };
 
@@ -131,3 +196,14 @@ if (write) {
 }
 
 process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+
+// A missing floor rule is a detection regression. It is the only thing in this
+// harness that fails the run: every other number here is descriptive, and this
+// one is a fact about the corpus that stopped being true.
+const breached = vulnerable.filter((entry) => entry.missingFromFloor.length > 0);
+for (const entry of breached) {
+  process.stderr.write(
+    `detection floor: ${entry.id} no longer reports ${entry.missingFromFloor.join(', ')}\n`,
+  );
+}
+if (breached.length > 0) process.exitCode = 1;

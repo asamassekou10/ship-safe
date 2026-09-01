@@ -12,6 +12,7 @@ import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
+import { fetchSafeUrl } from '../utils/remote-fetch.js';
 
 const SHARE_ENDPOINT = 'https://shipsafe.sh/api/share';
 
@@ -39,9 +40,32 @@ export async function shareCommand(targetPath = '.', options = {}) {
   }
 
   const spinner = ora({ text: 'Uploading report...', color: 'cyan' }).start();
+  const publicFindings = Array.isArray(report.findings)
+    ? report.findings.map((finding) => {
+      const relative = finding.file ? path.relative(root, path.resolve(finding.file)) : '';
+      const outsideRoot = !relative || relative.startsWith('..') || path.isAbsolute(relative);
+      return {
+        severity: finding.severity ?? null,
+        category: finding.category ?? null,
+        rule: finding.rule ?? null,
+        title: finding.title ?? null,
+        description: finding.description ?? null,
+        fix: finding.fix ?? null,
+        confidence: finding.confidence ?? null,
+        file: outsideRoot ? null : relative.replace(/\\/g, '/'),
+        line: Number.isInteger(finding.line) ? finding.line : null,
+      };
+    })
+    : [];
+  const publicReport = {
+    score: report.score ?? null,
+    grade: report.grade ?? null,
+    totalFindings: report.totalFindings ?? publicFindings.length,
+    findings: publicFindings,
+  };
 
   try {
-    const res = await fetch(SHARE_ENDPOINT, {
+    const res = await fetchSafeUrl(SHARE_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -49,7 +73,7 @@ export async function shareCommand(targetPath = '.', options = {}) {
         grade:    report.grade ?? null,
         repo:     report.rootPath ? path.basename(report.rootPath) : null,
         findings: report.totalFindings ?? 0,
-        report,
+        report: publicReport,
       }),
     });
 
