@@ -17,6 +17,8 @@
 
 import fs from 'fs';
 import path from 'path';
+import { attachEvidence, createClaim } from '../utils/evidence.js';
+import { commentMask } from '../utils/source-context.js';
 
 // =============================================================================
 // HEURISTIC PATTERNS
@@ -117,6 +119,16 @@ const DEAD_CODE_PATTERNS = [
 // VERIFIER AGENT
 // =============================================================================
 
+/** True when a line opens more brackets than it closes. */
+function unclosed(line) {
+  let depth = 0;
+  for (const char of line) {
+    if (char === '(' || char === '[' || char === '{') depth += 1;
+    else if (char === ')' || char === ']' || char === '}') depth -= 1;
+  }
+  return depth > 0;
+}
+
 export class VerifierAgent {
   constructor() {
     this.name = 'VerifierAgent';
@@ -145,8 +157,24 @@ export class VerifierAgent {
       finding.verified = result.verified;
       finding.verifierNote = result.note;
 
-      // Downgrade unverified findings one confidence level
-      if (!result.verified) {
+      // Record the reasoning as a claim. This pass is regex over a window of
+      // lines, so it ranks lowest and never states more than 'likely' — a
+      // later data-flow or reproduction pass overturns it without argument.
+      attachEvidence(finding, createClaim({
+        source: 'heuristic',
+        verdict: result.verified === true ? 'likely'
+               : result.verified === false ? 'refuted'
+               : 'unknown',
+        rationale: result.note,
+        citations: finding.file && finding.line
+          ? [{ file: finding.file, line: finding.line }]
+          : [],
+      }));
+
+      // Only a conclusive negative may lower confidence. `null` means the
+      // generic verifier lacks enough evidence and must preserve the detector's
+      // original assessment.
+      if (result.verified === false) {
         if (finding.confidence === 'high') finding.confidence = 'medium';
         else if (finding.confidence === 'medium') finding.confidence = 'low';
       }
@@ -215,17 +243,19 @@ export class VerifierAgent {
       };
     }
 
-    if (isStatic && !hasUserInput) {
+    // A hardcoded secret is confirmed by being static; staticness is not a
+    // mitigation for supply-chain, configuration, or access-control rules.
+    if (['secret', 'secrets', 'history'].includes(finding.category) && isStatic) {
       return {
-        verified: false,
-        note: 'Value appears to be static/hardcoded, not user-controlled',
+        verified: true,
+        note: 'Hardcoded secret evidence is static by definition',
       };
     }
 
     if (hasSanitization) {
       return {
-        verified: false,
-        note: 'Sanitization or validation detected upstream of finding',
+        verified: null,
+        note: 'Nearby validation was found, but its data flow to this sink is unproven',
       };
     }
 
@@ -238,8 +268,15 @@ export class VerifierAgent {
 
     if (inErrorHandler) {
       return {
-        verified: false,
-        note: 'Finding is inside error handling context, reducing exploitability',
+        verified: null,
+        note: 'Error handling is present but does not prove the unsafe operation is neutralized',
+      };
+    }
+
+    if (isStatic) {
+      return {
+        verified: null,
+        note: 'Static input lowers immediate exploitability but does not disprove the rule',
       };
     }
 
@@ -273,9 +310,26 @@ export class VerifierAgent {
    * Check if a line is after a return/throw (dead code).
    */
   _isDeadCode(lines, lineNum) {
+    // Shared with the literal-context pass: both were reaching wrong
+    // conclusions from line prefixes, and a docstring is invisible to those.
+    const commented = commentMask(lines, { upto: lineNum });
+
     // Check the 5 lines before the finding for return/throw
     for (let i = Math.max(0, lineNum - 6); i < lineNum - 1; i++) {
       const l = lines[i]?.trim() || '';
+      // A `throw` inside a commented-out block is not a `throw`. Reading one as
+      // real makes the live code after it look unreachable, and this pass then
+      // refutes a finding that is genuinely exploitable — the one error class
+      // that loses a vulnerability silently. Observed on NodeGoat's
+      // allocations-dao.js, where a commented-out fix sits directly above the
+      // live NoSQL injection it was meant to replace.
+      if (commented[i]) continue;
+
+      // A `return {` or `throw new Error(` that has not closed its brackets is
+      // the opening of a multi-line statement, and a finding below it is inside
+      // that statement rather than stranded after it. Counting it as preceding
+      // dead code refutes the very line it belongs to.
+      if (unclosed(l)) continue;
       // If a return/throw is found and there's no conditional/block opener after
       if (/^(?:return\s|throw\s|process\.exit)/.test(l)) {
         // Check if there's a } or else between the return and our line

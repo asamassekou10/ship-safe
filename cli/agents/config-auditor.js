@@ -401,6 +401,7 @@ const CONFIG_PATTERNS = [
     rule: 'DEBUG_MODE_PRODUCTION',
     title: 'Debug Mode in Production Config',
     regex: /(?:DEBUG|debug)\s*[:=]\s*(?:true|True|1|['"]true['"])/g,
+    skipComments: true,
     severity: 'high',
     cwe: 'CWE-215',
     owasp: 'A05:2021',

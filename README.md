@@ -1,7 +1,7 @@
 <p align="center">
   <img src=".github/assets/ship-safe-logo-2026.png" alt="Ship Safe Logo" width="180" />
 </p>
-<p align="center"><strong>Find risky code, AI-agent vulnerabilities, and supply-chain issues before they ship.</strong></p>
+<p align="center"><strong>The independent security agent for AI-written software. It finds issues, investigates whether they are real, and shows you the evidence.</strong></p>
 <p align="center"><a href="https://shipsafe.sh">Website</a> · <a href="https://shipsafe.sh/docs">Docs</a> · <a href="https://shipsafe.sh/security">Security & Data Flow</a> · <a href="https://shipsafe.sh/benchmarks">Benchmark</a> · <a href="https://shipsafe.sh/pricing">Pricing</a> · <a href="https://shipsafe.sh/blog">Blog</a> · <a href="https://github.com/asamassekou10/ship-safe/contribute">Contribute</a></p>
 
 <p align="center">
@@ -15,9 +15,28 @@
 
 ## Ship Safe CLI
 
-Ship Safe is an AI security scanner for modern software teams. It runs locally in your repo, finds issues across application code, AI agents, MCP configs, prompts, dependencies, CI/CD, secrets, and cloud-adjacent configuration, then helps you review and apply safe fixes.
+Ship Safe runs locally in your repo and works in two layers.
 
-Start a scan with one command:
+A **deterministic engine** finds issues across application code, AI agents, MCP configs, prompts, dependencies, CI/CD, secrets, and cloud-adjacent configuration. Fast, repeatable, and benchmarked — this is the sensor layer.
+
+An **investigation layer** then decides what the findings are worth. It traces the value that reaches a sink, searches the project for controls a rule says are missing, builds attack chains across configuration no single file contains, and — when you ask it to — probes a leaked key against its provider. Every conclusion carries the pass that reached it and the lines it read:
+
+```
+CONFIRMED — traced end to end (10)
+
+    NoSQL Injection via $where [high]
+    app/data/allocations-dao.js:78  NOSQL_INJECTION_WHERE
+    why: threshold is assigned from the HTTP request and reaches the sink without validation on that path.
+    decided by: dataflow
+      1. value reaches NOSQL_INJECTION_WHERE here  app/data/allocations-dao.js:78
+      2. getByUserIdAndThreshold is called here with threshold  app/routes/allocations.js:23
+      3. threshold is assigned here  app/routes/allocations.js:20
+    fix: Replace $where with standard MongoDB operators ($eq, $gt, $regex, etc.)
+```
+
+<sub>Real output from <code>ship-safe investigate</code> against OWASP NodeGoat. The tainted value is destructured in a route file and passed into a DAO three directories away.</sub>
+
+Start with one command:
 
 ```bash
 npx ship-safe
@@ -42,10 +61,18 @@ npx ship-safe
 # Full audit: secrets + 29 agents + deps + remediation plan
 npx ship-safe audit .
 
+# Investigate: confirmed / likely / unresolved / refuted, with the evidence
+npx ship-safe investigate .
+npx ship-safe investigate . --all       # also detail unresolved and refuted
+npx ship-safe investigate . --verify    # probe leaked keys against their providers
+
+# What can an AI agent working in this repo actually reach?
+npx ship-safe capabilities .
+
 # AI agent red-team scenarios for agent-readable content
 npx ship-safe red-team . --gpt-red
 
-# Interactive fix agent: plan, diff, approve, verify
+# Interactive fix agent: plan, diff, approve, verify the path closed
 npx ship-safe agent .
 npx ship-safe agent . --severity critical   # critical findings only
 npx ship-safe agent . --branch --pr         # fix on a branch + open a PR
@@ -55,8 +82,29 @@ npx ship-safe undo
 
 # CI/CD mode — fails on any critical finding
 npx ship-safe ci . --sarif results.sarif
-npx ship-safe ci . --fail-on high          # stricter: critical or high
+npx ship-safe ci . --fail-on high              # stricter: critical or high
+
+# Gate on evidence instead of severity: block only what was established
+npx ship-safe ci . --fail-on-verdict confirmed
+npx ship-safe ci . --ignore-refuted            # do not block on what was argued away
 ```
+
+For pull requests, compare a trusted base scan with the head scan so existing
+repository debt remains visible without blocking unrelated changes:
+
+```bash
+# On the trusted base revision
+npx ship-safe ci . --fail-on none --no-deps \
+  --write-baseline-report /tmp/ship-safe-base.json
+
+# On the pull request head
+npx ship-safe ci . --base-report /tmp/ship-safe-base.json --fail-on high
+```
+
+The base artifact contains hashed finding identities, relative paths, and rule
+metadata. It does not store raw matched secrets. PR results classify findings
+as introduced, resolved, unchanged, or uncertain; ambiguous matches are shown
+but do not block the pull request.
 
 ## What Ship Safe Finds
 
@@ -72,15 +120,46 @@ npx ship-safe ci . --fail-on high          # stricter: critical or high
 ## How It Works
 
 1. **Scan locally** - Ship Safe inspects your repo with targeted agents and skips checks that do not apply.
-2. **Review findings** - Findings include severity, file location, evidence, and recommended remediation.
-3. **Fix with control** - The agent proposes a plan and diff, asks before writing, verifies the result, and keeps changes reversible.
-4. **Gate in CI** - Use `ship-safe ci` to fail risky builds and upload SARIF into GitHub code scanning.
+2. **Investigate each finding** - Separate passes decide whether it is real, ranked so a cheaper one never overturns a more expensive one: a traced data path outranks a model's reading of the same file, and a probe that authenticated outranks both.
+3. **Read the evidence** - Findings resolve to confirmed, likely, unresolved, or refuted, each citing the lines it was concluded from, so you can disagree with a step instead of a severity label.
+4. **Fix with control** - The agent proposes a plan and diff, asks before writing, verifies the result, and keeps changes reversible.
+5. **Gate in CI** - Use `ship-safe ci` to fail risky builds and upload SARIF into GitHub code scanning.
 
 <p align="center">
   <img src=".github/assets/demo-agent.gif" alt="Ship Safe agent demo" width="800" />
 </p>
 
 ---
+
+## "Why not just ask my coding agent to review the repo?"
+
+You can, and you should. It will find real things. But there are three questions it structurally cannot answer about its own work.
+
+**Did the agent that wrote this code just mark its own homework?** Asking the author whether the author made a mistake is not a review. Ship Safe is a separate reviewer with a separate method, and it disagrees with itself in public — a data-flow trace overturns the heuristic pass, and a live probe overturns both.
+
+**Can it see what it can reach?** A coding agent reviewing your repo cannot read your MCP server config, cannot enumerate the permissions it was launched with, and is the actor whose reach is in question. `ship-safe capabilities` reads all of it from outside and reports the combinations that are dangerous together while unremarkable apart:
+
+```
+  CRITICAL  Repository-controlled instructions reach an unattended write capability
+    1. CLAUDE.md is read as instructions and can be changed by anyone who lands a commit
+       CLAUDE.md:1
+    2. Claude Code runs without per-action approval
+       .claude/settings.json:2
+    3. shell execute granted: Bash(git push:*)
+       .claude/settings.json:3
+    4. filesystem write granted: Write
+       .claude/settings.json:3
+    5. mcp-tool write granted: mcp__github__create_pull_request
+       .claude/settings.json:3
+    Impact: Text committed to this repository can direct the agent to write files
+            or run commands with no human in the loop.
+    Boundary: Require approval for write and execute tools during sessions on
+              untrusted branches, or remove the pre-granted entries.
+```
+
+Each of those lines is unremarkable on its own. Together they are a path from a pull request to a privileged write, and no single-file review can see it, because no single file contains it.
+
+**Is it consistent, and can you prove it got better?** Ask twice, get two answers. Ship Safe's engine is deterministic, and its conclusions are gated in CI by a benchmark that scores *conclusion quality*, not pattern coverage: how many known-real findings it settles, how much known noise it refutes, and whether it ever refutes something real. That last number's budget is zero — it is the only error class that loses a vulnerability silently. See [benchmarks/](./benchmarks/).
 
 ## Why Developers Use It
 
@@ -143,7 +222,22 @@ All agents run in parallel. Each skips irrelevant projects automatically.
 | **ClickFixAgent** | Supply Chain | ClickFix / fake-CAPTCHA paste-and-run lures (fake error + Win+R/Ctrl+V/command-bar keystrokes, PowerShell cradles) and fake-installer npm lifecycle scripts (CWE-1357, CWE-506) |
 | **InstallGuardAgent** | Supply Chain | npm worm behaviors in lifecycle scripts (credential harvesting, env exfiltration, destructive `rm -rf`, obfuscated `node -e`) and weaponized `binding.gyp` node-gyp actions (CWE-506, CWE-829) |
 
-**Post-processors:** ScoringEngine · VerifierAgent (secrets liveness) · DeepAnalyzer (LLM taint analysis)
+**Investigation passes**, in the order their evidence outranks each other:
+
+| Pass | Rank | What it establishes |
+|------|------|---------------------|
+| **VerifierAgent** | heuristic | Pattern check around the finding. Never states more than "likely" |
+| **DeepAnalyzer** | analysis | LLM taint reading of the finding and its file, with the citation validated |
+| **DataflowInvestigator** | dataflow | Traces the value back to its origin, across one function boundary and into other files. JavaScript, TypeScript, and Python |
+| **AbsenceInvestigator** | presence | Searches the project, or the handler, for the control a rule says is missing |
+| **LiteralContextInvestigator** | presence | Decides findings about a written-in value by what surrounds it — prose, a help string, or a reserved address |
+| **CapabilityGraph** | chain | Builds attack chains from configuration no single file contains |
+| **RedosReproducer** | reproduction | Runs a flagged pattern against generated input in a worker with a deadline |
+| **SecretsVerifier** | reproduction | Presents a leaked key to its provider. Opt-in: this discloses the key |
+
+A claim whose cited file or line does not resolve is recorded but never decides a verdict. Two passes of equal rank that disagree resolve to unresolved rather than to whichever verdict is scarier.
+
+**Also:** ScoringEngine
 
 ---
 
@@ -222,7 +316,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: asamassekou10/ship-safe@v9.7.4
+      - uses: asamassekou10/ship-safe@v9.8.0
         with:
           fail-on: high
           inline: true
@@ -265,6 +359,12 @@ human ruling out a false positive, and anything that can write a line of your
 source — including an AI agent — can write the comment too, so the highest
 severities do not honor it. Every suppression is counted, so a scan that
 silenced findings never reads like one that had none.
+
+Ordinary code rules do not grade Markdown prose or fenced code examples as
+deployed source. Secrets are still scanned everywhere, and agent-readable
+files such as `AGENTS.md` and `CLAUDE.md` keep their dedicated prompt-injection
+and trust-boundary checks. To review fenced examples intentionally, use
+`--include-doc-examples` with `scan`, `audit`, or `ci`.
 
 ```gitignore
 # .ship-safeignore
@@ -345,6 +445,7 @@ Start here:
 - [Contributor guide](./CONTRIBUTING.md)
 - [Add an agent](./docs/adding-an-agent.md)
 - [Add a security rule](./docs/adding-a-security-rule.md)
+- [Write a custom agent plugin](./docs/custom-agent-plugins.md)
 - [Handle MCP environment variables safely](./docs/mcp-env-safety.md)
 - [Use Ship Safe with Codex](./docs/integrations/codex.md)
 - [Use Ship Safe with Claude Code](./docs/integrations/claude-code.md)

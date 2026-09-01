@@ -157,29 +157,6 @@ const PATTERNS = [
     fix: 'Never pass secrets directly to curl/wget arguments. Use environment variables and verify the destination URL.',
   },
 
-  // ── CICD-SEC-2: OIDC Trust Misconfiguration ────────────────────────────────
-  {
-    rule: 'CICD_OIDC_BROAD_SUBJECT',
-    title: 'CI/CD: Overly Broad OIDC Subject Claim',
-    regex: /subject(?:_claim)?\s*[:=]\s*["']repo:[^"']*[*][^"']*["']/gi,
-    severity: 'critical',
-    cwe: 'CWE-284',
-    owasp: 'CICD-SEC-2',
-    description: 'OIDC subject claim uses a wildcard. Any repository or branch matching the pattern can assume this cloud role. In 2026, UNC6426 used a wildcard OIDC trust to escalate from a stolen GitHub PAT to AWS administrator in 72 hours.',
-    fix: 'Restrict the subject claim to a specific repo and branch: repo:owner/repo:ref:refs/heads/main',
-  },
-  {
-    rule: 'CICD_OIDC_MISSING_SUBJECT',
-    title: 'CI/CD: OIDC Token Request Without Subject Restriction',
-    regex: /id-token\s*:\s*write/g,
-    severity: 'medium',
-    cwe: 'CWE-284',
-    owasp: 'CICD-SEC-2',
-    confidence: 'low',
-    description: 'Workflow requests OIDC token (id-token: write). Verify the cloud trust policy restricts the subject claim to specific repos/branches to prevent privilege escalation.',
-    fix: 'Ensure the cloud IAM trust policy sets a specific sub condition, not a wildcard.',
-  },
-
   // ── General CI/CD Issues ───────────────────────────────────────────────────
   {
     rule: 'CICD_CURL_PIPE_BASH',
@@ -488,6 +465,9 @@ function workflowAndJobScopes(lines, lineIndex) {
   return { workflow, job: lines.slice(jobStart, jobEnd).join('\n') };
 }
 
+const CLOUD_OIDC_RE = /configure-aws-credentials|azure\/login|google-github-actions\/auth|workload_identity_provider|role-to-assume|azure_credentials|gcp[_-]?credentials/i;
+const OIDC_SUBJECT_RE = /(?:subject|sub(?:ject)?[_-]?condition|StringEquals|StringLike)[^\n]{0,180}\brepo:[^\n]*\b(?:ref|environment|pull_request)\b/i;
+const OIDC_BROAD_SUBJECT_RE = /(?:subject|sub(?:ject)?[_-]?condition|StringEquals|StringLike)[^\n]{0,180}\brepo:[^\n]*\*/i;
 function firstMatchLine(rawContent, patterns) {
   for (const re of patterns) {
     re.lastIndex = 0;
@@ -866,8 +846,51 @@ export class CICDScanner extends BaseAgent {
       findings = findings.concat(this.scanPrivilegedHandoffs(file));
       findings = findings.concat(this.scanNpmPublishProvenance(file));
       findings = findings.concat(this.scanUnpinnedAiActions(file));
+      findings = findings.concat(this.scanCloudOidcTrust(file));
     }
     return findings;
+  }
+
+  scanCloudOidcTrust(file) {
+    const rawContent = this.readFile(file);
+    if (!rawContent) return [];
+    const content = rawContent.split('\n').map(line => line.replace(/(^|\s)#.*$/, '')).join('\n');
+    if (!ID_TOKEN_WRITE_RE.test(content) || !CLOUD_OIDC_RE.test(content)) return [];
+
+    if (OIDC_BROAD_SUBJECT_RE.test(content)) {
+      const hit = firstMatchLine(rawContent, [OIDC_BROAD_SUBJECT_RE]);
+      return [createFinding({
+        file,
+        line: hit.line,
+        severity: 'critical',
+        category: this.category,
+        rule: 'CICD_OIDC_BROAD_SUBJECT',
+        title: 'CI/CD: Overly broad cloud OIDC subject claim',
+        description: 'This workflow uses a wildcard OIDC subject for a cloud provider. A broad trust policy can let an unintended repository, branch, or workflow assume the role.',
+        matched: hit.matched,
+        confidence: 'high',
+        cwe: 'CWE-284',
+        owasp: 'CICD-SEC-2',
+        fix: 'Restrict the subject claim to this repository and approved branch or environment subjects.',
+      })];
+    }
+    if (OIDC_SUBJECT_RE.test(content)) return [];
+
+    const hit = firstMatchLine(rawContent, [ID_TOKEN_WRITE_RE]);
+    return [createFinding({
+      file,
+      line: hit.line,
+      severity: 'medium',
+      category: this.category,
+      rule: 'CICD_OIDC_MISSING_SUBJECT',
+      title: 'CI/CD: Cloud OIDC token request without subject restriction',
+      description: 'This workflow uses GitHub OIDC to authenticate to a cloud provider but no repository/branch subject condition is visible. A broad trust policy can let an unintended workflow assume the role.',
+      matched: hit.matched,
+      confidence: 'medium',
+      cwe: 'CWE-284',
+      owasp: 'CICD-SEC-2',
+      fix: 'Restrict the cloud IAM trust policy to this repository and approved branch or environment subjects.',
+    })];
   }
 }
 

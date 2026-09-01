@@ -34,7 +34,9 @@ import {
   MAX_FILE_SIZE,
   loadGitignorePatterns
 } from '../utils/patterns.js';
+import { isDocumentationFile, markdownCodeLines } from '../utils/content-scope.js';
 import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
+import { commentMask } from '../utils/source-context.js';
 import * as output from '../utils/output.js';
 import { CacheManager } from '../utils/cache-manager.js';
 
@@ -115,7 +117,11 @@ export async function scanCommand(targetPath = '.', options = {}) {
     const files = await findFiles(absolutePath, ignorePatterns, options);
 
     // Cache: determine which files changed
-    const useCache = options.cache !== false;
+    // The cache format stores findings but not the documentation-scope mode.
+    // Never reuse or overwrite it for an opt-in example scan, otherwise an
+    // opt-in run could leak Markdown findings into a later default run (or a
+    // default run could hide them from a later opt-in run).
+    const useCache = options.cache !== false && !options.includeDocExamples;
     const cache = new CacheManager(absolutePath);
     const cacheData = useCache ? cache.load() : null;
     let filesToScan = files;
@@ -156,7 +162,7 @@ export async function scanCommand(targetPath = '.', options = {}) {
     let scannedCount = 0;
 
     for (const file of filesToScan) {
-      const findings = await scanFile(file, allPatterns);
+      const findings = await scanFile(file, allPatterns, options);
       if (findings.length > 0) {
         results.push({ file, findings });
       }
@@ -317,6 +323,21 @@ async function findFiles(rootPath, ignorePatterns, options = {}) {
   return filtered;
 }
 
+/**
+ * Rules whose subject is code that executes. Named by category and rule shape
+ * rather than by a list, and deliberately not applied to secrets or PII.
+ */
+export function isExecutionPattern(pattern) {
+  const name = String(pattern.rule || pattern.name || '');
+  if (/secret|credential|key|token|password|pii/i.test(name)) return false;
+  return /injection|eval|exec|xss|traversal|deserial|prototype|sql|command|redos/i.test(name);
+}
+
+/** Files an agent reads as content, where prose is the thing being examined. */
+export function isAgentReadable(filePath) {
+  return /\.(?:md|mdx|markdown|txt|rst)$|(?:^|[/\\])\.(?:cursorrules|windsurfrules|clinerules)$/i.test(filePath);
+}
+
 function isTestFile(filePath) {
   return TEST_FILE_PATTERNS.some(pattern => pattern.test(filePath));
 }
@@ -325,12 +346,23 @@ function isTestFile(filePath) {
 // FILE SCANNING
 // =============================================================================
 
-async function scanFile(filePath, patterns = SECRET_PATTERNS) {
+async function scanFile(filePath, patterns = SECRET_PATTERNS, options = {}) {
   const findings = [];
 
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
     const lines = content.split('\n');
+    const documentation = isDocumentationFile(filePath);
+    const docCodeLines = documentation && options.includeDocExamples
+      ? markdownCodeLines(content)
+      : null;
+
+    // Which lines are comments or docstrings. `scan` is the fast path and does
+    // not run the investigation layer, so nothing downstream refutes a match on
+    // prose: a doc comment reading `eval(req.body.x)` as an example was reported
+    // as a high-severity code vulnerability, in this project's own repository,
+    // by this project's own CI.
+    const prose = isAgentReadable(filePath) ? null : commentMask(lines, { file: filePath });
 
     for (let lineNum = 0; lineNum < lines.length; lineNum++) {
       const line = lines[lineNum];
@@ -338,7 +370,24 @@ async function scanFile(filePath, patterns = SECRET_PATTERNS) {
       // Inline suppression: # ship-safe-ignore on the same line
       if (/ship-safe-ignore/i.test(line)) continue;
 
+      // A comment does not execute, so a rule about code that runs cannot be
+      // describing a vulnerability here. Secrets are exempt: a key written in a
+      // comment has leaked exactly as thoroughly as one written in code.
+      const inProse = prose?.[lineNum] === true;
+
       for (const pattern of patterns) {
+        // Secrets are meaningful in prose and code examples alike, so they
+        // remain in scope. Vulnerability patterns require deployed-code
+        // context unless the caller explicitly opts into fenced examples.
+        const isVulnerability = pattern.category === 'vulnerability';
+        if (documentation && isVulnerability && !docCodeLines?.has(lineNum)) continue;
+
+        // And within a source file, the same reasoning one level down: a
+        // comment is not code that runs. The two guards do not overlap --
+        // documentation files never reach the prose mask, because prose is what
+        // they are.
+        if (inProse && isExecutionPattern(pattern)) continue;
+
         // Reset regex state (important for global regexes)
         pattern.pattern.lastIndex = 0;
 

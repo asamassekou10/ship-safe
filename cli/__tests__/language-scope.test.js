@@ -69,11 +69,14 @@ describe('langs scoping', () => {
     assert.equal(runOn(JS_ONLY, '.rb'), 0);
   });
 
-  it('still runs a scoped rule on files with no language', () => {
+  it('still runs a scoped rule on config files with no language', () => {
     // A JS-scoped rule must not stop matching a .json config. Skipping those
     // would be a detection loss dressed up as precision.
     assert.equal(runOn(JS_ONLY, '.json'), 1);
-    assert.equal(runOn(JS_ONLY, '.md'), 1);
+  });
+
+  it('does not run ordinary code rules on Markdown without an explicit opt-in', () => {
+    assert.equal(runOn(JS_ONLY, '.md'), 0);
   });
 
   it('leaves unscoped rules running everywhere', () => {

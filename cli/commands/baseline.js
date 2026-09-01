@@ -19,15 +19,17 @@ import ora from 'ora';
 import { buildOrchestrator } from '../agents/index.js';
 import { SECRET_PATTERNS, SKIP_DIRS, SKIP_EXTENSIONS, SKIP_FILENAMES, MAX_FILE_SIZE } from '../utils/patterns.js';
 import { isHighEntropyMatch } from '../utils/entropy.js';
+import { findingFingerprint } from '../utils/finding-fingerprint.js';
+import { compareFindingSets, snapshotFinding } from '../utils/finding-delta.js';
 import fg from 'fast-glob';
 
 const BASELINE_FILE = '.ship-safe/baseline.json';
 
 /**
- * Generate a fingerprint for a finding that survives line-number shifts.
- * Uses rule + relative file path + first 40 chars of matched text.
+ * Preserve compatibility with version 1 baselines that stored readable
+ * identities made from the rule, relative path, and matched evidence.
  */
-function fingerprint(finding, rootPath) {
+function legacyFingerprint(finding, rootPath) {
   const relFile = path.relative(rootPath, finding.file || '').replace(/\\/g, '/');
   const matched = (finding.matched || '').slice(0, 40);
   return `${finding.rule}:${relFile}:${matched}`;
@@ -99,16 +101,17 @@ function loadBaseline(rootPath) {
 /**
  * Save baseline to disk.
  */
-function saveBaseline(rootPath, fingerprints, findingCount) {
+function saveBaseline(rootPath, findings) {
   const baselinePath = path.join(rootPath, BASELINE_FILE);
   const dir = path.dirname(baselinePath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
   const baseline = {
-    version: '4.3.0',
+    version: 2,
     createdAt: new Date().toISOString(),
-    fingerprints,
-    findingCount,
+    fingerprints: [...new Set(findings.map(f => findingFingerprint(f, rootPath)))],
+    findingSnapshots: findings.map(f => snapshotFinding(f, rootPath)),
+    findingCount: findings.length,
   };
 
   fs.writeFileSync(baselinePath, JSON.stringify(baseline, null, 2));
@@ -123,7 +126,10 @@ export function filterBaseline(findings, rootPath) {
   if (!baseline) return findings;
 
   const baseSet = new Set(baseline.fingerprints);
-  return findings.filter(f => !baseSet.has(fingerprint(f, rootPath)));
+  return findings.filter(f => (
+    !baseSet.has(findingFingerprint(f, rootPath))
+    && !baseSet.has(legacyFingerprint(f, rootPath))
+  ));
 }
 
 /**
@@ -154,11 +160,27 @@ export async function baselineCommand(targetPath = '.', options = {}) {
     const findings = await fullScan(rootPath);
     spinner.stop();
 
-    const currentFingerprints = new Set(findings.map(f => fingerprint(f, rootPath)));
-    const baseSet = new Set(baseline.fingerprints);
-
-    const newFindings = findings.filter(f => !baseSet.has(fingerprint(f, rootPath)));
-    const resolvedCount = baseline.fingerprints.filter(fp => !currentFingerprints.has(fp)).length;
+    let newFindings;
+    let resolvedCount;
+    let uncertainCount = 0;
+    if (Array.isArray(baseline.findingSnapshots)) {
+      const delta = compareFindingSets(baseline.findingSnapshots, findings, { headRoot: rootPath });
+      const introduced = new Set(delta.introduced.map(entry => entry.finding.fingerprint));
+      newFindings = findings.filter(f => introduced.has(findingFingerprint(f, rootPath)));
+      resolvedCount = delta.counts.resolved;
+      uncertainCount = delta.counts.uncertain;
+    } else {
+      const currentFingerprints = new Set(findings.flatMap(f => [
+        findingFingerprint(f, rootPath),
+        legacyFingerprint(f, rootPath),
+      ]));
+      const baseSet = new Set(baseline.fingerprints);
+      newFindings = findings.filter(f => (
+        !baseSet.has(findingFingerprint(f, rootPath))
+        && !baseSet.has(legacyFingerprint(f, rootPath))
+      ));
+      resolvedCount = baseline.fingerprints.filter(fp => !currentFingerprints.has(fp)).length;
+    }
 
     console.log(chalk.cyan.bold('\n  Baseline Comparison'));
     console.log(chalk.gray(`  Baseline: ${baseline.findingCount} findings (${baseline.createdAt.slice(0, 10)})`));
@@ -170,7 +192,10 @@ export async function baselineCommand(targetPath = '.', options = {}) {
     if (resolvedCount > 0) {
       console.log(chalk.green(`  - ${resolvedCount} resolved finding(s)`));
     }
-    if (newFindings.length === 0 && resolvedCount === 0) {
+    if (uncertainCount > 0) {
+      console.log(chalk.yellow(`  ? ${uncertainCount} uncertain finding match(es)`));
+    }
+    if (newFindings.length === 0 && resolvedCount === 0 && uncertainCount === 0) {
       console.log(chalk.green('  No changes since baseline.'));
     }
     return;
@@ -181,12 +206,11 @@ export async function baselineCommand(targetPath = '.', options = {}) {
   const findings = await fullScan(rootPath);
   spinner.stop();
 
-  const fingerprints = [...new Set(findings.map(f => fingerprint(f, rootPath)))];
-  const baseline = saveBaseline(rootPath, fingerprints, findings.length);
+  const baseline = saveBaseline(rootPath, findings);
 
   console.log(chalk.green.bold('\n  Baseline created'));
   console.log(chalk.gray(`  Findings baselined: ${findings.length}`));
-  console.log(chalk.gray(`  Unique fingerprints: ${fingerprints.length}`));
+  console.log(chalk.gray(`  Unique fingerprints: ${baseline.fingerprints.length}`));
   console.log(chalk.gray(`  Saved to: ${BASELINE_FILE}`));
   console.log();
   console.log(chalk.gray('  Run `ship-safe audit . --baseline` to only see new findings.'));

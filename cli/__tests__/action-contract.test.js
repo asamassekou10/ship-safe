@@ -36,4 +36,13 @@ describe('GitHub Action contract', () => {
     assert.match(ACTION, /GITHUB_EVENT_NAME.*pull_request/);
     assert.match(ACTION, /FLAGS\+=\(--github-inline\)/);
   });
+
+  it('supports sanitized base/head PR comparison and trusts the CLI gate result', () => {
+    assert.match(ACTION, /base-report:/);
+    assert.match(ACTION, /write-baseline-report:/);
+    assert.match(ACTION, /--base-report "\$SHIP_SAFE_BASE_REPORT"/);
+    assert.match(ACTION, /--write-baseline-report "\$SHIP_SAFE_WRITE_BASELINE_REPORT"/);
+    assert.match(ACTION, /PASS=.*\.pass \/\/ false/);
+    assert.match(ACTION, /PR delta/);
+  });
 });

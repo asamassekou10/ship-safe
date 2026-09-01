@@ -38,6 +38,7 @@ import fs from 'fs';
 import path from 'path';
 import { createProvider, autoDetectProvider } from '../providers/llm-provider.js';
 import { redactForLLM } from '../utils/llm-redaction.js';
+import { attachEvidence, createClaim, validateCitations } from '../utils/evidence.js';
 
 // Lazy-import ScanPlaybook to avoid circular dep; only used when rootPath is known
 let _ScanPlaybook = null;
@@ -52,6 +53,18 @@ async function getScanPlaybook() {
 // =============================================================================
 // CONSTANTS
 // =============================================================================
+
+/**
+ * How the analyzer's exploitability labels map onto evidence verdicts.
+ * 'likely' is the ceiling: this pass reads a file, it does not run anything, so
+ * only a reproduction or a traced data-flow path may say 'confirmed'.
+ */
+const EXPLOITABILITY_VERDICT = Object.freeze({
+  confirmed:      'likely',
+  likely:         'likely',
+  unlikely:       'unknown',
+  false_positive: 'refuted',
+});
 
 /** Max file content per finding for standard providers */
 const MAX_FILE_CHARS_DEFAULT = 4000;
@@ -322,6 +335,22 @@ export class DeepAnalyzer {
         } else if (analysis.exploitability === 'confirmed') {
           finding.confidence = 'high';
         }
+
+        // The model's conclusion is a claim like any other, and its citation is
+        // the finding's own location — the only code location this pass is given
+        // and told to reason about. Validating it costs one stat call and keeps
+        // an analysis of a file that has since moved from deciding anything.
+        const claim = createClaim({
+          source: 'analysis',
+          verdict: EXPLOITABILITY_VERDICT[analysis.exploitability] || 'unknown',
+          rationale: analysis.reasoning || '',
+          citations: finding.file && finding.line
+            ? [{ file: finding.file, line: finding.line }]
+            : [],
+          ...(analysis.attackVector ? { attackPath: [analysis.attackVector] } : {}),
+        });
+        validateCitations(claim, { rootPath: context.rootPath || process.cwd() });
+        attachEvidence(finding, claim);
       }
     }
 

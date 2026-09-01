@@ -29,7 +29,10 @@ const PORT        = parseInt(process.env.PORT || '4099', 10);
 const PORT_START  = 4100;
 const PORT_END    = 4250;
 const PORTS_FILE  = path.join(__dirname, 'ports.json');
-const HERMES_IMAGE = process.env.HERMES_IMAGE || 'shipsafe/hermes-agent:latest';
+// Production deployments must provide a registry digest. Keeping this empty
+// makes a missing deployment setting fail closed instead of falling back to a
+// mutable tag such as `latest`.
+const HERMES_IMAGE = process.env.HERMES_IMAGE || '';
 const MEMORY_MB   = parseInt(process.env.CONTAINER_MEMORY_MB || '512', 10);
 const CPU_QUOTA   = process.env.CONTAINER_CPU_QUOTA || '50000'; // 50% of one core
 const deployJobs  = new Map();
@@ -95,7 +98,16 @@ function sanitizeContainerName(name) {
   return name.replace(/[^a-z0-9_-]/g, '-').slice(0, 63);
 }
 
+function assertImmutableImage(image) {
+  if (typeof image !== 'string' || !/^\S+@sha256:[a-f0-9]{64}$/i.test(image)) {
+    throw new Error('Hermes image must use an immutable sha256 digest');
+  }
+  return image;
+}
+
 async function dockerRun({ containerName, port, envVars, agentConfig }) {
+  if (process.env.ALLOW_MUTABLE_HERMES_IMAGE !== '1') assertImmutableImage(HERMES_IMAGE);
+
   const args = [
     'run', '-d',
     '--name', containerName,
@@ -323,7 +335,7 @@ const server = http.createServer(async (req, res) => {
     req.on('data', c => { body += c; });
     req.on('end', async () => {
       try {
-        const agentRes = await fetch(`http://127.0.0.1:${port}/chat`, {
+        const agentRes = await fetch(`http://127.0.0.1:${port}/chat`, { // ship-safe-ignore — bounded loopback container proxy
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body,
@@ -363,6 +375,11 @@ const server = http.createServer(async (req, res) => {
     try { body = await readBody(req); } catch (e) { return send(res, 400, { error: e.message }); }
 
     const image = (body && typeof body.image === 'string') ? body.image : HERMES_IMAGE;
+    try {
+      assertImmutableImage(image);
+    } catch (e) {
+      return send(res, 400, { error: e.message });
+    }
 
     // Pull the new image first
     try {

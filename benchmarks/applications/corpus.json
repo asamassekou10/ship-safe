@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "description": "Real applications, pinned by commit. The false-positive corpus is five libraries and two teaching fixtures; a library has no request handlers, so the investigation layer barely engages with it. These are the shapes users actually scan: HTTP services, an auth-heavy web app, an AI agent. The question here is not how much noise there is but whether the confirmations are right, which only reading them can answer.",
+  "applications": [
+    {
+      "id": "express-realworld",
+      "repo": "gothinkster/node-express-realworld-example-app",
+      "commit": "30b68e1e881462b2f4164ea09ab4c4f5699c7b0b",
+      "language": "typescript",
+      "shape": "Express + Prisma REST API"
+    },
+    {
+      "id": "hackathon-starter",
+      "repo": "sahat/hackathon-starter",
+      "commit": "73faf8c249d050da6d3ec6c7779fd2b6d3d88159",
+      "language": "javascript",
+      "shape": "Express web app, OAuth and many third-party integrations"
+    },
+    {
+      "id": "fastapi-fullstack",
+      "repo": "fastapi/full-stack-fastapi-template",
+      "commit": "486f054cc8d1aead59ec96cc0a16933d06c10e0d",
+      "language": "python",
+      "shape": "FastAPI + SQLModel service with auth"
+    }
+  ]
+}

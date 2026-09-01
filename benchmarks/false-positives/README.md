@@ -173,3 +173,24 @@ you get different numbers on the same commits and the same version, that is a
 bug worth filing.
 
 Machine-readable results: [`results/latest.json`](results/latest.json).
+
+
+## Why this is not in CI
+
+The other two benchmarks gate every pull request. This one does not, deliberately.
+
+It clones seven repositories at pinned commits and scans each of them twice, which
+takes minutes and needs the network. A gate with those properties fails for
+reasons that have nothing to do with the change under review — a rate limit, a
+slow mirror, a repository that moved — and a gate that fails for unrelated
+reasons is one people learn to re-run rather than read.
+
+The deterministic corpus and the verdict benchmark cover regressions in CI
+because they are fast, offline, and hermetic. This one answers a different
+question — what does the tool say about real code it was not written against —
+and that question is worth asking deliberately, before a release, rather than on
+every commit.
+
+Run it with `npm run benchmark:fp`, and `npm run benchmark:fp:write` to update
+`results/latest.json`. Fetch the corpus first with
+`node benchmarks/false-positives/run.mjs --clone`.

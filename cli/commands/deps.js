@@ -27,6 +27,7 @@ import { execSync } from 'child_process';
 import chalk from 'chalk';
 import ora from 'ora';
 import * as output from '../utils/output.js';
+import { fetchSafeUrl } from '../utils/remote-fetch.js';
 
 // =============================================================================
 // MAIN COMMAND
@@ -405,8 +406,9 @@ async function fetchEPSS(cves) {
   }
 
   for (const batch of batches) {
-    const url = `https://api.first.org/data/v1/epss?cve=${batch.join(',')}`; // ship-safe-ignore — hardcoded FIRST.org API endpoint, CVE IDs are from audit results not user input
-    const response = await fetch(url, { // ship-safe-ignore — EPSS API fetch with fixed base URL
+    const endpoint = new URL('https://api.first.org/data/v1/epss');
+    endpoint.searchParams.set('cve', batch.join(','));
+    const response = await fetchSafeUrl(endpoint, {
       headers: { 'Accept': 'application/json' },
       signal: AbortSignal.timeout(10000),
     });

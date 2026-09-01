@@ -296,7 +296,9 @@ export class AgentConfigScanner extends BaseAgent {
 
   _scanAgentConfigFile(filePath) {
     return [
-      ...this.scanFileWithPatterns(filePath, PATTERNS),
+      // These Markdown files are themselves executable agent context. They
+      // must remain fully scanned even though ordinary code rules ignore docs.
+      ...this.scanFileWithPatterns(filePath, PATTERNS, undefined, { scope: 'agent-context' }),
       ...this._checkUnicodeTagSmuggling(filePath),
     ];
   }

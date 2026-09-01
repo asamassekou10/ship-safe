@@ -48,6 +48,8 @@ import { openclawCommand } from '../commands/openclaw.js';
 import { scanSkillCommand } from '../commands/scan-skill.js';
 import { scanMcpCommand } from '../commands/scan-mcp.js';
 import { abomCommand } from '../commands/abom.js';
+import { capabilitiesCommand } from '../commands/capabilities.js';
+import { investigateCommand } from '../commands/investigate.js';
 import { aibomCommand } from '../commands/aibom.js';
 import { updateIntelCommand } from '../commands/update-intel.js';
 import { hooksCommand } from '../commands/hooks.js';
@@ -108,6 +110,7 @@ program
   .option('--json', 'Output results as JSON (useful for CI)')
   .option('--sarif', 'Output results in SARIF format (for GitHub Code Scanning)')
   .option('--include-tests', 'Also scan test files (excluded by default to reduce false positives)')
+  .option('--include-doc-examples', 'Also scan fenced Markdown code examples for code vulnerabilities')
   .option('--no-cache', 'Force full rescan (ignore cached results)')
   .action(scanCommand);
 
@@ -263,6 +266,7 @@ program
   .command('audit [path]')
   .description('Full security audit: secrets + 29 agents + deps + score + deep analysis + remediation plan')
   .option('--include-tests', 'Also scan test, fixture, and example files (excluded by default to reduce false positives)')
+  .option('--include-doc-examples', 'Also scan fenced Markdown code examples for code vulnerabilities')
   .option('--json', 'Output results as JSON')
   .option('--sarif', 'Output results in SARIF format')
   .option('--csv', 'Output results as CSV')
@@ -454,14 +458,19 @@ program
 program
   .command('ci [path]')
   .description('CI/CD pipeline mode: scan, score, exit 1 on failure — optimized for automation')
+  .option('--fail-on-verdict <verdict>', 'Gate on evidence instead of severity: confirmed, likely, or none')
+  .option('--ignore-refuted', 'Do not block on findings the investigation layer refuted')
   .option('--fail-on <severity>', 'Fail on findings at this severity or above: critical (default), high, medium, none')
   .option('--threshold <score>', 'Gate on the composite score instead of severity (overrides --fail-on default)', parseInt)
   .option('--sarif <file>', 'Write SARIF output for GitHub Code Scanning')
   .option('--check-global-agents', 'Also check globally configured agent tooling outside the project (off by default in ci)')
   .option('--include-tests', 'Also scan test, fixture, and example files (excluded by default to reduce false positives)')
+  .option('--include-doc-examples', 'Also scan fenced Markdown code examples for code vulnerabilities')
   .option('--json', 'JSON output')
   .option('--no-deps', 'Skip dependency audit')
   .option('--baseline', 'Only check new findings (not in baseline)')
+  .option('--base-report <file>', 'Compare against a trusted base-branch JSON report and gate only on introduced findings')
+  .option('--write-baseline-report <file>', 'Write a sanitized finding snapshot for later base/head comparison')
   .option('--github-pr', 'Post findings as a GitHub PR comment (requires gh CLI)')
   .option('--github-inline', 'Post critical/high findings as deduplicated inline PR comments (requires gh CLI)')
   .action(ciCommand);
@@ -514,6 +523,33 @@ program
   .description('Analyze an MCP server\'s tool manifest for security issues before connecting')
   .option('--json', 'Output results as JSON')
   .action(scanMcpCommand);
+
+// -----------------------------------------------------------------------------
+// INVESTIGATE COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('investigate [path]')
+  .description('Scan, then investigate each finding: confirmed, likely, unresolved, or refuted — with the evidence')
+  .option('--all', 'Also detail unresolved and refuted findings')
+  .option('--deep', 'Add the LLM analysis pass')
+  .option('--verify', 'Probe leaked keys against their providers (sends the key to that provider)')
+  .option('--include-tests', 'Also investigate test and fixture files')
+  .option('--local', 'Use a local Ollama model for the LLM pass')
+  .option('--model <model>', 'LLM model for the deep pass')
+  .option('--provider <name>', 'LLM provider for the deep pass')
+  .option('--budget <cents>', 'Max spend in cents for the deep pass', parseInt)
+  .option('--json', 'Output findings and evidence as JSON')
+  .action(investigateCommand);
+
+// -----------------------------------------------------------------------------
+// CAPABILITIES COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('capabilities [path]')
+  .description('Map what an AI agent working here can reach, and which combinations are dangerous together')
+  .option('--env', 'Include MCP servers configured on this machine, not just in the repo')
+  .option('--json', 'Output the graph, chains, and findings as JSON')
+  .action(capabilitiesCommand);
 
 // -----------------------------------------------------------------------------
 // ABOM COMMAND
