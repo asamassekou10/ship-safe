@@ -1,0 +1,8 @@
+on: [pull_request]
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: vendor/ai-review@0123456789abcdef0123456789abcdef01234567

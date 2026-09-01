@@ -432,6 +432,39 @@ const NPM_TOKEN_ENV_RE = /\bNPM_TOKEN\b/;
 const PROVENANCE_DISABLED_RE = /--provenance(?:=|\s+)false\b|provenance\s*:\s*false\b/i;
 const PROVENANCE_INTENDED_RE = /--provenance\b|trusted\s+publish(?:ing)?\b/i;
 const ID_TOKEN_WRITE_RE = /id-token\s*:\s*write\b/i;
+const AI_ACTION_SIGNAL_RE =
+  /(?:^|[/_.\s-])(?:ai|agent|llm|openai|anthropic|claude|gemini|copilot|codex|kimi|mistral|bedrock|autofix|review)(?:$|[/_.@\s-])/i;
+const ACTION_USES_RE = /^\s*(?:-\s*)?uses\s*:\s*["']?([^\s"'#]+)["']?/;
+const FULL_COMMIT_SHA_RE = /^[a-f0-9]{40}$/i;
+const BROAD_AI_ACTION_PERMISSION_RE =
+  /permissions\s*:\s*write-all\b|(?:contents|pull-requests|actions)\s*:\s*write\b/i;
+
+function workflowAndJobScopes(lines, lineIndex) {
+  const jobsIndex = lines.findIndex(line => /^\s*jobs\s*:\s*(?:#.*)?$/.test(line));
+  const workflow = jobsIndex >= 0 ? lines.slice(0, jobsIndex).join('\n') : lines.join('\n');
+  if (jobsIndex < 0 || lineIndex <= jobsIndex) return { workflow, job: '' };
+
+  const jobsIndent = lines[jobsIndex].match(/^\s*/)[0].length;
+  let jobStart = jobsIndex + 1;
+  let jobEnd = lines.length;
+
+  for (let index = jobsIndex + 1; index < lines.length; index += 1) {
+    const uncommented = lines[index].replace(/(^|\s)#.*$/, '');
+    if (!uncommented.trim()) continue;
+    const indent = uncommented.match(/^\s*/)[0].length;
+    if (indent <= jobsIndent) break;
+    if (indent === jobsIndent + 2 && /^\s*[\w.-]+\s*:/.test(uncommented)) {
+      if (index <= lineIndex) jobStart = index;
+      else {
+        jobEnd = index;
+        break;
+      }
+    }
+  }
+
+  return { workflow, job: lines.slice(jobStart, jobEnd).join('\n') };
+}
+
 const CLOUD_OIDC_RE = /configure-aws-credentials|azure\/login|google-github-actions\/auth|workload_identity_provider|role-to-assume|azure_credentials|gcp[_-]?credentials/i;
 const OIDC_SUBJECT_RE = /(?:subject|sub(?:ject)?[_-]?condition|StringEquals|StringLike)[^\n]{0,180}\brepo:[^\n]*\b(?:ref|environment|pull_request)\b/i;
 const OIDC_BROAD_SUBJECT_RE = /(?:subject|sub(?:ject)?[_-]?condition|StringEquals|StringLike)[^\n]{0,180}\brepo:[^\n]*\*/i;
@@ -708,6 +741,81 @@ export class CICDScanner extends BaseAgent {
 
     return findings;
   }
+
+  /**
+   * AI review and autofix actions routinely receive repository and PR context.
+   * A mutable action ref lets an upstream change turn that access into code
+   * execution without any change to the consuming repository.
+   */
+  scanUnpinnedAiActions(file) {
+    const rawContent = this.readFile(file);
+    if (!rawContent) return [];
+
+    const lines = rawContent.split('\n');
+    const contentWithoutComments = lines
+      .map(line => line.replace(/(^|\s)#.*$/, ''))
+      .join('\n');
+    const privilegedEvent = PR_TARGET_EVENT_RE.test(contentWithoutComments);
+    const findings = [];
+
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index].replace(/(^|\s)#.*$/, '');
+      const uses = ACTION_USES_RE.exec(line);
+      if (!uses) continue;
+
+      const action = uses[1];
+      if (action.startsWith('./') || action.startsWith('docker://')) continue;
+
+      let stepName = '';
+      for (let previous = index - 1; previous >= 0; previous -= 1) {
+        const candidate = lines[previous].replace(/(^|\s)#.*$/, '');
+        const name = /^\s*-\s*name\s*:\s*["']?(.+?)["']?\s*$/.exec(candidate);
+        if (name) {
+          stepName = name[1];
+          break;
+        }
+        if (/^\s*-\s*(?:uses|run)\s*:/.test(candidate)) break;
+      }
+
+      if (!AI_ACTION_SIGNAL_RE.test(action) && !AI_ACTION_SIGNAL_RE.test(stepName)) continue;
+
+      const at = action.lastIndexOf('@');
+      const ref = at >= 0 ? action.slice(at + 1) : '';
+      if (FULL_COMMIT_SHA_RE.test(ref)) continue;
+
+      const scopes = workflowAndJobScopes(lines, index);
+      const broadPermissions =
+        BROAD_AI_ACTION_PERMISSION_RE.test(scopes.workflow) ||
+        BROAD_AI_ACTION_PERMISSION_RE.test(scopes.job);
+      const elevated = broadPermissions || privilegedEvent;
+      const riskContext = [
+        broadPermissions ? 'broad write permissions' : null,
+        privilegedEvent ? '`pull_request_target`' : null,
+      ].filter(Boolean).join(' and ');
+
+      findings.push(createFinding({
+        file,
+        line: index + 1,
+        severity: elevated ? 'critical' : 'high',
+        category: this.category,
+        rule: 'CICD_AI_ACTION_UNPINNED',
+        title: 'CI/CD: AI action uses an unpinned reference',
+        description:
+          `The AI/agent workflow step uses \`${action}\`, which is not pinned to a full commit SHA. ` +
+          'These actions can read prompts, repository content, and pull-request diffs; an upstream ref change can therefore alter code that runs inside this workflow without a reviewed repository change.' +
+          (riskContext ? ` The exposure is critical because the workflow also has ${riskContext}.` : ''),
+        matched: action.slice(0, 180),
+        confidence: 'high',
+        cwe: 'CWE-829',
+        owasp: 'CICD-SEC-8',
+        fix:
+          'Pin the action to a reviewed 40-character commit SHA. Keep `contents` read-only, grant write permissions only to the job that needs them, and avoid running AI actions with `pull_request_target` on untrusted input.',
+      }));
+    }
+
+    return findings;
+  }
+
   async analyze(context) {
     const { rootPath, files } = context;
 
@@ -737,6 +845,7 @@ export class CICDScanner extends BaseAgent {
       findings = findings.concat(this.scanIngestionChain(file, rootPath, self));
       findings = findings.concat(this.scanPrivilegedHandoffs(file));
       findings = findings.concat(this.scanNpmPublishProvenance(file));
+      findings = findings.concat(this.scanUnpinnedAiActions(file));
       findings = findings.concat(this.scanCloudOidcTrust(file));
     }
     return findings;
