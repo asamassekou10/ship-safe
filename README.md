@@ -316,7 +316,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: asamassekou10/ship-safe@v9.7.4
+      - uses: asamassekou10/ship-safe@v9.8.0
         with:
           fail-on: high
           inline: true

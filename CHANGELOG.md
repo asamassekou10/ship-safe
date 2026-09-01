@@ -8,6 +8,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [9.8.0] - 2026-09-01
+
 ### Added
 - **Evidence schema on every finding** — each investigation pass now records a
   claim (source, verdict, rationale, citations) instead of writing its own
@@ -107,6 +109,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   and gated in CI; `--llm` runs the model pass ungated.
 
 ### Fixed
+- **Scans of a repository checked out under a directory named `test`,
+  `fixtures`, `examples`, or `benchmarks`** — test and example exclusions
+  matched the absolute path, so a project at `~/fixtures/my-api` had every file
+  skipped. The same rule silenced the project's own false-positive harness: a
+  pinned checkout of express reported 1 finding scanned in place and 20 scanned
+  anywhere else. These patterns describe a file's role within a project and are
+  now matched against the path relative to the scan root.
+- **Scores that reported 100/100 while holding findings** — code scope was
+  inferred from the absolute path too, so findings in such a repository were
+  classified as test code and excluded from posture. A deliberately vulnerable
+  application scanned in place reported "Findings: 0 | Observed: 73" and passed
+  a gate. Scope is now resolved once, centrally, against the root being scanned.
+- **Findings confirmed against comments** — the data-flow tracer traced prose. A
+  doc comment containing an example produced three confirmed critical findings
+  against this project's own repository. The tracer skips comments and
+  docstrings, and rules about code that matched one are refuted outright.
+- **Traces seeded from the name being assigned to** — seeding took identifiers
+  from the whole line, including the assignment target. Two consequences, in
+  opposite directions. An assignment sink such as `element.innerHTML = safe`
+  could never be shown safe, because refutation requires every input to resolve
+  and the target never does. And a variable reassigned later in a file was
+  traced back to its own previous value: in hermes-agent, `signed_content = ...`
+  at one line was confirmed on the strength of a different assignment to the
+  same name seventy lines earlier, which that line overwrites. Seeds now come
+  from the right of an assignment.
 - **False refutation of live code after a commented-out fix** — the verifier's
   dead-code check read a `throw` inside a `/* */` block as real control flow and
   marked the live code below it unreachable, refuting a genuinely exploitable

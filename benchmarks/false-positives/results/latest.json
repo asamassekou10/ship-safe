@@ -1,6 +1,6 @@
 {
   "tool": "ship-safe",
-  "version": "9.7.4",
+  "version": "9.8.0",
   "methodology": "Findings reported by `ship-safe ci --no-deps` against pinned checkouts, plus what `ship-safe investigate` concluded about them. Clean corpus: mature projects with no known active vulnerabilities, where every finding is triage a user inherits. Vulnerable corpus: deliberately insecure applications, present so a reduction in noise cannot be mistaken for lost detection. Counts are a proxy for a false-positive rate, not a verified one.",
   "clean": [
     {
@@ -77,9 +77,9 @@
       "score": 19.9,
       "grade": "F",
       "verdicts": {
-        "confirmed": 4,
+        "confirmed": 3,
         "likely": 81,
-        "unknown": 370,
+        "unknown": 372,
         "refuted": 244
       }
     }
@@ -108,8 +108,8 @@
       "high": 55,
       "verdicts": {
         "confirmed": 0,
-        "likely": 0,
-        "unknown": 55,
+        "likely": 4,
+        "unknown": 51,
         "refuted": 1
       }
     }
@@ -120,7 +120,7 @@
     "cleanCriticalFindings": 100,
     "vulnerableProjects": 2,
     "vulnerableFindings": 144,
-    "cleanConfirmed": 4,
+    "cleanConfirmed": 3,
     "cleanRefuted": 259,
     "vulnerableConfirmed": 7
   }
