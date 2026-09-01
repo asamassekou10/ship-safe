@@ -200,16 +200,105 @@ describe('absences that are local to a handler', () => {
     assert.equal(investigate('AGENT_TOOL_CALL_REPLAY_MISSING_ASSISTANT', [file], { file, line: 2 }).claim.verdict, 'refuted');
   });
 
-  it('leaves a rule alone when a project-wide search would contradict its own claim', () => {
-    // AGENT_NO_COST_LIMIT says the file sets no ceiling anywhere in it.
-    // max_tokens is a per-call argument, so one in another module refutes
-    // nothing -- and registering it refuted 25 findings against a single line.
-    const caller = write('runner.py', ['def run(client):', '    return client.messages.create(model="x")']);
-    const other = write('batch.py', ['def batch(client):', '    return client.messages.create(model="x", max_tokens=100)']);
+  it('is still not refuted by an unrelated module that sets the control', () => {
+    // The property the earlier version of this rule got wrong: max_tokens is a
+    // per-call argument, so one in a batch runner this file never calls says
+    // nothing about it. Registered against the whole project it refuted
+    // twenty-five findings against a single line.
+    const caller = write('runner.py', [
+      'def run(client):',
+      '    return client.messages.create(model="x")',
+    ]);
+    const unrelated = write('batch.py', [
+      'def batch(client):',
+      '    return client.messages.create(model="x", max_tokens=100)',
+    ]);
 
-    assert.equal(investigate('AGENT_NO_COST_LIMIT', [caller, other], { file: caller, line: 2 }).claim, null);
-    assert.equal(isAbsenceRule('AGENT_NO_COST_LIMIT'), false);
-    assert.equal(isAbsenceRule('AGENT_NO_AUDIT_LOG'), false);
+    const { claim } = investigate('AGENT_NO_COST_LIMIT', [caller, unrelated], { file: caller, line: 2 });
+    assert.equal(claim.verdict, 'likely', 'a module this file never calls is not evidence about it');
+  });
+
+  it('refutes when a wrapper the file calls sets the control', () => {
+    const caller = write('runner.py', [
+      'from llm import complete',
+      '',
+      'def run(prompt):',
+      '    return complete(prompt)',
+      '',
+      'def other(client):',
+      '    return client.messages.create(model="x")',
+    ]);
+    const wrapper = write('llm.py', [
+      'def complete(prompt):',
+      '    return client.messages.create(model="x", prompt=prompt, max_tokens=512)',
+    ]);
+
+    const { claim } = investigate('AGENT_NO_COST_LIMIT', [caller, wrapper], { file: caller, line: 7 });
+    assert.equal(claim.verdict, 'refuted');
+    assert.match(claim.rationale, /is set in complete, which this file calls/);
+    assert.equal(claim.citations[0].line, 2, 'cites the line in the wrapper that sets it');
+  });
+
+  it('refutes when the control is in the file itself', () => {
+    const file = write('direct.py', [
+      'def run(client):',
+      '    return client.messages.create(model="x", max_tokens=256)',
+    ]);
+    assert.equal(investigate('AGENT_NO_COST_LIMIT', [file], { file, line: 2 }).claim.verdict, 'refuted');
+  });
+
+  it('never refutes without pointing at the control it found', () => {
+    // The first version re-derived the rule's own precondition with a narrower
+    // pattern and refuted when the two disagreed. That is not evidence about
+    // the control; it is this pass overruling the detector on the detector's
+    // own question, and it refuted twenty-four findings with no citation at all.
+    const file = write('plain.py', ['def add(a, b):', '    return a + b']);
+    const { claim } = investigate('AGENT_NO_COST_LIMIT', [file], { file, line: 2 });
+
+    assert.equal(claim.verdict, 'likely', 'finding nothing is not the same as finding it safe');
+    assert.ok(claim.citations.length > 0 || claim.verdict !== 'refuted');
+  });
+
+  it('cites a real line on every refutation it makes', () => {
+    const caller = write('runner.py', ['from llm import complete', '', 'def run(p):', '    return complete(p)']);
+    const wrapper = write('llm.py', ['def complete(prompt):', '    return client.create(prompt=prompt, max_tokens=512)']);
+    const direct = write('direct.py', ['def run(client):', '    return client.create(model="x", max_tokens=256)']);
+
+    for (const file of [caller, direct]) {
+      const { claim } = investigate('AGENT_NO_COST_LIMIT', [caller, wrapper, direct], { file, line: 2 });
+      assert.equal(claim.verdict, 'refuted');
+      assert.ok(claim.citations.length > 0, `${file} refuted with no citation`);
+    }
+  });
+
+  it('follows a call for audit logging too', () => {
+    const caller = write('dispatch.js', [
+      "import { record } from './audit.js';",
+      'export function dispatch(tool) {',
+      '  record(tool);',
+      '  return tool.run();',
+      '}',
+    ]);
+    const wrapper = write('audit.js', [
+      'export function record(tool) {',
+      '  logger.info("tool dispatched", { tool });',
+      '}',
+    ]);
+
+    const { claim } = investigate('AGENT_NO_AUDIT_LOG', [caller, wrapper], { file: caller, line: 3 });
+    assert.equal(claim.verdict, 'refuted');
+    assert.match(claim.rationale, /which this file calls/);
+  });
+
+  it('stops at one hop rather than chasing a chain', () => {
+    const caller = write('a.js', ["import { b } from './b.js';", 'export function run() { return b(); }']);
+    const middle = write('b.js', ["import { c } from './c.js';", 'export function b() { return c(); }']);
+    const deep = write('c.js', ['export function c() { return client.messages.create({ max_tokens: 10 }); }']);
+    const app = write('app.js', ['export function go(client) { return client.messages.create({ model: "x" }); }']);
+
+    const { claim } = investigate('AGENT_NO_COST_LIMIT', [caller, middle, deep, app], { file: app, line: 1 });
+    assert.equal(claim.verdict, 'likely', 'app.js calls nothing that sets it; two hops away is out of reach');
+    assert.match(claim.rationale, /further down the call chain than this pass follows/);
   });
 
   it('answers without a project file list, because the question is local', () => {
