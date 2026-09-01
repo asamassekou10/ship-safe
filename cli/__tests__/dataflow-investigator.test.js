@@ -81,6 +81,49 @@ describe('tracing to an untrusted source', () => {
   });
 });
 
+describe('sources the operator already controls', () => {
+  // Flask's own `flask shell` reads PYTHONSTARTUP and evals it, exactly as the
+  // CPython REPL documents. Confirming that against a project with no known
+  // vulnerabilities is the kind of claim that costs a reader their trust in
+  // every other confirmation.
+  it('stops at likely for a value read from the environment', () => {
+    const file = source('startup.py', [
+      'import os',
+      '',
+      'def shell(ctx):',
+      '    startup = os.environ.get("PYTHONSTARTUP")',
+      '    eval(compile(open(startup).read(), startup, "exec"), ctx)',
+    ]);
+
+    const { claim } = trace(file, 5, { rule: 'CODE_INJECTION_EVAL_GENERIC' });
+    assert.equal(claim.verdict, 'likely', 'the flow is real; the threat model is not');
+    assert.match(claim.rationale, /already runs this process/);
+  });
+
+  it('stops at likely for argv, in either language', () => {
+    const js = source('cli.js', [
+      'export function run(db) {',
+      '  const name = process.argv[2];',
+      '  return db.raw(`SELECT * FROM t WHERE n = ${name}`);',
+      '}',
+    ]);
+    assert.equal(trace(js, 3).claim.verdict, 'likely');
+  });
+
+  it('still confirms a request-sourced value in the same file', () => {
+    const file = source('mixed.py', [
+      'import os',
+      'from flask import request',
+      '',
+      'def handler(db):',
+      '    home = os.environ.get("HOME")',
+      '    name = request.args.get("name")',
+      '    return db.execute(f"SELECT * FROM t WHERE n = {name}")',
+    ]);
+    assert.equal(trace(file, 7).claim.verdict, 'confirmed', 'a remote caller controls this one');
+  });
+});
+
 describe('refuting a traced path', () => {
   it('refutes when a sanitizer produced the value', () => {
     const file = source('sanitized.js', [

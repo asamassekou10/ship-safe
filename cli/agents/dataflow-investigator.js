@@ -67,13 +67,26 @@ export const LANGUAGES = {
     comment: /^\s*(?:\/\/|\/\*|\*)/,
     scope: 'braces',
 
+    /**
+     * A source carries a ceiling when whoever controls it already has more
+     * authority than the finding would grant. The environment and the command
+     * line belong to the operator running the process: an attacker who can set
+     * PYTHONSTARTUP can already run code, so calling the flow "confirmed"
+     * describes a threat model in which the finding is moot.
+     *
+     * Flask's own `flask shell` reads PYTHONSTARTUP and evals it, exactly as
+     * the CPython REPL documents. Confirming that against a project with no
+     * known vulnerabilities is the kind of claim that costs a reader their
+     * trust in every other confirmation.
+     */
     sources: [
       { re: /\breq(?:uest)?\.(?:body|query|params|headers|cookies|url|originalUrl)\b/, what: 'the HTTP request' },
       { re: /\bctx\.(?:request|query|params|body|headers)\b/,                          what: 'the HTTP request' },
       { re: /\bevent\.(?:body|queryStringParameters|pathParameters|headers)\b/,        what: 'the invocation event' },
       { re: /\b(?:searchParams|URLSearchParams)\b/,                                    what: 'the URL query string' },
       { re: /\bformData\b/,                                                            what: 'submitted form data' },
-      { re: /\bprocess\.argv\b/,                                                       what: 'the command line' },
+      { re: /\bprocess\.argv\b/,          what: 'the command line',  ceiling: 'likely' },
+      { re: /\bprocess\.env\b/,           what: 'the environment',   ceiling: 'likely' },
       { re: /\bawait\s+(?:req|request)\.(?:json|text|formData)\s*\(/,                  what: 'the HTTP request body' },
       { re: /\b(?:completion|response|message|choice)s?\.(?:content|text|message|output)\b/, what: 'model output' },
       { re: /\bwindow\.location\b|\bdocument\.(?:URL|referrer|cookie)\b/,              what: 'the browser environment' },
@@ -112,9 +125,9 @@ export const LANGUAGES = {
     sources: [
       { re: /\brequest\.(?:args|form|json|data|values|files|cookies|headers|get_json)\b/, what: 'the Flask request' },
       { re: /\brequest\.(?:GET|POST|FILES|COOKIES|META|body)\b/,                          what: 'the Django request' },
-      { re: /\bsys\.argv\b/,                                                             what: 'the command line' },
-      { re: /\b(?:input|raw_input)\s*\(/,                                                 what: 'standard input' },
-      { re: /\bos\.environ(?:\.get)?\b/,                                                  what: 'the environment' },
+      { re: /\bsys\.argv\b/,              what: 'the command line', ceiling: 'likely' },
+      { re: /\b(?:input|raw_input)\s*\(/,  what: 'standard input',   ceiling: 'likely' },
+      { re: /\bos\.environ(?:\.get)?\b/,   what: 'the environment',  ceiling: 'likely' },
       { re: /\b(?:completion|response|message|choice)s?\.(?:content|text|message|output)\b/, what: 'model output' },
       { re: /\bawait\s+request\.(?:json|body|form)\s*\(/,                                what: 'the HTTP request body' },
     ],
@@ -266,8 +279,8 @@ export class DataflowInvestigator {
     const direct = matchAny(lang.sources, sinkLine);
     if (direct) {
       return {
-        verdict: 'confirmed',
-        rationale: `The value passed to the sink comes directly from ${direct.what}, with no intervening assignment to validate it.`,
+        verdict: direct.ceiling || 'confirmed',
+        rationale: `The value passed to the sink comes directly from ${direct.what}, with no intervening assignment to validate it.${ceilingNote(direct)}`,
         hops,
       };
     }
@@ -279,7 +292,7 @@ export class DataflowInvestigator {
 
     // One tainted input is enough to confirm: the sink receives a value the
     // caller shaped, whatever else it also receives.
-    const tainted = traces.find((t) => t && t.verdict === 'confirmed');
+    const tainted = traces.find((t) => t && (t.verdict === 'confirmed' || t.verdict === 'likely'));
     if (tainted) return tainted;
 
     // Refutation is the opposite — it requires *every* value reaching the sink
@@ -331,8 +344,8 @@ export class DataflowInvestigator {
       const source = matchAny(lang.sources, rhs);
       if (source) {
         return {
-          verdict: 'confirmed',
-          rationale: `${name} is assigned from ${source.what} and reaches the sink without validation on that path.`,
+          verdict: source.ceiling || 'confirmed',
+          rationale: `${name} is assigned from ${source.what} and reaches the sink without validation on that path.${ceilingNote(source)}`,
           hops: path_,
         };
       }
@@ -416,8 +429,8 @@ export class DataflowInvestigator {
       const source = matchAny(lang.sources, argument);
       if (source) {
         verdicts.push({
-          verdict: 'confirmed',
-          rationale: `${name} is the ${ordinal(index + 1)} argument to ${enclosing.name}, passed from ${source.what} at the call site, and reaches the sink without validation.`,
+          verdict: source.ceiling || 'confirmed',
+          rationale: `${name} is the ${ordinal(index + 1)} argument to ${enclosing.name}, passed from ${source.what} at the call site, and reaches the sink without validation.${ceilingNote(source)}`,
           hops: [...hops, hop],
         });
         continue;
@@ -436,7 +449,7 @@ export class DataflowInvestigator {
 
     // Same rule as a sink with several inputs: one tainted caller is enough to
     // confirm, and refutation requires every call site to be safe.
-    const tainted = verdicts.find((v) => v.verdict === 'confirmed');
+    const tainted = verdicts.find((v) => v.verdict === 'confirmed' || v.verdict === 'likely');
     if (tainted) return tainted;
     if (verdicts.every((v) => v.verdict === 'refuted')) return verdicts[0];
     return null;
@@ -463,6 +476,13 @@ export class DataflowInvestigator {
 // =============================================================================
 
 /** Merge hop lists from several seeds, keeping each line once and in order. */
+/** Say why a traced flow stops short of confirmed. */
+function ceilingNote(source) {
+  return source.ceiling
+    ? ' Whoever controls that already runs this process, so the flow is real but the finding is not reachable by a remote caller.'
+    : '';
+}
+
 function dedupeHops(hops) {
   const seen = new Set();
   return hops
