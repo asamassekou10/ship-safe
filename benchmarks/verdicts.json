@@ -71,9 +71,9 @@
     }
   },
   "gate": {
-    "comment": "Ratchets. falseRefutations and unlabeled findings are absolute failures; the other two are the current measured values and may only be improved. Raising minSettledRate or lowering maxNoiseStanding is the deliberate act of banking a gain \u2014 0.16 with the heuristic pass alone, 0.40 with data-flow tracing, 0.4375 across a function boundary, 0.47 once absence rules were decided by search, 0.50 once the tracer learned Python.",
+    "comment": "Ratchets. falseRefutations and unlabeled findings are absolute failures; the other two are the current measured values and may only be improved. Raising minSettledRate or lowering maxNoiseStanding is the deliberate act of banking a gain \u2014 0.16 with the heuristic pass alone, 0.40 with data-flow tracing, 0.4375 across a function boundary, 0.47 with absence rules, 0.50 with Python, 0.55 as the absence registry grew.",
     "maxFalseRefutations": 0,
-    "minSettledRate": 0.5,
+    "minSettledRate": 0.55,
     "maxNoiseStanding": 3
   },
   "flowDescription": "Paired fixtures with an actual data path, which the one-line detection fixtures do not have. Each pair holds the same sink reached by a value an attacker controls and by one they do not, so a pass that traces the value is rewarded and a pass that pattern-matches the neighbourhood is not.",

@@ -57,6 +57,19 @@ const FRAMEWORK_CONSUMER = /(?:require\s*\(\s*['"`]|from\s+['"`])(?:express|fast
  * it was carried out, and refuting a finding on an unused import would be
  * exactly the silent-loss error this layer exists to prevent.
  */
+/**
+ * Two rules are deliberately absent from this table: AGENT_NO_COST_LIMIT and
+ * AGENT_NO_AUDIT_LOG. Both say, in their own text, that the file issuing
+ * completions or dispatching tools sets no ceiling or writes no log *anywhere
+ * in it*. A project-wide search contradicts the claim rather than testing it:
+ * max_tokens is a per-call argument and does not propagate, and a logger in
+ * another module does not record this dispatcher's calls.
+ *
+ * Registering them refuted 25 and 7 findings against a single unrelated line in
+ * one batch runner. Answering a question wrongly is worse than leaving it open,
+ * so they stay unanswered until there is a pass that can follow a call into a
+ * shared wrapper and see what it sets.
+ */
 const ABSENCE_RULES = {
   API_NO_SECURITY_HEADERS: {
     what: 'security headers middleware',
@@ -131,6 +144,91 @@ const ABSENCE_RULES = {
       /\b(?:validate|assertValid|sanitize|check)\w*\s*\(/i,
       /\bthrow\s+new\s+\w*(?:Validation|BadRequest|Invalid)\w*Error\b/,
       /\b(?:Array\.isArray|typeof\s+\w+\s*===)/,
+    ],
+    precondition: [/./],
+  },
+
+  /**
+   * Local. The rule is about one dispatch site: whether the assistant message
+   * that requested a tool call is preserved beside the tool result appended
+   * next to it. Another file getting this right says nothing about this one.
+   */
+  AGENT_TOOL_CALL_REPLAY_MISSING_ASSISTANT: {
+    what: 'the assistant tool-call message beside the tool result',
+    scope: 'local',
+    control: [
+      /\btool_calls\b/,
+      /\btool_call_id\b/,
+      /\brole\s*[:=]\s*['"`]assistant['"`]/,
+    ],
+    precondition: [/./],
+  },
+
+  /** Local: validation belongs beside the query it guards. */
+  LLM_RAG_NO_VALIDATION: {
+    what: 'validation before the query reaches the retriever',
+    scope: 'local',
+    control: [
+      /\b(?:validate|sanitize|check|clean)\w*\s*\(/i,
+      /\blen\s*\(|\.length\s*[<>]=?/,
+      /\b(?:z|schema|joi|yup|pydantic)\b/i,
+      /\bif\s*\(?[^)\n]*\)?\s*:?\s*\{?\s*(?:return|raise|throw)\b/,
+    ],
+    precondition: [/./],
+  },
+
+  /**
+   * Local. Whether *this* workflow verifies what it downloads is not settled by
+   * a checksum in some other workflow.
+   */
+  CICD_NO_ARTIFACT_VERIFY: {
+    what: 'integrity verification of the artifact',
+    scope: 'local',
+    control: [
+      /\b(?:sha256sum|sha512sum|md5sum|shasum|cosign|slsa|attest\w*)\b/i,
+      /\bchecksum\b|\bdigest\b|\bintegrity\b/i,
+      /\bgpg\s+--verify\b|\bsigstore\b/i,
+    ],
+    precondition: [/./],
+  },
+
+  /** Project-wide, same reasoning as HTTP rate limiting. */
+  LLM_NO_RATE_LIMIT: {
+    what: 'rate limiting on the AI endpoint',
+    control: [
+      /\brateLimit\w*\s*\(|\bRateLimiter\w*\s*\(|\bslowDown\s*\(/,
+      /\blimiter\.(?:consume|check|removeTokens|hit)\s*\(/,
+      /\b(?:app|server|router|fastify)\.(?:use|register)\s*\(\s*\w*(?:rate)?[lL]imit/,
+      /\b(?:throttle|backoff|semaphore)\w*\s*\(/i,
+    ],
+    precondition: [/\b(?:completions?|messages|chat)\.create\s*\(|\bgenerate_content\s*\(/i],
+  },
+
+  /** Local: the confirmation gate sits at the dispatch it gates. */
+  AGENT_TOOL_NO_CONFIRMATION: {
+    what: 'a confirmation step before the tool runs',
+    scope: 'local',
+    control: [
+      /\b(?:confirm|approve|prompt|ask|consent|require_?approval)\w*\s*\(/i,
+      /\b(?:requiresApproval|needsConfirmation|human_?in_?the_?loop|awaiting_?approval)\b/i,
+      /\bif\s*\(?[^)\n]*\b(?:approved|confirmed|allowed)\b/i,
+    ],
+    precondition: [/./],
+  },
+
+  /**
+   * Local. Filtering retrieved chunks is done where they are assembled into the
+   * prompt, and the data-flow tracer must not answer this one: it would confirm
+   * that retrieved text reaches the prompt, which is the rule's own premise
+   * rather than evidence for it.
+   */
+  RAG_NO_RETRIEVAL_FILTER: {
+    what: 'filtering of retrieved chunks before they enter the prompt',
+    scope: 'local',
+    control: [
+      /\b(?:filter|sanitize|scrub|strip|clean|redact)\w*\s*\(/i,
+      /\b(?:allowlist|denylist|blocklist)\b/i,
+      /\bdetect_?prompt_?injection\s*\(/i,
     ],
     precondition: [/./],
   },
@@ -237,7 +335,11 @@ export class AbsenceInvestigator {
     }
     if (!lines) return;
 
-    const start = Math.max(0, finding.line - 1);
+    // Start below the finding. The rule fired because of what is on that line,
+    // so accepting it as the control refutes the finding with its own evidence:
+    // AGENT_TOOL_CALL_REPLAY matched `tool_calls` on the very line whose
+    // handling of tool_calls it was objecting to.
+    const start = finding.line;
     const end = Math.min(lines.length, start + LOCAL_WINDOW);
 
     for (let i = start; i < end; i++) {
@@ -248,7 +350,7 @@ export class AbsenceInvestigator {
       attachEvidence(finding, createClaim({
         source: 'presence',
         verdict: 'refuted',
-        rationale: `${capitalize(spec.what)} is present: the value is checked ${i - start === 0 ? 'on this line' : `${i - start} line(s) below`} before it is used.`,
+        rationale: `${capitalize(spec.what)} is present: found ${i - finding.line + 1} line(s) below the finding.`,
         citations: [{ file: finding.file, line: i + 1, excerpt: line.trim().slice(0, 120) }],
       }));
       return;
@@ -257,7 +359,7 @@ export class AbsenceInvestigator {
     attachEvidence(finding, createClaim({
       source: 'presence',
       verdict: 'likely',
-      rationale: `No ${spec.what} was found in the ${LOCAL_WINDOW} lines that follow, where a guard clause would be.`,
+      rationale: `No ${spec.what} was found in the ${LOCAL_WINDOW} lines that follow, where it would be.`,
       citations: [{ file: finding.file, line: finding.line }],
     }));
   }

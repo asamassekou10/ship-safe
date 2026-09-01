@@ -12,8 +12,8 @@
   ],
   "metrics": {
     "truePositives": 18,
-    "settled": 9,
-    "settledRate": 0.5,
+    "settled": 10,
+    "settledRate": 0.5555555555555556,
     "falseRefutations": 0,
     "noiseStanding": 3,
     "noiseRefuted": 8,
@@ -167,12 +167,13 @@
       "agent": "AgenticSecurityAgent",
       "expectedRule": "AGENT_TOOL_NO_CONFIRMATION",
       "detected": true,
-      "targetVerdict": "unknown",
+      "targetVerdict": "likely",
       "decidedBy": [
-        "heuristic"
+        "presence"
       ],
       "claimSources": [
-        "heuristic"
+        "heuristic",
+        "presence"
       ],
       "safeControlNoise": []
     },

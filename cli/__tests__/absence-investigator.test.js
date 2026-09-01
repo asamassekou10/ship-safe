@@ -173,6 +173,45 @@ describe('absences that are local to a handler', () => {
     assert.equal(investigate('API_NO_VALIDATION', [file], { file, line: 4 }).claim.verdict, 'likely');
   });
 
+  it('does not refute a finding with the line the finding is on', () => {
+    // AGENT_TOOL_CALL_REPLAY matched `tool_calls` on the very line whose
+    // handling of tool_calls it objected to, refuting itself 30 times on
+    // hermes-agent.
+    const file = write('replay.js', [
+      'export function record(history, result) {',
+      '  history.push({ role: "tool", tool_calls: result.calls });',
+      '  return history;',
+      '}',
+    ]);
+
+    const { claim } = investigate('AGENT_TOOL_CALL_REPLAY_MISSING_ASSISTANT', [file], { file, line: 2 });
+    assert.equal(claim.verdict, 'likely', 'the rule fired because of that line; it cannot also be the answer');
+  });
+
+  it('accepts a control on a later line', () => {
+    const file = write('replay-ok.js', [
+      'export function record(history, assistantMsg, result) {',
+      '  history.push({ role: "tool", content: result.text });',
+      '  history.push({ role: "assistant", tool_calls: assistantMsg.tool_calls });',
+      '  return history;',
+      '}',
+    ]);
+
+    assert.equal(investigate('AGENT_TOOL_CALL_REPLAY_MISSING_ASSISTANT', [file], { file, line: 2 }).claim.verdict, 'refuted');
+  });
+
+  it('leaves a rule alone when a project-wide search would contradict its own claim', () => {
+    // AGENT_NO_COST_LIMIT says the file sets no ceiling anywhere in it.
+    // max_tokens is a per-call argument, so one in another module refutes
+    // nothing -- and registering it refuted 25 findings against a single line.
+    const caller = write('runner.py', ['def run(client):', '    return client.messages.create(model="x")']);
+    const other = write('batch.py', ['def batch(client):', '    return client.messages.create(model="x", max_tokens=100)']);
+
+    assert.equal(investigate('AGENT_NO_COST_LIMIT', [caller, other], { file: caller, line: 2 }).claim, null);
+    assert.equal(isAbsenceRule('AGENT_NO_COST_LIMIT'), false);
+    assert.equal(isAbsenceRule('AGENT_NO_AUDIT_LOG'), false);
+  });
+
   it('answers without a project file list, because the question is local', () => {
     const file = handler(['  if (!chatId) return res.status(400).end();']);
     assert.equal(investigate('API_NO_VALIDATION', [], { file, line: 4 }).claim.verdict, 'refuted');
