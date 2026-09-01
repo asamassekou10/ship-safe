@@ -11,6 +11,8 @@
     "test": "node --test cli/__tests__/*.test.js",
     "benchmark:corpus": "node benchmarks/run.mjs",
     "benchmark:corpus:write": "node benchmarks/run.mjs --write",
+    "benchmark:fp": "node benchmarks/false-positives/run.mjs",
+    "benchmark:fp:write": "node benchmarks/false-positives/run.mjs --write",
     "lint": "eslint cli/",
     "lint:fix": "eslint cli/ --fix",
     "ship-safe": "node cli/bin/ship-safe.js",

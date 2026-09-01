@@ -92,8 +92,29 @@ const clean = corpus.clean.map((entry) => {
   };
 });
 
+/**
+ * Rules that must still fire on a deliberately vulnerable application.
+ *
+ * Counting findings measures noise, and a change that quietly stops detecting
+ * something looks exactly like a change that reduced it. That is how a guard
+ * added to cut false positives on XSS_DOCUMENT_WRITE took the true positives
+ * with it, in every page with an inline script, while every number here moved
+ * in the direction that reads as an improvement.
+ *
+ * A floor is not a recall measurement. It is a small set of things known to be
+ * present, whose disappearance is always a regression and never a win.
+ */
+function checkFloor(entry, result) {
+  const required = entry.mustDetect || [];
+  if (!required.length) return { required: [], missing: [] };
+
+  const found = new Set((result.findings || []).map((f) => f.rule));
+  return { required, missing: required.filter((rule) => !found.has(rule)) };
+}
+
 const vulnerable = corpus.vulnerable.map((entry) => {
   const r = scan(path.join(srcDir, entry.id));
+  const floor = checkFloor(entry, r);
   return {
     id: entry.id,
     repo: entry.repo,
@@ -101,6 +122,8 @@ const vulnerable = corpus.vulnerable.map((entry) => {
     findings: r.totalFindings,
     critical: r.critical,
     high: r.high,
+    mustDetect: floor.required,
+    missingFromFloor: floor.missing,
   };
 });
 
@@ -131,3 +154,14 @@ if (write) {
 }
 
 process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+
+// A missing floor rule is a detection regression. It is the only thing in this
+// harness that fails the run: every other number here is descriptive, and this
+// one is a fact about the corpus that stopped being true.
+const breached = vulnerable.filter((entry) => entry.missingFromFloor.length > 0);
+for (const entry of breached) {
+  process.stderr.write(
+    `detection floor: ${entry.id} no longer reports ${entry.missingFromFloor.join(', ')}\n`,
+  );
+}
+if (breached.length > 0) process.exitCode = 1;

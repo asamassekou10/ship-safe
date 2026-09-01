@@ -97,6 +97,14 @@
       "expectedRule": "CLICKFIX_PASTE_RUN",
       "vulnerable": "vulnerable/clickfix.txt",
       "safe": "safe/clickfix.txt"
+    },
+    {
+      "id": "embedded-script-xss",
+      "category": "XSS",
+      "agent": "InjectionTester",
+      "expectedRule": "XSS_DOCUMENT_WRITE",
+      "vulnerable": "vulnerable/embedded-script-xss.php",
+      "safe": "safe/embedded-script-xss.php"
     }
   ]
 }
