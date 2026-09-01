@@ -360,6 +360,12 @@ source — including an AI agent — can write the comment too, so the highest
 severities do not honor it. Every suppression is counted, so a scan that
 silenced findings never reads like one that had none.
 
+Ordinary code rules do not grade Markdown prose or fenced code examples as
+deployed source. Secrets are still scanned everywhere, and agent-readable
+files such as `AGENTS.md` and `CLAUDE.md` keep their dedicated prompt-injection
+and trust-boundary checks. To review fenced examples intentionally, use
+`--include-doc-examples` with `scan`, `audit`, or `ci`.
+
 ```gitignore
 # .ship-safeignore
 tests/fixtures/

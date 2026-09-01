@@ -110,6 +110,7 @@ program
   .option('--json', 'Output results as JSON (useful for CI)')
   .option('--sarif', 'Output results in SARIF format (for GitHub Code Scanning)')
   .option('--include-tests', 'Also scan test files (excluded by default to reduce false positives)')
+  .option('--include-doc-examples', 'Also scan fenced Markdown code examples for code vulnerabilities')
   .option('--no-cache', 'Force full rescan (ignore cached results)')
   .action(scanCommand);
 
@@ -265,6 +266,7 @@ program
   .command('audit [path]')
   .description('Full security audit: secrets + 29 agents + deps + score + deep analysis + remediation plan')
   .option('--include-tests', 'Also scan test, fixture, and example files (excluded by default to reduce false positives)')
+  .option('--include-doc-examples', 'Also scan fenced Markdown code examples for code vulnerabilities')
   .option('--json', 'Output results as JSON')
   .option('--sarif', 'Output results in SARIF format')
   .option('--csv', 'Output results as CSV')
@@ -463,6 +465,7 @@ program
   .option('--sarif <file>', 'Write SARIF output for GitHub Code Scanning')
   .option('--check-global-agents', 'Also check globally configured agent tooling outside the project (off by default in ci)')
   .option('--include-tests', 'Also scan test, fixture, and example files (excluded by default to reduce false positives)')
+  .option('--include-doc-examples', 'Also scan fenced Markdown code examples for code vulnerabilities')
   .option('--json', 'JSON output')
   .option('--no-deps', 'Skip dependency audit')
   .option('--baseline', 'Only check new findings (not in baseline)')

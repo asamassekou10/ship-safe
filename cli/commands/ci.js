@@ -119,7 +119,7 @@ export async function ciCommand(targetPath = '.', options = {}) {
 
   // ── Agent Scan ───────────────────────────────────────────────────────────
   const orchestrator = buildOrchestrator();
-  const results = await orchestrator.runAll(absolutePath, { quiet: true, includeTests: options.includeTests, checkGlobalAgents }); // ship-safe-ignore — orchestrator result, not LLM output triggering actions
+  const results = await orchestrator.runAll(absolutePath, { quiet: true, includeTests: options.includeTests, includeDocExamples: options.includeDocExamples, checkGlobalAgents }); // ship-safe-ignore — orchestrator result, not LLM output triggering actions
   const agentFindings = results.findings;
 
   // ── Dependency Audit ─────────────────────────────────────────────────────

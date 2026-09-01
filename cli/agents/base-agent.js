@@ -19,6 +19,7 @@ import fs from 'fs';
 import path from 'path';
 import fg from 'fast-glob';
 import { SKIP_DIRS, SKIP_EXTENSIONS, SKIP_FILENAMES, MAX_FILE_SIZE, loadGitignorePatterns } from '../utils/patterns.js';
+import { isDocumentationFile, markdownCodeLines } from '../utils/content-scope.js';
 import { emptyEvidence } from '../utils/evidence.js';
 
 const DOC_EXTENSIONS = new Set(['.md', '.mdx', '.txt', '.rst', '.adoc', '.rdoc']);
@@ -350,6 +351,10 @@ export class BaseAgent {
     // the same as a scan that had none to report.
     this.suppressedCount = 0;
     this.floorSuppressionAttempts = 0;
+    // The orchestrator sets this for the duration of an agent run so all
+    // existing pattern callers inherit command-level scope options without
+    // each agent having to thread them through every helper.
+    this.scanOptions = {};
   }
 
   /**
@@ -503,13 +508,22 @@ export class BaseAgent {
    * Scan file lines against an array of regex patterns.
    * Returns findings for every match.
    * @param {string} [content] — preloaded source content when the caller already has it.
+   * @param {object} [scanOptions] — scope controls for documentation files.
+   *   Ordinary code rules skip Markdown by default. Set includeDocExamples to
+   *   scan only fenced examples, or scope:'agent-context'/'all' to scan every
+   *   line when the file itself is security-relevant context.
    */
-  scanFileWithPatterns(filePath, patterns, content = undefined) {
+  scanFileWithPatterns(filePath, patterns, content = undefined, scanOptions = {}) {
     const source = content === undefined ? this.readFile(filePath) : content;
     if (!source) return [];
 
     const lang = languageOf(filePath);
     const lines = source.split('\n');
+    const effectiveScanOptions = { ...this.scanOptions, ...scanOptions };
+    const documentation = isDocumentationFile(filePath);
+    const docCodeLines = documentation && effectiveScanOptions.includeDocExamples
+      ? markdownCodeLines(source)
+      : null;
     const findings = [];
 
     let lineStart = 0;
@@ -528,6 +542,13 @@ export class BaseAgent {
       const isCommentLine = /^\s*(?:#|\/\/|\*|<!--|--\s|;)/.test(line);
 
       for (const p of patterns) {
+        const scope = p.scope || effectiveScanOptions.scope || 'code';
+        if (documentation) {
+          const scansDocumentation = scope === 'all' || scope === 'documentation' || scope === 'agent-context';
+          const scansFencedExample = (scope === 'code' || scope === 'fenced-code')
+            && docCodeLines?.has(i);
+          if (!scansDocumentation && !scansFencedExample) continue;
+        }
         if (p.skipComments && isCommentLine) continue;
         // A pattern that declares `langs` only runs against those languages.
         // Absent, it runs everywhere, so existing rules are unaffected and the

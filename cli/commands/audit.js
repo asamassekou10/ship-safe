@@ -218,6 +218,7 @@ export async function auditCommand(targetPath = '.', options = {}) {
     if (options.baseUrl) orchestratorOpts.baseUrl = options.baseUrl;
     if (options.budget) orchestratorOpts.budget = options.budget;
     if (options.verbose) orchestratorOpts.verbose = true;
+    if (options.includeDocExamples) orchestratorOpts.includeDocExamples = true;
     if (cacheDiff && cacheDiff.changedFiles.length < allFiles.length) {
       orchestratorOpts.changedFiles = cacheDiff.changedFiles;
     }
