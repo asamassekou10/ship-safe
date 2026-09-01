@@ -15,8 +15,8 @@
       "verdicts": {
         "confirmed": 0,
         "likely": 2,
-        "unknown": 13,
-        "refuted": 5
+        "unknown": 7,
+        "refuted": 11
       }
     },
     {
@@ -31,8 +31,8 @@
       "verdicts": {
         "confirmed": 0,
         "likely": 0,
-        "unknown": 5,
-        "refuted": 2
+        "unknown": 4,
+        "refuted": 3
       }
     },
     {
@@ -48,7 +48,7 @@
         "confirmed": 0,
         "likely": 5,
         "unknown": 11,
-        "refuted": 0
+        "refuted": 1
       }
     },
     {
@@ -79,8 +79,8 @@
       "verdicts": {
         "confirmed": 4,
         "likely": 81,
-        "unknown": 383,
-        "refuted": 231
+        "unknown": 370,
+        "refuted": 244
       }
     }
   ],
@@ -121,7 +121,7 @@
     "vulnerableProjects": 2,
     "vulnerableFindings": 144,
     "cleanConfirmed": 4,
-    "cleanRefuted": 238,
+    "cleanRefuted": 259,
     "vulnerableConfirmed": 7
   }
 }
