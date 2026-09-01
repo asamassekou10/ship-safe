@@ -68,13 +68,18 @@
     "clickfix-lure": {
       "targetIsTruePositive": true,
       "safeControlNoise": []
+    },
+    "embedded-script-xss": {
+      "targetIsTruePositive": true,
+      "safeControlNoise": []
     }
   },
   "gate": {
-    "comment": "Ratchets. falseRefutations and unlabeled findings are absolute failures; the other two are the current measured values and may only be improved. Raising minSettledRate or lowering maxNoiseStanding is the deliberate act of banking a gain \u2014 0.16 with the heuristic pass alone, 0.40 with data-flow tracing, 0.4375 across a function boundary, 0.47 with absence rules, 0.50 with Python, 0.55 as the absence registry grew, 0.57 once the tracer reached the DOM.",
+    "comment": "Ratchets. falseRefutations and unlabeled findings are absolute failures; the others are current measured values and may only be improved. minSettled is the count and minSettledRate the proportion, and both are here because they fail differently: adding a hard case to the corpus lowers the rate without any capability being lost, which would let a rate-only gate be weakened by growing the corpus. The count cannot be diluted that way. Banked: 0.16 heuristic only, 0.40 data-flow, 0.4375 across a function boundary, 0.47 absence rules, 0.50 Python, 0.55 wider absence registry, 0.58 DOM. The rate reads 0.55 now because the corpus gained a PHP case the tracer cannot reach; settled held at 11.",
     "maxFalseRefutations": 0,
-    "minSettledRate": 0.57,
-    "maxNoiseStanding": 3
+    "minSettledRate": 0.55,
+    "maxNoiseStanding": 3,
+    "minSettled": 11
   },
   "flowDescription": "Paired fixtures with an actual data path, which the one-line detection fixtures do not have. Each pair holds the same sink reached by a value an attacker controls and by one they do not, so a pass that traces the value is rewarded and a pass that pattern-matches the neighbourhood is not.",
   "flowScenarios": [

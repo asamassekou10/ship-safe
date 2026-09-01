@@ -277,6 +277,12 @@ if (!useLlm) {
   if (settledRate < gate.minSettledRate) {
     failures.push(`settled rate ${settledRate.toFixed(3)} is below the recorded ${gate.minSettledRate}`);
   }
+  // The count, not just the proportion. A corpus that gains a case nothing can
+  // settle lowers the rate while losing no capability, so a rate-only gate can
+  // be weakened by adding hard fixtures. The number settled cannot be diluted.
+  if (typeof gate.minSettled === 'number' && settled < gate.minSettled) {
+    failures.push(`${settled} settled is below the recorded ${gate.minSettled}`);
+  }
   if (noiseStanding > gate.maxNoiseStanding) {
     failures.push(`${noiseStanding} unrefuted noise finding(s) exceeds the recorded ${gate.maxNoiseStanding}`);
   }

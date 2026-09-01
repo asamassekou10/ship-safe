@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "corpusVersion": "1.0.0",
   "truthVersion": "1.0",
-  "shipSafeVersion": "9.7.4",
+  "shipSafeVersion": "9.8.0",
   "mode": "deterministic",
   "methodology": "Verdicts resolved from the evidence claims attached by each investigation pass, over the paired synthetic corpus. Measures conclusion quality, not detection: benchmarks/run.mjs measures detection and must pass alongside this.",
   "limitations": [
@@ -11,9 +11,9 @@
     "The --llm mode is not deterministic and is never gated."
   ],
   "metrics": {
-    "truePositives": 19,
+    "truePositives": 20,
     "settled": 11,
-    "settledRate": 0.5789473684210527,
+    "settledRate": 0.55,
     "falseRefutations": 0,
     "noiseStanding": 3,
     "noiseRefuted": 10,
@@ -266,6 +266,16 @@
       "claimSources": [
         "heuristic"
       ],
+      "safeControlNoise": []
+    },
+    {
+      "id": "embedded-script-xss",
+      "agent": "InjectionTester",
+      "expectedRule": "XSS_DOCUMENT_WRITE",
+      "detected": true,
+      "targetVerdict": "unknown",
+      "decidedBy": null,
+      "claimSources": [],
       "safeControlNoise": []
     }
   ]
