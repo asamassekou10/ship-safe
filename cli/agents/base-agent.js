@@ -127,13 +127,46 @@ export function languageOf(filePath) {
  * precision boundary needed by lexical rules without pretending to understand
  * the whole JavaScript grammar.
  */
+/**
+ * Where the JavaScript containing `offset` begins.
+ *
+ * For a script file that is the top. For markup it is just after the `<script>`
+ * tag that encloses the offset, and only when the tag is not closed before it —
+ * an earlier, already-closed block says nothing about where this match sits.
+ */
+function embeddedScriptStart(source, offset) {
+  const opening = /<script\b[^>]*>/gi;
+  let start = 0;
+  let match;
+
+  while ((match = opening.exec(source)) !== null && match.index < offset) {
+    const bodyStart = match.index + match[0].length;
+    const closed = source.indexOf('</script', bodyStart);
+    if (closed === -1 || closed > offset) start = bodyStart;
+  }
+
+  return start;
+}
+
 export function isInsideJavaScriptNonCode(source, offset) {
+  // Scan from the start of the JavaScript, not the start of the file.
+  //
+  // The walk below tracks quotes and comments, which is right for a .js file
+  // and wrong for JavaScript embedded in markup. An HTML or PHP page is full of
+  // unbalanced quotes -- `value='English'`, an apostrophe in a sentence -- and
+  // by the time the walk reaches a <script> block it believes it is inside a
+  // string, so every match in it is dismissed as non-code.
+  //
+  // That silently lost DVWA's DOM XSS exercise: a real document.write() fed
+  // from location.href stopped being reported at all.
+  const start = embeddedScriptStart(source, offset);
+
   let quote = null;
   let escaped = false;
   let lineComment = false;
   let blockComment = false;
 
-  for (let i = 0; i < offset; i += 1) {
+  for (let i = start; i < offset; i += 1) {
     const char = source[i];
     const next = source[i + 1];
 
