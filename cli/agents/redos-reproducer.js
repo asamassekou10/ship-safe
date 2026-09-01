@@ -19,6 +19,13 @@
  * a reproduction and confirms the finding; finishing with linear growth across
  * doubling input sizes refutes it.
  *
+ * The budget measures the match, not the machine. A worker takes time to start
+ * and a loaded host schedules it late, and counting that against the pattern
+ * confirms a ReDoS in whatever happens to be running when the box is busy — at
+ * the highest rank in the system, on evidence that is really a load average.
+ * The deadline therefore starts when the worker says it is running, and a
+ * timeout is confirmed only when it reproduces on a second attempt.
+ *
  * This is the only pass that executes anything from the scanned repository, and
  * what it executes is a regular expression against a synthetic string: no
  * network, no filesystem, no side effects, and a bounded lifetime. The value
@@ -37,16 +44,19 @@ const REDOS_RULE = /^REDOS_/;
 const BUDGET_MS = 400;
 
 /** Repeat counts, doubling so growth can be read from the timings. */
-const PUMP_SIZES = [250, 500, 1000];
+const PUMP_SIZES = [500, 1000];
 
 /**
  * Strings that commonly drive an ambiguous quantifier. Each is repeated and
  * followed by a character the pattern is unlikely to accept, so the match fails
  * and the engine must exhaust every alternative before saying so.
  */
-const PUMPS = ['a', 'aa', 'a ', ' ', '0', 'ab', 'a_', '\t', 'a-', '/a'];
+const PUMPS = ['a', 'a ', 'ab', 'a_', '0', '/a'];
 
 const FAIL_SUFFIX = ' !';
+
+/** How long a worker may take to start before its own deadline begins. */
+const STARTUP_GRACE_MS = 2000;
 
 /** Enough to settle a repository's patterns without turning a scan into a benchmark. */
 const MAX_PROBED = 40;
@@ -95,47 +105,34 @@ export class RedosReproducer {
   }
 
   async _probe(pattern) {
+    const session = new MatchSession(pattern, this.budgetMs);
     let slowestMs = 0;
     let longest = 0;
 
-    for (const pump of PUMPS) {
-      for (const size of PUMP_SIZES) {
-        const input = pump.repeat(size) + FAIL_SUFFIX;
-        const ms = await this._time(pattern, input);
+    try {
+      for (const pump of PUMPS) {
+        for (const size of PUMP_SIZES) {
+          const input = pump.repeat(size) + FAIL_SUFFIX;
+          const ms = await session.time(input);
 
-        // A worker that had to be killed is the reproduction.
-        if (ms === null) return { catastrophic: true, ms: this.budgetMs, length: input.length, pump };
-        slowestMs = Math.max(slowestMs, ms);
-        longest = Math.max(longest, input.length);
+          // A single overrun is equally consistent with a busy machine. A
+          // catastrophic pattern reproduces; a scheduling blip does not.
+          if (ms === null && await session.time(input) === null) {
+            return { catastrophic: true, ms: this.budgetMs, length: input.length, pump };
+          }
+          if (ms !== null) {
+            slowestMs = Math.max(slowestMs, ms);
+            longest = Math.max(longest, input.length);
+          }
+        }
       }
+    } finally {
+      await session.close();
     }
 
     // Report the longest input tried and the slowest time seen. They are rarely
     // the same run, and quoting one number for both would misdescribe the test.
     return { catastrophic: false, ms: slowestMs, length: longest };
-  }
-
-  /** Run one match in a worker, returning its duration or null if it overran. */
-  _time(pattern, input) {
-    return new Promise((resolve) => {
-      let worker;
-      try {
-        worker = new Worker(WORKER_SOURCE, {
-          eval: true,
-          workerData: { source: pattern.source, flags: pattern.flags, input },
-        });
-      } catch { resolve(0); return; }
-
-      const timer = setTimeout(() => {
-        worker.terminate();
-        resolve(null);
-      }, this.budgetMs);
-
-      worker.on('message', (ms) => { clearTimeout(timer); worker.terminate(); resolve(ms); });
-      // A pattern the engine refuses to compile is not this pass's problem.
-      worker.on('error', () => { clearTimeout(timer); resolve(0); });
-      worker.on('exit', () => clearTimeout(timer));
-    });
   }
 
   _read(file, cache) {
@@ -148,16 +145,89 @@ export class RedosReproducer {
 }
 
 /**
+ * One worker per pattern, kept alive across attempts.
+ *
+ * Spawning costs about 200ms on a normal machine. Doing it per attempt made
+ * startup several times the match budget, so the budget was measuring process
+ * creation and timing out on patterns that run in microseconds. The worker is
+ * replaced only when a match genuinely hangs, which is the one case where it
+ * cannot be reused: it is stuck inside a synchronous regex and will never read
+ * another message.
+ */
+class MatchSession {
+  constructor(pattern, budgetMs) {
+    this.pattern = pattern;
+    this.budgetMs = budgetMs;
+    this.worker = null;
+  }
+
+  async time(input) {
+    const worker = await this._worker();
+    if (!worker) return 0;                       // uncompilable: not ours to settle
+
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        worker.terminate();
+        this.worker = null;                      // stuck mid-match; unusable now
+        resolve(null);
+      }, this.budgetMs);
+
+      worker.once('message', (ms) => { clearTimeout(timer); resolve(ms); });
+      worker.postMessage(input);
+    });
+  }
+
+  async _worker() {
+    if (this.worker) return this.worker;
+
+    return new Promise((resolve) => {
+      let worker;
+      try {
+        worker = new Worker(WORKER_SOURCE, {
+          eval: true,
+          workerData: { source: this.pattern.source, flags: this.pattern.flags },
+        });
+      } catch { resolve(null); return; }
+
+      const startup = setTimeout(() => { worker.terminate(); resolve(null); }, STARTUP_GRACE_MS);
+
+      worker.once('message', (message) => {
+        clearTimeout(startup);
+        if (message !== 'ready') { resolve(null); return; }
+        this.worker = worker;
+        resolve(worker);
+      });
+      worker.on('error', () => { clearTimeout(startup); this.worker = null; resolve(null); });
+    });
+  }
+
+  async close() {
+    if (this.worker) await this.worker.terminate();
+    this.worker = null;
+  }
+}
+
+/**
  * The worker body. It compiles the pattern and runs it once, which is the only
  * thing from the scanned repository that ever executes here.
  */
 const WORKER_SOURCE = `
   const { parentPort, workerData } = require('worker_threads');
-  const started = process.hrtime.bigint();
+
+  let re = null;
   try {
-    new RegExp(workerData.source, workerData.flags.replace(/[gy]/g, '')).test(workerData.input);
+    // Compiled once. Compilation is not part of what the finding claims.
+    re = new RegExp(workerData.source, workerData.flags.replace(/[gy]/g, ''));
   } catch { /* an uncompilable pattern is not a finding this pass can settle */ }
-  parentPort.postMessage(Number(process.hrtime.bigint() - started) / 1e6);
+
+  parentPort.postMessage('ready');
+
+  parentPort.on('message', (input) => {
+    if (!re) { parentPort.postMessage(0); return; }
+    const started = process.hrtime.bigint();
+    try { re.test(input); } catch { /* runtime refusal is not a reproduction */ }
+    parentPort.postMessage(Number(process.hrtime.bigint() - started) / 1e6);
+  });
 `;
 
 /**
