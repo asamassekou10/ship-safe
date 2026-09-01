@@ -398,6 +398,54 @@ describe('assignment sinks', () => {
   });
 });
 
+describe('a call is not its arguments', () => {
+  // `const rows = await db.query(sql, req.params.id)` assigns what the database
+  // gave back. Reading the request inside the parentheses as the origin of
+  // `rows` confirms a finding about data the caller never controlled — and that
+  // shape is one of the most common lines in any web application. Found by
+  // auditing a confirmation against a real Express API.
+  it('does not treat a return value as its tainted argument', () => {
+    const file = source('opaque.js', [
+      'export async function handler(req, res, db) {',
+      '  const rows = await db.query("SELECT 1", req.params.id);',
+      '  res.json(rows);',
+      '}',
+    ]);
+    assert.equal(trace(file, 3, { rule: 'API_EXCESSIVE_DATA', category: 'api' }).claim, null,
+      'what the database returned is not what the caller sent');
+  });
+
+  it('still follows a transform that hands its argument back', () => {
+    const file = source('transform.js', [
+      'export function handler(req, res) {',
+      '  const parsed = JSON.parse(req.body.raw);',
+      '  res.json(parsed);',
+      '}',
+    ]);
+    assert.equal(trace(file, 3, { rule: 'API_EXCESSIVE_DATA', category: 'api' }).claim.verdict, 'confirmed');
+  });
+
+  it('still confirms when the source is the receiver, not an argument', () => {
+    const file = source('receiver.js', [
+      'export function handler(req, res) {',
+      '  const id = req.query.get("id");',
+      '  res.json(id);',
+      '}',
+    ]);
+    assert.equal(trace(file, 3, { rule: 'API_EXCESSIVE_DATA', category: 'api' }).claim.verdict, 'confirmed');
+  });
+
+  it('is unaffected for a plain member access', () => {
+    const file = source('member.js', [
+      'export function handler(req, res) {',
+      '  const id = req.params.id;',
+      '  res.json(id);',
+      '}',
+    ]);
+    assert.equal(trace(file, 3, { rule: 'API_EXCESSIVE_DATA', category: 'api' }).claim.verdict, 'confirmed');
+  });
+});
+
 describe('client-side sources', () => {
   it('confirms a value from the page URL', () => {
     const file = source('dom.js', [

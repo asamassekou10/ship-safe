@@ -238,6 +238,29 @@ const ABSENCE_RULES = {
     precondition: [/\b(?:completions?|messages|chat)\.create\s*\(|\bgenerate_content\s*\(/i],
   },
 
+  /**
+   * Local. A relevance threshold is an argument to the retrieval call, so the
+   * answer is at the call site or nowhere.
+   *
+   * The data-flow tracer must not answer this one. It confirmed the rule against
+   * a real application on the grounds that the question came from the HTTP
+   * request -- true, and unrelated: whether a minimum similarity score is set is
+   * not a property of where the query came from. The absent control here is a
+   * configuration parameter, not a sanitizer on the path, which is the line
+   * between what the tracer can settle and what it cannot.
+   */
+  RAG_NO_RELEVANCE_THRESHOLD: {
+    what: 'a relevance threshold on the retrieval',
+    scope: 'local',
+    control: [
+      /\b(?:score|similarity|relevance|distance)_?[Tt]hreshold\b\s*[:=]/,
+      /\bmin(?:_|)(?:score|similarity|relevance)\b\s*[:=]/i,
+      /\bfilter\s*[:=]/,
+      /\.filter\s*\(/,
+    ],
+    precondition: [/./],
+  },
+
   /** Local: the confirmation gate sits at the dispatch it gates. */
   AGENT_TOOL_NO_CONFIRMATION: {
     what: 'a confirmation step before the tool runs',
@@ -367,7 +390,7 @@ export class AbsenceInvestigator {
       attachEvidence(finding, createClaim({
         source: 'presence',
         verdict: 'likely',
-        rationale: `No ${spec.what} was found anywhere in this project, so the gap is not local to this file. It may still be provided outside the codebase — a proxy, gateway, or platform control this pass cannot see.`,
+        rationale: `${capitalize(spec.what)} was not found anywhere in this project, so the gap is not local to this file. It may still be provided outside the codebase — a proxy, gateway, or platform control this pass cannot see.`,
         citations: [{ file: precondition.file, line: precondition.line, excerpt: precondition.excerpt }],
         attackPath: [`the code this protects is at ${path.relative(rootPath, precondition.file)}:${precondition.line}`],
       }));
@@ -430,7 +453,7 @@ export class AbsenceInvestigator {
     attachEvidence(finding, createClaim({
       source: 'presence',
       verdict: 'likely',
-      rationale: `No ${spec.what} was found in this file or in what it calls. It may still be set further down the call chain than this pass follows.`,
+      rationale: `${capitalize(spec.what)} was not found in this file or in what it calls. It may still be set further down the call chain than this pass follows.`,
       citations: [{ file: finding.file, line: finding.line }],
     }));
   }
@@ -502,7 +525,7 @@ export class AbsenceInvestigator {
     attachEvidence(finding, createClaim({
       source: 'presence',
       verdict: 'likely',
-      rationale: `No ${spec.what} was found in the ${LOCAL_WINDOW} lines that follow, where it would be.`,
+      rationale: `${capitalize(spec.what)} was not found in the ${LOCAL_WINDOW} lines that follow, where it would be.`,
       citations: [{ file: finding.file, line: finding.line }],
     }));
   }

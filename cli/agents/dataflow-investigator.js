@@ -378,7 +378,19 @@ export class DataflowInvestigator {
         };
       }
 
+      // A call's return value is not its arguments. `const rows = await
+      // db.query(sql, req.params.id)` assigns what the database gave back, and
+      // reading the request inside the parentheses as the origin of `rows`
+      // confirms a finding about data the caller never controlled. That shape
+      // -- `const x = await something(req...)` -- is one of the most common
+      // lines in any web application.
+      //
+      // Transforms are the exception: JSON.parse and its neighbours return
+      // their input in another form, so taint really does pass through them.
       const source = matchAny(lang.sources, rhs);
+      if (source && sourceOnlyInsideOpaqueCall(rhs, source.re)) {
+        return null;
+      }
       if (source) {
         return {
           verdict: source.ceiling || 'confirmed',
@@ -569,6 +581,35 @@ function dedupeHops(hops) {
   return hops
     .filter((hop) => (seen.has(hop.line) ? false : seen.add(hop.line)))
     .sort((a, b) => a.line - b.line);
+}
+
+/**
+ * Calls whose return value derives from their arguments. Everything else is a
+ * barrier this pass cannot see through, and a barrier it cannot see through is
+ * not a path it may confirm.
+ */
+const PASSTHROUGH_CALL = /\b(?:JSON\.parse|decodeURI(?:Component)?|unescape|atob|Buffer\.from|String|toString|trim|slice|substring|substr|split|join|concat|replace|toLowerCase|toUpperCase|normalize|json|loads|str)\s*$/;
+
+/**
+ * True when the only place an untrusted source appears is inside the arguments
+ * of a call whose return value is what gets assigned.
+ *
+ * The source in `req.query.get('id')` is the receiver, and the call returns
+ * part of it, so that still counts as a path. The source in
+ * `db.query(sql, req.params.id)` is an argument, and what comes back is the
+ * database's answer.
+ */
+function sourceOnlyInsideOpaqueCall(rhs, sourceRe) {
+  const call = String(rhs).match(/^\s*(?:await\s+)?([\w$.[\]'"]+)\s*\(/);
+  if (!call) return false;
+
+  const callee = call[1];
+  // The source is part of what is being called, not what is passed to it.
+  if (sourceRe.test(callee)) return false;
+  // A transform hands its argument back in another shape.
+  if (PASSTHROUGH_CALL.test(callee)) return false;
+
+  return true;
 }
 
 function matchAny(patterns, text) {
