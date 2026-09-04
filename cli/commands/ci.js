@@ -52,12 +52,7 @@ import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import { postPRComments } from './watch.js';
 import { compareFindingSets, snapshotFinding } from '../utils/finding-delta.js';
 import fg from 'fast-glob';
-
-const DEFAULT_STDOUT_WRITE_TIMEOUT_MS = 10_000;
-const configuredStdoutWriteTimeout = Number.parseInt(process.env.SHIP_SAFE_STDOUT_TIMEOUT_MS, 10);
-const STDOUT_WRITE_TIMEOUT_MS = Number.isInteger(configuredStdoutWriteTimeout) && configuredStdoutWriteTimeout > 0
-  ? configuredStdoutWriteTimeout
-  : DEFAULT_STDOUT_WRITE_TIMEOUT_MS;
+import { STDOUT_WRITE_TIMEOUT_MS, writeStdout } from '../utils/stdout.js';
 
 // =============================================================================
 // MAIN COMMAND
@@ -334,33 +329,6 @@ export async function ciCommand(targetPath = '.', options = {}) {
     }
     process.exit(0);
   }
-}
-
-function writeStdout(value) {
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    function finish(error) {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      error ? reject(error) : resolve();
-    }
-
-    const timer = setTimeout(() => {
-      const error = new Error('stdout write timed out');
-      error.code = 'SHIP_SAFE_STDOUT_TIMEOUT';
-      finish(error);
-      // A live pipe that is no longer being read can keep the write callback
-      // pending forever. Close it after the bound so CI can fail cleanly.
-      process.stdout.destroy();
-    }, STDOUT_WRITE_TIMEOUT_MS);
-
-    try {
-      process.stdout.write(value, finish);
-    } catch (error) {
-      finish(error);
-    }
-  });
 }
 
 // =============================================================================

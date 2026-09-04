@@ -47,6 +47,7 @@ import { generatePDF, generatePrintHTML, isChromeAvailable } from '../utils/pdf-
 import { SecretsVerifier } from '../utils/secrets-verifier.js';
 import { applyInlineAnnotations } from './autofix.js';
 import { hasEvidence, summarizeEvidence } from '../utils/evidence.js';
+import { STDOUT_WRITE_TIMEOUT_MS, writeStdout } from '../utils/stdout.js';
 
 // =============================================================================
 // CONSTANTS
@@ -457,9 +458,9 @@ export async function auditCommand(targetPath = '.', options = {}) {
   } else if (options.md) {
     outputMarkdown(scoreResult, emittedFindings, depVulns, remediationPlan, absolutePath);
   } else if (options.json) {
-    outputJSON(scoreResult, emittedFindings, depVulns, recon, agentResults, remediationPlan, suppressions, options.compare ? scoringEngine.loadHistory(absolutePath) : null, absolutePath);
+    await outputJSON(scoreResult, emittedFindings, depVulns, recon, agentResults, remediationPlan, suppressions, options.compare ? scoringEngine.loadHistory(absolutePath) : null, absolutePath);
   } else if (options.sarif) {
-    outputSARIF(emittedFindings, absolutePath);
+    await outputSARIF(emittedFindings, absolutePath);
   } else {
     printReport(scoreResult, filteredFindings, depVulns, recon, remediationPlan, absolutePath, filesScanned);
   }
@@ -845,7 +846,7 @@ function printReport(scoreResult, findings, depVulns, recon, plan, rootPath, fil
 // JSON OUTPUT
 // =============================================================================
 
-function outputJSON(scoreResult, findings, depVulns, recon, agentResults, remediationPlan, suppressions, history, rootPath = process.cwd()) {
+async function outputJSON(scoreResult, findings, depVulns, recon, agentResults, remediationPlan, suppressions, history, rootPath = process.cwd()) {
   const output = {
     scoreVersion: scoreResult.scoreVersion,
     score: scoreResult.score,
@@ -905,14 +906,14 @@ function outputJSON(scoreResult, findings, depVulns, recon, agentResults, remedi
       ),
     };
   }
-  console.log(JSON.stringify(output, null, 2));
+  await writeMachineOutput(`${JSON.stringify(output, null, 2)}\n`);
 }
 
 // =============================================================================
 // SARIF OUTPUT
 // =============================================================================
 
-function outputSARIF(findings, rootPath) {
+async function outputSARIF(findings, rootPath) {
   const rules = {};
   for (const f of findings) {
     if (!rules[f.rule]) {
@@ -928,7 +929,7 @@ function outputSARIF(findings, rootPath) {
     }
   }
 
-  console.log(JSON.stringify({
+  await writeMachineOutput(`${JSON.stringify({
     version: '2.1.0',
     $schema: 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json',
     runs: [{
@@ -952,7 +953,19 @@ function outputSARIF(findings, rootPath) {
         }],
       })),
     }],
-  }, null, 2));
+  }, null, 2)}\n`);
+}
+
+async function writeMachineOutput(value) {
+  try {
+    await writeStdout(value);
+  } catch (error) {
+    const message = error.code === 'SHIP_SAFE_STDOUT_TIMEOUT'
+      ? `Timed out writing machine output to stdout after ${STDOUT_WRITE_TIMEOUT_MS}ms; the downstream consumer may not be reading.`
+      : `Could not write machine output to stdout: ${error.message}`;
+    console.error(`[ship-safe] ${message}`);
+    process.exit(1);
+  }
 }
 
 // =============================================================================
