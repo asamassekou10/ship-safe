@@ -81,6 +81,36 @@ export const HERMES_OPERATION_BOUNDARIES = Object.freeze({
   skill: Object.freeze({ local: 'Hermes agent process', nonLocal: 'Hermes agent process' }),
 });
 
+/** Local-IPC surfaces pinned for the Hermes Agent v0.21.0 baseline. */
+export const HERMES_IPC_SURFACES = Object.freeze({
+  acp: Object.freeze({
+    caller: 'local editor process',
+    transport: 'ACP JSON-RPC over stdio',
+    authentication: 'host-user access control',
+    bindScope: 'inherited stdin/stdout',
+    handler: 'HermesACPAgent.prompt',
+    tool: 'session agent tool registry',
+    permission: 'client-mediated approval callback; not containment',
+    effect: 'agent tools in the Hermes process and configured terminal backend',
+  }),
+  tui: Object.freeze({
+    caller: 'local TUI parent process',
+    transport: 'Hermes JSON-RPC over stdio or parent-owned socket',
+    authentication: 'host-user access control',
+    bindScope: 'inherited stdin/stdout or parent-owned socket',
+    handler: 'tui_gateway.server.dispatch',
+    tool: 'shared RPC registry, including prompt.submit and command.dispatch',
+    permission: 'session transport ownership plus in-process approval; not containment',
+    effect: 'prompt, command, plugin, MCP, and terminal actions',
+  }),
+});
+
+export const HERMES_REACHABILITY_BASES = Object.freeze([
+  'configured',
+  'inferred',
+  'reproduced',
+]);
+
 // =============================================================================
 // SINGLE-LINE REGEX PATTERNS
 // =============================================================================
@@ -138,6 +168,11 @@ const BOUNDARY_RULES = new Set([
   // A network adapter that falls through to agent work without proving the
   // caller is allowlisted crosses the adapter trust boundary (§2.6).
   'HERMES_ADAPTER_ALLOWLIST_FAIL_OPEN',
+  // Local IPC is safe under the host-user boundary. Re-exporting its full
+  // effect surface on a configured non-loopback listener without caller auth
+  // crosses that boundary.
+  'HERMES_ACP_GATEWAY_EXPOSED',
+  'HERMES_TUI_GATEWAY_EXPOSED',
 ]);
 
 /** Which half of Hermes's policy a rule falls under. */
@@ -587,6 +622,169 @@ function checkAdapterAllowlistFailOpen(content, filePath, agent) {
       owasp: 'ASI03',
       fix: 'Require an explicit, non-empty operator allowlist before dispatch, approval, or output relay. Reject missing/empty configuration by default and never treat a session ID as authorization.',
     }));
+  }
+
+  return findings;
+}
+
+function pythonFunctionsWithDecorators(content) {
+  const lines = content.split(/\r?\n/);
+  const functions = [];
+  let pendingDecorators = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const trimmed = line.trim();
+    if (trimmed.startsWith('@')) {
+      pendingDecorators.push({ text: trimmed, line: index + 1 });
+      continue;
+    }
+
+    const match = line.match(/^(\s*)(?:async\s+)?def\s+([A-Za-z_]\w*)\s*\([^)]*\)\s*(?:->[^:]*)?:/);
+    if (!match) {
+      if (trimmed && !trimmed.startsWith('#')) pendingDecorators = [];
+      continue;
+    }
+
+    const indent = match[1].length;
+    const body = [line];
+    let end = index + 1;
+    for (; end < lines.length; end += 1) {
+      const candidate = lines[end];
+      const candidateTrimmed = candidate.trim();
+      if (candidateTrimmed && candidate.length - candidate.trimStart().length <= indent) break;
+      body.push(candidate);
+    }
+    functions.push({
+      name: match[2],
+      startLine: index + 1,
+      decorators: pendingDecorators,
+      text: body.join('\n'),
+    });
+    pendingDecorators = [];
+    index = end - 1;
+  }
+
+  return functions;
+}
+
+function configuredNetworkBind(content, applicationName) {
+  const escapedName = applicationName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const bindRe = new RegExp(
+    `\\buvicorn\\.(?:run|Config)\\s*\\(\\s*(?:app\\s*=\\s*)?${escapedName}\\b[\\s\\S]{0,500}?\\bhost\\s*=\\s*['"]([^'"]+)['"]`,
+    'gi'
+  );
+  let match;
+  while ((match = bindRe.exec(content)) !== null) {
+    const host = String(match[1] || '').trim().toLowerCase();
+    const loopback = new Set(['127.0.0.1', 'localhost', '::1']);
+    return {
+      host,
+      line: lineNumberAt(content, match.index),
+      scope: loopback.has(host) ? 'loopback' : 'non-loopback',
+    };
+  }
+  return null;
+}
+
+/**
+ * Detect an ACP or TUI local-IPC gateway that has been re-exported over an
+ * explicitly configured non-loopback WebSocket without caller authentication.
+ *
+ * Every required edge is in one route handler: network ingress, the Hermes
+ * gateway sink, and no fail-closed auth branch. The bind is separately anchored
+ * to an executable server configuration. This avoids treating imports or an
+ * approval prompt elsewhere in the file as evidence of protection.
+ */
+function checkLocalIpcGatewayExposure(content, filePath, agent) {
+  const findings = [];
+  const normalizedPath = String(filePath || '').replace(/\\/g, '/');
+  if (!/\.(?:py|pyi)$/i.test(normalizedPath)) return findings;
+
+  const networkDecoratorRe = /@([A-Za-z_]\w*)\.(?:websocket|websocket_route)\b/i;
+  const authTerm = String.raw`(?:auth(?:enticate|ori[sz]e|_identity)?|require_auth|verify_(?:token|ticket|auth)|_ws_auth_ok|_ws_request_is_allowed|is_authenticated)`;
+
+  for (const fn of pythonFunctionsWithDecorators(content)) {
+    const routeDecorator = fn.decorators
+      .map((item) => ({ ...item, match: item.text.match(networkDecoratorRe) }))
+      .find((item) => item.match);
+    if (!routeDecorator) continue;
+    const bind = configuredNetworkBind(pythonCodeOnly(content), routeDecorator.match[1]);
+    if (!bind || bind.scope !== 'non-loopback') continue;
+    const code = pythonCodeOnly(fn.text);
+
+    let surface = null;
+    let sinkMatch = code.match(/\bhandle_ws\s*\(/i);
+    if (sinkMatch) {
+      surface = 'tui';
+    } else if (/\bHermesACPAgent\b/.test(content) && /\b(?:receive_json|receive_text|receive_bytes)\s*\(/i.test(code)) {
+      sinkMatch = code.match(/\b[A-Za-z_]\w*\.prompt\s*\(/i);
+      if (sinkMatch) surface = 'acp';
+    }
+    if (!surface || !sinkMatch) continue;
+
+    // Authentication only protects this edge when both the identity check and
+    // its rejection happen before gateway dispatch. A later audit/logging call
+    // or an unrelated close must not suppress the finding.
+    const beforeSink = code.slice(0, sinkMatch.index);
+    const dependencyAuthRe = /(?:Depends|Security)\s*\([^)]*(?:auth|current_user|principal|identity|verify_(?:token|ticket))/i;
+    const rejectingAuthBranchRe = new RegExp(
+      `\\bif\\s+[^\\n]*${authTerm}[^\\n]*:\\s*\\n[\\s\\S]{0,320}?(?:await\\s+\\w+\\.close\\s*\\(|raise\\s+(?:HTTPException|PermissionError)|return\\b)`,
+      'i'
+    );
+    const raisingAuthCallRe = new RegExp(`\\b(?:await\\s+)?(?:require_auth|authenticate|authorize)\\s*\\(`, 'i');
+    if (dependencyAuthRe.test(beforeSink) || rejectingAuthBranchRe.test(beforeSink) || raisingAuthCallRe.test(beforeSink)) {
+      continue;
+    }
+
+    const model = HERMES_IPC_SURFACES[surface];
+    const sinkLine = fn.startLine + code.slice(0, sinkMatch.index).split('\n').length - 1;
+    const routeLine = routeDecorator.line || fn.startLine;
+    const rule = surface === 'acp'
+      ? 'HERMES_ACP_GATEWAY_EXPOSED'
+      : 'HERMES_TUI_GATEWAY_EXPOSED';
+    const surfaceName = surface === 'acp' ? 'ACP' : 'TUI gateway';
+    const reachableOperation = surface === 'acp'
+      ? 'ACP prompt to agent tool execution'
+      : 'TUI JSON-RPC dispatch to prompt, command, plugin, MCP, and terminal actions';
+
+    const finding = createFinding({
+      file: filePath,
+      line: routeLine,
+      severity: 'critical',
+      category: agent.category,
+      rule,
+      title: `Hermes: ${surfaceName} Re-exported Without Caller Authentication`,
+      description: `This route exposes Hermes's ${surfaceName} local-IPC capability surface on ${bind.host} and reaches ${reachableOperation} without a fail-closed caller-authentication branch. Hermes treats host-user access control as the authorization boundary for local IPC; an in-process approval prompt does not restore that boundary after network exposure.`,
+      matched: `caller=unauthenticated network peer; handler=${fn.name}; bind=${bind.host}; effect=${model.effect}`,
+      confidence: 'high',
+      cwe: 'CWE-306',
+      owasp: 'ASI02',
+      fix: 'Keep the gateway on inherited stdio or a parent-owned local socket. If network access is required, bind to loopback or authenticate the WebSocket upgrade with a server-verified identity and reject before entering the Hermes gateway handler.',
+      evidenceLevel: 'strong',
+      reachability: 'reachable',
+      exposure: 'external',
+    });
+    finding.hermesBoundary = {
+      surface,
+      caller: 'unauthenticated network peer',
+      transport: 'WebSocket',
+      authentication: 'none before gateway dispatch',
+      bindScope: `${bind.scope} (${bind.host})`,
+      handler: fn.name,
+      tool: model.tool,
+      permission: model.permission,
+      reachableOperation,
+      effect: model.effect,
+      executesIn: 'Hermes agent process and configured execution backends',
+      reachabilityBasis: 'configured',
+      evidence: [
+        { file: filePath, line: bind.line, role: `configured ${bind.scope} bind (${bind.host})` },
+        { file: filePath, line: routeLine, role: `network caller enters ${fn.name} without fail-closed authentication` },
+        { file: filePath, line: sinkLine, role: `handler reaches ${reachableOperation}` },
+      ],
+    };
+    findings.push(finding);
   }
 
   return findings;
@@ -1293,6 +1491,7 @@ export class HermesSecurityAgent extends BaseAgent {
       findings.push(...checkToolNameCollisions(content, filePath, this));
       findings.push(...checkToolContextForwarding(content, filePath, this));
       findings.push(...checkAdapterAllowlistFailOpen(content, filePath, this));
+      findings.push(...checkLocalIpcGatewayExposure(content, filePath, this));
       findings.push(...checkSkillFrontmatter(content, filePath, this));
       findings.push(...checkMemoryFileDeserialization(content, filePath, this));
       findings.push(...checkPluginManifest(content, filePath, this));
@@ -1394,7 +1593,7 @@ export class HermesSecurityAgent extends BaseAgent {
       if (/\.(js|ts|mjs|cjs|py)$/.test(rel)) {
         const content = this.readFile(file);
         if (!content) continue;
-        if (/(?:hermes[-_]agent|@nousresearch\/hermes|hermes\.config|toolRegistry|registerTool|callTool|spawnAgent|createSubAgent|memory\.store|episodicMemory|semanticMemory|loadManifest|\bxurl\b)/i.test(content)) {
+        if (/(?:hermes[-_]agent|@nousresearch\/hermes|hermes\.config|\bacp_adapter\b|\btui_gateway\b|toolRegistry|registerTool|callTool|spawnAgent|createSubAgent|memory\.store|episodicMemory|semanticMemory|loadManifest|\bxurl\b)/i.test(content)) {
           hermesFiles.add(file);
         }
       }

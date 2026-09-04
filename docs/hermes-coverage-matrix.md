@@ -37,8 +37,8 @@ These labels describe Ship Safe's coverage, not Hermes Agent's security.
 | Plugin manifests | `plugins/**/plugin.yaml`, `hermes_cli/plugins.py` | Operator review before code loads into the agent process | **Partial** | Provenance, undeclared hooks, undeclared listeners | Install/discovery paths that hide code from review are not modeled; revalidate rules against the 101 manifests in this release |
 | Network adapters | `gateway/platforms/**`, `plugins/platforms/**`, `gateway/platform_registry.py` | Caller authorization at every network surface | **Partial** | `HERMES_ADAPTER_ALLOWLIST_FAIL_OPEN` checks Python adapter dispatch | Shared authorization, relay, HTTP-plugin, and bind-scope paths are incomplete |
 | Terminal backends | `tools/environments/**`, `tools/terminal_tool.py`, `tools/code_execution_tool.py`, `hermes_cli/config.py`, `hermes_cli/setup.py` | OS isolation for shell and file operations only | **Partial** | `HERMES_LOCAL_BACKEND_UNTRUSTED_INPUT` and `HERMES_TERMINAL_BACKEND_SCOPE_GAP` correlate the configured backend with an enabled untrusted MCP path that remains in the agent process | Runtime-only CLI/environment overrides, OpenShell session binding, and custom terminal-environment plugins are not resolved statically |
-| ACP | `acp_adapter/**` | Host-user controls for editor IPC | **Uncovered** | Explicitly excluded from the network-adapter rule | Model transport, exposure, caller, and reachable effects in #186 |
-| TUI gateway | `tui_gateway/**`, `ui-tui/**` | Host-user controls for local JSON-RPC IPC | **Uncovered** | None | Model transport, bind scope, session routing, and capabilities in #186 |
+| ACP | `acp_adapter/**` | Host-user controls for editor IPC | **Partial** | `HERMES_ACP_GATEWAY_EXPOSED` traces an unauthenticated, configured non-loopback WebSocket route to `HermesACPAgent.prompt` and agent tool execution | External reverse proxies, inherited deployment binds, and custom ACP transports are not resolved statically |
+| TUI gateway | `tui_gateway/**`, `ui-tui/**` | Host-user controls for local JSON-RPC IPC | **Partial** | `HERMES_TUI_GATEWAY_EXPOSED` traces an unauthenticated, configured non-loopback WebSocket route through `handle_ws` to the shared dispatcher and its prompt, command, plugin, MCP, and terminal effects | Dynamic bind values, external reverse proxies, and authorization hidden in custom middleware are not resolved statically |
 | Cron | `cron/**`, `tools/cronjob_tools.py` | Job identity, lifecycle, subprocess environment, and effects | **Partial** | Generic scheduled skill-to-prompt detection | Existing rule is not calibrated to the current Python scheduler, lifecycle guard, retries, or retained authority; #187 |
 | Credential scoping | `tools/environments/local.py`, `tools/code_execution_tool.py`, `tools/credential_files.py`, `cron/scheduler.py` | Filtered flow into lower-trust subprocesses; not containment | **Partial** | Generic sub-agent forwarding and credential-store exposure | Environment presence does not prove reachability or use; build the source-to-consumer-to-effect chain in #188 |
 
@@ -70,6 +70,43 @@ For local IPC, loopback binds and OS file permissions are the authorization
 boundary. For network adapters, an operator-configured allowlist must fail
 closed. A documented break-glass setting or an explicitly selected local
 backend is not a vulnerability on its own.
+
+### ACP and TUI gateway reachability
+
+At the pinned release, ACP is JSON-RPC over inherited stdin/stdout. Its caller
+is the local editor process; provider authentication supplies model credentials
+but does not authorize the IPC caller. `HermesACPAgent.prompt` can run the
+agent's configured tools, and `conn.request_permission` is an in-process user
+interaction, not containment.
+
+The classic TUI gateway is likewise JSON-RPC over inherited stdin/stdout (or a
+parent-owned local socket). Its shared dispatcher reaches `prompt.submit`,
+`command.dispatch`, plugins, MCP lifecycle actions, and terminal execution. The
+dashboard also mounts that dispatcher over WebSocket, but rejects the upgrade
+unless a server-verified token, ticket, or internal credential passes and the
+Host/Origin and peer checks match the configured bind.
+
+The two dedicated rules require all of the following before reporting a
+boundary finding: an executable non-loopback bind, a network route, no
+fail-closed caller-authentication branch before dispatch, and a route-local
+call to the ACP prompt or TUI gateway sink. Imports and file-level
+co-occurrence decide nothing. Findings record the caller, transport,
+authentication, bind scope, handler, permission model, effect, and each source
+location in the chain.
+
+`reachabilityBasis` distinguishes how the conclusion was reached:
+
+- `configured`: executable repository configuration proves the route and bind.
+- `inferred`: code structure supports a path, but runtime configuration remains
+  unresolved. The current rules do not promote this alone to a boundary
+  finding.
+- `reproduced`: an investigation exercised the path and captured runtime
+  evidence. Static scanning never claims this value by itself.
+
+The positive fixtures are executable configurations and therefore report
+`configured`. Their loopback ACP and authenticated TUI counterparts remain
+quiet. Reproducing a finding can strengthen it later through Ship Safe's
+investigation layer without changing what the scanner observed.
 
 ## Maintaining the baseline
 
