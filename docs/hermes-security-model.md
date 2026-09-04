@@ -18,8 +18,10 @@ two disagree, theirs wins and this file needs updating.
 That is a direct quote, and the emphasis is theirs. It has two consequences for
 us.
 
-**We are not containment either.** Ship Safe is a static scanner. Framing a
-finding as if it prevents an attack contradicts their model and ours.
+**We are not containment either.** Ship Safe investigates repository and
+configuration evidence; it does not create an isolation boundary. Framing a
+finding as if the report itself prevents an attack contradicts their model and
+ours.
 
 **In-process heuristics are not boundaries.** Their approval gate, output
 redaction, and Skills Guard are review aids by design. A finding that says "the
@@ -90,8 +92,12 @@ Hermes operator trusts and one they close.
 
 ## Version drift
 
-Rules should note the Hermes version they were written against. `HermesSecurityAgent`
-targeted v0.13.0 for seven minor versions, during which the ACP adapter, the TUI
-gateway, serverless terminal backends, cron blueprints and the `plugin.yaml`
-manifest format all shipped uncovered. Hermes moves weekly. Pin your fixtures to
-a commit and say which one.
+Ship Safe 10.0 is baselined against Hermes Agent v0.21.0 at commit
+`29112bef099274229cadff79cdff7bf7b99c4b77`. The exact surface-by-surface claim
+and its limitations live in
+[hermes-coverage-matrix.md](hermes-coverage-matrix.md).
+
+Hermes moves quickly. Baseline changes must pin a release tag to a full commit,
+review upstream's security policy and affected surfaces, and update the
+machine-readable baseline and matrix together. Never make a coverage claim
+follow `main` or `latest` automatically.
