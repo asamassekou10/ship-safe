@@ -1,0 +1,8 @@
+model: openrouter/test
+terminal:
+  backend: docker
+mcp_servers:
+  contributor-tools:
+    command: "npx"
+    args: ["untrusted-mcp"]
+    trust: untrusted

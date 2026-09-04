@@ -422,15 +422,34 @@ function buildSARIF(findings, rootPath) {
             region: { startLine: Math.max(1, f.line || 1), startColumn: f.column || 1 },
           },
         }],
+        ...(f.hermesBoundary?.evidence?.length > 1 ? {
+          relatedLocations: f.hermesBoundary.evidence.slice(1).map((item, index) => ({
+            id: index + 1,
+            physicalLocation: {
+              artifactLocation: {
+                uri: path.relative(rootPath, item.file).replace(/\\/g, '/').replace(/\[/g, '%5B').replace(/\]/g, '%5D'),
+                uriBaseId: '%SRCROOT%',
+              },
+              region: { startLine: Math.max(1, item.line || 1) },
+            },
+            message: { text: item.role },
+          })),
+        } : {}),
         // Carried into SARIF so a policy-aware consumer can filter on it. Only
         // findings whose target publishes a trust model have one today, so the
         // key is omitted rather than defaulted when absent.
         // The verdict travels into code scanning, where a severity label is
         // otherwise the only thing distinguishing a traced finding from an
         // unexamined one.
-        ...((f.posture || f.evidence?.verdict) ? {
+        ...((f.posture || f.evidence?.verdict || f.hermesBoundary) ? {
           properties: {
             ...(f.posture ? { posture: f.posture } : {}),
+            ...(f.hermesBoundary ? {
+              hermesBackend: f.hermesBoundary.backend,
+              claimedBoundary: f.hermesBoundary.claimedBoundary,
+              reachableOperation: f.hermesBoundary.reachableOperation,
+              executesIn: f.hermesBoundary.executesIn,
+            } : {}),
             ...(f.evidence?.verdict ? {
               verdict: f.evidence.verdict,
               ...(f.evidence.decidedBy ? { decidedBy: f.evidence.decidedBy.join(', ') } : {}),

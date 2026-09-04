@@ -26,11 +26,11 @@
     },
     {
       "id": "terminal-backends",
-      "status": "uncovered",
-      "upstreamPaths": ["tools/environments/**", "tools/terminal_tool.py", "hermes_cli/setup.py"],
+      "status": "partial",
+      "upstreamPaths": ["tools/environments/**", "tools/terminal_tool.py", "tools/code_execution_tool.py", "hermes_cli/config.py", "hermes_cli/setup.py"],
       "boundary": "OS isolation for shell and file operations only",
-      "rules": [],
-      "limitations": "Ship Safe does not yet parse backend posture or verify which operations remain in the host process across local, Docker, Modal, SSH, Daytona, Vercel Sandbox, and Singularity."
+      "rules": ["HERMES_LOCAL_BACKEND_UNTRUSTED_INPUT", "HERMES_TERMINAL_BACKEND_SCOPE_GAP"],
+      "limitations": "Repository-carried config is checked across local, Docker, Modal, SSH, Daytona, Vercel Sandbox, and Singularity. Runtime-only CLI/environment overrides and arbitrary custom terminal-environment plugins are not resolved statically."
     },
     {
       "id": "acp",
