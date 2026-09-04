@@ -36,7 +36,7 @@ These labels describe Ship Safe's coverage, not Hermes Agent's security.
 |---|---|---|---|---|---|
 | Plugin manifests | `plugins/**/plugin.yaml`, `hermes_cli/plugins.py` | Operator review before code loads into the agent process | **Partial** | Provenance, undeclared hooks, undeclared listeners | Install/discovery paths that hide code from review are not modeled; revalidate rules against the 101 manifests in this release |
 | Network adapters | `gateway/platforms/**`, `plugins/platforms/**`, `gateway/platform_registry.py` | Caller authorization at every network surface | **Partial** | `HERMES_ADAPTER_ALLOWLIST_FAIL_OPEN` checks Python adapter dispatch | Shared authorization, relay, HTTP-plugin, and bind-scope paths are incomplete |
-| Terminal backends | `tools/environments/**`, `tools/terminal_tool.py`, `tools/code_execution_tool.py`, `hermes_cli/config.py`, `hermes_cli/setup.py` | OS isolation for shell and file operations only | **Partial** | `HERMES_LOCAL_BACKEND_UNTRUSTED_INPUT` and `HERMES_TERMINAL_BACKEND_SCOPE_GAP` correlate the configured backend with an enabled untrusted MCP path that remains in the agent process | Runtime-only CLI/environment overrides and custom terminal-environment plugins are not resolved statically |
+| Terminal backends | `tools/environments/**`, `tools/terminal_tool.py`, `tools/code_execution_tool.py`, `hermes_cli/config.py`, `hermes_cli/setup.py` | OS isolation for shell and file operations only | **Partial** | `HERMES_LOCAL_BACKEND_UNTRUSTED_INPUT` and `HERMES_TERMINAL_BACKEND_SCOPE_GAP` correlate the configured backend with an enabled untrusted MCP path that remains in the agent process | Runtime-only CLI/environment overrides, OpenShell session binding, and custom terminal-environment plugins are not resolved statically |
 | ACP | `acp_adapter/**` | Host-user controls for editor IPC | **Uncovered** | Explicitly excluded from the network-adapter rule | Model transport, exposure, caller, and reachable effects in #186 |
 | TUI gateway | `tui_gateway/**`, `ui-tui/**` | Host-user controls for local JSON-RPC IPC | **Uncovered** | None | Model transport, bind scope, session routing, and capabilities in #186 |
 | Cron | `cron/**`, `tools/cronjob_tools.py` | Job identity, lifecycle, subprocess environment, and effects | **Partial** | Generic scheduled skill-to-prompt detection | Existing rule is not calibrated to the current Python scheduler, lifecycle guard, retries, or retained authority; #187 |
@@ -60,8 +60,11 @@ explicit `local` selection is silent by itself. A hygiene finding requires a
 second fact: an enabled MCP server marked untrusted whose client or subprocess
 remains reachable from the agent process. For non-local backends, the finding
 explains that this path sits outside terminal/file isolation. A repository that
-runs Hermes itself through its Docker/Compose entrypoint or an OpenShell policy
-is treated as whole-process wrapped and is the safely constrained counterpart.
+runs Hermes itself through a Docker/Compose entrypoint carrying the scanned
+Hermes config is treated as whole-process wrapped and is the safely constrained
+counterpart. OpenShell can provide the same runtime posture, but repository
+configuration alone does not yet prove that a particular Hermes process runs in
+that session.
 
 For local IPC, loopback binds and OS file permissions are the authorization
 boundary. For network adapters, an operator-configured allowlist must fail

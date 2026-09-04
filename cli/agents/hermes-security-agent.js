@@ -1133,7 +1133,7 @@ function jsonMcpServers(content) {
 function isWholeProcessWrapped(files, agent) {
   for (const filePath of files) {
     const rel = filePath.replace(/\\/g, '/');
-    if (!/(?:^|\/)(?:Dockerfile(?:\.[^/]*)?|docker-compose\.ya?ml|compose\.ya?ml|[^/]*openshell[^/]*)$/i.test(rel)) continue;
+    if (!/(?:^|\/)(?:Dockerfile(?:\.[^/]*)?|docker-compose\.ya?ml|compose\.ya?ml)$/i.test(rel)) continue;
     const content = agent.readFile(filePath);
     if (!content) continue;
 
@@ -1144,12 +1144,9 @@ function isWholeProcessWrapped(files, agent) {
     }
     if (/(?:docker-)?compose\.ya?ml$/i.test(rel) &&
         /(?:image\s*:\s*[^\n]*hermes|command\s*:\s*[^\n]*\bhermes\b)/i.test(content) &&
-        /(?:\.hermes|config\.ya?ml)/i.test(content)) {
+        /^[ \t]*(?:-[ \t]*)?[^#\n]*(?:\.hermes|config\.ya?ml)/im.test(content)) {
       const offset = content.search(/(?:image\s*:\s*[^\n]*hermes|command\s*:\s*[^\n]*\bhermes\b)/i);
       return { file: filePath, line: lineNumberAt(content, offset), kind: 'Docker Compose' };
-    }
-    if (/openshell/i.test(rel) && /(?:sandbox|policy|filesystem|network)/i.test(content)) {
-      return { file: filePath, line: 1, kind: 'NVIDIA OpenShell' };
     }
   }
   return null;
@@ -1212,7 +1209,7 @@ function checkTerminalBackendPosture(allFiles, agent) {
         cwe: 'CWE-653',
         owasp: 'ASI04',
         fix: local
-          ? 'Use a whole-process Docker/OpenShell deployment for untrusted input, or move terminal/file execution to a non-local backend and keep host-process MCP authority explicitly trusted and minimal.'
+          ? 'Use a whole-process Docker or NVIDIA OpenShell deployment for untrusted input, or move terminal/file execution to a non-local backend and keep host-process MCP authority explicitly trusted and minimal.'
           : 'Do not treat terminal-backend isolation as whole-process containment. Run Hermes itself inside Docker or NVIDIA OpenShell, or remove the untrusted MCP path from this deployment.',
         evidenceLevel: 'strong',
         reachability: 'reachable',

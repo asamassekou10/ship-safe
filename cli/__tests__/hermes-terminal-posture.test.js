@@ -188,6 +188,20 @@ mcp_servers:
     assert.ok(findings.some((item) => item.rule === 'HERMES_TERMINAL_BACKEND_SCOPE_GAP'));
   });
 
+  it('does not accept OpenShell prose as proof of whole-process wrapping', async () => {
+    const findings = await scan(untrustedMcpConfig('docker'), {
+      'docs/openshell-notes.md': 'The production policy should constrain filesystem and network access.\n',
+    });
+    assert.ok(findings.some((item) => item.rule === 'HERMES_TERMINAL_BACKEND_SCOPE_GAP'));
+  });
+
+  it('does not let a Compose comment claim the Hermes config is mounted', async () => {
+    const findings = await scan(untrustedMcpConfig('docker'), {
+      'compose.yaml': 'services:\n  hermes:\n    image: nousresearch/hermes-agent:0.21.0\n    # TODO mount .hermes/config.yaml\n',
+    });
+    assert.ok(findings.some((item) => item.rule === 'HERMES_TERMINAL_BACKEND_SCOPE_GAP'));
+  });
+
   it('keeps both posture rules out of the boundary-vulnerability set', () => {
     assert.equal(postureFor('HERMES_LOCAL_BACKEND_UNTRUSTED_INPUT'), 'hygiene');
     assert.equal(postureFor('HERMES_TERMINAL_BACKEND_SCOPE_GAP'), 'hygiene');
