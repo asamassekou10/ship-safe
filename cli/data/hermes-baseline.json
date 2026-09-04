@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "project": "NousResearch/hermes-agent",
+  "release": "v0.21.0",
+  "tag": "v2026.8.31",
+  "commit": "29112bef099274229cadff79cdff7bf7b99c4b77",
+  "releasedAt": "2026-08-31T19:29:49Z",
+  "auditedAt": "2026-09-04",
+  "securityPolicyPath": "SECURITY.md",
+  "surfaces": [
+    {
+      "id": "plugin-manifests",
+      "status": "partial",
+      "upstreamPaths": ["plugins/**/plugin.yaml", "hermes_cli/plugins.py"],
+      "boundary": "operator review before in-process loading",
+      "rules": ["HERMES_PLUGIN_NO_PROVENANCE", "HERMES_PLUGIN_UNDECLARED_HOOK", "HERMES_PLUGIN_NETWORK_LISTENER_UNDECLARED"],
+      "limitations": "Manifest provenance, hook drift, and undeclared listeners are covered as hygiene. Install and discovery paths that hide code from operator review are not modeled."
+    },
+    {
+      "id": "network-adapters",
+      "status": "partial",
+      "upstreamPaths": ["gateway/platforms/**", "plugins/platforms/**", "gateway/platform_registry.py"],
+      "boundary": "operator-configured caller authorization at each network surface",
+      "rules": ["HERMES_ADAPTER_ALLOWLIST_FAIL_OPEN"],
+      "limitations": "Python adapter functions are checked for fail-open dispatch. Shared authorization, relay, HTTP plugin, and non-loopback exposure paths are not comprehensively modeled."
+    },
+    {
+      "id": "terminal-backends",
+      "status": "uncovered",
+      "upstreamPaths": ["tools/environments/**", "tools/terminal_tool.py", "hermes_cli/setup.py"],
+      "boundary": "OS isolation for shell and file operations only",
+      "rules": [],
+      "limitations": "Ship Safe does not yet parse backend posture or verify which operations remain in the host process across local, Docker, Modal, SSH, Daytona, Vercel Sandbox, and Singularity."
+    },
+    {
+      "id": "acp",
+      "status": "uncovered",
+      "upstreamPaths": ["acp_adapter/**"],
+      "boundary": "host-user access control for local editor IPC",
+      "rules": [],
+      "limitations": "ACP is deliberately excluded from the network-adapter rule and has no dedicated local-IPC exposure analysis."
+    },
+    {
+      "id": "tui-gateway",
+      "status": "uncovered",
+      "upstreamPaths": ["tui_gateway/**", "ui-tui/**"],
+      "boundary": "host-user access control for local JSON-RPC IPC",
+      "rules": [],
+      "limitations": "Ship Safe does not yet model TUI gateway transport, bind scope, session routing, or reachable tool capabilities."
+    },
+    {
+      "id": "cron",
+      "status": "partial",
+      "upstreamPaths": ["cron/**", "tools/cronjob_tools.py"],
+      "boundary": "job identity, lifecycle, subprocess environment, and reachable effects",
+      "rules": ["HERMES_CRON_SKILL_INJECTION"],
+      "limitations": "The existing detector covers a generic scheduled skill-to-prompt shape but is not calibrated to Hermes v0.21.0's Python cron lifecycle, scripts, retries, or retained permissions."
+    },
+    {
+      "id": "credential-scoping",
+      "status": "partial",
+      "upstreamPaths": ["tools/environments/local.py", "tools/code_execution_tool.py", "tools/credential_files.py", "cron/scheduler.py"],
+      "boundary": "filtered credential flow into lower-trust subprocesses and external effects",
+      "rules": ["HERMES_SUB_AGENT_CREDENTIAL_FORWARD", "HERMES_XURL_TOKEN_STORE_EXPOSURE"],
+      "limitations": "Generic forwarding and credential-store exposure are covered. Ship Safe does not yet prove that a configured credential reaches and is consumed by a lower-trust component."
+    }
+  ]
+}

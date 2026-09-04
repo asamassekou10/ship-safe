@@ -1,0 +1,14 @@
+{
+  "release": "v0.21.0",
+  "tag": "v2026.8.31",
+  "commit": "29112bef099274229cadff79cdff7bf7b99c4b77",
+  "representativePaths": {
+    "plugin-manifests": "plugins/security-guidance/plugin.yaml",
+    "network-adapters": "gateway/platforms/api_server.py",
+    "terminal-backends": "tools/environments/docker.py",
+    "acp": "acp_adapter/server.py",
+    "tui-gateway": "tui_gateway/server.py",
+    "cron": "cron/lifecycle_guard.py",
+    "credential-scoping": "tools/environments/local.py"
+  }
+}
