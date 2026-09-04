@@ -873,6 +873,8 @@ async function outputJSON(scoreResult, findings, depVulns, recon, agentResults, 
       cwe: f.cwe, owasp: f.owasp, scope: f.scope,
       codeScope: f.codeScope, evidenceLevel: f.evidenceLevel,
       reachability: f.reachability, exposure: f.exposure,
+      ...(f.posture ? { posture: f.posture } : {}),
+      ...(f.hermesBoundary ? { hermesBoundary: f.hermesBoundary } : {}),
       // Only findings some pass actually investigated carry evidence; an empty
       // container on every finding would be noise in every report.
       ...(hasEvidence(f) ? { evidence: summarizeEvidence(f, rootPath) } : {}),
@@ -951,6 +953,27 @@ async function outputSARIF(findings, rootPath) {
             region: { startLine: f.line, startColumn: f.column || 1 },
           }
         }],
+        ...(f.hermesBoundary?.evidence?.length > 1 ? {
+          relatedLocations: f.hermesBoundary.evidence.slice(1).map((item, index) => ({
+            id: index + 1,
+            physicalLocation: {
+              artifactLocation: { uri: path.relative(rootPath, item.file).replace(/\\/g, '/'), uriBaseId: '%SRCROOT%' },
+              region: { startLine: Math.max(1, item.line || 1) },
+            },
+            message: { text: item.role },
+          })),
+        } : {}),
+        ...((f.posture || f.hermesBoundary) ? {
+          properties: {
+            ...(f.posture ? { posture: f.posture } : {}),
+            ...(f.hermesBoundary ? {
+              hermesBackend: f.hermesBoundary.backend,
+              claimedBoundary: f.hermesBoundary.claimedBoundary,
+              reachableOperation: f.hermesBoundary.reachableOperation,
+              executesIn: f.hermesBoundary.executesIn,
+            } : {}),
+          },
+        } : {}),
       })),
     }],
   }, null, 2)}\n`);

@@ -54,6 +54,33 @@ const HERMES_FILE_PATTERNS = [
   '**/*.{js,ts,py}',           // Source files using hermes-agent SDK
 ];
 
+/**
+ * Terminal execution locations in the Hermes Agent v0.21.0 baseline.
+ *
+ * Every non-local backend confines terminal and file-tool operations to its
+ * own OS boundary. MCP clients, plugins, hooks, and skills remain in the
+ * Hermes process unless that entire process is wrapped separately.
+ */
+export const HERMES_TERMINAL_BACKENDS = Object.freeze({
+  local: Object.freeze({ isolation: 'host', terminal: 'host', file: 'host' }),
+  docker: Object.freeze({ isolation: 'container', terminal: 'backend', file: 'backend' }),
+  modal: Object.freeze({ isolation: 'cloud sandbox', terminal: 'backend', file: 'backend' }),
+  ssh: Object.freeze({ isolation: 'remote host', terminal: 'backend', file: 'backend' }),
+  daytona: Object.freeze({ isolation: 'cloud sandbox', terminal: 'backend', file: 'backend' }),
+  vercel_sandbox: Object.freeze({ isolation: 'cloud sandbox', terminal: 'backend', file: 'backend' }),
+  singularity: Object.freeze({ isolation: 'container', terminal: 'backend', file: 'backend' }),
+});
+
+export const HERMES_OPERATION_BOUNDARIES = Object.freeze({
+  terminal: Object.freeze({ local: 'host', nonLocal: 'terminal backend' }),
+  file: Object.freeze({ local: 'host', nonLocal: 'terminal backend' }),
+  executeCode: Object.freeze({ local: 'host child process', nonLocal: 'terminal backend' }),
+  mcp: Object.freeze({ local: 'Hermes agent process', nonLocal: 'Hermes agent process' }),
+  plugin: Object.freeze({ local: 'Hermes agent process', nonLocal: 'Hermes agent process' }),
+  hook: Object.freeze({ local: 'Hermes agent process', nonLocal: 'Hermes agent process' }),
+  skill: Object.freeze({ local: 'Hermes agent process', nonLocal: 'Hermes agent process' }),
+});
+
 // =============================================================================
 // SINGLE-LINE REGEX PATTERNS
 // =============================================================================
@@ -994,6 +1021,218 @@ function checkXurlReadWriteLoop(content, filePath, agent) {
   return findings;
 }
 
+function lineNumberAt(content, offset) {
+  return content.slice(0, Math.max(0, offset)).split('\n').length;
+}
+
+function terminalBackendFromConfig(content, filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+
+  if (ext === '.json') {
+    try {
+      const parsed = JSON.parse(content);
+      const backend = String(parsed?.terminal?.backend || '').trim().toLowerCase();
+      if (backend in HERMES_TERMINAL_BACKENDS) {
+        const marker = new RegExp(`"backend"\\s*:\\s*"${backend.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`, 'i');
+        const match = content.match(marker);
+        return { backend, line: match ? lineNumberAt(content, match.index) : 1 };
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+
+  const lines = content.split(/\r?\n/);
+  let terminalIndent = null;
+  for (let index = 0; index < lines.length; index += 1) {
+    const raw = lines[index];
+    if (terminalIndent === null) {
+      const section = raw.match(/^(\s*)terminal\s*:\s*(?:#.*)?$/i);
+      if (section) terminalIndent = section[1].length;
+      continue;
+    }
+    if (!raw.trim() || raw.trimStart().startsWith('#')) continue;
+    const indent = raw.length - raw.trimStart().length;
+    if (indent <= terminalIndent) return null;
+    const property = raw.trim().match(/^backend\s*:\s*['"]?([a-z0-9_-]+)['"]?\s*(?:#.*)?$/i);
+    if (!property) continue;
+    const backend = property[1].toLowerCase();
+    return backend in HERMES_TERMINAL_BACKENDS ? { backend, line: index + 1 } : null;
+  }
+  return null;
+}
+
+function yamlMcpServers(content) {
+  const lines = content.split(/\r?\n/);
+  const servers = [];
+  let inSection = false;
+  let sectionIndent = -1;
+  let serverIndent = null;
+  let current = null;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const raw = lines[index];
+    if (!raw.trim() || raw.trimStart().startsWith('#')) continue;
+    const indent = raw.length - raw.trimStart().length;
+
+    if (!inSection) {
+      const match = raw.match(/^(\s*)mcp_servers\s*:\s*(?:#.*)?$/i);
+      if (match) {
+        inSection = true;
+        sectionIndent = match[1].length;
+      }
+      continue;
+    }
+
+    if (indent <= sectionIndent) break;
+    const serverMatch = raw.match(/^\s*['"]?([A-Za-z0-9_.-]+)['"]?\s*:\s*(?:#.*)?$/);
+    if (serverMatch && (serverIndent === null || indent === serverIndent)) {
+      serverIndent = indent;
+      current = { name: serverMatch[1], line: index + 1, trust: 'full', enabled: true, transport: null };
+      servers.push(current);
+      continue;
+    }
+    if (!current || indent <= serverIndent) continue;
+
+    const property = raw.trim().match(/^([A-Za-z0-9_-]+)\s*:\s*['"]?([^#'"]*)/);
+    if (!property) continue;
+    const key = property[1].toLowerCase();
+    const value = property[2].trim().toLowerCase();
+    if (key === 'trust') current.trust = value || 'untrusted';
+    if (key === 'enabled' && /^(?:false|no|off|0)$/.test(value)) current.enabled = false;
+    if (key === 'command') current.transport = 'MCP subprocess';
+    if (key === 'url') current.transport = 'remote MCP client';
+  }
+
+  return servers;
+}
+
+function jsonMcpServers(content) {
+  try {
+    const parsed = JSON.parse(content);
+    const entries = parsed?.mcp_servers;
+    if (!entries || typeof entries !== 'object' || Array.isArray(entries)) return [];
+    return Object.entries(entries).map(([name, config]) => {
+      const cfg = config && typeof config === 'object' ? config : {};
+      const marker = new RegExp(`"${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"\\s*:`, 'i');
+      const match = content.match(marker);
+      return {
+        name,
+        line: match ? lineNumberAt(content, match.index) : 1,
+        trust: String(cfg.trust || 'full').trim().toLowerCase(),
+        enabled: cfg.enabled !== false,
+        transport: cfg.command ? 'MCP subprocess' : (cfg.url ? 'remote MCP client' : null),
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+function isWholeProcessWrapped(files, agent) {
+  for (const filePath of files) {
+    const rel = filePath.replace(/\\/g, '/');
+    if (!/(?:^|\/)(?:Dockerfile(?:\.[^/]*)?|docker-compose\.ya?ml|compose\.ya?ml)$/i.test(rel)) continue;
+    const content = agent.readFile(filePath);
+    if (!content) continue;
+
+    if (/Dockerfile/i.test(path.basename(filePath)) &&
+        /^(?:CMD|ENTRYPOINT)\b[^\n]*\bhermes\b/im.test(content) &&
+        /^(?:COPY|ADD)\b[^\n]*(?:\.hermes|config\.ya?ml)/im.test(content)) {
+      return { file: filePath, line: lineNumberAt(content, content.search(/^(?:CMD|ENTRYPOINT)\b[^\n]*\bhermes\b/im)), kind: 'Docker image' };
+    }
+    if (/(?:docker-)?compose\.ya?ml$/i.test(rel) &&
+        /(?:image\s*:\s*[^\n]*hermes|command\s*:\s*[^\n]*\bhermes\b)/i.test(content) &&
+        /^[ \t]*(?:-[ \t]*)?[^#\n]*(?:\.hermes|config\.ya?ml)/im.test(content)) {
+      const offset = content.search(/(?:image\s*:\s*[^\n]*hermes|command\s*:\s*[^\n]*\bhermes\b)/i);
+      return { file: filePath, line: lineNumberAt(content, offset), kind: 'Docker Compose' };
+    }
+  }
+  return null;
+}
+
+function isHermesRuntimeConfig(content, filePath) {
+  const rel = filePath.replace(/\\/g, '/');
+  if (/(?:^|\/)\.hermes\/config\.(?:json|ya?ml)$/i.test(rel)) return true;
+  if (/(?:^|\/)hermes\.config\.(?:json|ya?ml)$/i.test(rel)) return true;
+  if (!/(?:^|\/)config\.(?:json|ya?ml)$/i.test(rel)) return false;
+  return /^\s*terminal\s*:/m.test(content) && /^\s*(?:mcp_servers|toolsets|model|plugins)\s*:/m.test(content);
+}
+
+/**
+ * Compare a declared terminal backend with an input path that demonstrably
+ * remains in the agent process. This is deliberately a project-level check:
+ * neither the backend nor the MCP declaration proves anything in isolation.
+ */
+function checkTerminalBackendPosture(allFiles, agent) {
+  const findings = [];
+  const wrapper = isWholeProcessWrapped(allFiles, agent);
+  if (wrapper) return findings;
+
+  for (const filePath of allFiles) {
+    const content = agent.readFile(filePath);
+    if (!content || !isHermesRuntimeConfig(content, filePath)) continue;
+    const terminal = terminalBackendFromConfig(content, filePath);
+    if (!terminal) continue;
+
+    const servers = path.extname(filePath).toLowerCase() === '.json'
+      ? jsonMcpServers(content)
+      : yamlMcpServers(content);
+
+    for (const server of servers) {
+      if (!server.enabled || server.trust === 'full' || !server.transport) continue;
+      const local = terminal.backend === 'local';
+      const backendInfo = HERMES_TERMINAL_BACKENDS[terminal.backend];
+      const claimedBoundary = local
+        ? 'no OS isolation; terminal and file operations run on the host'
+        : `${backendInfo.isolation} isolation for terminal and file operations only`;
+      const operation = `${server.transport} "${server.name}"`;
+      const rule = local
+        ? 'HERMES_LOCAL_BACKEND_UNTRUSTED_INPUT'
+        : 'HERMES_TERMINAL_BACKEND_SCOPE_GAP';
+
+      const finding = createFinding({
+        file: filePath,
+        line: terminal.line,
+        severity: 'medium',
+        category: agent.category,
+        rule,
+        title: local
+          ? `Hermes: Untrusted MCP Input Reaches the Local Host (${server.name})`
+          : `Hermes: ${terminal.backend} Terminal Isolation Does Not Contain MCP (${server.name})`,
+        description: local
+          ? `The explicitly selected local backend runs terminal and file operations on the host, while the enabled MCP server "${server.name}" is marked ${server.trust} and can return content to the agent. Selecting local is not a vulnerability by itself; this combined deployment is outside Hermes's supported posture for untrusted input.`
+          : `The ${terminal.backend} backend confines terminal and file operations to a ${backendInfo.isolation}, but the enabled ${operation} remains in the Hermes agent process. Because that server is marked ${server.trust}, its responses are an untrusted input path outside the configured terminal boundary.`,
+        matched: `backend=${terminal.backend}; input=mcp_servers.${server.name} (trust=${server.trust}); operation=${operation}; executes=${HERMES_OPERATION_BOUNDARIES.mcp.nonLocal}`,
+        confidence: 'high',
+        cwe: 'CWE-653',
+        owasp: 'ASI04',
+        fix: local
+          ? 'Use a whole-process Docker or NVIDIA OpenShell deployment for untrusted input, or move terminal/file execution to a non-local backend and keep host-process MCP authority explicitly trusted and minimal.'
+          : 'Do not treat terminal-backend isolation as whole-process containment. Run Hermes itself inside Docker or NVIDIA OpenShell, or remove the untrusted MCP path from this deployment.',
+        evidenceLevel: 'strong',
+        reachability: 'reachable',
+        exposure: 'external',
+      });
+      finding.hermesBoundary = {
+        backend: terminal.backend,
+        claimedBoundary,
+        input: `mcp_servers.${server.name} (trust=${server.trust})`,
+        reachableOperation: operation,
+        executesIn: HERMES_OPERATION_BOUNDARIES.mcp.nonLocal,
+        evidence: [
+          { file: filePath, line: terminal.line, role: 'configured backend' },
+          { file: filePath, line: server.line, role: 'untrusted input and reachable operation' },
+        ],
+      };
+      findings.push(finding);
+    }
+  }
+
+  return findings;
+}
+
 // =============================================================================
 // AGENT CLASS
 // =============================================================================
@@ -1031,6 +1270,8 @@ export class HermesSecurityAgent extends BaseAgent {
     const hermesFiles = this._findHermesFiles(files, rootPath);
 
     if (hermesFiles.length === 0) return findings;
+
+    findings.push(...checkTerminalBackendPosture(files, this));
 
     for (const filePath of hermesFiles) {
       const content = this.readFile(filePath);
@@ -1118,6 +1359,17 @@ export class HermesSecurityAgent extends BaseAgent {
       if (/(?:hermes\.config|agents\.(?:json|yaml|yml)|agent-manifest|tool-registry|hermes-tools)\./i.test(rel)) {
         hermesFiles.add(file);
         continue;
+      }
+
+      // Hermes's native runtime config is ~/.hermes/config.yaml. Repositories
+      // commonly carry the same shape at .hermes/config.yaml or as a deploy
+      // template at the root, so recognize it by both path and content.
+      if (/\.(?:json|ya?ml)$/i.test(rel)) {
+        const content = this.readFile(file);
+        if (content && isHermesRuntimeConfig(content, file)) {
+          hermesFiles.add(file);
+          continue;
+        }
       }
 
       // Skill files
