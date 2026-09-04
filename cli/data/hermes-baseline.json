@@ -34,19 +34,19 @@
     },
     {
       "id": "acp",
-      "status": "uncovered",
+      "status": "partial",
       "upstreamPaths": ["acp_adapter/**"],
       "boundary": "host-user access control for local editor IPC",
-      "rules": [],
-      "limitations": "ACP is deliberately excluded from the network-adapter rule and has no dedicated local-IPC exposure analysis."
+      "rules": ["HERMES_ACP_GATEWAY_EXPOSED"],
+      "limitations": "Configured non-loopback WebSocket re-exports are traced from their route to ACP prompt execution. External reverse proxies, inherited deployment binds, and custom ACP transports are not resolved statically."
     },
     {
       "id": "tui-gateway",
-      "status": "uncovered",
+      "status": "partial",
       "upstreamPaths": ["tui_gateway/**", "ui-tui/**"],
       "boundary": "host-user access control for local JSON-RPC IPC",
-      "rules": [],
-      "limitations": "Ship Safe does not yet model TUI gateway transport, bind scope, session routing, or reachable tool capabilities."
+      "rules": ["HERMES_TUI_GATEWAY_EXPOSED"],
+      "limitations": "Configured non-loopback WebSocket routes are traced to the shared TUI dispatcher and its reachable effects. External reverse proxies, dynamic bind values, and authorization inside custom middleware are not resolved statically."
     },
     {
       "id": "cron",
