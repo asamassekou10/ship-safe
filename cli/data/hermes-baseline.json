@@ -53,8 +53,12 @@
       "status": "partial",
       "upstreamPaths": ["cron/**", "tools/cronjob_tools.py"],
       "boundary": "job identity, lifecycle, subprocess environment, and reachable effects",
-      "rules": ["HERMES_CRON_SKILL_INJECTION"],
-      "limitations": "The existing detector covers a generic scheduled skill-to-prompt shape but is not calibrated to Hermes v0.21.0's Python cron lifecycle, scripts, retries, or retained permissions."
+      "rules": [
+        "HERMES_CRON_SKILL_INJECTION",
+        "HERMES_CRON_UPDATE_LIFECYCLE_GUARD_BYPASS",
+        "HERMES_CRON_RETAINED_AUTHORITY"
+      ],
+      "limitations": "Python job creation, persisted updates, scheduled execution, and run-scoped cleanup are calibrated to Hermes v0.21.0. Dynamic call targets, third-party scheduler providers, custom persistence layers, and authority implemented through unknown wrappers are not resolved statically."
     },
     {
       "id": "credential-scoping",
