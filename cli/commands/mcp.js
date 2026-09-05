@@ -56,8 +56,17 @@ import { DeepAnalyzer } from '../agents/deep-analyzer.js';
 import { PACKAGE_VERSION } from '../utils/package-version.js';
 
 export const MCP_SERVER_VERSION = PACKAGE_VERSION;
-export const MCP_SUPPORTED_PROTOCOL_VERSIONS = ['2025-11-25', '2024-11-05'];
+export const MCP_MODERN_PROTOCOL_VERSION = '2026-07-28';
+export const MCP_SUPPORTED_PROTOCOL_VERSIONS = [MCP_MODERN_PROTOCOL_VERSION, '2025-11-25', '2024-11-05'];
+export const MCP_LEGACY_PROTOCOL_VERSIONS = MCP_SUPPORTED_PROTOCOL_VERSIONS.filter(
+  version => version !== MCP_MODERN_PROTOCOL_VERSION,
+);
 export const MCP_DEFAULT_PROTOCOL_VERSION = MCP_SUPPORTED_PROTOCOL_VERSIONS[0];
+export const MCP_LEGACY_DEFAULT_PROTOCOL_VERSION = MCP_LEGACY_PROTOCOL_VERSIONS[0];
+
+const MCP_PROTOCOL_VERSION_META = 'io.modelcontextprotocol/protocolVersion';
+const MCP_SERVER_INFO_META = 'io.modelcontextprotocol/serverInfo';
+const MCP_DISCOVERY_TTL_MS = 300000;
 
 const MAX_MCP_FINDINGS = 200;
 
@@ -607,12 +616,47 @@ async function handleRequest(request) {
   const respond = (result) => ({ jsonrpc: '2.0', id, result });
   const respondError = (code, message) => ({ jsonrpc: '2.0', id, error: { code, message } });
 
+  const requestedProtocolVersion = params?._meta?.[MCP_PROTOCOL_VERSION_META];
+  if (requestedProtocolVersion !== undefined
+    && !MCP_SUPPORTED_PROTOCOL_VERSIONS.includes(requestedProtocolVersion)) {
+    return {
+      jsonrpc: '2.0',
+      id,
+      error: {
+        code: -32022,
+        message: 'Unsupported protocol version',
+        data: {
+          supported: MCP_SUPPORTED_PROTOCOL_VERSIONS,
+          requested: requestedProtocolVersion,
+        },
+      },
+    };
+  }
+
+  const modernRequest = params?._meta?.[MCP_PROTOCOL_VERSION_META] === MCP_MODERN_PROTOCOL_VERSION;
+  const modernResult = (result, { cacheable = false } = {}) => ({
+    ...result,
+    resultType: 'complete',
+    ...(cacheable ? { ttlMs: MCP_DISCOVERY_TTL_MS, cacheScope: 'public' } : {}),
+    _meta: {
+      ...(result._meta ?? {}),
+      [MCP_SERVER_INFO_META]: { name: 'ship-safe', version: MCP_SERVER_VERSION },
+    },
+  });
+
   switch (method) {
+    case 'server/discover':
+      return respond(modernResult({
+        supportedVersions: MCP_SUPPORTED_PROTOCOL_VERSIONS,
+        capabilities: { tools: {} },
+        instructions: 'Use Ship Safe tools to inspect repositories and review security findings before code ships.',
+      }, { cacheable: true }));
+
     case 'initialize': {
       const requestedProtocolVersion = params?.protocolVersion;
-      const protocolVersion = MCP_SUPPORTED_PROTOCOL_VERSIONS.includes(requestedProtocolVersion)
+      const protocolVersion = MCP_LEGACY_PROTOCOL_VERSIONS.includes(requestedProtocolVersion)
         ? requestedProtocolVersion
-        : MCP_DEFAULT_PROTOCOL_VERSION;
+        : MCP_LEGACY_DEFAULT_PROTOCOL_VERSION;
       return respond({
         protocolVersion,
         capabilities: { tools: {} },
@@ -621,7 +665,9 @@ async function handleRequest(request) {
     }
 
     case 'tools/list':
-      return respond({ tools: TOOLS });
+      return respond(modernRequest
+        ? modernResult({ tools: TOOLS }, { cacheable: true })
+        : { tools: TOOLS });
 
     case 'tools/call': {
       const { name, arguments: args } = params;
@@ -654,9 +700,10 @@ async function handleRequest(request) {
             return respondError(-32601, `Unknown tool: ${name}`);
         }
 
-        return respond({
+        const toolResult = {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
-        });
+        };
+        return respond(modernRequest ? modernResult(toolResult) : toolResult);
       } catch (err) {
         return respondError(-32603, err.message);
       }
