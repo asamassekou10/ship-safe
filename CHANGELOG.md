@@ -31,6 +31,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   lifecycle and credential-flow evidence, including the reachability basis and
   citations used to derive a verdict.
 
+### Fixed
+- **Named plugin scaffolding.** `ship-safe plugins new <name>` now creates the
+  requested plugin instead of silently falling back to `my-rule.js`.
+- **Shell-free doctor checks.** Fixed package-manager and registry commands are
+  executed directly, avoiding Node's shell-spawn security deprecation warning.
+- **Parseable red-team output.** JSON and SARIF modes no longer mix banners,
+  policy summaries, or trend text into standard output.
+- **Parseable benchmark output.** JSON mode now keeps presentation headers out
+  of standard output.
+- **Parseable ABOM output.** `abom --json` now emits only CycloneDX JSON,
+  matching the existing AIBOM machine-output contract.
+- **Stable env-audit output.** JSON mode now returns a structured clean result
+  when a project has no environment files.
+- **Parseable vetting output.** Skill and MCP manifest JSON modes no longer
+  prefix reports with interactive headers or target metadata.
+- **Strict diff scope.** Diff scans now exclude project-wide findings whose
+  evidence is outside the changed-file set, and JSON mode emits only JSON.
+
 ## [9.9.0] - 2026-09-01
 
 ### Added

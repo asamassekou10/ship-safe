@@ -19,9 +19,11 @@ export async function abomCommand(targetPath = '.', options = {}) {
   const absolutePath = path.resolve(targetPath);
   const outputFile = options.output || 'abom.json';
 
-  console.log();
-  output.header('Ship Safe — Agent Bill of Materials');
-  console.log();
+  if (!options.json) {
+    console.log();
+    output.header('Ship Safe — Agent Bill of Materials');
+    console.log();
+  }
 
   const generator = new ABOMGenerator();
   const bom = generator.generate(absolutePath);

@@ -27,9 +27,8 @@ function scan(target) {
 
 function parseJson(result) {
   assert.equal(result.error, undefined, result.error?.message);
-  const json = result.stdout.match(/\n(\{[\s\S]*\})\s*$/);
-  assert.ok(json, `Expected JSON output, got:\n${result.stdout}`);
-  return JSON.parse(json[1]);
+  assert.doesNotMatch(result.stdout, /Ship Safe — MCP Server Security Analysis/);
+  return JSON.parse(result.stdout);
 }
 
 test('scans an empty directory without reading it as a manifest', () => {
@@ -38,8 +37,6 @@ test('scans an empty directory without reading it as a manifest', () => {
     const report = parseJson(result);
 
     assert.equal(result.status, 0);
-    assert.ok(result.stdout.includes(`No MCP configuration files found in ${directory}`));
-    assert.match(result.stdout, /mcp\.json/);
     assert.deepEqual(report.configs, []);
     assert.equal(report.configCount, 0);
     assert.deepEqual(report.findings, []);

@@ -196,14 +196,16 @@ export async function scanMcpCommand(target, options = {}) {
     process.exit(1);
   }
 
-  console.log();
-  output.header('Ship Safe — MCP Server Security Analysis');
-  console.log();
+  if (!options.json) {
+    console.log();
+    output.header('Ship Safe — MCP Server Security Analysis');
+    console.log();
+  }
 
   let manifest, serverName, source;
 
   if (target.startsWith('http://') || target.startsWith('https://')) {
-    console.log(chalk.gray(`  Fetching MCP manifest from: ${target}`));
+    if (!options.json) console.log(chalk.gray(`  Fetching MCP manifest from: ${target}`));
     try {
       manifest = await fetchMcpManifest(target);
       serverName = new URL(target).hostname;
@@ -246,11 +248,17 @@ export async function scanMcpCommand(target, options = {}) {
   }
 
   const tools = extractTools(manifest);
-  console.log(chalk.gray(`  Server: ${serverName}`));
-  console.log(chalk.gray(`  Tools found: ${tools.length}`));
-  console.log();
+  if (!options.json) {
+    console.log(chalk.gray(`  Server: ${serverName}`));
+    console.log(chalk.gray(`  Tools found: ${tools.length}`));
+    console.log();
+  }
 
   if (tools.length === 0) {
+    if (options.json) {
+      console.log(JSON.stringify({ server: serverName, source, toolCount: 0, findings: [], summary: getSummary([]) }, null, 2));
+      return;
+    }
     output.warning('No tools found in manifest. Is this a valid MCP tools response?');
     return;
   }
@@ -280,7 +288,7 @@ async function scanMcpDirectory(rootPath, options) {
   }));
   const summary = getSummary(findings);
 
-  if (configFiles.length === 0) {
+  if (!options.json && configFiles.length === 0) {
     renderEmptyDirectoryWarning(rootPath);
   }
 
