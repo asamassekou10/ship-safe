@@ -6,7 +6,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased]
+## [10.0.0] - 2026-09-05
+
+### Added
+- **Hermes Agent 10.0 investigation coverage.** Ship Safe now records a pinned
+  Hermes v0.21.0 baseline and traces security-relevant reachability across
+  plugin manifests, network adapters, terminal backends, ACP, TUI, cron jobs,
+  and credential-scoping paths. The coverage matrix documents what is checked
+  and where external or custom schedulers remain outside the model.
+- **Cron lifecycle evidence.** The scanner checks schedule definition,
+  persistence, execution identity, cancellation, cleanup, and symmetry between
+  guarded creation and later updates. It also checks that run-scoped authority
+  is cleaned up on exception and retry paths.
+- **MCP protocol compatibility.** The MCP server negotiates legacy initialize
+  versions, supports the modern discovery request, and preserves result
+  envelopes and server metadata for modern clients without changing legacy
+  responses.
+
+### Changed
+- **Evidence-first release gates.** Hermes release evidence now exercises JSON,
+  SARIF, and verdict-gate output and validates every cited location. Findings
+  remain deterministic; advisory analysis does not suppress them.
+- **Stable machine-readable evidence.** Audit and CI output carries Hermes
+  lifecycle and credential-flow evidence, including the reachability basis and
+  citations used to derive a verdict.
 
 ## [9.9.0] - 2026-09-01
 

@@ -1,22 +1,22 @@
 {
   "tool": "ship-safe",
-  "version": "9.8.0",
+  "version": "10.0.0",
   "methodology": "Findings reported by `ship-safe ci --no-deps` against pinned checkouts, plus what `ship-safe investigate` concluded about them. Clean corpus: mature projects with no known active vulnerabilities, where every finding is triage a user inherits. Vulnerable corpus: deliberately insecure applications, present so a reduction in noise cannot be mistaken for lost detection. Counts are a proxy for a false-positive rate, not a verified one.",
   "clean": [
     {
       "id": "express",
       "repo": "expressjs/express",
       "commit": "a3714473feb3d2908add734d340e7755fd85e0a3",
-      "findings": 18,
+      "findings": 0,
       "critical": 0,
-      "high": 4,
-      "score": 81.4,
-      "grade": "B",
+      "high": 0,
+      "score": 100,
+      "grade": "A",
       "verdicts": {
         "confirmed": 0,
-        "likely": 2,
-        "unknown": 7,
-        "refuted": 9
+        "likely": 0,
+        "unknown": 0,
+        "refuted": 0
       }
     },
     {
@@ -71,16 +71,16 @@
       "id": "hermes-agent",
       "repo": "NousResearch/hermes-agent",
       "commit": "743dc94ab90adb0529bb233b8498c6fd6ee0e020",
-      "findings": 695,
+      "findings": 696,
       "critical": 66,
-      "high": 223,
+      "high": 224,
       "score": 20.1,
       "grade": "F",
       "verdicts": {
         "confirmed": 3,
         "likely": 95,
         "unknown": 352,
-        "refuted": 223
+        "refuted": 224
       }
     }
   ],
@@ -127,12 +127,12 @@
   ],
   "summary": {
     "cleanProjects": 5,
-    "cleanFindings": 742,
+    "cleanFindings": 725,
     "cleanCriticalFindings": 66,
     "vulnerableProjects": 2,
     "vulnerableFindings": 138,
     "cleanConfirmed": 3,
-    "cleanRefuted": 236,
+    "cleanRefuted": 228,
     "vulnerableConfirmed": 7
   }
 }

@@ -18,12 +18,12 @@ Mature, heavily reviewed projects with no known active vulnerabilities.
 
 | project | findings | critical | score | grade | was (9.6.3) |
 |---|---|---|---|---|---|
-| [express](https://github.com/expressjs/express) | 22 | 0 | 81.2 | B | 26 |
-| [requests](https://github.com/psf/requests) | 11 | 1 | 87 | D | 15 |
-| [flask](https://github.com/pallets/flask) | 20 | 0 | 81.6 | B | 28 |
-| [chalk](https://github.com/chalk/chalk) | 4 | 0 | 91.8 | A | 4 |
-| [hermes-agent](https://github.com/NousResearch/hermes-agent) | 785 | 101 | 20.9 | F | — |
-| **total (original four)** | **57** | **1** | | | **73** |
+| [express](https://github.com/expressjs/express) | 0 | 0 | 100 | A | 26 |
+| [requests](https://github.com/psf/requests) | 7 | 0 | 95.5 | A | 15 |
+| [flask](https://github.com/pallets/flask) | 18 | 0 | 82 | B | 28 |
+| [chalk](https://github.com/chalk/chalk) | 4 | 0 | 89.4 | B | 4 |
+| [hermes-agent](https://github.com/NousResearch/hermes-agent) | 696 | 66 | 20.1 | F | — |
+| **total (original four)** | **29** | **0** | | | **73** |
 
 Before the 9.6.3 false-positive work these same four projects produced **1031**
 findings, with express alone at 811 and three of the four graded F. The bulk of
@@ -43,10 +43,10 @@ agent security should be measured against a real agent.
 It found more than any other corpus entry ever has. The first run reported
 **6,948 findings**, of which five rules were 4,684 — including 1,963 on a single
 contributor credit map, and two rules whose absence-assertions could not fail on
-input like theirs. It is now at **799**, an 89% reduction, with the full
+input like theirs. It is now at **696**, a 90% reduction, with the full
 accounting in the changelog for this release.
 
-799 is not a passing number and this table does not pretend otherwise. The
+696 is not a passing number and this table does not pretend otherwise. The
 remaining tail is documented under "Known false positives" below.
 
 ### Vulnerable corpus
