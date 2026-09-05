@@ -1,0 +1,6 @@
+terminal:
+  backend: local
+  env_passthrough:
+    - DEPLOY_TOKEN
+toolsets:
+  - terminal

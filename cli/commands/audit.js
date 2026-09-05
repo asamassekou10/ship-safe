@@ -876,6 +876,7 @@ async function outputJSON(scoreResult, findings, depVulns, recon, agentResults, 
       ...(f.posture ? { posture: f.posture } : {}),
       ...(f.hermesBoundary ? { hermesBoundary: f.hermesBoundary } : {}),
       ...(f.hermesCronLifecycle ? { hermesCronLifecycle: f.hermesCronLifecycle } : {}),
+      ...(f.hermesCredentialFlow ? { hermesCredentialFlow: f.hermesCredentialFlow } : {}),
       // Only findings some pass actually investigated carry evidence; an empty
       // container on every finding would be noise in every report.
       ...(hasEvidence(f) ? { evidence: summarizeEvidence(f, rootPath) } : {}),
@@ -954,8 +955,8 @@ async function outputSARIF(findings, rootPath) {
             region: { startLine: f.line, startColumn: f.column || 1 },
           }
         }],
-        ...((f.hermesBoundary?.evidence?.slice(1) || f.hermesCronLifecycle?.evidence)?.length > 0 ? {
-          relatedLocations: (f.hermesBoundary?.evidence?.slice(1) || f.hermesCronLifecycle.evidence).map((item, index) => ({
+        ...((f.hermesBoundary?.evidence?.slice(1) || f.hermesCronLifecycle?.evidence || f.hermesCredentialFlow?.evidence)?.length > 0 ? {
+          relatedLocations: (f.hermesBoundary?.evidence?.slice(1) || f.hermesCronLifecycle?.evidence || f.hermesCredentialFlow.evidence).map((item, index) => ({
             id: index + 1,
             physicalLocation: {
               artifactLocation: { uri: path.relative(rootPath, item.file).replace(/\\/g, '/'), uriBaseId: '%SRCROOT%' },
@@ -964,7 +965,7 @@ async function outputSARIF(findings, rootPath) {
             message: { text: item.role },
           })),
         } : {}),
-        ...((f.posture || f.hermesBoundary || f.hermesCronLifecycle) ? {
+        ...((f.posture || f.hermesBoundary || f.hermesCronLifecycle || f.hermesCredentialFlow) ? {
           properties: {
             ...(f.posture ? { posture: f.posture } : {}),
             ...(f.hermesBoundary ? {
@@ -987,6 +988,14 @@ async function outputSARIF(findings, rootPath) {
               hermesCronStage: f.hermesCronLifecycle.stage,
               retainedAuthority: f.hermesCronLifecycle.retainedAuthority,
               errorAndRetryImpact: f.hermesCronLifecycle.errorAndRetryImpact,
+            } : {}),
+            ...(f.hermesCredentialFlow ? {
+              credential: f.hermesCredentialFlow.credential,
+              credentialScope: f.hermesCredentialFlow.scope,
+              credentialRecipient: f.hermesCredentialFlow.recipient,
+              reachableOperation: f.hermesCredentialFlow.reachableOperation,
+              externalEffect: f.hermesCredentialFlow.externalEffect,
+              reachabilityBasis: f.hermesCredentialFlow.reachabilityBasis,
             } : {}),
           },
         } : {}),

@@ -1,0 +1,8 @@
+name: deploy-reporter
+kind: standalone
+version: 1.0.0
+requires_env:
+  - name: DEPLOY_TOKEN
+    password: true
+provides_tools:
+  - format_report

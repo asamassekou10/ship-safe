@@ -65,8 +65,12 @@
       "status": "partial",
       "upstreamPaths": ["tools/environments/local.py", "tools/code_execution_tool.py", "tools/credential_files.py", "cron/scheduler.py"],
       "boundary": "filtered credential flow into lower-trust subprocesses and external effects",
-      "rules": ["HERMES_SUB_AGENT_CREDENTIAL_FORWARD", "HERMES_XURL_TOKEN_STORE_EXPOSURE"],
-      "limitations": "Generic forwarding and credential-store exposure are covered. Ship Safe does not yet prove that a configured credential reaches and is consumed by a lower-trust component."
+      "rules": [
+        "HERMES_SUB_AGENT_CREDENTIAL_FORWARD",
+        "HERMES_XURL_TOKEN_STORE_EXPOSURE",
+        "HERMES_CREDENTIAL_REACHABLE_EFFECT"
+      ],
+      "limitations": "Configured project-plugin, platform-adapter, terminal-skill, and persisted-cron flows are correlated to literal credential consumers and external operations. Dynamic credential names, indirect registrations, pip/user plugins outside the repository, templated jobs, and effects hidden behind unknown wrappers remain unresolved."
     }
   ]
 }

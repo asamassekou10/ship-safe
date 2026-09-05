@@ -120,6 +120,15 @@ export const HERMES_CRON_LIFECYCLE = Object.freeze({
   cleanup: 'finally-scoped session, cwd, secret-scope, and agent teardown',
 });
 
+/** Evidence fields required before a configured credential path is actionable. */
+export const HERMES_CREDENTIAL_FLOW = Object.freeze([
+  'source',
+  'scope',
+  'recipient',
+  'reachableOperation',
+  'externalEffect',
+]);
+
 // =============================================================================
 // SINGLE-LINE REGEX PATTERNS
 // =============================================================================
@@ -182,6 +191,9 @@ const BOUNDARY_RULES = new Set([
   // crosses that boundary.
   'HERMES_ACP_GATEWAY_EXPOSED',
   'HERMES_TUI_GATEWAY_EXPOSED',
+  // A credential declaration becomes a boundary issue only when the complete
+  // path to a lower-trust recipient and external side effect resolves.
+  'HERMES_CREDENTIAL_REACHABLE_EFFECT',
 ]);
 
 /** Which half of Hermes's policy a rule falls under. */
@@ -540,6 +552,13 @@ function pythonCodeOnly(content) {
   return String(content || '')
     .replace(/^[ \t]*#.*$/gm, '')
     .replace(/'''[\s\S]*?'''|"""[\s\S]*?"""/g, '');
+}
+
+/** Remove Python prose while retaining line offsets for evidence locations. */
+function pythonCodeOnlyWithLines(content) {
+  return String(content || '')
+    .replace(/^[ \t]*#.*$/gm, (match) => ' '.repeat(match.length))
+    .replace(/'''[\s\S]*?'''|"""[\s\S]*?"""/g, (match) => match.replace(/[^\n]/g, ' '));
 }
 
 /**
@@ -1589,6 +1608,355 @@ function isHermesRuntimeConfig(content, filePath) {
   return /^\s*terminal\s*:/m.test(content) && /^\s*(?:mcp_servers|toolsets|model|plugins)\s*:/m.test(content);
 }
 
+const CREDENTIAL_NAME_RE = /(?:TOKEN|SECRET|PASSWORD|PASSWD|API[_-]?KEY|CREDENTIAL|AUTH)/i;
+
+function regexEscape(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function yamlListProperty(content, sectionName, propertyName) {
+  const lines = content.split(/\r?\n/);
+  const results = [];
+  let sectionIndent = null;
+  let propertyIndent = null;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const raw = lines[index];
+    if (!raw.trim() || raw.trimStart().startsWith('#')) continue;
+    const indent = raw.length - raw.trimStart().length;
+
+    if (sectionIndent === null) {
+      const section = raw.match(new RegExp(`^(\\s*)${regexEscape(sectionName)}\\s*:\\s*(?:#.*)?$`, 'i'));
+      if (section) sectionIndent = section[1].length;
+      continue;
+    }
+    if (indent <= sectionIndent) break;
+
+    if (propertyIndent === null) {
+      const property = raw.match(new RegExp(`^(\\s*)${regexEscape(propertyName)}\\s*:\\s*(.*?)\\s*(?:#.*)?$`, 'i'));
+      if (!property) continue;
+      propertyIndent = property[1].length;
+      const inline = property[2].trim();
+      if (inline.startsWith('[') && inline.endsWith(']')) {
+        for (const value of inline.slice(1, -1).split(',')) {
+          const normalized = value.trim().replace(/^['"]|['"]$/g, '');
+          if (normalized) results.push({ value: normalized, line: index + 1 });
+        }
+      }
+      continue;
+    }
+
+    if (indent <= propertyIndent) break;
+    const item = raw.trim().match(/^-\s*['"]?([^#'"]+?)['"]?\s*(?:#.*)?$/);
+    if (item) results.push({ value: item[1].trim(), line: index + 1 });
+  }
+  return results;
+}
+
+function configuredCredentialPaths(content, filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === '.json') {
+    try {
+      const parsed = JSON.parse(content);
+      const locate = (value) => {
+        const match = content.match(new RegExp(`["']${regexEscape(value)}["']`));
+        return match ? lineNumberAt(content, match.index) : 1;
+      };
+      return {
+        passthrough: (parsed?.terminal?.env_passthrough || [])
+          .filter((value) => typeof value === 'string')
+          .map((value) => ({ value, line: locate(value) })),
+        enabledPlugins: (parsed?.plugins?.enabled || [])
+          .filter((value) => typeof value === 'string')
+          .map((value) => ({ value, line: locate(value) })),
+      };
+    } catch {
+      return { passthrough: [], enabledPlugins: [] };
+    }
+  }
+  return {
+    passthrough: yamlListProperty(content, 'terminal', 'env_passthrough'),
+    enabledPlugins: yamlListProperty(content, 'plugins', 'enabled'),
+  };
+}
+
+function manifestCredentialEntries(content) {
+  const lines = content.split(/\r?\n/);
+  const entries = [];
+  let sectionIndent = null;
+  let current = null;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const raw = lines[index];
+    if (!raw.trim() || raw.trimStart().startsWith('#')) continue;
+    const indent = raw.length - raw.trimStart().length;
+    const section = raw.match(/^(\s*)(?:requires_env|optional_env)\s*:\s*(?:#.*)?$/i);
+    if (section) {
+      sectionIndent = section[1].length;
+      current = null;
+      continue;
+    }
+    if (sectionIndent === null) continue;
+    if (indent <= sectionIndent) {
+      sectionIndent = null;
+      current = null;
+      continue;
+    }
+    const name = raw.trim().match(/^-\s*name\s*:\s*['"]?([A-Za-z_][A-Za-z0-9_]*)/i);
+    if (name) {
+      current = { name: name[1], line: index + 1, password: false };
+      entries.push(current);
+      continue;
+    }
+    if (current && /^password\s*:\s*true\b/i.test(raw.trim())) current.password = true;
+  }
+  return entries.filter((entry) => entry.password || CREDENTIAL_NAME_RE.test(entry.name));
+}
+
+function manifestIdentity(content, filePath) {
+  const name = content.match(/^\s*name\s*:\s*['"]?([^#'"\n]+)/im)?.[1]?.trim() || path.basename(path.dirname(filePath));
+  const kind = content.match(/^\s*kind\s*:\s*['"]?([^#'"\n]+)/im)?.[1]?.trim().toLowerCase() || 'standalone';
+  return { name, kind, key: path.basename(path.dirname(filePath)) };
+}
+
+function projectPluginOptIn(files, agent) {
+  for (const filePath of files) {
+    const normalized = filePath.replace(/\\/g, '/');
+    if (!/(?:^|\/)(?:Dockerfile(?:\.[^/]*)?|(?:docker-)?compose\.ya?ml|[^/]*\.env(?:\.[^/]*)?|[^/]+\.(?:ya?ml|sh))$/i.test(normalized)) continue;
+    const content = agent.readFile(filePath);
+    if (!content) continue;
+    const lines = content.split(/\r?\n/);
+    const index = lines.findIndex((line) => (
+      !line.trimStart().startsWith('#')
+      && /\bHERMES_ENABLE_PROJECT_PLUGINS\b\s*(?::|=)\s*['"]?(?:1|true|yes|on)\b/i.test(line)
+    ));
+    if (index !== -1) return { file: filePath, line: index + 1 };
+  }
+  return null;
+}
+
+function findPythonCredentialEffect(content, credentialName) {
+  const functions = pythonFunctionsWithDecorators(content);
+  const namePattern = regexEscape(credentialName);
+  const sourceRe = new RegExp(`^\\s*([A-Za-z_]\\w*)\\s*=.*\\b(?:_?scoped_)?get_secret\\s*\\(\\s*["']${namePattern}["']|^\\s*([A-Za-z_]\\w*)\\s*=.*\\bos\\.(?:getenv|environ\\.get)\\s*\\(\\s*["']${namePattern}["']`, 'i');
+  const networkRe = /\b(?:(?:requests|httpx|aiohttp|urllib)(?:\.[A-Za-z_]\w*)*\.(?:get|post|put|patch|delete|request)|urlopen|fetch|[A-Za-z_]\w*\.(?:get|post|put|patch|delete|request))\s*\(/i;
+
+  for (const fn of functions) {
+    const lines = pythonCodeOnlyWithLines(fn.text).split('\n');
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index];
+      if (line.trimStart().startsWith('#')) continue;
+      const source = line.match(sourceRe);
+      if (!source) continue;
+      const variable = source[1] || source[2];
+      const variableRe = new RegExp(`\\b${regexEscape(variable)}\\b`);
+      for (let sinkIndex = index + 1; sinkIndex < lines.length; sinkIndex += 1) {
+        const window = lines.slice(sinkIndex, sinkIndex + 5).join('\n');
+        const network = window.match(networkRe);
+        if (!network) continue;
+
+        let depth = 1;
+        let end = network.index + network[0].length;
+        for (; end < window.length; end += 1) {
+          if (window[end] === '(') depth += 1;
+          if (window[end] === ')') {
+            depth -= 1;
+            if (depth <= 0) {
+              end += 1;
+              break;
+            }
+          }
+        }
+        const call = window.slice(network.index, end);
+        if (variableRe.test(call)) {
+          const lineOffset = window.slice(0, network.index).split('\n').length - 1;
+          return {
+            sourceLine: fn.startLine + index,
+            sinkLine: fn.startLine + sinkIndex + lineOffset,
+            functionName: fn.name,
+          };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function findPluginRegistration(sources, functionName, agent) {
+  const functionRe = regexEscape(functionName);
+  const registrationRe = new RegExp(`\\bregister_(?:tool|hook|platform|adapter)\\s*\\([^)]*\\b${functionRe}\\b|\\b${functionRe}\\b[^\\n]*\\bregister_(?:tool|hook|platform|adapter)\\s*\\(`, 'i');
+  for (const file of sources) {
+    const content = pythonCodeOnlyWithLines(agent.readFile(file) || '');
+    const match = content.match(registrationRe);
+    if (match) return { file, line: lineNumberAt(content, match.index) };
+  }
+  return null;
+}
+
+function externalCommandForCredential(content, credentialName) {
+  const lines = content.split(/\r?\n/);
+  const credentialRe = new RegExp(`(?:\\$\\{?${regexEscape(credentialName)}\\}?|%${regexEscape(credentialName)}%)`, 'i');
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (credentialRe.test(line) && /\b(?:curl|wget|http|Invoke-WebRequest)\b/i.test(line)) {
+      return { line: index + 1 };
+    }
+  }
+  return null;
+}
+
+function credentialFinding({ agent, name, surface, primary, scope, recipient, operation, effect, evidence }) {
+  const finding = createFinding({
+    file: primary.file,
+    line: primary.line,
+    severity: 'high',
+    category: agent.category,
+    rule: 'HERMES_CREDENTIAL_REACHABLE_EFFECT',
+    title: `Hermes: Configured Credential Reaches a ${surface === 'adapter' ? 'Platform Adapter' : surface[0].toUpperCase() + surface.slice(1)} Effect`,
+    description: `Hermes configuration makes credential ${name} available to a lower-trust ${recipient}, and executable code consumes it on ${operation}. This is a resolved path to ${effect}; credential presence without these recipient and effect links is not reported.`,
+    matched: `${name} -> ${surface} -> external effect`,
+    confidence: 'high',
+    cwe: 'CWE-200',
+    owasp: 'ASI02',
+    fix: 'Remove the credential from this recipient, replace it with a dedicated least-privilege token, or require an approval boundary before the external operation. Keep project plugins disabled unless their code and declared capabilities have been reviewed.',
+    evidenceLevel: 'strong',
+    reachability: 'reachable',
+    exposure: 'external',
+  });
+  finding.hermesCredentialFlow = {
+    credential: name,
+    source: 'Hermes configuration declaration',
+    scope,
+    recipient,
+    reachableOperation: operation,
+    externalEffect: effect,
+    reachabilityBasis: 'configured',
+    evidence,
+  };
+  return finding;
+}
+
+/** Resolve configured credentials to actual lower-trust consumers and effects. */
+function checkCredentialReachability(files, agent) {
+  const findings = [];
+  const configs = [];
+  for (const file of files) {
+    const content = agent.readFile(file);
+    if (!content || !isHermesRuntimeConfig(content, file)) continue;
+    configs.push({ file, content, ...configuredCredentialPaths(content, file) });
+  }
+
+  const optIn = projectPluginOptIn(files, agent);
+  if (optIn) {
+    for (const manifestFile of files) {
+      const normalized = manifestFile.replace(/\\/g, '/');
+      if (!/(?:^|\/)\.hermes\/plugins\/.+\/plugin\.ya?ml$/i.test(normalized)) continue;
+      const manifestContent = agent.readFile(manifestFile);
+      if (!manifestContent) continue;
+      const identity = manifestIdentity(manifestContent, manifestFile);
+      const enabled = configs.flatMap((config) => config.enabledPlugins.map((entry) => ({ ...entry, file: config.file })))
+        .find((entry) => entry.value === identity.key || entry.value === identity.name);
+      if (!enabled) continue;
+
+      const pluginDir = path.dirname(manifestFile);
+      const sources = files.filter((file) => {
+        const relative = path.relative(pluginDir, file);
+        return relative && !relative.startsWith('..') && !path.isAbsolute(relative) && /\.py$/i.test(file);
+      });
+      for (const credential of manifestCredentialEntries(manifestContent)) {
+        for (const sourceFile of sources) {
+          const effect = findPythonCredentialEffect(agent.readFile(sourceFile) || '', credential.name);
+          if (!effect) continue;
+          const registration = findPluginRegistration(sources, effect.functionName, agent);
+          if (!registration) continue;
+          const surface = identity.kind === 'platform' ? 'adapter' : 'plugin';
+          findings.push(credentialFinding({
+            agent,
+            name: credential.name,
+            surface,
+            primary: { file: sourceFile, line: effect.sinkLine },
+            scope: 'enabled project plugin in the active profile',
+            recipient: `${surface} ${identity.key}`,
+            operation: `network operation in ${effect.functionName}()`,
+            effect: 'an external service request authenticated with the configured credential',
+            evidence: [
+              { file: manifestFile, line: credential.line, role: 'credential name is declared; no value is recorded' },
+              { file: enabled.file, line: enabled.line, role: 'project plugin is enabled' },
+              { file: optIn.file, line: optIn.line, role: 'project plugin loading is explicitly enabled' },
+              { file: registration.file, line: registration.line, role: 'Hermes registers the credential-consuming operation' },
+              { file: sourceFile, line: effect.sourceLine, role: 'plugin or adapter consumes the scoped credential' },
+              { file: sourceFile, line: effect.sinkLine, role: 'credential reaches an external network operation' },
+            ],
+          }));
+          break;
+        }
+      }
+    }
+  }
+
+  const passthrough = configs.flatMap((config) => config.passthrough.map((entry) => ({ ...entry, file: config.file })));
+  for (const credential of passthrough.filter((entry) => CREDENTIAL_NAME_RE.test(entry.value))) {
+    for (const file of files) {
+      const normalized = file.replace(/\\/g, '/');
+      const content = agent.readFile(file);
+      if (!content) continue;
+      const command = externalCommandForCredential(content, credential.value);
+      if (!command) continue;
+
+      if (/(?:^|\/)\.hermes\/skills\/.*\.md$/i.test(normalized)) {
+        const declarationRe = new RegExp(`required_environment_variables[\\s\\S]{0,500}\\b${regexEscape(credential.value)}\\b`, 'i');
+        if (!declarationRe.test(content)) continue;
+        findings.push(credentialFinding({
+          agent,
+          name: credential.value,
+          surface: 'terminal',
+          primary: { file, line: command.line },
+          scope: 'terminal.env_passthrough into the skill execution child',
+          recipient: `skill ${path.basename(file)}`,
+          operation: 'credential-bearing terminal command',
+          effect: 'an external network request from the terminal child',
+          evidence: [
+            { file: credential.file, line: credential.line, role: 'credential name is explicitly allowlisted; no value is recorded' },
+            { file, line: lineNumberAt(content, content.search(declarationRe)), role: 'skill declares the credential as a required input' },
+            { file, line: command.line, role: 'skill command consumes the credential in an external operation' },
+          ],
+        }));
+      }
+
+      if (/(?:^|\/)\.hermes\/cron\/jobs\.json$/i.test(normalized)) {
+        try {
+          const parsed = JSON.parse(content);
+          const jobs = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.jobs) ? parsed.jobs : []);
+          const referenceRe = new RegExp(`(?:\\$\\{?${regexEscape(credential.value)}\\}?|%${regexEscape(credential.value)}%)`, 'i');
+          const job = jobs.find((item) => item && item.enabled !== false && referenceRe.test(String(item.script || '')) && /\b(?:curl|wget|http|Invoke-WebRequest)\b/i.test(String(item.script || '')));
+          if (!job) continue;
+          const marker = String(job.id || job.name || credential.value);
+          const markerIndex = content.indexOf(marker);
+          findings.push(credentialFinding({
+            agent,
+            name: credential.value,
+            surface: 'cron',
+            primary: { file, line: markerIndex >= 0 ? lineNumberAt(content, markerIndex) : command.line },
+            scope: 'profile-scoped cron execution with terminal env passthrough',
+            recipient: `enabled cron job ${String(job.name || job.id || 'scheduled job')}`,
+            operation: 'scheduled credential-bearing command',
+            effect: 'an unattended external network request',
+            evidence: [
+              { file: credential.file, line: credential.line, role: 'credential name is explicitly allowlisted; no value is recorded' },
+              { file, line: markerIndex >= 0 ? lineNumberAt(content, markerIndex) : command.line, role: 'enabled persisted cron job receives the credential scope' },
+              { file, line: command.line, role: 'scheduled command consumes the credential in an external operation' },
+            ],
+          }));
+        } catch {
+          // Invalid or templated jobs files do not establish a configured path.
+        }
+      }
+    }
+  }
+
+  return findings;
+}
+
 /**
  * Compare a declared terminal backend with an input path that demonstrably
  * remains in the agent process. This is deliberately a project-level check:
@@ -1702,6 +2070,7 @@ export class HermesSecurityAgent extends BaseAgent {
 
     findings.push(...checkTerminalBackendPosture(files, this));
     findings.push(...checkCronLifecycle(hermesFiles, this));
+    findings.push(...checkCredentialReachability(files, this));
 
     for (const filePath of hermesFiles) {
       const content = this.readFile(filePath);
