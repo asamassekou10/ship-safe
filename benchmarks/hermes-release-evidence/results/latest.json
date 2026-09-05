@@ -1,0 +1,252 @@
+{
+  "schemaVersion": 1,
+  "release": "v0.21.0",
+  "tag": "v2026.8.31",
+  "commit": "29112bef099274229cadff79cdff7bf7b99c4b77",
+  "methodology": "Four paired Hermes boundary fixtures. The runner checks actual CLI JSON, SARIF, and ci --fail-on-verdict confirmed output, then resolves every cited location. Static fixtures do not claim traced or reproduced runtime evidence.",
+  "scenarios": [
+    {
+      "id": "unauthorized-adapter-caller",
+      "question": "Can an unauthorized network adapter caller reach Hermes work?",
+      "rule": "HERMES_ADAPTER_ALLOWLIST_FAIL_OPEN",
+      "reachabilityBasis": "inferred",
+      "evidenceLabels": {
+        "configured": false,
+        "inferred": true,
+        "traced": false,
+        "reproduced": false
+      },
+      "vulnerable": {
+        "fixture": "benchmarks/hermes-release-evidence/fixtures/unauthorized-adapter/vulnerable",
+        "targetFinding": true,
+        "evidence": {
+          "basis": "inferred",
+          "citations": [
+            {
+              "file": "plugins/platforms/telegram/adapter.py",
+              "line": 5,
+              "role": "adapter handler receives the network caller"
+            },
+            {
+              "file": "plugins/platforms/telegram/adapter.py",
+              "line": 8,
+              "role": "handler reaches a privileged Hermes operation"
+            }
+          ]
+        },
+        "verdict": "unknown",
+        "auditJsonFindings": 1,
+        "auditSarifResults": 1,
+        "ciStatus": 0,
+        "ciFindings": 1
+      },
+      "safe": {
+        "fixture": "benchmarks/hermes-release-evidence/fixtures/unauthorized-adapter/safe",
+        "targetFinding": false,
+        "auditJsonFindings": 0,
+        "auditSarifResults": 0,
+        "ciStatus": 0,
+        "ciFindings": 0
+      },
+      "humanReview": {
+        "reviewed": true,
+        "survives": true,
+        "reviewer": "Ship Safe maintainer",
+        "reviewedAt": "2026-09-05",
+        "notes": "The vulnerable handler dispatches before any sender allowlist can reject; the safe counterpart rejects missing or unauthorized senders before dispatch."
+      }
+    },
+    {
+      "id": "credential-present-but-unreachable",
+      "question": "Does a declared credential reach an enabled consumer and external effect?",
+      "rule": "HERMES_CREDENTIAL_REACHABLE_EFFECT",
+      "reachabilityBasis": "configured",
+      "evidenceLabels": {
+        "configured": true,
+        "inferred": false,
+        "traced": false,
+        "reproduced": false
+      },
+      "vulnerable": {
+        "fixture": "cli/__tests__/fixtures/hermes-credentials/plugin-vulnerable",
+        "targetFinding": true,
+        "evidence": {
+          "basis": "configured",
+          "citations": [
+            {
+              "file": ".hermes/plugins/deploy-reporter/plugin.yaml",
+              "line": 5,
+              "role": "credential name is declared; no value is recorded"
+            },
+            {
+              "file": ".hermes/config.yaml",
+              "line": 3,
+              "role": "project plugin is enabled"
+            },
+            {
+              "file": "compose.yaml",
+              "line": 5,
+              "role": "project plugin loading is explicitly enabled"
+            },
+            {
+              "file": ".hermes/plugins/deploy-reporter/__init__.py",
+              "line": 11,
+              "role": "Hermes registers the credential-consuming operation"
+            },
+            {
+              "file": ".hermes/plugins/deploy-reporter/__init__.py",
+              "line": 6,
+              "role": "plugin or adapter consumes the scoped credential"
+            },
+            {
+              "file": ".hermes/plugins/deploy-reporter/__init__.py",
+              "line": 7,
+              "role": "credential reaches an external network operation"
+            }
+          ]
+        },
+        "verdict": "unknown",
+        "auditJsonFindings": 3,
+        "auditSarifResults": 3,
+        "ciStatus": 0,
+        "ciFindings": 4
+      },
+      "safe": {
+        "fixture": "cli/__tests__/fixtures/hermes-credentials/plugin-safe",
+        "targetFinding": false,
+        "auditJsonFindings": 1,
+        "auditSarifResults": 1,
+        "ciStatus": 0,
+        "ciFindings": 2
+      },
+      "humanReview": {
+        "reviewed": true,
+        "survives": true,
+        "reviewer": "Ship Safe maintainer",
+        "reviewedAt": "2026-09-05",
+        "notes": "The vulnerable plugin is enabled, explicitly opted in, registered, consumes DEPLOY_TOKEN, and passes it to httpx. The safe counterpart declares the credential but never consumes it."
+      }
+    },
+    {
+      "id": "plugin-operation-outside-terminal-sandbox",
+      "question": "Does terminal-backend isolation contain an untrusted MCP operation?",
+      "rule": "HERMES_TERMINAL_BACKEND_SCOPE_GAP",
+      "reachabilityBasis": "configured",
+      "evidenceLabels": {
+        "configured": true,
+        "inferred": false,
+        "traced": false,
+        "reproduced": false
+      },
+      "vulnerable": {
+        "fixture": "cli/__tests__/fixtures/hermes-terminal-posture/vulnerable",
+        "targetFinding": true,
+        "evidence": {
+          "basis": "configured",
+          "citations": [
+            {
+              "file": ".hermes/config.yaml",
+              "line": 3,
+              "role": "configured backend"
+            },
+            {
+              "file": ".hermes/config.yaml",
+              "line": 5,
+              "role": "untrusted input and reachable operation"
+            }
+          ]
+        },
+        "verdict": "unknown",
+        "auditJsonFindings": 1,
+        "auditSarifResults": 1,
+        "ciStatus": 0,
+        "ciFindings": 1
+      },
+      "safe": {
+        "fixture": "cli/__tests__/fixtures/hermes-terminal-posture/safe",
+        "targetFinding": false,
+        "auditJsonFindings": 0,
+        "auditSarifResults": 0,
+        "ciStatus": 0,
+        "ciFindings": 1
+      },
+      "humanReview": {
+        "reviewed": true,
+        "survives": true,
+        "reviewer": "Ship Safe maintainer",
+        "reviewedAt": "2026-09-05",
+        "notes": "The vulnerable project selects Docker only for terminal and file operations while an untrusted MCP subprocess remains in the Hermes process. The safe counterpart wraps Hermes itself in Docker."
+      }
+    },
+    {
+      "id": "scheduled-task-retained-authority",
+      "question": "Does a scheduled task retain run-scoped authority after completion paths?",
+      "rule": "HERMES_CRON_RETAINED_AUTHORITY",
+      "reachabilityBasis": "inferred",
+      "evidenceLabels": {
+        "configured": false,
+        "inferred": true,
+        "traced": false,
+        "reproduced": false
+      },
+      "vulnerable": {
+        "fixture": "cli/__tests__/fixtures/hermes-cron/authority-vulnerable",
+        "targetFinding": true,
+        "evidence": {
+          "basis": "inferred",
+          "citations": [
+            {
+              "file": "jobs.py",
+              "line": 1,
+              "role": "schedule definition in create_job"
+            },
+            {
+              "file": "scheduler.py",
+              "line": 2,
+              "role": "run-scoped authority is acquired"
+            },
+            {
+              "file": "scheduler.py",
+              "line": 4,
+              "role": "authority reaches a privileged action"
+            },
+            {
+              "file": "scheduler.py",
+              "line": 6,
+              "role": "error or retry path remains inside the unrevoked scope"
+            }
+          ]
+        },
+        "verdict": "unknown",
+        "auditJsonFindings": 1,
+        "auditSarifResults": 1,
+        "ciStatus": 0,
+        "ciFindings": 1
+      },
+      "safe": {
+        "fixture": "cli/__tests__/fixtures/hermes-cron/authority-safe",
+        "targetFinding": false,
+        "auditJsonFindings": 0,
+        "auditSarifResults": 0,
+        "ciStatus": 0,
+        "ciFindings": 0
+      },
+      "humanReview": {
+        "reviewed": true,
+        "survives": true,
+        "reviewer": "Ship Safe maintainer",
+        "reviewedAt": "2026-09-05",
+        "notes": "The vulnerable cron executor acquires run-scoped authority, reaches the scheduled action, and retries without a function-level finally cleanup. The safe counterpart resets the authority in finally."
+      }
+    }
+  ],
+  "summary": {
+    "scenarios": 4,
+    "vulnerableTargetFindings": 4,
+    "safeTargetFindings": 0,
+    "humanReviewed": 4,
+    "confirmationsSurvived": 4,
+    "traced": 0,
+    "reproduced": 0
+  }
+}

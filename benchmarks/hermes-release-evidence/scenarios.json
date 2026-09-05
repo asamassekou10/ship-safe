@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "release": "v0.21.0",
+  "tag": "v2026.8.31",
+  "commit": "29112bef099274229cadff79cdff7bf7b99c4b77",
+  "scenarios": [
+    {
+      "id": "unauthorized-adapter-caller",
+      "question": "Can an unauthorized network adapter caller reach Hermes work?",
+      "rule": "HERMES_ADAPTER_ALLOWLIST_FAIL_OPEN",
+      "vulnerableFixture": "benchmarks/hermes-release-evidence/fixtures/unauthorized-adapter/vulnerable",
+      "safeFixture": "benchmarks/hermes-release-evidence/fixtures/unauthorized-adapter/safe",
+      "reachabilityBasis": "inferred",
+      "humanReview": {
+        "reviewed": true,
+        "survives": true,
+        "reviewer": "Ship Safe maintainer",
+        "reviewedAt": "2026-09-05",
+        "notes": "The vulnerable handler dispatches before any sender allowlist can reject; the safe counterpart rejects missing or unauthorized senders before dispatch."
+      }
+    },
+    {
+      "id": "credential-present-but-unreachable",
+      "question": "Does a declared credential reach an enabled consumer and external effect?",
+      "rule": "HERMES_CREDENTIAL_REACHABLE_EFFECT",
+      "vulnerableFixture": "cli/__tests__/fixtures/hermes-credentials/plugin-vulnerable",
+      "safeFixture": "cli/__tests__/fixtures/hermes-credentials/plugin-safe",
+      "reachabilityBasis": "configured",
+      "humanReview": {
+        "reviewed": true,
+        "survives": true,
+        "reviewer": "Ship Safe maintainer",
+        "reviewedAt": "2026-09-05",
+        "notes": "The vulnerable plugin is enabled, explicitly opted in, registered, consumes DEPLOY_TOKEN, and passes it to httpx. The safe counterpart declares the credential but never consumes it."
+      }
+    },
+    {
+      "id": "plugin-operation-outside-terminal-sandbox",
+      "question": "Does terminal-backend isolation contain an untrusted MCP operation?",
+      "rule": "HERMES_TERMINAL_BACKEND_SCOPE_GAP",
+      "vulnerableFixture": "cli/__tests__/fixtures/hermes-terminal-posture/vulnerable",
+      "safeFixture": "cli/__tests__/fixtures/hermes-terminal-posture/safe",
+      "reachabilityBasis": "configured",
+      "humanReview": {
+        "reviewed": true,
+        "survives": true,
+        "reviewer": "Ship Safe maintainer",
+        "reviewedAt": "2026-09-05",
+        "notes": "The vulnerable project selects Docker only for terminal and file operations while an untrusted MCP subprocess remains in the Hermes process. The safe counterpart wraps Hermes itself in Docker."
+      }
+    },
+    {
+      "id": "scheduled-task-retained-authority",
+      "question": "Does a scheduled task retain run-scoped authority after completion paths?",
+      "rule": "HERMES_CRON_RETAINED_AUTHORITY",
+      "vulnerableFixture": "cli/__tests__/fixtures/hermes-cron/authority-vulnerable",
+      "safeFixture": "cli/__tests__/fixtures/hermes-cron/authority-safe",
+      "reachabilityBasis": "inferred",
+      "humanReview": {
+        "reviewed": true,
+        "survives": true,
+        "reviewer": "Ship Safe maintainer",
+        "reviewedAt": "2026-09-05",
+        "notes": "The vulnerable cron executor acquires run-scoped authority, reaches the scheduled action, and retries without a function-level finally cleanup. The safe counterpart resets the authority in finally."
+      }
+    }
+  ]
+}

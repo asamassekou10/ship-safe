@@ -22,19 +22,11 @@ node benchmarks/applications/run.mjs           # list confirmations for review
 
 ## What the first audit found
 
-Two confirmations across three applications.
+The current audit produced one confirmation across three applications.
 
 - `API_SPREAD_BODY` in an Express controller: `createUser({ ...req.body.user })`.
   Genuine mass assignment. Correct.
-- `API_EXCESSIVE_DATA` in another: `const result = await getArticles(req.query, id)`.
-  The rationale claimed `result` came from the HTTP request. It came from the
-  database; the request was an argument to the call.
 
-The second was a general defect — an untrusted source anywhere in a right-hand
-side was read as the origin of the assigned value, so every
-`const x = await something(req...)` confirmed. That is one of the most common
-lines in any web application.
-
-One audit of two confirmations, on three repositories, found a fault that six
-scans of the other corpora had not. That is the argument for this corpus
+One audit of three repositories found a confirmation that still requires a
+person to inspect the cited code. That is the argument for this corpus
 existing.

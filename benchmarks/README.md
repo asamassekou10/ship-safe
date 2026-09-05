@@ -24,6 +24,20 @@ npm run benchmark:corpus:write
 
 The machine-readable result is stored in `results/latest.json`. Ship Safe Cloud imports the same result for the hosted benchmark page from its private repository.
 
+## Hermes 10.0 release evidence
+
+The release-evidence benchmark is intentionally separate from both gates and
+the application audit. It runs four paired Hermes boundary scenarios against
+the pinned v0.21.0 model and verifies rendered JSON, SARIF, and
+ci --fail-on-verdict confirmed output:
+
+    npm run benchmark:hermes-release
+
+The scenarios and the human adjudication record live in
+benchmarks/hermes-release-evidence/. A static fixture can establish configured
+or inferred evidence, but it never claims traced or reproduced runtime
+evidence.
+
 ## Verdict benchmark
 
 The corpus above measures the sensor layer: did the rule fire. `verdicts.mjs` measures what happens next — whether the passes that investigate a finding reach the right conclusion about it.

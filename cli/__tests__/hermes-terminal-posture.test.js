@@ -236,12 +236,14 @@ mcp_servers:
           assert.ok(finding);
           assert.equal(finding.posture, 'hygiene');
           assert.equal(finding.hermesBoundary.backend, 'docker');
+          assert.equal(finding.hermesBoundary.reachabilityBasis, 'configured');
           assert.match(finding.hermesBoundary.reachableOperation, /MCP subprocess/);
         } else {
           const finding = report.runs[0].results.find((item) => item.ruleId === 'HERMES_TERMINAL_BACKEND_SCOPE_GAP');
           assert.ok(finding);
           assert.equal(finding.properties.posture, 'hygiene');
           assert.equal(finding.properties.hermesBackend, 'docker');
+          assert.equal(finding.properties.reachabilityBasis, 'configured');
           assert.match(finding.properties.reachableOperation, /MCP subprocess/);
         }
       } finally {

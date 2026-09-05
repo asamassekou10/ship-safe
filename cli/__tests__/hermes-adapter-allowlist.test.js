@@ -48,6 +48,9 @@ class TelegramAdapter:
     assert.ok(finding, 'expected a fail-open adapter finding');
     assert.equal(finding.severity, 'critical');
     assert.equal(finding.posture, 'boundary');
+    assert.equal(finding.hermesBoundary.reachabilityBasis, 'inferred');
+    assert.equal(finding.hermesBoundary.evidence.length, 2);
+    assert.equal(finding.hermesBoundary.evidence[1].line, 8);
   });
 
   it('detects a session ID used as the only authorization gate', async () => {
