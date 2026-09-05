@@ -685,7 +685,7 @@ How it works:
 // PLUGINS COMMAND
 // -----------------------------------------------------------------------------
 program
-  .command('plugins [action]')
+  .command('plugins [action] [name]')
   .description('Manage custom security agent plugins from .ship-safe/agents/')
   .addHelpText('after', `
 Actions:
@@ -697,10 +697,10 @@ How it works:
   extending BaseAgent with an analyze() method. It will be loaded automatically
   on every audit or watch --deep run.
 `)
-  .action((action, options) => {
+  .action((action, name) => {
     const rootPath = resolve(process.cwd());
     if (action === 'new') {
-      const pluginName = options.args?.[0] || options._name || 'my-rule';
+      const pluginName = name || 'my-rule';
       try {
         const filePath = scaffoldPlugin(rootPath, pluginName);
         console.log(chalk.green(`  ✔ Plugin scaffolded: ${filePath}`));

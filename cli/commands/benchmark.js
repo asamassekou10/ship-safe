@@ -127,14 +127,16 @@ export async function benchmarkCommand(targetPath = '.', options = {}) {
 
   const projectName = path.basename(absolutePath);
 
-  console.log();
-  output.header('Security Benchmark');
-  console.log(chalk.gray(`  Comparing ${projectName} against industry averages\n`));
+  if (!options.json) {
+    console.log();
+    output.header('Security Benchmark');
+    console.log(chalk.gray(`  Comparing ${projectName} against industry averages\n`));
+  }
 
   const startTime = Date.now();
 
   // ── Scan ──────────────────────────────────────────────────────────────────
-  const spinner = ora({ text: 'Running full security scan for benchmark...', color: 'cyan' }).start();
+  const spinner = ora({ text: 'Running full security scan for benchmark...', color: 'cyan', isSilent: options.json }).start();
 
   const allFiles = await findFiles(absolutePath);
   const secretFindings = [];

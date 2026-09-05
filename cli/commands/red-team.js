@@ -33,13 +33,14 @@ import { printBanner } from '../utils/output.js';
 
 export async function redTeamCommand(targetPath = '.', options = {}) {
   const absolutePath = path.resolve(targetPath);
+  const machineOutput = Boolean(options.json || options.sarif);
 
   if (!fs.existsSync(absolutePath)) {
     output.error(`Path does not exist: ${absolutePath}`);
     process.exit(1);
   }
 
-  console.log();
+  if (!machineOutput) console.log();
 
   let findings = [];
   let recon;
@@ -47,9 +48,11 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
 
   // ── 1a. Swarm mode (parallel execution via best available provider) ────────
   if (options.swarm) {
-    printBanner();
-    output.header('AI Swarm Mode');
-    console.log();
+    if (!machineOutput) {
+      printBanner();
+      output.header('AI Swarm Mode');
+      console.log();
+    }
 
     const swarm = SwarmOrchestrator.create(absolutePath, {
       provider: options.provider,
@@ -63,7 +66,7 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
       process.exit(1);
     }
 
-    const reconSpinner = ora({ text: 'Mapping attack surface...', color: 'cyan' }).start();
+    const reconSpinner = ora({ text: 'Mapping attack surface...', color: 'cyan', isSilent: machineOutput }).start();
     const reconAgent = new ReconAgent();
     const reconResult = await reconAgent.analyze({ rootPath: absolutePath });
     recon = Array.isArray(reconResult) ? {} : reconResult;
@@ -71,7 +74,7 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
     reconSpinner.succeed(chalk.green('Attack surface mapped'));
 
     const providerLabel = swarm.provider?.name || 'AI';
-    const swarmSpinner = ora({ text: `Deploying ${chalk.cyan('29 swarm agents')} via ${providerLabel}...`, color: 'cyan' }).start();
+    const swarmSpinner = ora({ text: `Deploying ${chalk.cyan('29 swarm agents')} via ${providerLabel}...`, color: 'cyan', isSilent: machineOutput }).start();
     try {
       findings = await swarm.run(absolutePath, recon, files);
       swarmSpinner.succeed(chalk.green(`Swarm complete — ${findings.length} finding(s)`));
@@ -84,9 +87,11 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
 
   } else {
     // ── 1b. Standard local orchestration ───────────────────────────────────
-    printBanner();
-    output.header('Multi-Agent Security Audit');
-    console.log();
+    if (!machineOutput) {
+      printBanner();
+      output.header('Multi-Agent Security Audit');
+      console.log();
+    }
 
     const orchestrator = await buildOrchestratorAsync(absolutePath, { quiet: true });
     if (options.gptRed) {
@@ -100,6 +105,7 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
     const orchestratorOpts = {
       verbose: options.verbose,
       agents: agentFilter,
+      quiet: machineOutput,
     };
     if (options.deep) orchestratorOpts.deep = true;
     if (options.local) orchestratorOpts.local = true;
@@ -120,7 +126,7 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
   // ── 2. Dependency audit ─────────────────────────────────────────────────────
   let depVulns = [];
   if (options.deps !== false && !options.noDeps) {
-    const depSpinner = ora({ text: 'Auditing dependencies...', color: 'cyan' }).start();
+    const depSpinner = ora({ text: 'Auditing dependencies...', color: 'cyan', isSilent: machineOutput }).start();
     try {
       const depResult = await runDepsAudit(absolutePath);
       depVulns = depResult.vulns || [];
@@ -151,7 +157,7 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
       model:    options.model,
     });
     if (provider && filteredFindings.length > 0 && filteredFindings.length <= 50) {
-      const aiSpinner = ora({ text: `Classifying ${filteredFindings.length} finding(s) with ${provider.name}...`, color: 'cyan' }).start();
+      const aiSpinner = ora({ text: `Classifying ${filteredFindings.length} finding(s) with ${provider.name}...`, color: 'cyan', isSilent: machineOutput }).start();
       try {
         const classifications = await provider.classify(filteredFindings);
         // Merge classifications back into findings
@@ -189,12 +195,12 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
     const sbomGen = new SBOMGenerator();
     const sbomPath = typeof options.sbom === 'string' ? options.sbom : 'sbom.json';
     sbomGen.generateToFile(absolutePath, sbomPath);
-    output.success(`SBOM saved to ${sbomPath}`);
+    if (!machineOutput) output.success(`SBOM saved to ${sbomPath}`);
   }
 
   // ── 8. Policy evaluation ────────────────────────────────────────────────────
   const violations = policy.evaluate(scoreResult, filteredFindings);
-  if (violations.length > 0) {
+  if (!machineOutput && violations.length > 0) {
     console.log();
     console.log(chalk.red.bold('  Policy Violations:'));
     for (const v of violations.slice(0, 10)) {
@@ -207,13 +213,13 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
 
   // ── 9. Trend ────────────────────────────────────────────────────────────────
   const trend = scoringEngine.getTrend(absolutePath, scoreResult.score);
-  if (trend) {
+  if (!machineOutput && trend) {
     const arrow = trend.diff > 0 ? chalk.green('↑') : trend.diff < 0 ? chalk.red('↓') : chalk.gray('→');
     console.log();
     console.log(chalk.gray(`  Trend: ${trend.previousScore} → ${trend.currentScore} ${arrow} (${trend.diff > 0 ? '+' : ''}${trend.diff})`));
   }
 
-  console.log();
+  if (!machineOutput) console.log();
 
   // Exit code
   process.exit(scoreResult.score >= 75 ? 0 : 1);

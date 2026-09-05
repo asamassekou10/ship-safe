@@ -40,7 +40,7 @@ const SAFE_KEY_PATTERNS = /^(?:NEXT_PUBLIC_|REACT_APP_|VITE_|NUXT_PUBLIC_|NODE_E
 
 export async function envAuditCommand(targetPath = '.', options) {
   const absolutePath = path.resolve(targetPath);
-  const spinner = ora('Auditing credential environment...').start();
+  const spinner = ora({ text: 'Auditing credential environment...', isSilent: options.json }).start();
 
   const findings = [];
 
@@ -50,6 +50,11 @@ export async function envAuditCommand(targetPath = '.', options) {
     spinner.text = `Found ${envFiles.length} .env file(s)`;
 
     if (envFiles.length === 0) {
+      if (options.json) {
+        spinner.stop();
+        console.log(JSON.stringify({ findings, envFiles: 0, clean: true }, null, 2));
+        return;
+      }
       spinner.succeed('No .env files found — nothing to audit.');
       return;
     }

@@ -63,7 +63,7 @@ export async function doctorCommand() {
   let foundPm = false;
   for (const pm of managers) {
     try {
-      const ver = execFileSync(pm, ['--version'], { encoding: 'utf-8', shell: true }).trim();
+      const ver = execFileSync(pm, ['--version'], { encoding: 'utf-8' }).trim();
       pass(`${pm} v${ver}`);
       foundPm = true;
       break;
@@ -123,7 +123,7 @@ export async function doctorCommand() {
   pass(`ship-safe v${PACKAGE_VERSION}`);
   try {
     const latest = execFileSync('npm', ['view', 'ship-safe', 'version'], {
-      encoding: 'utf-8', timeout: 5000, shell: true,
+      encoding: 'utf-8', timeout: 5000,
     }).trim();
     if (latest && latest !== PACKAGE_VERSION && isNewerVersion(latest, PACKAGE_VERSION)) {
       const msg = ['v', latest, ' available (current: v', PACKAGE_VERSION, ')'].join('');

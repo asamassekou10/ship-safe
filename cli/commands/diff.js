@@ -27,9 +27,10 @@ import { ScoringEngine, SCORE_VERSION } from '../agents/scoring-engine.js';
 export async function diffCommand(ref, options) {
   const targetPath = options.path || process.cwd();
   const absolutePath = path.resolve(targetPath);
+  const machineOutput = Boolean(options.json);
 
   // ── Get changed files from git ────────────────────────────────────────────
-  const spinner = ora(chalk.white('Getting changed files from git...')).start();
+  const spinner = ora({ text: chalk.white('Getting changed files from git...'), isSilent: machineOutput }).start();
 
   let gitArgs;
   if (options.staged) {
@@ -50,8 +51,16 @@ export async function diffCommand(ref, options) {
     }).trim();
 
     if (!output) {
-      spinner.succeed(chalk.green('No changed files detected'));
-      console.log(chalk.gray('\n  Nothing to scan. Your working tree is clean.\n'));
+      if (machineOutput) {
+        console.log(JSON.stringify({
+          command: 'diff', analysisScope: 'changed-files', scoreVersion: SCORE_VERSION,
+          repositoryPosture: null, ref: ref || (options.staged ? '--staged' : 'HEAD'),
+          changedFiles: [], findings: [], totalFindings: 0,
+        }, null, 2));
+      } else {
+        spinner.succeed(chalk.green('No changed files detected'));
+        console.log(chalk.gray('\n  Nothing to scan. Your working tree is clean.\n'));
+      }
       return;
     }
 
@@ -109,43 +118,59 @@ export async function diffCommand(ref, options) {
   }
 
   if (changedFiles.length === 0) {
-    console.log(chalk.gray('\n  No scannable files in the diff.\n'));
+    if (machineOutput) {
+      console.log(JSON.stringify({
+        command: 'diff', analysisScope: 'changed-files', scoreVersion: SCORE_VERSION,
+        repositoryPosture: null, ref: ref || (options.staged ? '--staged' : 'HEAD'),
+        changedFiles: [], findings: [], totalFindings: 0,
+      }, null, 2));
+    } else {
+      console.log(chalk.gray('\n  No scannable files in the diff.\n'));
+    }
     return;
   }
 
   // ── Print header ──────────────────────────────────────────────────────────
-  console.log();
-  console.log(chalk.cyan('═'.repeat(60)));
-  console.log(chalk.cyan.bold('  Ship Safe — Diff Scan'));
-  console.log(chalk.cyan('═'.repeat(60)));
-  console.log();
-  console.log(chalk.gray(`  Scanning ${changedFiles.length} changed file(s):`));
-  for (const f of changedFiles.slice(0, 10)) {
-    console.log(chalk.gray(`    ${path.relative(absolutePath, f)}`));
+  if (!machineOutput) {
+    console.log();
+    console.log(chalk.cyan('═'.repeat(60)));
+    console.log(chalk.cyan.bold('  Ship Safe — Diff Scan'));
+    console.log(chalk.cyan('═'.repeat(60)));
+    console.log();
+    console.log(chalk.gray(`  Scanning ${changedFiles.length} changed file(s):`));
+    for (const f of changedFiles.slice(0, 10)) {
+      console.log(chalk.gray(`    ${path.relative(absolutePath, f)}`));
+    }
+    if (changedFiles.length > 10) {
+      console.log(chalk.gray(`    ... and ${changedFiles.length - 10} more`));
+    }
+    console.log();
   }
-  if (changedFiles.length > 10) {
-    console.log(chalk.gray(`    ... and ${changedFiles.length - 10} more`));
-  }
-  console.log();
 
   // ── Run agents on changed files only ──────────────────────────────────────
-  const agentSpinner = ora(chalk.white('Running security agents on diff...')).start();
+  const agentSpinner = ora({ text: chalk.white('Running security agents on diff...'), isSilent: machineOutput }).start();
 
   const orchestrator = buildOrchestrator();
   const results = await orchestrator.runAll(absolutePath, {
     timeout: options.timeout || 30_000,
     changedFiles,
+    quiet: machineOutput,
   });
 
-  const findings = results.findings || [];
-  agentSpinner.succeed(
-    findings.length === 0
-      ? chalk.green('No security issues in changed files')
-      : chalk.yellow(`${findings.length} finding(s) in changed files`)
+  const changedFileSet = new Set(changedFiles.map(file => path.resolve(file)));
+  const findings = (results.findings || []).filter(finding =>
+    finding.file && changedFileSet.has(path.resolve(finding.file))
   );
+  if (!machineOutput) {
+    agentSpinner.succeed(
+      findings.length === 0
+        ? chalk.green('No security issues in changed files')
+        : chalk.yellow(`${findings.length} finding(s) in changed files`)
+    );
+  }
 
   // ── Score ─────────────────────────────────────────────────────────────────
-  if (findings.length > 0) {
+  if (!machineOutput && findings.length > 0) {
     const scoringEngine = new ScoringEngine();
     const scoreResult = scoringEngine.compute(findings, []);
     scoreResult.score = Math.round(scoreResult.score * 10) / 10;
@@ -195,9 +220,11 @@ export async function diffCommand(ref, options) {
     console.log(JSON.stringify(output, null, 2));
   }
 
-  console.log();
-  console.log(chalk.cyan('═'.repeat(60)));
-  console.log();
+  if (!machineOutput) {
+    console.log();
+    console.log(chalk.cyan('═'.repeat(60)));
+    console.log();
+  }
 
   process.exit(findings.length > 0 ? 1 : 0);
 }

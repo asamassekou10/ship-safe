@@ -134,9 +134,11 @@ export async function scanSkillCommand(target, options = {}) {
     process.exit(1);
   }
 
-  console.log();
-  output.header('Ship Safe — Skill Security Analysis');
-  console.log();
+  if (!options.json) {
+    console.log();
+    output.header('Ship Safe — Skill Security Analysis');
+    console.log();
+  }
 
   // If --all flag, scan all skills from openclaw.json
   if (options.all) {
@@ -147,7 +149,7 @@ export async function scanSkillCommand(target, options = {}) {
   let content, skillName, source;
 
   if (target.startsWith('http://') || target.startsWith('https://')) {
-    console.log(chalk.gray(`  Fetching skill from: ${target}`));
+    if (!options.json) console.log(chalk.gray(`  Fetching skill from: ${target}`));
     try {
       const response = await fetchSafeUrl(target, { allowLoopback: true });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -169,9 +171,11 @@ export async function scanSkillCommand(target, options = {}) {
     source = filePath;
   }
 
-  console.log(chalk.gray(`  Skill: ${skillName}`));
-  console.log(chalk.gray(`  Size: ${content.length} bytes`));
-  console.log();
+  if (!options.json) {
+    console.log(chalk.gray(`  Skill: ${skillName}`));
+    console.log(chalk.gray(`  Size: ${content.length} bytes`));
+    console.log();
+  }
 
   const findings = await analyzeSkill(content, skillName, source);
 
