@@ -39,7 +39,7 @@ These labels describe Ship Safe's coverage, not Hermes Agent's security.
 | Terminal backends | `tools/environments/**`, `tools/terminal_tool.py`, `tools/code_execution_tool.py`, `hermes_cli/config.py`, `hermes_cli/setup.py` | OS isolation for shell and file operations only | **Partial** | `HERMES_LOCAL_BACKEND_UNTRUSTED_INPUT` and `HERMES_TERMINAL_BACKEND_SCOPE_GAP` correlate the configured backend with an enabled untrusted MCP path that remains in the agent process | Runtime-only CLI/environment overrides, OpenShell session binding, and custom terminal-environment plugins are not resolved statically |
 | ACP | `acp_adapter/**` | Host-user controls for editor IPC | **Partial** | `HERMES_ACP_GATEWAY_EXPOSED` traces an unauthenticated, configured non-loopback WebSocket route to `HermesACPAgent.prompt` and agent tool execution | External reverse proxies, inherited deployment binds, and custom ACP transports are not resolved statically |
 | TUI gateway | `tui_gateway/**`, `ui-tui/**` | Host-user controls for local JSON-RPC IPC | **Partial** | `HERMES_TUI_GATEWAY_EXPOSED` traces an unauthenticated, configured non-loopback WebSocket route through `handle_ws` to the shared dispatcher and its prompt, command, plugin, MCP, and terminal effects | Dynamic bind values, external reverse proxies, and authorization hidden in custom middleware are not resolved statically |
-| Cron | `cron/**`, `tools/cronjob_tools.py` | Job identity, lifecycle, subprocess environment, and effects | **Partial** | Generic scheduled skill-to-prompt detection | Existing rule is not calibrated to the current Python scheduler, lifecycle guard, retries, or retained authority; #187 |
+| Cron | `cron/**`, `tools/cronjob_tools.py` | Job identity, lifecycle, subprocess environment, and effects | **Partial** | Creation/update guard symmetry and run-scoped authority cleanup, plus legacy JavaScript skill-to-prompt detection | Dynamic call targets, third-party scheduler providers, custom persistence layers, and unknown authority wrappers remain unresolved |
 | Credential scoping | `tools/environments/local.py`, `tools/code_execution_tool.py`, `tools/credential_files.py`, `cron/scheduler.py` | Filtered flow into lower-trust subprocesses; not containment | **Partial** | Generic sub-agent forwarding and credential-store exposure | Environment presence does not prove reachability or use; build the source-to-consumer-to-effect chain in #188 |
 
 No surface is marked fully covered at this baseline. That is deliberate: the
@@ -107,6 +107,47 @@ The positive fixtures are executable configurations and therefore report
 `configured`. Their loopback ACP and authenticated TUI counterparts remain
 quiet. Reproducing a finding can strengthen it later through Ship Safe's
 investigation layer without changing what the scanner observed.
+
+### Cron lifecycle and retained authority
+
+The pinned scheduler defines jobs through `create_job` and stores them in the
+active profile's `jobs.json`. A fire combines the job ID with an execution ID,
+acquires a durable fire claim, and installs profile-scoped secrets and
+task-scoped working-directory state. Cooperative cancellation and fire-claim
+ownership fence execution, saved output, delivery, and terminal bookkeeping.
+Function-level `finally` blocks clear session state, task working directories,
+secret scopes, and short-lived agent resources on successful, failed,
+cancelled, and retried runs.
+
+Ship Safe checks two lifecycle invariants:
+
+- `HERMES_CRON_UPDATE_LIFECYCLE_GUARD_BYPASS` requires a persisted schedule,
+  a lifecycle check on creation, an update that can change effective prompt,
+  script, skills, or toolsets without the same check, and a reachable scheduled
+  action. The finding cites all four locations. A wrapper-level check does not
+  settle the result because the lower-level persistence API remains callable
+  by recovery code and future entry points.
+- `HERMES_CRON_RETAINED_AUTHORITY` requires a cron execution function that
+  acquires a recognized run-scoped authority and then reaches a scheduled
+  action. It reports only when the matching authority type is not released in
+  a function-level `finally` block. Clearing unrelated context does not count
+  as revoking a secret scope, permission, capability, or working-directory
+  grant.
+
+The v0.21.0 baseline produces one update-guard finding in `cron/jobs.py`: job
+creation checks the effective prompt and script before persistence, while the
+low-level update path persists merged payload fields without repeating that
+check; the retained schedule later reaches script execution in
+`cron/scheduler.py`. The pinned scheduler's normal, error, retry, cancellation,
+and delivery paths do perform matching cleanup, so it produces no retained-
+authority finding.
+
+Cron remains **Partial** rather than Covered. Static analysis cannot resolve
+dynamically selected call targets, scheduler-provider code outside the
+repository, custom persistence implementations, or project-specific authority
+wrappers it does not recognize. The older `HERMES_CRON_SKILL_INJECTION` rule is
+explicitly scoped to JavaScript and TypeScript callback schedulers; JavaScript-
+shaped strings in Python are not lifecycle evidence.
 
 ## Maintaining the baseline
 

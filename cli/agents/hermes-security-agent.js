@@ -111,6 +111,15 @@ export const HERMES_REACHABILITY_BASES = Object.freeze([
   'reproduced',
 ]);
 
+/** Cron lifecycle stages pinned to Hermes Agent v0.21.0. */
+export const HERMES_CRON_LIFECYCLE = Object.freeze({
+  definition: 'create_job / update_job',
+  persistence: 'profile-scoped jobs.json under HERMES_HOME',
+  executionIdentity: 'job id + execution id + profile secret scope',
+  cancellation: 'fire-claim ownership and cooperative cancellation',
+  cleanup: 'finally-scoped session, cwd, secret-scope, and agent teardown',
+});
+
 // =============================================================================
 // SINGLE-LINE REGEX PATTERNS
 // =============================================================================
@@ -640,7 +649,7 @@ function pythonFunctionsWithDecorators(content) {
       continue;
     }
 
-    const match = line.match(/^(\s*)(?:async\s+)?def\s+([A-Za-z_]\w*)\s*\([^)]*\)\s*(?:->[^:]*)?:/);
+    const match = line.match(/^(\s*)(?:async\s+)?def\s+([A-Za-z_]\w*)\s*\(/);
     if (!match) {
       if (trimmed && !trimmed.startsWith('#')) pendingDecorators = [];
       continue;
@@ -648,12 +657,28 @@ function pythonFunctionsWithDecorators(content) {
 
     const indent = match[1].length;
     const body = [line];
-    let end = index + 1;
+    let headerEnd = index;
+    while (headerEnd < lines.length && !/\)\s*(?:->[^:]*)?:\s*(?:#.*)?$/.test(lines[headerEnd])) {
+      headerEnd += 1;
+      if (headerEnd < lines.length) body.push(lines[headerEnd]);
+    }
+    let end = headerEnd + 1;
+    let inTripleQuotedString = false;
     for (; end < lines.length; end += 1) {
       const candidate = lines[end];
       const candidateTrimmed = candidate.trim();
-      if (candidateTrimmed && candidate.length - candidate.trimStart().length <= indent) break;
+      const candidateIndent = candidate.length - candidate.trimStart().length;
+      if (
+        candidateTrimmed
+        && !inTripleQuotedString
+        && candidateIndent <= indent
+      ) break;
       body.push(candidate);
+      // Dedented text inside a function-local docstring/string is not a real
+      // function boundary. Tracking balanced triple-quote delimiters is enough
+      // for slicing; pythonCodeOnly() handles the later structural matching.
+      const tripleQuotes = candidate.match(/(?<!\\)(?:'''|""")/g) || [];
+      if (tripleQuotes.length % 2 === 1) inTripleQuotedString = !inTripleQuotedString;
     }
     functions.push({
       name: match[2],
@@ -1091,6 +1116,11 @@ function checkAuthJsonTOCTOU(content, filePath, agent) {
 function checkCronSkillInjection(content, filePath, agent) {
   const findings = [];
 
+  // This legacy rule models JavaScript callback schedulers. Python cron
+  // lifecycle paths are handled by checkCronLifecycle() below; letting this
+  // regex inspect Python made JS-shaped words look like Python evidence.
+  if (!/\.(?:[cm]?[jt]sx?)$/i.test(String(filePath || ''))) return findings;
+
   const SCHEDULE_RE = /(cron(?:\.schedule)?|@cron|nodeCron|node[-_]?cron|node[-_]?schedule|scheduler\.(?:schedule|every|at)|setInterval|setTimeout)\s*\(/g;
   const SKILL_LOAD_RE = /(?:readFile(?:Sync)?|fs\.read|loadSkill|skills\.get)\s*\([^)]*(?:skill|\.hermes\/skills|hermes-skills|playbook|\.md)/i;
 
@@ -1121,6 +1151,207 @@ function checkCronSkillInjection(content, filePath, agent) {
       owasp: 'ASI01',
       fix: 'Run the assembled prompt through ship-safe scan (or your own prompt-injection scanner) before invoking the agent. Pin the skill commit hash on every scheduled run.',
     }));
+  }
+
+  return findings;
+}
+
+function firstPythonMatch(fn, regex) {
+  const match = fn.text.match(regex);
+  if (!match || match.index == null) return null;
+  return {
+    line: fn.startLine + fn.text.slice(0, match.index).split('\n').length - 1,
+    text: match[0].trim(),
+  };
+}
+
+function pythonStructuralText(content) {
+  return String(content || '')
+    .replace(/'''[\s\S]*?'''|"""[\s\S]*?"""/g, (value) => value.replace(/[^\r\n]/g, ' '))
+    .replace(/^[ \t]*#.*$/gm, (value) => ' '.repeat(value.length));
+}
+
+function firstPythonMatchAfter(fn, regex, afterLine) {
+  const relativeLine = Math.max(0, Number(afterLine || fn.startLine) - fn.startLine + 1);
+  const lines = fn.text.split('\n');
+  const prefix = lines.slice(0, relativeLine).join('\n');
+  const suffix = lines.slice(relativeLine).join('\n');
+  const match = suffix.match(regex);
+  if (!match || match.index == null) return null;
+  return {
+    line: fn.startLine + prefix.split('\n').length - 1 + suffix.slice(0, match.index).split('\n').length,
+    text: match[0].trim(),
+  };
+}
+
+/** Model persisted Python cron mutations and run-scoped authority. */
+function checkCronLifecycle(files, agent) {
+  const findings = [];
+  const pythonFiles = [];
+  for (const filePath of files) {
+    if (!/\.(?:py|pyi)$/i.test(String(filePath || ''))) continue;
+    const content = agent.readFile(filePath);
+    if (!content) continue;
+    pythonFiles.push({ filePath, content, functions: pythonFunctionsWithDecorators(content) });
+  }
+  if (pythonFiles.length === 0) return findings;
+
+  let definition = null;
+  let guardedCreate = null;
+  let privilegedAction = null;
+  const privilegedActions = [];
+  const updateCandidates = [];
+  const authorityCandidates = [];
+
+  for (const file of pythonFiles) {
+    for (const fn of file.functions) {
+      const code = pythonCodeOnly(fn.text);
+      const structuralFn = { ...fn, text: pythonStructuralText(fn.text) };
+      const persisted = firstPythonMatch(structuralFn, /\b(?:save_jobs|persist_job|job_store\.save)\s*\(/i);
+      const schedule = firstPythonMatch(structuralFn, /\b(?:parse_schedule|compute_next_run|schedule)\b/i);
+      if (!definition && persisted && schedule && /\bcreate(?:_cron)?_?job\b/i.test(fn.name)) {
+        definition = { file: file.filePath, line: schedule.line, role: `schedule definition in ${fn.name}` };
+      }
+      if (
+        !guardedCreate
+        && persisted
+        && /\bcreate(?:_cron)?_?job\b/i.test(fn.name)
+        && /\bcheck_gateway_lifecycle\s*\(/.test(code)
+      ) {
+        const guard = firstPythonMatch(structuralFn, /\bcheck_gateway_lifecycle\s*\(/);
+        guardedCreate = { file: file.filePath, line: guard.line };
+      }
+
+      const action = firstPythonMatch(
+        structuralFn,
+        /\b(?:_run_job_script(?:_with_claim_heartbeat)?|run_conversation|agent\.run|execute_tool|_deliver_result)\s*\(/i
+      );
+      if (
+        action
+        && /\b(?:run|execute|fire|dispatch|deliver)/i.test(fn.name)
+        && /\bjob(?:\s*\[|\.get\s*\()/.test(code)
+      ) {
+        const normalizedPath = file.filePath.replace(/\\/g, '/');
+        privilegedActions.push({
+          file: file.filePath,
+          line: action.line,
+          role: `reachable privileged action in ${fn.name}: ${action.text}`,
+          rank: (/(?:^|\/)cron\/scheduler\.py$/i.test(normalizedPath) ? 4 : 0)
+            + (fn.name === 'run_job' ? 2 : 0)
+            + (/^_run_job_script/i.test(action.text) ? 1 : 0),
+        });
+      }
+
+      if (/\bupdate(?:_cron)?_?job\b/i.test(fn.name) && persisted) {
+        const mutatesPayload = /(?:["'](?:prompt|script|skills|enabled_toolsets)["']|_PAYLOAD_FIELDS)/.test(code);
+        if (mutatesPayload) updateCandidates.push({ file, fn, persisted, code });
+      }
+
+      const acquisition = firstPythonMatch(
+        structuralFn,
+        /\b(?:set_secret_scope|set_session_vars|record_session_cwd|grant_(?:permission|capability|authority)|acquire_(?:permission|capability|authority))\s*\(/i
+      );
+      const normalizedPath = file.filePath.replace(/\\/g, '/');
+      const cronExecutor = /job/i.test(fn.name)
+        && (/(?:^|\/)cron(?:\/|$)/i.test(normalizedPath) || /scheduler\.py$/i.test(normalizedPath));
+      const scopedAction = acquisition
+        ? firstPythonMatchAfter(
+          structuralFn,
+          /\b(?:_run_job_script(?:_with_claim_heartbeat)?|run_conversation|agent\.run|execute_tool|_deliver_result)\s*\(/i,
+          acquisition.line
+        )
+        : null;
+      if (cronExecutor && acquisition && scopedAction) {
+        authorityCandidates.push({ file, fn, acquisition, action: scopedAction, code });
+      }
+    }
+  }
+
+  privilegedActions.sort((left, right) => right.rank - left.rank);
+  if (privilegedActions.length > 0) {
+    const { rank: _rank, ...selectedAction } = privilegedActions[0];
+    privilegedAction = selectedAction;
+  }
+
+  if (definition && guardedCreate && privilegedAction) {
+    for (const candidate of updateCandidates) {
+      if (candidate.file.filePath !== definition.file || candidate.file.filePath !== guardedCreate.file) continue;
+      if (/\bcheck_gateway_lifecycle\s*\(/.test(candidate.code)) continue;
+      const finding = createFinding({
+        file: candidate.file.filePath,
+        line: candidate.fn.startLine,
+        severity: 'high',
+        category: agent.category,
+        rule: 'HERMES_CRON_UPDATE_LIFECYCLE_GUARD_BYPASS',
+        title: 'Hermes: Cron Update Bypasses the Creation Lifecycle Guard',
+        description: `The persisted cron update path ${candidate.fn.name} can replace prompt, script, skills, or enabled toolsets without re-running check_gateway_lifecycle. Creation establishes that guard as an invariant, but an update can retain the schedule while changing what the later privileged execution path runs.`,
+        matched: `${candidate.fn.name}() persists updated cron payload`,
+        confidence: 'high',
+        cwe: 'CWE-693',
+        owasp: 'ASI02',
+        fix: 'After merging the update with the stored job, run check_gateway_lifecycle on the effective prompt and script before save_jobs. Keep the guard in the low-level persistence function so CLI, tool, web, retry, and future callers cannot bypass it.',
+        evidenceLevel: 'strong',
+        reachability: 'reachable',
+      });
+      finding.hermesCronLifecycle = {
+        stage: 'update',
+        retainedAuthority: 'stored schedule keeps its execution identity and later runs the mutated payload',
+        errorAndRetryImpact: 'low-level persistence remains reachable from recovery and future callers even when a wrapper validates normal input',
+        evidence: [
+          definition,
+          { file: guardedCreate.file, line: guardedCreate.line, role: 'creation enforces the lifecycle invariant' },
+          { file: candidate.file.filePath, line: candidate.persisted.line, role: 'updated payload is persisted without the lifecycle guard' },
+          privilegedAction,
+        ],
+      };
+      findings.push(finding);
+    }
+  }
+
+  if (definition) {
+    for (const candidate of authorityCandidates) {
+      let cleanupRe = /\bfinally\s*:[\s\S]*(?:revoke|release)_(?:permission|capability|authority)\s*\(/i;
+      if (/\bset_secret_scope\s*\(/i.test(candidate.acquisition.text)) {
+        cleanupRe = /\bfinally\s*:[\s\S]*\breset_secret_scope\s*\(/i;
+      } else if (/\bset_session_vars\s*\(/i.test(candidate.acquisition.text)) {
+        cleanupRe = /\bfinally\s*:[\s\S]*\bclear_session_vars\s*\(/i;
+      } else if (/\brecord_session_cwd\s*\(/i.test(candidate.acquisition.text)) {
+        cleanupRe = /\bfinally\s*:[\s\S]*\b_?clear_(?:tool_)?session_cwd\s*\(/i;
+      }
+      const hasFinallyCleanup = cleanupRe.test(candidate.code);
+      if (hasFinallyCleanup) continue;
+      const retry = firstPythonMatch(
+        { ...candidate.fn, text: pythonStructuralText(candidate.fn.text) },
+        /\b(?:retry|reschedule)\s*\(/i
+      );
+      const finding = createFinding({
+        file: candidate.file.filePath,
+        line: candidate.acquisition.line,
+        severity: 'high',
+        category: agent.category,
+        rule: 'HERMES_CRON_RETAINED_AUTHORITY',
+        title: 'Hermes: Cron Run Authority Is Not Revoked on Every Exit',
+        description: `Cron execution ${candidate.fn.name} acquires run-scoped authority and reaches a privileged action without a matching revocation in a function-level finally block. Exceptions, cancellation, or retry can therefore leave permission, secret, or working-directory state available beyond the intended run.`,
+        matched: `${candidate.acquisition.text} -> ${candidate.action.text}`,
+        confidence: 'high',
+        cwe: 'CWE-672',
+        owasp: 'ASI02',
+        fix: 'Keep the authority token returned by the scope/grant operation and revoke or reset it in a function-level finally block that encloses execution, delivery, bookkeeping, cancellation, and retry handling.',
+        evidenceLevel: 'strong',
+        reachability: 'reachable',
+      });
+      finding.hermesCronLifecycle = {
+        stage: 'cleanup',
+        retainedAuthority: 'run-scoped authority can survive successful, exceptional, cancelled, or retried completion',
+        evidence: [
+          definition,
+          { file: candidate.file.filePath, line: candidate.acquisition.line, role: 'run-scoped authority is acquired' },
+          { file: candidate.file.filePath, line: candidate.action.line, role: 'authority reaches a privileged action' },
+          ...(retry ? [{ file: candidate.file.filePath, line: retry.line, role: 'error or retry path remains inside the unrevoked scope' }] : []),
+        ],
+      };
+      findings.push(finding);
+    }
   }
 
   return findings;
@@ -1470,6 +1701,7 @@ export class HermesSecurityAgent extends BaseAgent {
     if (hermesFiles.length === 0) return findings;
 
     findings.push(...checkTerminalBackendPosture(files, this));
+    findings.push(...checkCronLifecycle(hermesFiles, this));
 
     for (const filePath of hermesFiles) {
       const content = this.readFile(filePath);
@@ -1593,7 +1825,11 @@ export class HermesSecurityAgent extends BaseAgent {
       if (/\.(js|ts|mjs|cjs|py)$/.test(rel)) {
         const content = this.readFile(file);
         if (!content) continue;
-        if (/(?:hermes[-_]agent|@nousresearch\/hermes|hermes\.config|\bacp_adapter\b|\btui_gateway\b|toolRegistry|registerTool|callTool|spawnAgent|createSubAgent|memory\.store|episodicMemory|semanticMemory|loadManifest|\bxurl\b)/i.test(content)) {
+        const hermesPythonCron = /\.py$/i.test(rel) && (
+          /\bdef\s+(?:create_job|update_job|run_job|run_one_job)\s*\(/.test(content)
+          && /\b(?:save_jobs|check_gateway_lifecycle|set_secret_scope|_run_job_script(?:_with_claim_heartbeat)?|_deliver_result)\s*\(/.test(content)
+        );
+        if (hermesPythonCron || /(?:hermes[-_]agent|@nousresearch\/hermes|hermes\.config|\bacp_adapter\b|\btui_gateway\b|toolRegistry|registerTool|callTool|spawnAgent|createSubAgent|memory\.store|episodicMemory|semanticMemory|loadManifest|\bxurl\b)/i.test(content)) {
           hermesFiles.add(file);
         }
       }
