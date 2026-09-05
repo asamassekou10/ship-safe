@@ -56,6 +56,8 @@ import { DeepAnalyzer } from '../agents/deep-analyzer.js';
 import { PACKAGE_VERSION } from '../utils/package-version.js';
 
 export const MCP_SERVER_VERSION = PACKAGE_VERSION;
+export const MCP_SUPPORTED_PROTOCOL_VERSIONS = ['2025-11-25', '2024-11-05'];
+export const MCP_DEFAULT_PROTOCOL_VERSION = MCP_SUPPORTED_PROTOCOL_VERSIONS[0];
 
 const MAX_MCP_FINDINGS = 200;
 
@@ -606,12 +608,17 @@ async function handleRequest(request) {
   const respondError = (code, message) => ({ jsonrpc: '2.0', id, error: { code, message } });
 
   switch (method) {
-    case 'initialize':
+    case 'initialize': {
+      const requestedProtocolVersion = params?.protocolVersion;
+      const protocolVersion = MCP_SUPPORTED_PROTOCOL_VERSIONS.includes(requestedProtocolVersion)
+        ? requestedProtocolVersion
+        : MCP_DEFAULT_PROTOCOL_VERSION;
       return respond({
-        protocolVersion: '2024-11-05',
+        protocolVersion,
         capabilities: { tools: {} },
         serverInfo: { name: 'ship-safe', version: MCP_SERVER_VERSION },
       });
+    }
 
     case 'tools/list':
       return respond({ tools: TOOLS });

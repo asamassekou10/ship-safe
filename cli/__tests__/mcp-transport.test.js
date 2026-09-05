@@ -49,3 +49,47 @@ test('MCP stdio waits for an asynchronous scan response before exiting', async (
     fs.rmSync(fixture, { recursive: true, force: true });
   }
 });
+
+test('MCP initialize negotiates a supported protocol version', async () => {
+  const cliPath = path.resolve('cli/bin/ship-safe.js');
+
+  const initialize = (id, protocolVersion) => JSON.stringify({
+    jsonrpc: '2.0',
+    id,
+    method: 'initialize',
+    params: {
+      protocolVersion,
+      capabilities: {},
+      clientInfo: { name: 'fixture-client', version: '1.0.0' },
+    },
+  });
+
+  const request = `${initialize(2, '2025-11-25')}\n${initialize(3, '2026-07-28')}`;
+
+  const result = await new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [cliPath, 'mcp'], { cwd: process.cwd() });
+    let stdout = '';
+    let stderr = '';
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error('MCP initialize response timed out'));
+    }, 10000);
+
+    child.stdout.on('data', chunk => { stdout += chunk; });
+    child.stderr.on('data', chunk => { stderr += chunk; });
+    child.on('error', error => { clearTimeout(timer); reject(error); });
+    child.on('close', code => {
+      clearTimeout(timer);
+      resolve({ code, stdout, stderr });
+    });
+    child.stdin.end(`${request}\n`);
+  });
+
+  assert.equal(result.code, 0, result.stderr);
+  const responses = result.stdout.trim().split('\n').map(line => JSON.parse(line));
+  assert.deepEqual(responses.map(item => item.id), [2, 3]);
+  assert.deepEqual(
+    responses.map(item => item.result.protocolVersion),
+    ['2025-11-25', '2025-11-25'],
+  );
+});
