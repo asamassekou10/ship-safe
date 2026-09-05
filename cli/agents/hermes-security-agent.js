@@ -636,6 +636,11 @@ function checkAdapterAllowlistFailOpen(content, filePath, agent) {
       continue;
     }
 
+    const sink = code.match(agentSinkRe);
+    const sinkLine = sink
+      ? fn.startLine + code.slice(0, sink.index).split('\n').length - 1
+      : fn.startLine;
+
     findings.push(createFinding({
       file: filePath,
       line: fn.startLine,
@@ -649,7 +654,24 @@ function checkAdapterAllowlistFailOpen(content, filePath, agent) {
       cwe: 'CWE-862',
       owasp: 'ASI03',
       fix: 'Require an explicit, non-empty operator allowlist before dispatch, approval, or output relay. Reject missing/empty configuration by default and never treat a session ID as authorization.',
+      evidenceLevel: 'strong',
+      reachability: 'reachable',
+      exposure: 'external',
     }));
+    const finding = findings.at(-1);
+    finding.hermesBoundary = {
+      surface: 'network adapter',
+      caller: 'network caller',
+      authentication: 'allowlist is missing, empty, or fail-open',
+      handler: fn.name,
+      reachableOperation: sink?.[0]?.trim() || 'agent dispatch',
+      effect: 'agent work, approval, or output is reachable by the adapter caller',
+      reachabilityBasis: 'inferred',
+      evidence: [
+        { file: filePath, line: fn.startLine, role: 'adapter handler receives the network caller' },
+        { file: filePath, line: sinkLine, role: 'handler reaches a privileged Hermes operation' },
+      ],
+    };
   }
 
   return findings;
@@ -1316,6 +1338,7 @@ function checkCronLifecycle(files, agent) {
         stage: 'update',
         retainedAuthority: 'stored schedule keeps its execution identity and later runs the mutated payload',
         errorAndRetryImpact: 'low-level persistence remains reachable from recovery and future callers even when a wrapper validates normal input',
+        reachabilityBasis: 'inferred',
         evidence: [
           definition,
           { file: guardedCreate.file, line: guardedCreate.line, role: 'creation enforces the lifecycle invariant' },
@@ -1362,6 +1385,7 @@ function checkCronLifecycle(files, agent) {
       finding.hermesCronLifecycle = {
         stage: 'cleanup',
         retainedAuthority: 'run-scoped authority can survive successful, exceptional, cancelled, or retried completion',
+        reachabilityBasis: 'inferred',
         evidence: [
           definition,
           { file: candidate.file.filePath, line: candidate.acquisition.line, role: 'run-scoped authority is acquired' },
@@ -2018,6 +2042,7 @@ function checkTerminalBackendPosture(allFiles, agent) {
         input: `mcp_servers.${server.name} (trust=${server.trust})`,
         reachableOperation: operation,
         executesIn: HERMES_OPERATION_BOUNDARIES.mcp.nonLocal,
+        reachabilityBasis: 'configured',
         evidence: [
           { file: filePath, line: terminal.line, role: 'configured backend' },
           { file: filePath, line: server.line, role: 'untrusted input and reachable operation' },

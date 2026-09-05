@@ -185,6 +185,26 @@ through unknown wrappers, user and pip plugins outside the scanned repository,
 generated job definitions, and network effects hidden behind custom clients
 cannot be connected safely by this structural pass.
 
+### Hermes 10.0 release evidence
+
+The paired release-evidence benchmark in
+`benchmarks/hermes-release-evidence/` is calibrated to the pinned v0.21.0
+source snapshot. It covers four boundary questions with vulnerable and safely
+constrained counterparts:
+
+- unauthorized network-adapter callers reaching agent work;
+- declared credentials that are present but do not reach an enabled consumer;
+- plugin operations that remain outside terminal-backend isolation; and
+- scheduled tasks retaining run-scoped authority after an exception or retry.
+
+The benchmark checks creation/update symmetry for cron, run-scoped cleanup,
+and the rendered JSON, SARIF, and `ci --fail-on-verdict confirmed` contracts.
+Its static fixtures emit configured or inferred evidence only. The current
+release record has four human-reviewed fixture confirmations, zero traced
+claims, and zero reproduced claims. Those numbers describe calibration
+coverage, not application precision or runtime exploitability. External and
+custom schedulers remain a documented limitation.
+
 ## Maintaining the baseline
 
 Baseline updates are reviewed changes, never automatic tag following:

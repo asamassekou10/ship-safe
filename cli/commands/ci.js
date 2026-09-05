@@ -464,6 +464,7 @@ function buildSARIF(findings, rootPath) {
               hermesCronStage: f.hermesCronLifecycle.stage,
               retainedAuthority: f.hermesCronLifecycle.retainedAuthority,
               errorAndRetryImpact: f.hermesCronLifecycle.errorAndRetryImpact,
+              reachabilityBasis: f.hermesCronLifecycle.reachabilityBasis,
             } : {}),
             ...(f.hermesCredentialFlow ? {
               credential: f.hermesCredentialFlow.credential,

@@ -32,6 +32,7 @@ describe('Hermes v0.21.0 cron lifecycle and retained authority', () => {
     assert.ok(finding);
     assert.equal(finding.posture, 'hygiene');
     assert.equal(finding.hermesCronLifecycle.stage, 'update');
+    assert.equal(finding.hermesCronLifecycle.reachabilityBasis, 'inferred');
     assert.equal(finding.hermesCronLifecycle.evidence.length, 4);
     assert.match(finding.hermesCronLifecycle.evidence[0].role, /schedule definition/);
     assert.match(finding.hermesCronLifecycle.evidence[3].role, /privileged action/);
@@ -103,11 +104,13 @@ describe('Hermes v0.21.0 cron lifecycle and retained authority', () => {
           const finding = report.findings.find((item) => item.rule === 'HERMES_CRON_UPDATE_LIFECYCLE_GUARD_BYPASS');
           assert.ok(finding);
           assert.equal(finding.hermesCronLifecycle.stage, 'update');
+          assert.equal(finding.hermesCronLifecycle.reachabilityBasis, 'inferred');
           assert.equal(finding.hermesCronLifecycle.evidence.length, 4);
         } else {
           const finding = report.runs[0].results.find((item) => item.ruleId === 'HERMES_CRON_UPDATE_LIFECYCLE_GUARD_BYPASS');
           assert.ok(finding);
           assert.equal(finding.properties.hermesCronStage, 'update');
+          assert.equal(finding.properties.reachabilityBasis, 'inferred');
           assert.match(finding.properties.retainedAuthority, /stored schedule/);
           assert.equal(finding.relatedLocations.length, 4);
           assert.match(finding.relatedLocations[0].message.text, /schedule definition/);
@@ -145,6 +148,7 @@ describe('Hermes v0.21.0 cron lifecycle and retained authority', () => {
       const finding = report.runs[0].results.find((item) => item.ruleId === 'HERMES_CRON_UPDATE_LIFECYCLE_GUARD_BYPASS');
       assert.ok(finding);
       assert.equal(finding.properties.hermesCronStage, 'update');
+      assert.equal(finding.properties.reachabilityBasis, 'inferred');
       assert.equal(finding.relatedLocations.length, 4);
       assert.match(finding.relatedLocations[0].message.text, /schedule definition/);
       assert.match(finding.relatedLocations[3].physicalLocation.artifactLocation.uri, /scheduler\.py$/);
