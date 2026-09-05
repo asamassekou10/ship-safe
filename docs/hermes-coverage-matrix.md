@@ -40,7 +40,7 @@ These labels describe Ship Safe's coverage, not Hermes Agent's security.
 | ACP | `acp_adapter/**` | Host-user controls for editor IPC | **Partial** | `HERMES_ACP_GATEWAY_EXPOSED` traces an unauthenticated, configured non-loopback WebSocket route to `HermesACPAgent.prompt` and agent tool execution | External reverse proxies, inherited deployment binds, and custom ACP transports are not resolved statically |
 | TUI gateway | `tui_gateway/**`, `ui-tui/**` | Host-user controls for local JSON-RPC IPC | **Partial** | `HERMES_TUI_GATEWAY_EXPOSED` traces an unauthenticated, configured non-loopback WebSocket route through `handle_ws` to the shared dispatcher and its prompt, command, plugin, MCP, and terminal effects | Dynamic bind values, external reverse proxies, and authorization hidden in custom middleware are not resolved statically |
 | Cron | `cron/**`, `tools/cronjob_tools.py` | Job identity, lifecycle, subprocess environment, and effects | **Partial** | Creation/update guard symmetry and run-scoped authority cleanup, plus legacy JavaScript skill-to-prompt detection | Dynamic call targets, third-party scheduler providers, custom persistence layers, and unknown authority wrappers remain unresolved |
-| Credential scoping | `tools/environments/local.py`, `tools/code_execution_tool.py`, `tools/credential_files.py`, `cron/scheduler.py` | Filtered flow into lower-trust subprocesses; not containment | **Partial** | Generic sub-agent forwarding and credential-store exposure | Environment presence does not prove reachability or use; build the source-to-consumer-to-effect chain in #188 |
+| Credential scoping | `tools/environments/local.py`, `tools/code_execution_tool.py`, `tools/credential_files.py`, `cron/scheduler.py` | Filtered flow into lower-trust subprocesses; not containment | **Partial** | Configured credential declarations are correlated to registered project plugins, platform adapters, terminal skills, and persisted cron effects | Dynamic names, indirect registrations, external plugin installations, templated jobs, and unknown wrappers remain unresolved |
 
 No surface is marked fully covered at this baseline. That is deliberate: the
 matrix records what the current implementation can prove, not what its rule
@@ -148,6 +148,42 @@ repository, custom persistence implementations, or project-specific authority
 wrappers it does not recognize. The older `HERMES_CRON_SKILL_INJECTION` rule is
 explicitly scoped to JavaScript and TypeScript callback schedulers; JavaScript-
 shaped strings in Python are not lifecycle evidence.
+
+### Credential reachability
+
+Credential presence is not a verdict. Hermes intentionally keeps provider and
+platform secrets in profile-scoped storage, allows selected third-party values
+through `terminal.env_passthrough`, and makes project plugins opt-in. Reporting
+each declaration would confuse intended configuration with a demonstrated
+exposure path.
+
+`HERMES_CREDENTIAL_REACHABLE_EFFECT` therefore requires five resolved facts:
+
+1. a credential name declared in Hermes configuration or a plugin manifest;
+2. a scope that makes it available to a specific execution context;
+3. a lower-trust recipient that is enabled and reachable;
+4. executable code or a scheduled command that consumes that credential; and
+5. an external network effect reached by the consuming operation.
+
+For project plugins and platform adapters, the plugin must be listed in
+`plugins.enabled`, project-plugin loading must be explicitly enabled, Hermes's
+plugin API must register the consuming function, and that function must read
+the named secret and pass it to a network operation. A declaration, dead
+helper, or unregistered function decides nothing. For terminal skills, an
+explicit passthrough entry, matching skill requirement, credential-bearing
+command, and external operation are all required. Cron additionally requires
+an enabled persisted job whose scheduled script consumes the credential.
+
+Findings record only credential identifiers such as `DEPLOY_TOKEN`, never the
+resolved value. JSON and SARIF carry the source, scope, recipient, reachable
+operation, external effect, reachability basis, and resolvable locations. The
+deterministic finding remains visible; static evidence does not claim a
+reproduced or human-confirmed verdict.
+
+Credential coverage remains **Partial**. Dynamic secret names, registration
+through unknown wrappers, user and pip plugins outside the scanned repository,
+generated job definitions, and network effects hidden behind custom clients
+cannot be connected safely by this structural pass.
 
 ## Maintaining the baseline
 

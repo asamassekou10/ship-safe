@@ -1,0 +1,5 @@
+services:
+  hermes:
+    image: hermes-agent:test
+    environment:
+      HERMES_ENABLE_PROJECT_PLUGINS: "1"

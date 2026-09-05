@@ -36,6 +36,7 @@ describe('postureFor', () => {
       'HERMES_MEMORY_EXFIL_PATTERN',
       'HERMES_BROWSER_CLOUD_METADATA_SSRF',
       'HERMES_ADAPTER_ALLOWLIST_FAIL_OPEN',
+      'HERMES_CREDENTIAL_REACHABLE_EFFECT',
     ]) {
       assert.equal(postureFor(rule), 'boundary', rule);
     }

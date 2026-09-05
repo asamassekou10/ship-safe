@@ -422,8 +422,8 @@ function buildSARIF(findings, rootPath) {
             region: { startLine: Math.max(1, f.line || 1), startColumn: f.column || 1 },
           },
         }],
-        ...((f.hermesBoundary?.evidence?.slice(1) || f.hermesCronLifecycle?.evidence)?.length > 0 ? {
-          relatedLocations: (f.hermesBoundary?.evidence?.slice(1) || f.hermesCronLifecycle.evidence).map((item, index) => ({
+        ...((f.hermesBoundary?.evidence?.slice(1) || f.hermesCronLifecycle?.evidence || f.hermesCredentialFlow?.evidence)?.length > 0 ? {
+          relatedLocations: (f.hermesBoundary?.evidence?.slice(1) || f.hermesCronLifecycle?.evidence || f.hermesCredentialFlow.evidence).map((item, index) => ({
             id: index + 1,
             physicalLocation: {
               artifactLocation: {
@@ -441,7 +441,7 @@ function buildSARIF(findings, rootPath) {
         // The verdict travels into code scanning, where a severity label is
         // otherwise the only thing distinguishing a traced finding from an
         // unexamined one.
-        ...((f.posture || f.evidence?.verdict || f.hermesBoundary || f.hermesCronLifecycle) ? {
+        ...((f.posture || f.evidence?.verdict || f.hermesBoundary || f.hermesCronLifecycle || f.hermesCredentialFlow) ? {
           properties: {
             ...(f.posture ? { posture: f.posture } : {}),
             ...(f.hermesBoundary ? {
@@ -464,6 +464,14 @@ function buildSARIF(findings, rootPath) {
               hermesCronStage: f.hermesCronLifecycle.stage,
               retainedAuthority: f.hermesCronLifecycle.retainedAuthority,
               errorAndRetryImpact: f.hermesCronLifecycle.errorAndRetryImpact,
+            } : {}),
+            ...(f.hermesCredentialFlow ? {
+              credential: f.hermesCredentialFlow.credential,
+              credentialScope: f.hermesCredentialFlow.scope,
+              credentialRecipient: f.hermesCredentialFlow.recipient,
+              reachableOperation: f.hermesCredentialFlow.reachableOperation,
+              externalEffect: f.hermesCredentialFlow.externalEffect,
+              reachabilityBasis: f.hermesCredentialFlow.reachabilityBasis,
             } : {}),
             ...(f.evidence?.verdict ? {
               verdict: f.evidence.verdict,

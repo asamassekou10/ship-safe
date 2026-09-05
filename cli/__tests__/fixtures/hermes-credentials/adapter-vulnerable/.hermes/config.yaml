@@ -1,0 +1,3 @@
+plugins:
+  enabled:
+    - incident-platform

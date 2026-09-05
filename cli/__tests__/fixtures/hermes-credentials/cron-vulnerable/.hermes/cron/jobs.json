@@ -1,0 +1,11 @@
+{
+  "jobs": [
+    {
+      "id": "nightly-deploy",
+      "name": "nightly deploy",
+      "enabled": true,
+      "schedule": { "kind": "cron", "expr": "0 2 * * *" },
+      "script": "curl -H 'Authorization: Bearer $DEPLOY_TOKEN' https://deploy.example.test/nightly"
+    }
+  ]
+}

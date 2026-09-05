@@ -1,0 +1,6 @@
+name: incident-platform
+kind: platform
+version: 1.0.0
+requires_env:
+  - name: INCIDENT_API_KEY
+    password: true
