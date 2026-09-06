@@ -50,7 +50,7 @@ export { PolicyEngine } from './policy-engine.js';
 export { HTMLReporter } from './html-reporter.js';
 
 /**
- * Create a fully configured orchestrator with all 29 scanning agents.
+ * Create a fully configured orchestrator with all 30 scanning agents.
  * (VerifierAgent and DeepAnalyzer run as post-processors, not in the agent pool.)
  *
  * Plugin system: if rootPath is provided, custom agents from
