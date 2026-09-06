@@ -1,0 +1,84 @@
+name: Hermes Baseline Drift
+
+# Reports Hermes releases newer than the pinned coverage baseline (#205).
+#
+# It opens a pull request describing the drift. It never edits the baseline,
+# the coverage matrix or any surface status: a coverage claim that follows
+# upstream automatically is not a coverage claim, so moving the pin stays a
+# reviewed change a human merges.
+
+on:
+  schedule:
+    # Weekly, Mondays 04:00 UTC. Drift is not urgent; a noisy check is ignored.
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+
+      # The script exits 1 when it finds drift, which is a report rather than a
+      # failure, so the step captures the code instead of ending the job.
+      - name: Check for newer Hermes releases
+        id: drift
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          node scripts/hermes-baseline-drift.mjs > drift-report.md
+          code=$?
+          set -e
+          if [ "$code" -ge 2 ]; then
+            echo "::error::baseline drift check failed"
+            cat drift-report.md
+            exit 1
+          fi
+          echo "drifted=$([ "$code" -eq 1 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          cat drift-report.md
+
+      # A branch with no commits of its own: the report lives in the pull
+      # request body, and the diff is deliberately empty because nothing in the
+      # repository should change until a human decides it does.
+      - name: Open or update the review pull request
+        if: steps.drift.outputs.drifted == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          BRANCH="chore/hermes-baseline-drift"
+          TITLE="Hermes baseline drift: newer releases to review"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B "$BRANCH"
+          mkdir -p docs/generated
+          cp drift-report.md docs/generated/hermes-baseline-drift.md
+          git add docs/generated/hermes-baseline-drift.md
+          if git diff --cached --quiet; then
+            echo "Report unchanged since the last run; nothing to push."
+          else
+            git commit -m "chore(baseline): record Hermes drift report"
+            git push --force-with-lease origin "$BRANCH"
+          fi
+
+          EXISTING=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh pr edit "$EXISTING" --title "$TITLE" --body-file drift-report.md
+            echo "Updated PR #$EXISTING"
+          else
+            gh pr create --head "$BRANCH" --title "$TITLE" --body-file drift-report.md
+          fi
