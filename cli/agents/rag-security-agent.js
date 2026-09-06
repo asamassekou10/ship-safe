@@ -152,6 +152,7 @@ const PATTERNS = [
   // ── Model & Pipeline Safety ──────────────────────────────────────────────
   {
     rule: 'RAG_PICKLE_EMBEDDING_MODEL',
+    langs: ['python'],   // torch.load, pickle.load, and joblib.load are Python APIs.
     title: 'RAG: Embedding Model Loaded via Pickle',
     regex: /(?:torch\.load|pickle\.load|joblib\.load)\s*\(\s*(?!.*safetensors)(?!.*weights_only\s*=\s*True)/g,
     severity: 'critical',
@@ -162,6 +163,7 @@ const PATTERNS = [
   },
   {
     rule: 'RAG_TRUST_REMOTE_CODE',
+    langs: ['python'],   // trust_remote_code=True is a Python keyword argument.
     title: 'RAG: Model Loaded With trust_remote_code=True',
     regex: /trust_remote_code\s*=\s*True/g,
     severity: 'high',
