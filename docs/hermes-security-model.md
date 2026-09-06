@@ -97,6 +97,16 @@ Ship Safe 10.0 is baselined against Hermes Agent v0.21.0 at commit
 and its limitations live in
 [hermes-coverage-matrix.md](hermes-coverage-matrix.md).
 
+**The pin is about reproducibility, not endorsement.** It exists so a coverage
+claim can be re-checked against the same bytes later. It is not a statement
+that the pinned release is safe to run -- v0.21.0 is affected by
+[CVE-2026-71963](https://nvd.nist.gov/vuln/detail/CVE-2026-71963)
+(`core.fsmonitor`), unpatched at last check. Moving the pin to dodge a CVE
+would invalidate every calibrated fixture built on it, so the pin stays and the
+status is stated instead. Which version to run is a separate decision from
+which version this project measures itself against; see
+[what the pin means](hermes-coverage-matrix.md#what-the-pin-means-and-what-it-does-not).
+
 Hermes moves quickly. Baseline changes must pin a release tag to a full commit,
 review upstream's security policy and affected surfaces, and update the
 machine-readable baseline and matrix together. Never make a coverage claim
