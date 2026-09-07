@@ -153,6 +153,43 @@ describe('APIFuzzer scoping', async () => {
   });
 });
 
+describe('RAGSecurityAgent scoping', async () => {
+  const { RAGSecurityAgent } = await import('../agents/rag-security-agent.js');
+
+  const hits = async (code, ext) => {
+    const { dir, file } = tmpFile(code, ext);
+    try {
+      const f = await new RAGSecurityAgent().analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      return f.map(x => x.rule);
+    } finally { cleanup(dir); }
+  };
+
+  it('still catches Python pickle loading and remote model code', async () => {
+    const findings = await hits(
+      'model = torch.load(path)\nmodel = AutoModel.from_pretrained(name, trust_remote_code=True)',
+      '.py'
+    );
+
+    assert.ok(findings.includes('RAG_PICKLE_EMBEDDING_MODEL'));
+    assert.ok(findings.includes('RAG_TRUST_REMOTE_CODE'));
+  });
+
+  it('does not apply Python model-loading rules to JavaScript', async () => {
+    const findings = await hits(
+      'const model = torch.load(path);\nconst options = { trust_remote_code=True };',
+      '.js'
+    );
+
+    assert.ok(!findings.includes('RAG_PICKLE_EMBEDDING_MODEL'));
+    assert.ok(!findings.includes('RAG_TRUST_REMOTE_CODE'));
+  });
+
+  it('leaves cross-language RAG rules active in both languages', async () => {
+    assert.ok((await hits('top_k = 50', '.py')).includes('RAG_EXCESSIVE_CONTEXT'));
+    assert.ok((await hits('top_k = 50;', '.js')).includes('RAG_EXCESSIVE_CONTEXT'));
+  });
+});
+
 describe('LLMRedTeam scoping', async () => {
   const { LLMRedTeam } = await import('../agents/llm-redteam.js');
 
