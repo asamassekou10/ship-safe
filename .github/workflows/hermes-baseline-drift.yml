@@ -49,9 +49,15 @@ jobs:
           echo "drifted=$([ "$code" -eq 1 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
           cat drift-report.md
 
-      # A branch with no commits of its own: the report lives in the pull
-      # request body, and the diff is deliberately empty because nothing in the
-      # repository should change until a human decides it does.
+      # The branch carries the report and nothing else. It is committed under
+      # docs/generated/ so the drift is reviewable as a diff and its history is
+      # visible run to run, and it is repeated in the pull request body so a
+      # reader does not have to open a file to see what changed.
+      #
+      # What the branch deliberately never contains is an edit to the baseline,
+      # the coverage matrix, or any surface status. Moving the pin stays a
+      # decision a human makes: a coverage claim that follows upstream on its
+      # own is not a coverage claim.
       - name: Open or update the review pull request
         if: steps.drift.outputs.drifted == 'true'
         env:
