@@ -31,6 +31,7 @@ import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 import { WorkspaceTrustAgent } from '../agents/workspace-trust-agent.js';
+import { loadAdvisoryTable, resolveReachability, tableAgeDays } from '../utils/agent-advisories.js';
 
 const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 
@@ -75,10 +76,21 @@ export async function trustCommand(targetPath = '.', options = {}) {
       String(a.rule).localeCompare(String(b.rule))
   );
 
+  // Reachability is resolved once per rule, not once per finding: the question
+  // "is an affected agent installed" has the same answer for every finding of
+  // the same rule, and asking a binary for its version repeatedly would be
+  // both slower and no more informative.
+  const table = loadAdvisoryTable();
+  const reachability = new Map();
+  for (const finding of findings) {
+    if (reachability.has(finding.rule)) continue;
+    reachability.set(finding.rule, resolveReachability(finding.rule, { table, excludeRoot: absolutePath }));
+  }
+
   if (json) {
-    process.stdout.write(`${JSON.stringify(buildReport(absolutePath, findings), null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify(buildReport(absolutePath, findings, table, reachability), null, 2)}\n`);
   } else {
-    renderHuman(absolutePath, findings);
+    renderHuman(absolutePath, findings, table, reachability);
   }
 
   process.exitCode = findings.length > 0 ? 1 : 0;
@@ -97,17 +109,27 @@ export async function trustCommand(targetPath = '.', options = {}) {
  * and found nothing" and "we did not look" are different results, and a clean
  * run has to be able to say which one it is.
  */
-function buildReport(rootPath, findings) {
+function buildReport(rootPath, findings, table, reachability) {
   const counts = {};
   for (const finding of findings) {
     counts[finding.severity] = (counts[finding.severity] ?? 0) + 1;
   }
+
+  const age = tableAgeDays(table);
 
   return {
     version: 1,
     command: 'trust',
     path: rootPath,
     generatedAt: new Date().toISOString(),
+    // The table lags disclosure. A reader who cannot see how old it is cannot
+    // discount it, so its version and age travel with every report.
+    advisoryTable: {
+      version: table.tableVersion,
+      recordedAt: table.recordedAt,
+      ageDays: age,
+      entries: (table.entries ?? []).length,
+    },
     checked: [
       '.git/config',
       '.git/hooks/',
@@ -134,11 +156,14 @@ function buildReport(rootPath, findings) {
       owasp: f.owasp,
       fix: f.fix,
       evidenceLevel: f.evidenceLevel,
+      reachability: reachability.get(f.rule)?.state ?? 'configured',
+      reachabilityReason: reachability.get(f.rule)?.reason ?? null,
+      installedAgents: reachability.get(f.rule)?.installed ?? [],
     })),
   };
 }
 
-function renderHuman(rootPath, findings) {
+function renderHuman(rootPath, findings, table, reachability) {
   const out = process.stdout;
 
   out.write(`\n${chalk.bold('Workspace trust')} ${chalk.gray(rootPath)}\n\n`);
@@ -156,6 +181,7 @@ function renderHuman(rootPath, findings) {
       `${chalk.gray('  This checks configuration that runs on open. It does not scan source code —')}\n` +
         `${chalk.gray('  run `ship-safe scan` for that.')}\n\n`
     );
+    out.write(`${chalk.gray(`  ${tableFooter(table)}`)}\n\n`);
     return;
   }
 
@@ -163,9 +189,14 @@ function renderHuman(rootPath, findings) {
     const color = SEVERITY_COLOR[finding.severity] ?? chalk.white;
     const where = path.relative(rootPath, finding.file) || path.basename(finding.file);
 
+    const reach = reachability.get(finding.rule);
+
     out.write(`${color(`[${finding.severity.toUpperCase()}]`)} ${chalk.bold(finding.title)}\n`);
-    out.write(`  ${chalk.gray(`${where}:${finding.line}`)}  ${chalk.gray(finding.rule)}\n\n`);
+    out.write(`  ${chalk.gray(`${where}:${finding.line}`)}  ${chalk.gray(finding.rule)}`);
+    if (reach) out.write(`  ${reachLabel(reach.state)}`);
+    out.write('\n\n');
     out.write(`  ${wrap(finding.description)}\n\n`);
+    if (reach) out.write(`  ${chalk.gray(wrap(reach.reason))}\n\n`);
     if (finding.matched) out.write(`  ${chalk.bold('Found:')} ${finding.matched}\n\n`);
     if (finding.fix) out.write(`  ${chalk.bold('Fix:')} ${wrap(finding.fix, 8)}\n\n`);
   }
@@ -175,8 +206,32 @@ function renderHuman(rootPath, findings) {
 
   out.write(`${chalk.bold(critical > 0 ? chalk.red(summary) : summary)}\n`);
   out.write(
-    `${chalk.gray('Do not open this folder with a coding agent or editor until these are resolved.')}\n\n`
+    `${chalk.gray('Do not open this folder with a coding agent or editor until these are resolved.')}\n`
   );
+  out.write(`${chalk.gray(tableFooter(table))}\n\n`);
+}
+
+/** A short badge for a reachability state. */
+function reachLabel(state) {
+  if (state === 'reachable') return chalk.red('reachable');
+  if (state === 'unresolved') return chalk.yellow('unresolved');
+  return chalk.gray('configured');
+}
+
+/**
+ * How stale the advisory table is.
+ *
+ * Printed on every run with findings. A reachability verdict is only as good
+ * as the table behind it, and the reader is the one who has to decide whether
+ * a table this old still means anything.
+ */
+function tableFooter(table) {
+  const age = tableAgeDays(table);
+  if (table.tableVersion === 'unavailable') {
+    return 'Advisory table unavailable, so reachability was not assessed.';
+  }
+  const staleness = age === null ? '' : age === 0 ? ', recorded today' : `, ${age} day${age === 1 ? '' : 's'} old`;
+  return `Advisory table ${table.tableVersion}${staleness}. It lags disclosure; an agent absent from it is undocumented, not safe.`;
 }
 
 /** Wrap prose to a readable width, indenting continuation lines. */

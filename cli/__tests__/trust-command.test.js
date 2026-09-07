@@ -108,6 +108,25 @@ describe('ship-safe trust — JSON output', () => {
     assert.equal(report.findings[0].file, '.vscode/tasks.json', 'paths are relative to the scanned folder');
   });
 
+  it('carries the advisory table version and age', async () => {
+    hostileTask();
+    await trustCommand(dir, { json: true });
+
+    const report = JSON.parse(written);
+    assert.ok(report.advisoryTable.version, 'a reachability verdict is only as good as the table behind it');
+    assert.equal(typeof report.advisoryTable.entries, 'number');
+    assert.ok(report.advisoryTable.ageDays >= 0, 'the reader has to be able to see how stale it is');
+  });
+
+  it('gives every finding a reachability state', async () => {
+    hostileTask();
+    await trustCommand(dir, { json: true });
+
+    const finding = JSON.parse(written).findings[0];
+    assert.ok(['configured', 'unresolved', 'reachable'].includes(finding.reachability));
+    assert.ok(finding.reachabilityReason, 'the state has to say why');
+  });
+
   it('says what it checked even when it found nothing', async () => {
     write('README.md', '# hello\n');
     await trustCommand(dir, { json: true });

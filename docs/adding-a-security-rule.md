@@ -112,3 +112,31 @@ Two of these rules carry a severity split rather than a fixed level, and both sp
 ## What to Avoid
 
 Avoid rules that flag common strings without strong context, require network access for core scanning, or create findings that only say "review this." Ship Safe should help developers decide what to fix next.
+
+## Updating the Pinned Advisory Table
+
+`cli/data/agent-advisories.json` maps installed agent versions to the execution sinks they are documented to invoke. It is what promotes a `WORKSPACE_*` finding from `configured` to `reachable`, so an edit to it changes what Ship Safe claims about a user's machine. Treat it like the Hermes baseline: a normal reviewable pull request, never a silent expansion.
+
+Every entry states where the claim came from and when:
+
+```json
+{
+  "id": "goose-fsmonitor",
+  "binaries": ["goose"],
+  "sinks": ["WORKSPACE_GIT_FSMONITOR_EXEC"],
+  "affected": { "lt": "1.44.0" },
+  "patchedIn": "1.44.0",
+  "cve": "CVE-2026-72718",
+  "source": "https://www.manifold.security/blog/ai-coding-agents-git-hijack",
+  "recordedAt": "2026-09-05"
+}
+```
+
+Rules for an edit:
+
+- **Source it from an advisory or a disclosure writeup**, never from a vendor's release notes or marketing page. "Improved security of git integration" is not a documented sink.
+- **Record only what was tested.** `affected` takes `{ lt }`, `{ gte, lte }`, or `{ exact: [...] }`. When a writeup names two versions, use `exact` with those two. The versions between them were not tested, and a range would claim them.
+- **A patched version is not a safe version.** It is outside *this entry*. The resolver says so explicitly rather than reporting the folder as clean.
+- **Absence is not safety.** An agent nobody has written up is undocumented. There is no entry that means "checked and fine".
+
+Three properties are enforced by `cli/__tests__/agent-advisories.test.js` and should stay that way: an unreadable version resolves to `unresolved` and never to `reachable`; a table that fails to load behaves like one that assessed nothing rather than one that cleared everything; and version detection never resolves a binary from inside the folder being inspected, because running a repository-supplied executable is the attack `ship-safe trust` exists to warn about.
