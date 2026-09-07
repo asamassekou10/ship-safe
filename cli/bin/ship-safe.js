@@ -38,6 +38,7 @@ import { scoreCommand } from '../commands/score.js';
 import { redTeamCommand } from '../commands/red-team.js';
 import { watchCommand } from '../commands/watch.js';
 import { auditCommand } from '../commands/audit.js';
+import { trustCommand } from '../commands/trust.js';
 import { doctorCommand } from '../commands/doctor.js';
 import { baselineCommand } from '../commands/baseline.js';
 import { ciCommand } from '../commands/ci.js';
@@ -213,6 +214,15 @@ program
   });
 
 // -----------------------------------------------------------------------------
+// TRUST COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('trust [path]')
+  .description('Pre-flight check: report configuration that executes when an agent opens this folder')
+  .option('--json', 'Output results as JSON')
+  .action(trustCommand);
+
+// -----------------------------------------------------------------------------
 // UNDO COMMAND
 // -----------------------------------------------------------------------------
 program
@@ -264,7 +274,7 @@ program
 // -----------------------------------------------------------------------------
 program
   .command('audit [path]')
-  .description('Full security audit: secrets + 29 agents + deps + score + deep analysis + remediation plan')
+  .description('Full security audit: secrets + 30 agents + deps + score + deep analysis + remediation plan')
   .option('--include-tests', 'Also scan test, fixture, and example files (excluded by default to reduce false positives)')
   .option('--include-doc-examples', 'Also scan fenced Markdown code examples for code vulnerabilities')
   .option('--json', 'Output results as JSON')
@@ -312,7 +322,7 @@ program
 // -----------------------------------------------------------------------------
 program
   .command('red-team [path]')
-  .description('Multi-agent security audit: 29 agents scan for 80+ attack classes')
+  .description('Multi-agent security audit: 30 agents scan for 80+ attack classes')
   .option('--agents <list>', 'Comma-separated list of agents to run')
   .option('--json', 'Output results as JSON')
   .option('--sarif', 'Output results in SARIF format')
@@ -739,7 +749,7 @@ if (process.argv.length === 2 && process.stdin.isTTY) {
   console.log(banner);
   console.log(chalk.yellow('\nQuick start:\n'));
   console.log(chalk.cyan.bold('  v9.0 — Agent Studio, Teams & Findings'));
-  console.log(chalk.white('  npx ship-safe audit .       ') + chalk.gray('# Full audit: secrets + 29 agents + deps + remediation'));
+  console.log(chalk.white('  npx ship-safe audit .       ') + chalk.gray('# Full audit: secrets + 30 agents + deps + remediation'));
   console.log(chalk.white('  npx ship-safe audit . --deep') + chalk.gray('# LLM-powered taint analysis (Anthropic/Ollama)'));
   console.log(chalk.white('  npx ship-safe red-team .    ') + chalk.gray('# 29-agent red team scan (80+ attack classes)'));
   console.log(chalk.white('  npx ship-safe vibe-check .  ') + chalk.gray('# Fun security check with emoji & shareable badge'));

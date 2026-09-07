@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "tableVersion": "2026.09.07",
+  "recordedAt": "2026-09-07",
+  "note": "Maps installed agent versions to execution sinks they are documented to invoke. Sourced from advisories and disclosure writeups only, never from vendor marketing or release-note phrasing. This table lags disclosure by design: an agent absent from it is not known to be safe, only undocumented here. Updating it is a normal reviewable pull request.",
+  "entries": [
+    {
+      "id": "goose-fsmonitor",
+      "agent": "goose",
+      "displayName": "Goose",
+      "binaries": ["goose"],
+      "sinks": ["WORKSPACE_GIT_FSMONITOR_EXEC"],
+      "affected": { "lt": "1.44.0" },
+      "patchedIn": "1.44.0",
+      "cve": "CVE-2026-72718",
+      "source": "https://www.manifold.security/blog/ai-coding-agents-git-hijack",
+      "recordedAt": "2026-09-05"
+    },
+    {
+      "id": "codex-cli-fsmonitor",
+      "agent": "codex",
+      "displayName": "Codex CLI",
+      "binaries": ["codex"],
+      "sinks": ["WORKSPACE_GIT_FSMONITOR_EXEC"],
+      "affected": { "gte": "0.102.0", "lte": "0.130.0" },
+      "patchedIn": "0.131.0",
+      "cve": "CVE-2026-19592",
+      "source": "https://www.manifold.security/blog/ai-coding-agents-git-hijack",
+      "recordedAt": "2026-09-05"
+    },
+    {
+      "id": "claude-code-fsmonitor",
+      "agent": "claude-code",
+      "displayName": "Claude Code",
+      "binaries": ["claude"],
+      "sinks": ["WORKSPACE_GIT_FSMONITOR_EXEC"],
+      "affected": { "lt": "2.1.196" },
+      "patchedIn": "2.1.196",
+      "cve": null,
+      "source": "https://www.manifold.security/blog/ai-coding-agents-git-hijack",
+      "recordedAt": "2026-09-05",
+      "notes": "A second sink in the review path was still open at publication and is not documented in enough detail to model. A version at or above 2.1.196 is not covered by this entry and is not thereby established as safe."
+    },
+    {
+      "id": "hermes-agent-fsmonitor",
+      "agent": "hermes",
+      "displayName": "Hermes Agent",
+      "binaries": ["hermes"],
+      "sinks": ["WORKSPACE_GIT_FSMONITOR_EXEC"],
+      "affected": { "exact": ["0.18.2", "0.21.0"] },
+      "patchedIn": null,
+      "cve": "CVE-2026-71963",
+      "source": "https://www.manifold.security/blog/ai-coding-agents-git-hijack",
+      "recordedAt": "2026-09-05",
+      "notes": "Unpatched at publication. 0.21.0 is the release Ship Safe pins as its own coverage baseline; the pin is for reproducibility, not safety."
+    },
+    {
+      "id": "qwen-code-fsmonitor",
+      "agent": "qwen-code",
+      "displayName": "Qwen Code",
+      "binaries": ["qwen", "qwen-code"],
+      "sinks": ["WORKSPACE_GIT_FSMONITOR_EXEC"],
+      "affected": { "exact": ["0.19.6", "0.22.3"] },
+      "patchedIn": null,
+      "cve": null,
+      "source": "https://www.manifold.security/blog/ai-coding-agents-git-hijack",
+      "recordedAt": "2026-09-05",
+      "notes": "Unpatched at publication. Only the two versions named in the writeup are recorded; the surrounding range was not tested and is not claimed."
+    },
+    {
+      "id": "grok-build-fsmonitor",
+      "agent": "grok-build",
+      "displayName": "Grok Build",
+      "binaries": ["grok", "grok-build"],
+      "sinks": ["WORKSPACE_GIT_FSMONITOR_EXEC"],
+      "affected": { "exact": ["0.2.93", "1.0.13"] },
+      "patchedIn": null,
+      "cve": null,
+      "source": "https://www.manifold.security/blog/ai-coding-agents-git-hijack",
+      "recordedAt": "2026-09-05",
+      "notes": "Unpatched at publication. Only the two versions named in the writeup are recorded."
+    },
+    {
+      "id": "cursor-agent-hook-config",
+      "agent": "cursor",
+      "displayName": "Cursor",
+      "binaries": ["cursor"],
+      "sinks": ["WORKSPACE_AGENT_HOOK_CONFIG"],
+      "affected": { "lt": "3.0.0" },
+      "patchedIn": "3.0.0",
+      "cve": "CVE-2026-48124",
+      "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-48124",
+      "recordedAt": "2026-09-05"
+    }
+  ]
+}

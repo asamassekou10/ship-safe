@@ -30,6 +30,7 @@ export { MemoryPoisoningAgent } from './memory-poisoning-agent.js';
 export { LegalRiskAgent, LEGALLY_RISKY_PACKAGES } from './legal-risk-agent.js';
 export { ManagedAgentScanner } from './managed-agent-scanner.js';
 export { HermesSecurityAgent } from './hermes-security-agent.js';
+export { WorkspaceTrustAgent } from './workspace-trust-agent.js';
 export { AgentAttestationAgent } from './agent-attestation-agent.js';
 export { AgenticSupplyChainAgent } from './agentic-supply-chain-agent.js';
 export { RobloxSecurityAgent } from './roblox-security-agent.js';
@@ -49,7 +50,7 @@ export { PolicyEngine } from './policy-engine.js';
 export { HTMLReporter } from './html-reporter.js';
 
 /**
- * Create a fully configured orchestrator with all 29 scanning agents.
+ * Create a fully configured orchestrator with all 30 scanning agents.
  * (VerifierAgent and DeepAnalyzer run as post-processors, not in the agent pool.)
  *
  * Plugin system: if rootPath is provided, custom agents from
@@ -78,6 +79,7 @@ import { AgentConfigScanner as AgentConfigScannerClass } from './agent-config-sc
 import { MemoryPoisoningAgent as MemoryPoisoningAgentClass } from './memory-poisoning-agent.js';
 import { ManagedAgentScanner as ManagedAgentScannerClass } from './managed-agent-scanner.js';
 import { HermesSecurityAgent as HermesSecurityAgentClass } from './hermes-security-agent.js';
+import { WorkspaceTrustAgent as WorkspaceTrustAgentClass } from './workspace-trust-agent.js';
 import { AgentAttestationAgent as AgentAttestationAgentClass } from './agent-attestation-agent.js';
 import { AgenticSupplyChainAgent as AgenticSupplyChainAgentClass } from './agentic-supply-chain-agent.js';
 import { RobloxSecurityAgent as RobloxSecurityAgentClass } from './roblox-security-agent.js';
@@ -111,6 +113,7 @@ const BUILT_IN_AGENTS = () => [
   new MemoryPoisoningAgentClass(),
   new ManagedAgentScannerClass(),
   new HermesSecurityAgentClass(),
+  new WorkspaceTrustAgentClass(),
   new AgentAttestationAgentClass(),
   new AgenticSupplyChainAgentClass(),
   new RobloxSecurityAgentClass(),

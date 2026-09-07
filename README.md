@@ -58,13 +58,17 @@ Use `--no-ai` to guarantee a fully local scan. Provider-backed classification, d
 # Interactive REPL: scan, fix, and ask questions in one session
 npx ship-safe
 
-# Full audit: secrets + 29 agents + deps + remediation plan
+# Full audit: secrets + 30 agents + deps + remediation plan
 npx ship-safe audit .
 
 # Investigate: confirmed / likely / unresolved / refuted, with the evidence
 npx ship-safe investigate .
 npx ship-safe investigate . --all       # also detail unresolved and refuted
 npx ship-safe investigate . --verify    # probe leaked keys against their providers
+
+# Before you open an unfamiliar folder with an agent: what runs on open?
+npx ship-safe trust ~/Downloads/take-home
+npx ship-safe trust . --json
 
 # What can an AI agent working in this repo actually reach?
 npx ship-safe capabilities .
