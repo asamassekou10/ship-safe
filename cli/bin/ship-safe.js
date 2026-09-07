@@ -38,6 +38,7 @@ import { scoreCommand } from '../commands/score.js';
 import { redTeamCommand } from '../commands/red-team.js';
 import { watchCommand } from '../commands/watch.js';
 import { auditCommand } from '../commands/audit.js';
+import { trustCommand } from '../commands/trust.js';
 import { doctorCommand } from '../commands/doctor.js';
 import { baselineCommand } from '../commands/baseline.js';
 import { ciCommand } from '../commands/ci.js';
@@ -211,6 +212,15 @@ program
     }
     return agentFixCommand(targetPath, options);
   });
+
+// -----------------------------------------------------------------------------
+// TRUST COMMAND
+// -----------------------------------------------------------------------------
+program
+  .command('trust [path]')
+  .description('Pre-flight check: report configuration that executes when an agent opens this folder')
+  .option('--json', 'Output results as JSON')
+  .action(trustCommand);
 
 // -----------------------------------------------------------------------------
 // UNDO COMMAND

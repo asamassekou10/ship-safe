@@ -90,8 +90,24 @@ A rule that fires on healthy repositories is worse than no rule, because it teac
 | `WORKSPACE_GIT_FILTER_PROCESS` | Git LFS `clean` / `smudge` / `process` commands |
 | `WORKSPACE_GIT_HOOKS_PATH` | husky and lefthook, which redirect hooks by design |
 | `WORKSPACE_GIT_HOOK_PRESENT` | git's shipped `*.sample` hooks |
+| `WORKSPACE_TASK_AUTORUN` | any task without `runOptions.runOn: folderOpen` |
+| `WORKSPACE_ENVRC_EXEC` | variable assignments and direnv stdlib helpers such as `layout node` |
+| `WORKSPACE_AGENT_HOOK_CONFIG` | Ship Safe's own `ship-safe guard` hook, and forms `CLAUDE_HOOK_*` already reports |
 
-Exempt by the specific evidence, not by the label. The filter exemption matches the LFS command, not the filter named `lfs`, so a hostile entry cannot claim the name and inherit the exemption. The husky exemption requires an installed marker file, not just a `.husky` directory.
+Exempt by the specific evidence, not by the label. The filter exemption matches the LFS command, not the filter named `lfs`, so a hostile entry cannot claim the name and inherit the exemption. The husky exemption requires an installed marker file, not just a `.husky` directory. The Ship Safe hook exemption matches the invocation, so a repository cannot opt itself out by writing the scanner's name into a comment.
+
+### Do not report the same line twice
+
+`WORKSPACE_AGENT_HOOK_CONFIG` and `AgentConfigScanner`'s `CLAUDE_HOOK_SHELL_CMD` both read `.claude/settings.json`. Two findings for one hook is noise, and the reader has no way to tell whether they are looking at one problem or two. The newer rule suppresses the forms the existing one already reports and covers the rest of the shape.
+
+When a rule overlaps an existing one, decide which owns the overlap and make the other silent there. Do it with an explicit check that names the other rule, so the next person can find both ends of the arrangement.
+
+### Severity should track what the victim can notice or reach
+
+Two of these rules carry a severity split rather than a fixed level, and both splits are about blast radius rather than about how clever the attack is:
+
+- `WORKSPACE_TASK_AUTORUN` is high when the task reveals a terminal panel and critical when `presentation.reveal` is `silent`. A visible panel is a real chance to notice and close the window.
+- `WORKSPACE_DEVCONTAINER_INIT` is high for `initializeCommand`, which runs on the host before the container exists, and medium for every other lifecycle hook, which runs inside it.
 
 ## What to Avoid
 

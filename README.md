@@ -66,6 +66,10 @@ npx ship-safe investigate .
 npx ship-safe investigate . --all       # also detail unresolved and refuted
 npx ship-safe investigate . --verify    # probe leaked keys against their providers
 
+# Before you open an unfamiliar folder with an agent: what runs on open?
+npx ship-safe trust ~/Downloads/take-home
+npx ship-safe trust . --json
+
 # What can an AI agent working in this repo actually reach?
 npx ship-safe capabilities .
 
