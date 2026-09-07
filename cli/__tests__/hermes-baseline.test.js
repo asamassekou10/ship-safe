@@ -70,3 +70,47 @@ test('the upstream fixture and published baseline cannot drift apart', () => {
     assert.doesNotMatch(representativePath, /^(?:main|latest)(?:\/|$)/);
   }
 });
+
+test('the pin is framed as reproducibility, not a safety endorsement', () => {
+  // A version number at the top of a security document reads as a
+  // recommendation unless the document says otherwise. #205 asks for that to be
+  // stated plainly, so it is asserted rather than left to review.
+  assert.ok(baseline.pinRationale, 'baseline must record why the pin exists');
+  assert.match(baseline.pinRationale, /not a safety endorsement/i);
+
+  assert.match(matrix, /not\b.{0,40}safety endorsement/is);
+  assert.match(matrix, /reproducib/i);
+
+  const model = fs.readFileSync(path.join(root, 'docs/hermes-security-model.md'), 'utf8');
+  assert.match(model, /reproducibility, not endorsement/i);
+});
+
+test('known vulnerabilities affecting the pinned release are recorded and dated', () => {
+  const known = baseline.knownVulnerabilities;
+  assert.ok(Array.isArray(known) && known.length > 0, 'baseline must record known CVEs');
+
+  for (const entry of known) {
+    assert.match(entry.id, /^CVE-\d{4}-\d{4,}$/, `${entry.id} is not a CVE id`);
+    assert.ok(entry.source, `${entry.id} needs a source URL`);
+    assert.match(entry.recordedAt, /^\d{4}-\d{2}-\d{2}$/, `${entry.id} needs a record date`);
+    assert.ok(entry.affects, `${entry.id} must say what it affects`);
+    assert.equal(typeof entry.affectsPinnedRelease, 'boolean');
+    // `patchedIn` is deliberately nullable: "no patch exists" is a fact worth
+    // recording, and an absent key would be indistinguishable from an omission.
+    assert.ok('patchedIn' in entry, `${entry.id} must state its patch status`);
+  }
+});
+
+test('a CVE affecting the pinned release is named in the docs, not only in JSON', () => {
+  // The JSON is the machine-readable copy; a human reading the matrix has to
+  // see it too, or the honest framing only exists somewhere nobody looks.
+  const affecting = baseline.knownVulnerabilities.filter((entry) => entry.affectsPinnedRelease);
+  for (const entry of affecting) {
+    assert.ok(matrix.includes(entry.id), `matrix must name ${entry.id}`);
+  }
+});
+
+test('maintaining the baseline includes re-checking the CVE record', () => {
+  assert.match(matrix, /knownVulnerabilities/);
+  assert.match(matrix, /recordedAt/);
+});

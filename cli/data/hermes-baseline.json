@@ -7,51 +7,99 @@
   "releasedAt": "2026-08-31T19:29:49Z",
   "auditedAt": "2026-09-04",
   "securityPolicyPath": "SECURITY.md",
+  "pinRationale": "Reproducibility of coverage claims, not a safety endorsement. This snapshot is pinned so a claim made today can be re-checked against the same bytes tomorrow. It is not a statement that the pinned release is safe to run -- see knownVulnerabilities.",
+  "knownVulnerabilities": [
+    {
+      "id": "CVE-2026-71963",
+      "affects": "Hermes Agent 0.18.2 and 0.21.0",
+      "affectsPinnedRelease": true,
+      "sink": "core.fsmonitor",
+      "patchedIn": null,
+      "status": "unpatched at last check",
+      "recordedAt": "2026-09-06",
+      "source": "https://www.manifold.security/blog/ai-coding-agents-git-hijack",
+      "note": "The pinned release is affected. Ship Safe pins it for reproducibility of coverage claims; running it is a separate decision."
+    }
+  ],
   "surfaces": [
     {
       "id": "plugin-manifests",
       "status": "partial",
-      "upstreamPaths": ["plugins/**/plugin.yaml", "hermes_cli/plugins.py"],
+      "upstreamPaths": [
+        "plugins/**/plugin.yaml",
+        "hermes_cli/plugins.py"
+      ],
       "boundary": "operator review before in-process loading",
-      "rules": ["HERMES_PLUGIN_NO_PROVENANCE", "HERMES_PLUGIN_UNDECLARED_HOOK", "HERMES_PLUGIN_NETWORK_LISTENER_UNDECLARED"],
+      "rules": [
+        "HERMES_PLUGIN_NO_PROVENANCE",
+        "HERMES_PLUGIN_UNDECLARED_HOOK",
+        "HERMES_PLUGIN_NETWORK_LISTENER_UNDECLARED"
+      ],
       "limitations": "Manifest provenance, hook drift, and undeclared listeners are covered as hygiene. Install and discovery paths that hide code from operator review are not modeled."
     },
     {
       "id": "network-adapters",
       "status": "partial",
-      "upstreamPaths": ["gateway/platforms/**", "plugins/platforms/**", "gateway/platform_registry.py"],
+      "upstreamPaths": [
+        "gateway/platforms/**",
+        "plugins/platforms/**",
+        "gateway/platform_registry.py"
+      ],
       "boundary": "operator-configured caller authorization at each network surface",
-      "rules": ["HERMES_ADAPTER_ALLOWLIST_FAIL_OPEN"],
+      "rules": [
+        "HERMES_ADAPTER_ALLOWLIST_FAIL_OPEN"
+      ],
       "limitations": "Python adapter functions are checked for fail-open dispatch. Shared authorization, relay, HTTP plugin, and non-loopback exposure paths are not comprehensively modeled."
     },
     {
       "id": "terminal-backends",
       "status": "partial",
-      "upstreamPaths": ["tools/environments/**", "tools/terminal_tool.py", "tools/code_execution_tool.py", "hermes_cli/config.py", "hermes_cli/setup.py"],
+      "upstreamPaths": [
+        "tools/environments/**",
+        "tools/terminal_tool.py",
+        "tools/code_execution_tool.py",
+        "hermes_cli/config.py",
+        "hermes_cli/setup.py"
+      ],
       "boundary": "OS isolation for shell and file operations only",
-      "rules": ["HERMES_LOCAL_BACKEND_UNTRUSTED_INPUT", "HERMES_TERMINAL_BACKEND_SCOPE_GAP"],
+      "rules": [
+        "HERMES_LOCAL_BACKEND_UNTRUSTED_INPUT",
+        "HERMES_TERMINAL_BACKEND_SCOPE_GAP"
+      ],
       "limitations": "Repository-carried config is checked across local, Docker, Modal, SSH, Daytona, Vercel Sandbox, and Singularity. Runtime-only CLI/environment overrides, OpenShell session binding, and arbitrary custom terminal-environment plugins are not resolved statically."
     },
     {
       "id": "acp",
       "status": "partial",
-      "upstreamPaths": ["acp_adapter/**"],
+      "upstreamPaths": [
+        "acp_adapter/**"
+      ],
       "boundary": "host-user access control for local editor IPC",
-      "rules": ["HERMES_ACP_GATEWAY_EXPOSED"],
+      "rules": [
+        "HERMES_ACP_GATEWAY_EXPOSED"
+      ],
       "limitations": "Configured non-loopback WebSocket re-exports are traced from their route to ACP prompt execution. External reverse proxies, inherited deployment binds, and custom ACP transports are not resolved statically."
     },
     {
       "id": "tui-gateway",
       "status": "partial",
-      "upstreamPaths": ["tui_gateway/**", "ui-tui/**"],
+      "upstreamPaths": [
+        "tui_gateway/**",
+        "ui-tui/**"
+      ],
       "boundary": "host-user access control for local JSON-RPC IPC",
-      "rules": ["HERMES_TUI_GATEWAY_EXPOSED"],
+      "rules": [
+        "HERMES_TUI_GATEWAY_EXPOSED"
+      ],
       "limitations": "Configured non-loopback WebSocket routes are traced to the shared TUI dispatcher and its reachable effects. External reverse proxies, dynamic bind values, and authorization inside custom middleware are not resolved statically."
     },
     {
       "id": "cron",
       "status": "partial",
-      "upstreamPaths": ["cron/**", "tools/cronjob_tools.py"],
+      "upstreamPaths": [
+        "cron/**",
+        "tools/cronjob_tools.py"
+      ],
       "boundary": "job identity, lifecycle, subprocess environment, and reachable effects",
       "rules": [
         "HERMES_CRON_SKILL_INJECTION",
@@ -63,7 +111,12 @@
     {
       "id": "credential-scoping",
       "status": "partial",
-      "upstreamPaths": ["tools/environments/local.py", "tools/code_execution_tool.py", "tools/credential_files.py", "cron/scheduler.py"],
+      "upstreamPaths": [
+        "tools/environments/local.py",
+        "tools/code_execution_tool.py",
+        "tools/credential_files.py",
+        "cron/scheduler.py"
+      ],
       "boundary": "filtered credential flow into lower-trust subprocesses and external effects",
       "rules": [
         "HERMES_SUB_AGENT_CREDENTIAL_FORWARD",

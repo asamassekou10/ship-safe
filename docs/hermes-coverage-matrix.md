@@ -20,6 +20,33 @@ The test fixture
 [`hermes-v0.21.0-baseline.json`](../cli/__tests__/fixtures/hermes-v0.21.0-baseline.json)
 pins representative paths from the same snapshot.
 
+## What the pin means, and what it does not
+
+The pin exists so a coverage claim is **reproducible**: a statement Ship Safe
+makes today about a surface can be re-checked tomorrow against the same bytes.
+That is its whole purpose.
+
+It is **not** a safety endorsement, and the two are easy to conflate when a
+version number appears at the top of a security document. Concretely:
+
+> **The pinned release, Hermes Agent v0.21.0, is affected by
+> [CVE-2026-71963](https://nvd.nist.gov/vuln/detail/CVE-2026-71963)
+> (`core.fsmonitor`), unpatched at last check on 2026-09-06.**
+
+Pinning an affected release is the correct thing to do here — moving the pin to
+dodge a CVE would silently invalidate every calibrated fixture and every
+coverage claim built on it — but it would be dishonest to let a reader infer
+that "Ship Safe baselines against v0.21.0" means "v0.21.0 is a safe version to
+run." It does not. Which version to run is a separate decision from which
+version this project measures itself against.
+
+Known vulnerabilities affecting the pinned release are recorded in
+[`cli/data/hermes-baseline.json`](../cli/data/hermes-baseline.json) under
+`knownVulnerabilities`, each with its source and the date it was recorded, so
+the staleness of the record is visible rather than assumed. That list covers
+only what is *documented*; absence from it is absence of a record, not evidence
+of absence.
+
 ## Status definitions
 
 - **Covered** means a detector is calibrated to this pinned surface and has a
@@ -215,6 +242,9 @@ Baseline updates are reviewed changes, never automatic tag following:
 4. Re-run the baseline contract test and relevant positive/safe fixtures.
 5. Change a matrix status only when the detector is calibrated to the new
    snapshot and its evidence supports the advertised verdict.
+6. Re-check `knownVulnerabilities` against current advisories and update
+   `recordedAt`, whether or not anything changed. A stale record that looks
+   fresh is worse than no record.
 
 Version drift is therefore visible as a code review. A newer Hermes release
 does not silently expand Ship Safe's coverage claim.
