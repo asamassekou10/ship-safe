@@ -17,7 +17,7 @@
       "patchedIn": null,
       "status": "unpatched at last check",
       "recordedAt": "2026-09-06",
-      "source": "https://manifoldsec.com/gitspawn",
+      "source": "https://www.manifold.security/blog/ai-coding-agents-git-hijack",
       "note": "The pinned release is affected. Ship Safe pins it for reproducibility of coverage claims; running it is a separate decision."
     }
   ],
