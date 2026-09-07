@@ -1,7 +1,7 @@
 {
   "name": "ship-safe",
   "version": "10.0.0",
-  "description": "AI-powered multi-agent security platform. 29 agents scan 80+ attack classes including AI integration supply chain (Vercel-class attacks), Hermes Agent deployment scanning (ASI-01–ASI-10), tool registry poisoning, function-call injection, skill permission drift, and agent attestation.",
+  "description": "The independent security agent for AI-written software. A deterministic engine finds issues across application code, AI agents, MCP servers, skills, dependencies, CI/CD, and secrets. An investigation layer traces whether each one is real and reports the evidence as JSON and SARIF.",
   "main": "cli/index.js",
   "bin": {
     "ship-safe": "cli/bin/ship-safe.js"
@@ -17,8 +17,6 @@
     "benchmark:hermes-release": "node benchmarks/hermes-release-evidence/run.mjs",
     "benchmark:fp:write": "node benchmarks/false-positives/run.mjs --write",
     "benchmark:corpus:write": "node benchmarks/run.mjs --write",
-    "benchmark:fp": "node benchmarks/false-positives/run.mjs",
-    "benchmark:fp:write": "node benchmarks/false-positives/run.mjs --write",
     "lint": "eslint cli/",
     "lint:fix": "eslint cli/ --fix",
     "ship-safe": "node cli/bin/ship-safe.js",
@@ -48,7 +46,13 @@
     "mobile-security",
     "jwt",
     "cors",
-    "cli"
+    "cli",
+    "mcp",
+    "sarif",
+    "agent-security",
+    "ai-agents",
+    "hermes",
+    "static-analysis"
   ],
   "author": "ship-safe contributors",
   "license": "MIT",
