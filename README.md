@@ -423,15 +423,15 @@ they beat us: **[docs/comparison.md](docs/comparison.md)**
 
 ## What's Next
 
-**10.0 is verified Hermes Agent coverage.** The baseline is Hermes v0.21.0 at
-an immutable upstream commit. Existing plugin and adapter checks are partial;
-terminal posture, ACP/TUI, current cron lifecycle, and credential reachability
-remain explicit work rather than implied coverage. See the
+**10.1 is a precision release.** It keeps the verified Hermes Agent 10.0
+baseline and tightens attestation so Ship Safe's own advisory citations are not
+mistaken for unsigned agent resources. Existing plugin and adapter checks are
+partial; terminal posture, ACP/TUI, current cron lifecycle, and credential
+reachability remain explicit work rather than implied coverage. See the
 [coverage matrix](docs/hermes-coverage-matrix.md).
 
 See the [roadmap](./ROADMAP.md) for what is planned and what is deliberately
-not, and the [10.0 milestone](https://github.com/asamassekou10/ship-safe/milestone/1)
-for claimable work. Everything in it is open to contributors.
+not. Focused contributions and benchmark-backed fixes are welcome.
 
 ## Contributing
 

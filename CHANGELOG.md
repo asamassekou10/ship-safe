@@ -6,6 +6,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [10.1.0] - 2026-09-14
+
+### Fixed
+- **Advisory citations are not agent payloads.** The pinned
+  `cli/data/agent-advisories.json` table records disclosure URLs as evidence;
+  the attestation agent no longer reports those URLs as unsigned executable
+  resources. The exemption is scoped to Ship Safe's package-owned table, so a
+  project file with the same name is still scanned.
+- Added regression coverage for both the package table and a project file that
+  reuses its filename.
+
+---
+
 ## [10.0.0] - 2026-09-05
 
 ### Added
