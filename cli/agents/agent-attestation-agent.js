@@ -22,7 +22,15 @@
 import fs from 'fs';
 import path from 'path';
 import { createHash } from 'crypto';
+import { fileURLToPath } from 'url';
 import { BaseAgent, createFinding } from './base-agent.js';
+
+const PACKAGE_ADVISORY_TABLE = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  'data',
+  'agent-advisories.json'
+);
 
 // =============================================================================
 // PATTERNS — detected in source files
@@ -268,6 +276,13 @@ export class AgentAttestationAgent extends BaseAgent {
     for (const file of files) {
       const basename = path.basename(file);
       const ext = path.extname(file);
+
+      // Ship Safe's pinned advisory table records disclosure URLs as evidence.
+      // Those links are not executable agent resources and must not be judged
+      // as unsigned payloads by the manifest attestation rules. Keep this
+      // exemption tied to the package-owned file so a scanned project cannot
+      // evade attestation merely by choosing the same filename.
+      if (path.resolve(file) === PACKAGE_ADVISORY_TABLE) continue;
 
       // Only scan relevant files
       const isManifest = MANIFEST_EXTENSIONS.has(ext) && /(?:agent|manifest|hermes|openclaw|config)/i.test(basename);

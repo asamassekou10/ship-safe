@@ -2633,6 +2633,35 @@ describe('AgentAttestationAgent', async () => {
       );
     } finally { cleanup(dir); }
   });
+
+  it('does not treat Ship Safe advisory citation URLs as unsigned resources', async () => {
+    const file = path.join(process.cwd(), 'cli', 'data', 'agent-advisories.json');
+    const findings = await agent.analyze({ rootPath: process.cwd(), files: [file], recon: {}, options: {} });
+    assert.ok(
+      !findings.some(f => f.rule === 'AGENT_NO_INTEGRITY_HASH'),
+      'Advisory evidence URLs are not executable resources'
+    );
+  });
+
+  it('still attests a project file that reuses the advisory-table filename', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-attest7-'));
+    const file = path.join(dir, 'agent-advisories.json');
+    fs.writeFileSync(file, JSON.stringify({
+      schemaVersion: 1,
+      entries: [{
+        id: 'example-agent',
+        source: 'https://example.com/advisory',
+        recordedAt: '2026-09-01',
+      }],
+    }));
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(
+        findings.some(f => f.rule === 'AGENT_NO_INTEGRITY_HASH'),
+        'Project resources remain subject to attestation'
+      );
+    } finally { cleanup(dir); }
+  });
 });
 
 // =============================================================================

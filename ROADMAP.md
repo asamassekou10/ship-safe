@@ -3,9 +3,22 @@
 What Ship Safe is working on, what just shipped, and what we are deliberately
 not building. Updated when a release goes out.
 
-If you want to help, the [10.0 milestone](https://github.com/asamassekou10/ship-safe/milestone/1)
-is the current work and everything in it is claimable. Comment on an issue to
-take it.
+If you want to help, comment on an issue or open a focused pull request. Every
+new rule still needs a false-positive story before it is considered finished.
+
+---
+
+## Now — 10.1, attestation precision
+
+Ship Safe 10.1 tightens the boundary between the tool's own evidence and the
+agent resources it evaluates. Its pinned advisory table contains disclosure
+URLs, not executable manifests, so the attestation scan keeps that package data
+out of project findings while continuing to scan any matching file supplied by
+the project under review.
+
+The release is deliberately small: one false-positive guard, regression tests,
+and the existing corpus and release-evidence checks rerun against the updated
+package version.
 
 ---
 
@@ -30,7 +43,7 @@ Full detail in the [changelog](CHANGELOG.md) and the
 
 ---
 
-## Now — 10.0, Hermes Agent coverage
+## Verified baseline — 10.0, Hermes Agent coverage
 
 Ship Safe 10.0 targets Hermes Agent **v0.21.0** at pinned commit
 [`29112bef099274229cadff79cdff7bf7b99c4b77`](https://github.com/NousResearch/hermes-agent/commit/29112bef099274229cadff79cdff7bf7b99c4b77).
