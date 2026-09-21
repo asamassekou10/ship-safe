@@ -1079,6 +1079,42 @@ describe('PIIComplianceAgent', async () => {
     } finally { cleanup(dir); }
   });
 
+  // The word in the *message* is not the value. This line reports the absence
+  // of an address and logs an opaque Stripe id, and it was a [high] finding
+  // because the message contains "EMAIL".
+  it('does not report a PII word appearing only in the log message', async () => {
+    const { dir, file } = writeTempFile('console.error("PAID BUT NO EMAIL - issue by hand:", session.id);');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'PII_IN_CONSOLE_LOG').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  // `dob` had no word boundary.
+  it('does not match a PII term inside an ordinary word', async () => {
+    const { dir, file } = writeTempFile('console.log("adobe upload finished");');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'PII_IN_CONSOLE_LOG').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('still reports a PII field passed as a bare identifier', async () => {
+    const { dir, file } = writeTempFile('console.log(email, name);');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'PII_IN_CONSOLE_LOG').length, 1);
+    } finally { cleanup(dir); }
+  });
+
+  it('still reports a PII field reached through a bracket', async () => {
+    const { dir, file } = writeTempFile('console.log(row["ssn"]);');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'PII_IN_CONSOLE_LOG').length, 1);
+    } finally { cleanup(dir); }
+  });
+
   it('detects PII sent to analytics', async () => {
     const { dir, file } = writeTempFile(`
       analytics.track("signup", { email: user.email, phone: user.phone });
