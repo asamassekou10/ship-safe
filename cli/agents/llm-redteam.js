@@ -263,6 +263,13 @@ export class LLMRedTeam extends BaseAgent {
       const applicable = PATTERNS.filter(p => {
         if (p.skipFile && p.skipFile(file)) return false;
         if (p.rule === 'LLM_NO_RATE_LIMIT' && this._hasRateLimitControl(content)) return false;
+        // An injection string can only be delivered from a file that can reach
+        // a model. `skipFile` handles the paths we could name — tests, red-team
+        // rules, pattern tables — but a name list cannot cover every place a
+        // payload is legitimately quoted: documentation, a UI that displays
+        // what was detected, a security tool's own fixtures. Asking whether the
+        // file talks to a model at all covers them by shape instead.
+        if (p.rule === 'PROMPT_INJECTION_PATTERN' && !this._talksToAModel(content)) return false;
         return true;
       });
       if (applicable.length === 0) continue;
@@ -271,6 +278,25 @@ export class LLMRedTeam extends BaseAgent {
 
     findings = findings.concat(this._checkCostControls(codeFiles));
     return findings;
+  }
+
+  /**
+   * Does this file interact with a model at all?
+   *
+   * Client construction, a completion call, a provider endpoint, or a local
+   * runner. Deliberately not the *name* of a provider key: a string saying
+   * `OPENAI_API_KEY` is how a tool displays a finding, not how it calls
+   * anything — which is the same conflation that made LLM_NO_COST_LIMIT fire
+   * on a UI table.
+   */
+  _talksToAModel(content) {
+    return /\bnew\s+(?:OpenAI|Anthropic|AzureOpenAI|Mistral|Cohere|Groq)\s*\(/.test(content)
+        || /\b(?:openai|anthropic|genai|bedrock|ollama)\s*\./i.test(content)
+        || /\b(?:chat\.completions|messages\.create|generate_content|invoke_model|createChatCompletion)\b/.test(content)
+        || /api\.(?:openai|anthropic|mistral|groq|cohere)\.com/i.test(content)
+        || /\bfrom\s+['"](?:openai|anthropic|@anthropic-ai\/\S+|langchain\S*|llamaindex)['"]/.test(content)
+        || /\brequire\(\s*['"](?:openai|anthropic|@anthropic-ai\/\S+|langchain\S*)['"]/.test(content)
+        || /\b(?:system_?[Pp]rompt|systemMessage|promptTemplate)\b\s*[:=]/.test(content);
   }
 
   _hasRateLimitControl(content) {
@@ -298,7 +324,17 @@ export class LLMRedTeam extends BaseAgent {
 
       if (!anchorFile) {
         const lines = content.split('\n');
-        const idx = lines.findIndex(l => /(?:OPENAI|ANTHROPIC)_API_KEY|openai\.|anthropic\.|chat\.completions|messages\.create/i.test(l));
+        // A provider key *name* is not a provider call. The bare alternative
+        // `(?:OPENAI|ANTHROPIC)_API_KEY` matched any line containing the
+        // string, so a UI table rendering the words "OPENAI_API_KEY" anchored
+        // a finding whose description says "This project calls an LLM
+        // provider" — in a file that calls nothing. Require the key to be read
+        // from the environment, or a client or completion call to be present.
+        const idx = lines.findIndex(l =>
+          /(?:process\.env|import\.meta\.env|os\.environ|getenv|ENV\[|Deno\.env\.get)\W{0,6}(?:OPENAI|ANTHROPIC)_API_KEY/i.test(l)
+          || /\bnew\s+(?:OpenAI|Anthropic|AzureOpenAI|Mistral|Cohere|Groq)\s*\(/.test(l)
+          || /\b(?:openai|anthropic)\s*\./i.test(l)
+          || /\b(?:chat\.completions|messages\.create)\b/.test(l));
         if (idx !== -1) {
           anchorFile = file;
           anchorLine = idx + 1;
