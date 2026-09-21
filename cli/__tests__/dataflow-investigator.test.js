@@ -81,6 +81,84 @@ describe('tracing to an untrusted source', () => {
   });
 });
 
+describe('a sanitiser wrapped around the value at the sink', () => {
+  // The backward walk only inspects assignment right-hand sides, so a
+  // sanitiser applied inline at the sink was invisible: wrapping a value in
+  // DOMPurify.sanitize — which is in the sanitiser list, and is what the fix
+  // text recommends — left the finding exactly where it was. The tool's own
+  // remediation did not clear the tool's own finding.
+
+  it('refutes when a known sanitiser wraps the value at the sink', () => {
+    const file = source('known-at-sink.js', [
+      'export async function render(out) {',
+      '  const r = await fetch("/x.json");',
+      '  const m = await r.json();',
+      '  out.innerHTML = `<span>${DOMPurify.sanitize(m.version)}</span>`;',
+      '}',
+    ]);
+    const { claim } = trace(file, 4);
+    assert.equal(claim.verdict, 'refuted');
+  });
+
+  it('refutes when an escaper defined in the file wraps it', () => {
+    // Projects write their own and call it anything. A name list cannot find
+    // them; the `.replace()` over HTML metacharacters can.
+    const file = source('local-escaper.js', [
+      'const esc = s => String(s).replace(/[&<>"\']/g, c => c);',
+      'export async function render(out) {',
+      '  const r = await fetch("/x.json");',
+      '  const m = await r.json();',
+      '  out.innerHTML = `<span>${esc(m.version)}</span>`;',
+      '}',
+    ]);
+    const { claim } = trace(file, 5);
+    assert.equal(claim.verdict, 'refuted');
+    assert.match(claim.rationale, /escaping helper defined in this file/);
+  });
+
+  // The one that matters. Refuting on the first wrapped use is how a tracer
+  // clears a live injection by looking only at the half that was handled.
+  it('still reports when only some uses are wrapped', () => {
+    const file = source('partly-wrapped.js', [
+      'const esc = s => String(s).replace(/[&<>"\']/g, c => c);',
+      'export async function render(out) {',
+      '  const r = await fetch("/x.json");',
+      '  const m = await r.json();',
+      '  out.innerHTML = `<span>${esc(m.version)}</span><b>${m.notes}</b>`;',
+      '}',
+    ]);
+    const { claim } = trace(file, 5);
+    assert.notEqual(claim.verdict, 'refuted');
+  });
+
+  it('still reports an unwrapped value', () => {
+    const file = source('unwrapped.js', [
+      'export async function render(out) {',
+      '  const r = await fetch("/x.json");',
+      '  const m = await r.json();',
+      '  out.innerHTML = `<span>${m.version}</span>`;',
+      '}',
+    ]);
+    const { claim } = trace(file, 4);
+    assert.notEqual(claim.verdict, 'refuted');
+  });
+
+  // A `.replace()` that is not an escaper must not become one. Two HTML
+  // metacharacters in the class is the bar.
+  it('does not treat an ordinary replace as an escaper', () => {
+    const file = source('not-an-escaper.js', [
+      'const slug = s => String(s).replace(/[ _]/g, "-");',
+      'export async function render(out) {',
+      '  const r = await fetch("/x.json");',
+      '  const m = await r.json();',
+      '  out.innerHTML = `<span>${slug(m.version)}</span>`;',
+      '}',
+    ]);
+    const { claim } = trace(file, 5);
+    assert.notEqual(claim.verdict, 'refuted');
+  });
+});
+
 describe('sources the operator already controls', () => {
   // Flask's own `flask shell` reads PYTHONSTARTUP and evals it, exactly as the
   // CPython REPL documents. Confirming that against a project with no known

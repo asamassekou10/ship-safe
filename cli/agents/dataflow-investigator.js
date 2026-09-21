@@ -322,10 +322,37 @@ export class DataflowInvestigator {
       };
     }
 
-    const seeds = identifiersIn(sinkLine, lang).slice(0, MAX_SEEDS);
+    // The sanitiser's own name is not an input. `DOMPurify.sanitize(m.v)` has
+    // `DOMPurify` on the line, and treating it as a value to trace leaves one
+    // seed permanently unresolvable — which blocks refutation, because
+    // refuting requires *every* seed to be accounted for. The result was that
+    // wrapping a value in the tool's own recommended sanitiser moved the
+    // finding from "likely" to "unresolved" instead of clearing it.
+    const escapers = localEscapers(lines, lang);
+    const seeds = identifiersIn(sinkLine, lang)
+      .filter((id) => !isSanitizerCallee(id, sinkLine, lang, escapers))
+      .slice(0, MAX_SEEDS);
     if (!seeds.length) return null;
 
-    const traces = seeds.map((seed) => this._walk(seed, finding.line, lines, hops.slice(), 0, finding.file, lang));
+    const traces = seeds.map((seed) => {
+      // A sanitiser wrapped around the value *at the sink* is the ordinary way
+      // this is fixed, and the backward walk cannot see it: it only inspects
+      // assignment right-hand sides, so `innerHTML = `${esc(m.v)}`` looks
+      // identical to `innerHTML = `${m.v}`` once you are walking `m`.
+      //
+      // That made the tool's own remediation not clear its own finding —
+      // `DOMPurify.sanitize` is in the list below and is what the fix text
+      // recommends, and wrapping the value in it left the finding untouched.
+      const wrapped = sanitizedAtSink(seed, sinkLine, lang, escapers);
+      if (wrapped) {
+        return {
+          verdict: 'refuted',
+          rationale: `Every use of ${seed} at the sink is wrapped in ${wrapped.what}, so the value reaching it is not the caller's to shape.`,
+          hops: hops.slice(),
+        };
+      }
+      return this._walk(seed, finding.line, lines, hops.slice(), 0, finding.file, lang);
+    });
 
     // One tainted input is enough to confirm: the sink receives a value the
     // caller shaped, whatever else it also receives.
@@ -568,6 +595,142 @@ function iteratorArrowReceiver(lines, fromLine, name, lang) {
     return { receiver: match[1], line: i + 1 };
   }
   return null;
+}
+
+/**
+ * Ways a one-line escaper gets a name. Deliberately looser than
+ * `lang.functionDefs`, which requires parenthesised parameters — `const esc =
+ * s => …` has none, and that is the common shape.
+ */
+const ESCAPER_DEFS = [
+  /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/,
+  /function\s+([A-Za-z_$][\w$]*)\s*\(/,
+  /^\s*([A-Za-z_$][\w$]*)\s*[:(]/,
+];
+
+/**
+ * Escaping helpers defined in this file, found by shape rather than by name.
+ *
+ * Projects write their own one-line escaper and call it `esc`, `e`, `h` or
+ * anything else, so a name list cannot find them. What they have in common is a
+ * `.replace()` over a character class holding the HTML metacharacters. That is
+ * specific enough to be safe: a replace over `[&<>"\']` is an escaper or it is
+ * nothing.
+ *
+ * Without this, a project that fixed an XSS with its own helper kept seeing the
+ * finding, which teaches people to ignore the tool.
+ */
+function localEscapers(lines, lang = LANGUAGES.js) {
+  const found = [];
+  const seen = new Set();
+  for (const line of lines || []) {
+    if (!/\.replace\s*\(/.test(line)) continue;
+    // At least two HTML metacharacters inside a character class.
+    const cls = line.match(/\[([^\]]*)\]/);
+    if (!cls) continue;
+    const metas = ['&', '<', '>', '"', "'"].filter((c) => cls[1].includes(c));
+    if (metas.length < 2) continue;
+
+    // Not `lang.functionDefs`: those require parenthesised parameters, and the
+    // single most common way to write one of these is `const esc = s => …`.
+    for (const def of ESCAPER_DEFS) {
+      const m = line.match(def);
+      if (!m || !m[1] || seen.has(m[1])) continue;
+      seen.add(m[1]);
+      found.push({
+        re: new RegExp(`\\b${m[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`),
+        what: `${m[1]}(), an escaping helper defined in this file`,
+      });
+    }
+  }
+  return found;
+}
+
+/**
+ * Is every occurrence of `name` on the sink line inside a sanitiser call?
+ *
+ * "Every" is the whole point. In `` `${esc(m.a)} ${m.b}` `` the identifier `m`
+ * appears twice and only one is wrapped, so the line is still a finding —
+ * returning true on the first safe occurrence is how a tracer refutes a live
+ * injection by looking at the half that was handled.
+ *
+ * Returns the matched sanitiser, or null.
+ */
+function sanitizedAtSink(name, sinkLine, lang = LANGUAGES.js, extra = []) {
+  if (!sinkLine || !name) return null;
+
+  const spans = [];
+  let matched = null;
+  for (const sanitizer of [...(lang.sanitizers || []), ...extra]) {
+    const re = new RegExp(sanitizer.re.source, sanitizer.re.flags.includes('g')
+      ? sanitizer.re.flags
+      : `${sanitizer.re.flags}g`);
+    let hit;
+    while ((hit = re.exec(sinkLine)) !== null) {
+      const open = sinkLine.indexOf('(', hit.index);
+      if (open === -1) break;
+      const close = matchingParen(sinkLine, open);
+      if (close === -1) break;
+      spans.push([open + 1, close]);
+      matched = matched || sanitizer;
+      if (re.lastIndex <= hit.index) re.lastIndex = hit.index + 1;
+    }
+  }
+  if (!spans.length) return null;
+
+  const occurrences = [];
+  const word = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+  let found;
+  while ((found = word.exec(sinkLine)) !== null) occurrences.push(found.index);
+  if (!occurrences.length) return null;
+
+  const covered = occurrences.every((at) => spans.some(([from, to]) => at >= from && at < to));
+  return covered ? matched : null;
+}
+
+/**
+ * Is `name` only ever the thing *doing* the sanitising on this line, rather
+ * than a value being sanitised?
+ */
+function isSanitizerCallee(name, sinkLine, lang = LANGUAGES.js, extra = []) {
+  const callee = [];
+  for (const sanitizer of [...(lang.sanitizers || []), ...extra]) {
+    const re = new RegExp(sanitizer.re.source, sanitizer.re.flags.includes('g')
+      ? sanitizer.re.flags
+      : `${sanitizer.re.flags}g`);
+    let hit;
+    while ((hit = re.exec(sinkLine)) !== null) {
+      callee.push([hit.index, hit.index + hit[0].length]);
+      if (re.lastIndex <= hit.index) re.lastIndex = hit.index + 1;
+    }
+  }
+  if (!callee.length) return false;
+
+  const word = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+  const occurrences = [];
+  let found;
+  while ((found = word.exec(sinkLine)) !== null) occurrences.push(found.index);
+  if (!occurrences.length) return false;
+
+  return occurrences.every((at) => callee.some(([from, to]) => at >= from && at < to));
+}
+
+/** Index of the `)` closing the `(` at `open`, or -1. Skips quoted text. */
+function matchingParen(text, open) {
+  let depth = 0;
+  let quote = null;
+  for (let i = open; i < text.length; i++) {
+    const c = text[i];
+    if (quote) {
+      if (c === '\\') { i++; continue; }
+      if (c === quote) quote = null;
+      continue;
+    }
+    if (c === '"' || c === "'" || c === '`') { quote = c; continue; }
+    if (c === '(') depth++;
+    else if (c === ')') { depth--; if (depth === 0) return i; }
+  }
+  return -1;
 }
 
 /** Merge hop lists from several seeds, keeping each line once and in order. */
