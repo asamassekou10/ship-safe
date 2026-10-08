@@ -101,6 +101,8 @@ describe('ship-safe trust — JSON output', () => {
 
     const report = JSON.parse(written);
     assert.equal(report.command, 'trust');
+    assert.equal(report.path, '.');
+    assert.equal(written.includes(dir), false, 'machine reports must not expose the checkout path');
     assert.equal(report.summary.verdict, 'sinks-found');
     assert.equal(report.summary.total, 1);
     assert.equal(report.findings[0].rule, 'WORKSPACE_TASK_AUTORUN');
@@ -142,6 +144,8 @@ describe('ship-safe trust — JSON output', () => {
 
     const report = JSON.parse(written);
     assert.ok(report.error, 'a path that could not be read is not a folder with no sinks');
+    assert.equal(report.path, '.');
+    assert.equal(written.includes(dir), false, 'machine errors must not expose the checkout path');
     assert.equal(report.summary, undefined);
   });
 

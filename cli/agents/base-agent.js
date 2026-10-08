@@ -17,7 +17,8 @@
 
 import fs from 'fs';
 import path from 'path';
-import fg from 'fast-glob';
+import { commentMask } from '../utils/source-context.js';
+import fg from '../utils/glob.js';
 import { SKIP_DIRS, SKIP_EXTENSIONS, SKIP_FILENAMES, MAX_FILE_SIZE, loadGitignorePatterns } from '../utils/patterns.js';
 import { isDocumentationFile, markdownCodeLines } from '../utils/content-scope.js';
 import { emptyEvidence } from '../utils/evidence.js';
@@ -519,6 +520,12 @@ export class BaseAgent {
 
     const lang = languageOf(filePath);
     const lines = source.split('\n');
+    // Rules that opt out of comments need the lexical context too, not just
+    // lines whose first character is `//` or `#`. JSDoc examples are commonly
+    // indented code, and the body of a block comment has no comment prefix.
+    const commentedLines = patterns.some(pattern => pattern.skipComments)
+      ? commentMask(lines, { file: filePath })
+      : null;
     const effectiveScanOptions = { ...this.scanOptions, ...scanOptions };
     const documentation = isDocumentationFile(filePath);
     const docCodeLines = documentation && effectiveScanOptions.includeDocExamples
@@ -549,7 +556,7 @@ export class BaseAgent {
             && docCodeLines?.has(i);
           if (!scansDocumentation && !scansFencedExample) continue;
         }
-        if (p.skipComments && isCommentLine) continue;
+        if (p.skipComments && (isCommentLine || commentedLines?.[i])) continue;
         // A pattern that declares `langs` only runs against those languages.
         // Absent, it runs everywhere, so existing rules are unaffected and the
         // field can be adopted agent by agent.

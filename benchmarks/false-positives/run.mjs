@@ -6,11 +6,11 @@
  * and is useless, so this measures the other half: what does Ship Safe say
  * about code that is almost certainly fine?
  *
- * The clean corpus is four mature, heavily reviewed projects with no known
- * active vulnerabilities. Findings against them are the triage burden a user
- * inherits on a healthy codebase. The vulnerable corpus is two deliberately
- * insecure applications, present so a drop in noise cannot be mistaken for
- * progress when it is really lost detection.
+ * The clean corpus is five mature projects with no known active vulnerabilities:
+ * four established libraries and one AI-agent application. Findings against
+ * them are the triage burden a user inherits on a healthy codebase. The
+ * vulnerable corpus is two deliberately insecure applications, present so a
+ * drop in noise cannot be mistaken for progress when it is really lost detection.
  *
  * Everything is pinned by commit. An unpinned benchmark reports a different
  * number every week and cannot be argued with.
@@ -171,7 +171,7 @@ const result = {
   tool: 'ship-safe',
   version: JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')).version,
   methodology:
-    'Findings reported by `ship-safe ci --no-deps` against pinned checkouts, plus what `ship-safe investigate` concluded about them. Clean corpus: mature projects with no known active vulnerabilities, where every finding is triage a user inherits. Vulnerable corpus: deliberately insecure applications, present so a reduction in noise cannot be mistaken for lost detection. Counts are a proxy for a false-positive rate, not a verified one.',
+    'Raw findings reported by `ship-safe ci --no-deps` against pinned checkouts, with `ship-safe investigate --json` conclusions reported separately. Clean-corpus projects have no known active vulnerabilities, not proven absence of vulnerabilities. Counts are a triage-burden signal and a proxy for a false-positive rate, not a verified rate or defect count. Vulnerable applications carry must-detect floors to catch obvious regressions.',
   clean,
   vulnerable,
   summary: {

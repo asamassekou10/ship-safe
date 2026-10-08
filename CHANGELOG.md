@@ -6,6 +6,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [11.0.0] - Unreleased
+
+### Changed
+- Require Node.js 22.13+ on the 22.x line or Node.js 24+, aligning the runtime
+  contract with dependency and development-tool requirements. This drops
+  Node 18 and 20 support; the package major version is now 11.
+- Gate npm publishing on deterministic detection, verdict, and Hermes
+  release-evidence benchmarks, plus the dependency audit.
+
+### Fixed
+- Include report schema, package version, and generation time in scan, audit,
+  and CI JSON. Finding paths default to project-relative paths; callers can
+  request absolute paths explicitly.
+- Use the package version in scan and CI SARIF tool metadata.
+- Redact project and home-directory paths recursively from red-team JSON and
+  SARIF evidence, and use the package version in the red-team SARIF metadata.
+- Extend path privacy to machine-readable investigation, capability, trust,
+  OpenClaw, legal, BOM, skill, MCP, hooks, and team-report output. Project paths
+  are relative and home paths are redacted, including nested evidence and MCP
+  tool responses.
+- Exclude WhatsApp user and group identifiers from hardcoded-email findings;
+  refresh the pinned corpus, where Hermes Agent drops by 16 raw findings with
+  the vulnerable-app detection floors unchanged.
+- Require exact prompt-shaped identifiers in the prompt-injection rule, so
+  Hermes Agent's webhook `signed_content` used for HMAC verification is not
+  mistaken for LLM prompt construction. The refreshed corpus removes two raw
+  matches and the associated tool-confirmed location; the vulnerable-app
+  detection floors remain unchanged.
+- Treat ReDoS probe startup or pattern-compilation failures as inconclusive,
+  not as a 0 ms match that refutes a finding. The worker now uses an
+  ESM-compatible bootstrap and retries actual match timeouts before confirming
+  a reproduction.
+- Replace `fast-glob` and its affected, unpatched `braces` dependency with
+  `tinyglobby`; reject glob patterns and ignore rules nested more than 100
+  brace levels deep. Update the remaining `brace-expansion` override to the
+  patched 5.0.12 line.
+- Ignore code-looking examples inside multiline comments for code-only rules,
+  including placeholder URLs, insecure-cookie examples, missing exception
+  handlers, and Express security-header checks. Regression tests preserve the
+  same detections in executable code; the pinned benchmark's raw Express
+  findings fall from 18 to 10 while vulnerable-corpus detection floors remain.
+
 ## [10.1.0] - 2026-09-14
 
 ### Fixed

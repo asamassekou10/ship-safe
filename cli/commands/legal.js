@@ -21,6 +21,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { LegalRiskAgent } from '../agents/legal-risk-agent.js';
 import * as output from '../utils/output.js';
+import { redactLocalPaths } from '../utils/path-redaction.js';
 
 // =============================================================================
 // RISK LABELS & COLORS
@@ -85,7 +86,7 @@ export async function legalCommand(targetPath = '.', options = {}) {
 
   // ── JSON output ────────────────────────────────────────────────────────────
   if (options.json) {
-    console.log(JSON.stringify({ findings, total: findings.length }, null, 2));
+    console.log(JSON.stringify(redactLocalPaths({ findings, total: findings.length }, absolutePath), null, 2));
     process.exit(findings.length > 0 ? 1 : 0);
   }
 

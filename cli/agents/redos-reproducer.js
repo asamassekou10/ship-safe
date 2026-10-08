@@ -56,16 +56,17 @@ const PUMPS = ['a', 'a ', 'ab', 'a_', '0', '/a'];
 const FAIL_SUFFIX = ' !';
 
 /** How long a worker may take to start before its own deadline begins. */
-const STARTUP_GRACE_MS = 2000;
+const STARTUP_GRACE_MS = 30000;
 
 /** Enough to settle a repository's patterns without turning a scan into a benchmark. */
 const MAX_PROBED = 40;
 
 export class RedosReproducer {
-  constructor({ budgetMs = BUDGET_MS } = {}) {
+  constructor({ budgetMs = BUDGET_MS, startupGraceMs = STARTUP_GRACE_MS } = {}) {
     this.name = 'RedosReproducer';
     this.description = 'Runs a flagged pattern against generated input to see whether it actually backtracks';
     this.budgetMs = budgetMs;
+    this.startupGraceMs = startupGraceMs;
   }
 
   async investigate(findings) {
@@ -88,6 +89,9 @@ export class RedosReproducer {
       const key = `${pattern.source}\u0000${pattern.flags}`;
       if (!probed.has(key)) probed.set(key, await this._probe(pattern));
       const result = probed.get(key);
+      // A worker that could not start or compile the pattern did not measure
+      // anything. Leave the detector's existing verdict alone; absence of a
+      // measurement is not evidence that the pattern is safe.
       if (!result) continue;
 
       attachEvidence(finding, createClaim({
@@ -105,7 +109,7 @@ export class RedosReproducer {
   }
 
   async _probe(pattern) {
-    const session = new MatchSession(pattern, this.budgetMs);
+    const session = new MatchSession(pattern, this.budgetMs, this.startupGraceMs);
     let slowestMs = 0;
     let longest = 0;
 
@@ -113,17 +117,23 @@ export class RedosReproducer {
       for (const pump of PUMPS) {
         for (const size of PUMP_SIZES) {
           const input = pump.repeat(size) + FAIL_SUFFIX;
-          const ms = await session.time(input);
+          const first = await session.time(input);
+          if (first.status === 'unavailable') return null;
+          let measured = first;
 
           // A single overrun is equally consistent with a busy machine. A
           // catastrophic pattern reproduces; a scheduling blip does not.
-          if (ms === null && await session.time(input) === null) {
-            return { catastrophic: true, ms: this.budgetMs, length: input.length, pump };
+          if (first.status === 'timeout') {
+            const retry = await session.time(input);
+            if (retry.status === 'unavailable') return null;
+            if (retry.status === 'timeout') {
+              return { catastrophic: true, ms: this.budgetMs, length: input.length, pump };
+            }
+            measured = retry;
           }
-          if (ms !== null) {
-            slowestMs = Math.max(slowestMs, ms);
-            longest = Math.max(longest, input.length);
-          }
+
+          slowestMs = Math.max(slowestMs, measured.ms);
+          longest = Math.max(longest, input.length);
         }
       }
     } finally {
@@ -155,24 +165,28 @@ export class RedosReproducer {
  * another message.
  */
 class MatchSession {
-  constructor(pattern, budgetMs) {
+  constructor(pattern, budgetMs, startupGraceMs) {
     this.pattern = pattern;
     this.budgetMs = budgetMs;
+    this.startupGraceMs = startupGraceMs;
     this.worker = null;
   }
 
   async time(input) {
     const worker = await this._worker();
-    if (!worker) return 0;                       // uncompilable: not ours to settle
+    if (!worker) return { status: 'unavailable' };
 
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         worker.terminate();
         this.worker = null;                      // stuck mid-match; unusable now
-        resolve(null);
+        resolve({ status: 'timeout' });
       }, this.budgetMs);
 
-      worker.once('message', (ms) => { clearTimeout(timer); resolve(ms); });
+      worker.once('message', (ms) => {
+        clearTimeout(timer);
+        resolve({ status: 'matched', ms });
+      });
       worker.postMessage(input);
     });
   }
@@ -189,11 +203,11 @@ class MatchSession {
         });
       } catch { resolve(null); return; }
 
-      const startup = setTimeout(() => { worker.terminate(); resolve(null); }, STARTUP_GRACE_MS);
+      const startup = setTimeout(() => { worker.terminate(); resolve(null); }, this.startupGraceMs);
 
       worker.once('message', (message) => {
         clearTimeout(startup);
-        if (message !== 'ready') { resolve(null); return; }
+        if (message !== 'ready') { worker.terminate(); resolve(null); return; }
         this.worker = worker;
         resolve(worker);
       });
@@ -212,21 +226,23 @@ class MatchSession {
  * thing from the scanned repository that ever executes here.
  */
 const WORKER_SOURCE = `
-  const { parentPort, workerData } = require('worker_threads');
+  import('node:worker_threads').then(({ parentPort, workerData }) => {
+    let re;
+    try {
+      // Compiled once. Compilation is not part of what the finding claims.
+      re = new RegExp(workerData.source, workerData.flags.replace(/[gy]/g, ''));
+    } catch {
+      parentPort.postMessage('unavailable');
+      return;
+    }
 
-  let re = null;
-  try {
-    // Compiled once. Compilation is not part of what the finding claims.
-    re = new RegExp(workerData.source, workerData.flags.replace(/[gy]/g, ''));
-  } catch { /* an uncompilable pattern is not a finding this pass can settle */ }
+    parentPort.postMessage('ready');
 
-  parentPort.postMessage('ready');
-
-  parentPort.on('message', (input) => {
-    if (!re) { parentPort.postMessage(0); return; }
-    const started = process.hrtime.bigint();
-    try { re.test(input); } catch { /* runtime refusal is not a reproduction */ }
-    parentPort.postMessage(Number(process.hrtime.bigint() - started) / 1e6);
+    parentPort.on('message', (input) => {
+      const started = process.hrtime.bigint();
+      try { re.test(input); } catch { /* runtime refusal is not a reproduction */ }
+      parentPort.postMessage(Number(process.hrtime.bigint() - started) / 1e6);
+    });
   });
 `;
 

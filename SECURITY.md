@@ -60,9 +60,24 @@ Remember: ship-safe is a helper tool, not a guarantee. Always:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 4.x.x   | :white_check_mark: |
-| 3.x.x   | :x:                |
-| 2.x.x   | :x:                |
-| 1.x.x   | :x:                |
+| 10.x.x  | :white_check_mark: |
+| 9.x.x   | :white_check_mark: |
+| 8.x.x   | :x:                |
+| < 8     | :x:                |
 
-We support the latest major version with security updates.
+We support the current major release and the immediately previous major
+release with security fixes. Upgrade guidance is published in
+[CHANGELOG.md](CHANGELOG.md). A release is considered supported only when its
+security tests, package-content checks, and benchmark regression checks pass.
+
+## Enterprise security commitments
+
+Ship Safe is designed to keep core scanning local. Provider-backed analysis is
+opt-in and its data flow is documented in the
+[cloud security guide](docs/cloud.md). The hosted service records security
+events, scopes organization resources, and treats scan reports as customer
+data.
+
+Enterprise deployment and assurance work is tracked in
+[docs/enterprise-readiness.md](docs/enterprise-readiness.md). That document is
+a delivery checklist, not a claim of certification or compliance.

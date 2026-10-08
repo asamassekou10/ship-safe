@@ -14,14 +14,23 @@ Ship Safe publishes the npm package from GitHub Releases. Maintainers do not run
    event.
 6. If the workflow succeeds, npm receives the package with provenance.
 
+**Important:** publishing the GitHub Release makes its page public before the
+workflow runs. The workflow gates npm publication, not visibility of the GitHub
+Release. Before publishing the release, require the exact release commit to pass
+the PR/main CI checks and complete the maintainer checklist below. If the
+post-publication workflow fails, the GitHub Release remains public while npm
+does not receive that package.
+
 The workflow lives in `.github/workflows/publish.yml`.
 
 ## What The Workflow Checks
 
-The publish job runs in the `npm-publish` environment and uses Node.js 20. It:
+The publish job runs in the `npm-publish` environment and uses Node.js 24. It:
 
 - installs dependencies with `npm ci --ignore-scripts`
 - runs `npm test`
+- runs the deterministic corpus, verdict benchmark, and Hermes release evidence
+- audits dependencies for high-severity vulnerabilities
 - scans the repo with `node cli/bin/ship-safe.js scan .`
 - runs `npm pack --dry-run`
 - rejects package contents that include sensitive file names or extensions such
@@ -30,7 +39,7 @@ The publish job runs in the `npm-publish` environment and uses Node.js 20. It:
 - publishes with `npm publish --provenance --access public`
 
 CI also runs on pull requests and pushes to `main` through
-`.github/workflows/ci.yml`. That workflow tests Node.js 18, 20, and 22, runs the
+`.github/workflows/ci.yml`. That workflow tests Node.js 22.13, latest 22, and 24, runs the
 deterministic benchmark corpus, scans Ship Safe itself, checks key CLI commands,
 audits high-severity vulnerabilities, and verifies a locally packed global
 install.

@@ -16,7 +16,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import fg from 'fast-glob';
+import fg from '../utils/glob.js';
 import { SKIP_DIRS } from '../utils/patterns.js';
 
 const MODEL_EXTS = new Set(['.pkl', '.pt', '.pth', '.ckpt', '.bin', '.safetensors', '.gguf', '.onnx', '.h5', '.joblib']);

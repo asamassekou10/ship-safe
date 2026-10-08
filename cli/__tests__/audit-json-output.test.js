@@ -48,7 +48,12 @@ test('audit emits complete JSON when the report exceeds a pipe buffer', () => {
 
   let report;
   assert.doesNotThrow(() => { report = JSON.parse(result.stdout); });
+  assert.equal(report.schemaVersion, 1);
+  assert.equal(report.tool.name, 'ship-safe');
+  assert.match(report.tool.version, /^\d+\.\d+\.\d+$/);
+  assert.match(report.generatedAt, /^\d{4}-\d{2}-\d{2}T/);
   assert.equal(report.findings.length, 800);
+  assert.ok(report.findings.every(finding => !path.isAbsolute(finding.file)));
 });
 
 test('audit emits complete SARIF when the report exceeds a pipe buffer', () => {

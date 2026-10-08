@@ -37,6 +37,8 @@ test('scans an empty directory without reading it as a manifest', () => {
     const report = parseJson(result);
 
     assert.equal(result.status, 0);
+    assert.equal(report.source, '.');
+    assert.equal(result.stdout.includes(directory), false, 'machine reports must not expose the checkout path');
     assert.deepEqual(report.configs, []);
     assert.equal(report.configCount, 0);
     assert.deepEqual(report.findings, []);
@@ -59,6 +61,8 @@ test('discovers editor MCP configs in canonical order with relative findings', (
     const report = parseJson(result);
 
     assert.equal(result.status, 1);
+    assert.equal(report.source, '.');
+    assert.equal(result.stdout.includes(directory), false, 'machine reports must not expose the checkout path');
     assert.deepEqual(report.configs, ['.cursor/mcp.json', '.vscode/mcp.json']);
     assert.equal(report.configCount, 2);
     assert.ok(report.findings.length > 0);

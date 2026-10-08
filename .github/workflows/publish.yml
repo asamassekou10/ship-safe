@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
-          node-version: 20.x
+          node-version: 24.x
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
@@ -27,6 +27,15 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Verify deterministic detection and verdicts
+        run: |
+          npm run benchmark:corpus
+          npm run benchmark:verdicts
+          npm run benchmark:hermes-release
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
 
       - name: Self-scan
         run: node cli/bin/ship-safe.js scan .

@@ -233,7 +233,7 @@ const result = {
   methodology:
     'Verdicts resolved from the evidence claims attached by each investigation pass, over the paired synthetic corpus. Measures conclusion quality, not detection: benchmarks/run.mjs measures detection and must pass alongside this.',
   limitations: [
-    'Twelve synthetic scenarios. A settled rate here is not a settled rate on production code.',
+    'First-party synthetic scenarios. A settled rate here is not a settled rate on production code.',
     'Safe-control noise labels are first-party judgements about first-party fixtures.',
     'The --llm mode is not deterministic and is never gated.',
   ],

@@ -9,7 +9,7 @@
  */
 
 import path from 'path';
-import { BaseAgent, createFinding } from './base-agent.js';
+import { BaseAgent, createFinding, isInsideJavaScriptNonCode } from './base-agent.js';
 
 const PATTERNS = [
   // ── Missing Authentication ─────────────────────────────────────────────────
@@ -182,6 +182,8 @@ const PATTERNS = [
     langs: ['js'], // app.use/app.listen are Express APIs.
     title: 'API: Missing Security Headers (Helmet)',
     regex: /app\.(?:use|listen)\s*\(/g,
+    skipComments: true,
+    isCodeMatch: ({ source, sourceOffset }) => !isInsideJavaScriptNonCode(source, sourceOffset),
     severity: 'low',
     cwe: 'CWE-693',
     owasp: 'A05:2021',

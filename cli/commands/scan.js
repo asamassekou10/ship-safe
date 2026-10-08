@@ -21,7 +21,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import fg from 'fast-glob';
+import fg from '../utils/glob.js';
 import ora from 'ora';
 import chalk from 'chalk';
 import {
@@ -39,6 +39,10 @@ import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import { commentMask } from '../utils/source-context.js';
 import * as output from '../utils/output.js';
 import { CacheManager } from '../utils/cache-manager.js';
+
+const PACKAGE_VERSION = JSON.parse(
+  fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+).version;
 
 // =============================================================================
 // CUSTOM PATTERNS (.ship-safe.json)
@@ -208,7 +212,7 @@ export async function scanCommand(targetPath = '.', options = {}) {
     if (options.sarif) {
       outputSARIF(allResults, absolutePath);
     } else if (options.json) {
-      outputJSON(allResults, files.length);
+      outputJSON(allResults, files.length, absolutePath, options);
     } else {
       outputPretty(allResults, files.length, absolutePath);
     }
@@ -516,8 +520,14 @@ function outputPretty(results, filesScanned, rootPath) {
   output.summary(stats);
 }
 
-function outputJSON(results, filesScanned) {
+function outputJSON(results, filesScanned, rootPath, options = {}) {
   const jsonOutput = {
+    schemaVersion: 1,
+    tool: {
+      name: 'ship-safe',
+      version: PACKAGE_VERSION,
+    },
+    generatedAt: new Date().toISOString(),
     success: results.length === 0,
     filesScanned,
     totalFindings: 0,
@@ -528,7 +538,9 @@ function outputJSON(results, filesScanned) {
     for (const f of findings) {
       jsonOutput.totalFindings++;
       jsonOutput.findings.push({
-        file,
+        file: options.absolutePaths
+          ? file
+          : path.relative(rootPath, file).replace(/\\/g, '/'),
         line: f.line,
         column: f.column,
         category: f.category || 'secret',
@@ -587,7 +599,7 @@ function outputSARIF(results, rootPath) {
       tool: {
         driver: {
           name: 'ship-safe',
-          version: '2.1.0',
+          version: PACKAGE_VERSION,
           informationUri: 'https://github.com/asamassekou10/ship-safe',
           rules: Object.values(rules),
         }

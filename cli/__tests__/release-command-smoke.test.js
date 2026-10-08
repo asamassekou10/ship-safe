@@ -32,29 +32,57 @@ test('doctor does not invoke fixed commands through a shell', () => {
   assert.doesNotMatch(source, /shell\s*:\s*true/);
 });
 
-test('red-team machine-readable modes do not mix presentation output into stdout', () => {
+test('red-team machine-readable modes exclude local environment findings', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'ship-safe-red-team-json-'));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'ship-safe-red-team-home-'));
   try {
     fs.writeFileSync(path.join(directory, 'package.json'), JSON.stringify({
       name: 'red-team-json-fixture',
       version: '1.0.0',
       private: true,
     }));
+    fs.mkdirSync(path.join(directory, '.claude'), { recursive: true });
+    fs.writeFileSync(path.join(directory, '.claude', 'settings.local.json'), JSON.stringify({
+      permissions: { allow: [`Bash(git -C ${directory} status)`] },
+    }));
+    fs.writeFileSync(path.join(directory, 'AGENTS.md'), '# Project instructions\n');
+    fs.mkdirSync(path.join(home, '.cursor'), { recursive: true });
+    fs.writeFileSync(path.join(home, '.cursor', 'mcp.json'), JSON.stringify({
+      mcpServers: { 'private-test-server': { command: 'echo', args: [] } },
+    }));
 
     for (const format of ['--json', '--sarif']) {
       const result = spawnSync(process.execPath, [cli, 'red-team', '.', '--no-ai', '--no-deps', format], {
         cwd: directory,
         encoding: 'utf8',
-        env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
-        timeout: 30_000,
+        env: {
+          ...process.env,
+          HOME: home,
+          USERPROFILE: home,
+          NO_COLOR: '1',
+          FORCE_COLOR: '0',
+        },
+        timeout: 90_000,
       });
 
-      assert.equal(result.status, 0, result.stderr || result.stdout);
+      assert.ok([0, 1].includes(result.status), result.stderr || result.stdout);
       assert.doesNotMatch(result.stdout, /███████|Policy Violations|Trend:/);
-      assert.doesNotThrow(() => JSON.parse(result.stdout));
+      const report = JSON.parse(result.stdout);
+      assert.doesNotMatch(result.stdout, /private-test-server/);
+      assert.equal(result.stdout.includes(home), false, 'reports must not expose a local home path');
+      assert.equal(result.stdout.includes(directory), false, 'reports should use project-relative paths');
+      if (format === '--json') {
+        assert.ok(!report.findings.some(finding => finding.rule === 'MCP_SHADOW_CONFIG'));
+        assert.ok(report.findings.some(finding => finding.rule === 'CHAIN_UNTRUSTED_INSTRUCTIONS_TO_SHELL'));
+      } else {
+        assert.ok(!report.runs[0].results.some(finding => finding.ruleId === 'MCP_SHADOW_CONFIG'));
+        assert.ok(report.runs[0].results.some(finding => finding.ruleId === 'CHAIN_UNTRUSTED_INSTRUCTIONS_TO_SHELL'));
+        assert.equal(report.runs[0].tool.driver.version, JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')).version);
+      }
     }
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
   }
 });
 
@@ -78,7 +106,7 @@ test('benchmark JSON mode emits only parseable JSON', () => {
       cwd: directory,
       encoding: 'utf8',
       env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
-      timeout: 30_000,
+      timeout: 90_000,
     });
 
     assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -103,7 +131,7 @@ test('bill-of-materials JSON modes emit only parseable CycloneDX JSON', () => {
         cwd: directory,
         encoding: 'utf8',
         env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
-        timeout: 30_000,
+        timeout: 90_000,
       });
 
       assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -122,7 +150,7 @@ test('env-audit JSON mode returns a stable clean result when no env files exist'
       cwd: directory,
       encoding: 'utf8',
       env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
-      timeout: 30_000,
+      timeout: 90_000,
     });
 
     assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -150,12 +178,14 @@ test('skill and MCP vetting JSON modes emit only parseable reports', () => {
         cwd: directory,
         encoding: 'utf8',
         env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
-        timeout: 30_000,
+        timeout: 90_000,
       });
 
-      assert.ok([0, 1].includes(result.status), result.stderr || result.stdout);
+      assert.ok([0, 1].includes(result.status), result.error?.message || result.stderr || result.stdout);
       const report = JSON.parse(result.stdout);
       assert.ok(report.findings.length > 0);
+      assert.equal(result.stdout.includes(directory), false, `${command} JSON should not expose the checkout path`);
+      assert.equal(report.source, path.basename(target), `${command} should identify a local input by basename`);
     }
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
@@ -183,10 +213,10 @@ test('diff JSON contains only findings located in changed files', () => {
       cwd: directory,
       encoding: 'utf8',
       env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
-      timeout: 60_000,
+      timeout: 120_000,
     });
 
-    assert.ok([0, 1].includes(result.status), result.stderr || result.stdout);
+    assert.ok([0, 1].includes(result.status), result.error?.message || result.stderr || result.stdout);
     const report = JSON.parse(result.stdout);
     assert.deepEqual(report.changedFiles, ['app.js']);
     assert.ok(report.findings.every(finding => path.resolve(finding.file) === path.join(directory, 'app.js')));

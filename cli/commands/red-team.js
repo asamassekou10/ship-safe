@@ -24,12 +24,15 @@ import { SwarmOrchestrator } from '../agents/swarm-orchestrator.js';
 import { ReconAgent } from '../agents/recon-agent.js';
 import { ScoringEngine } from '../agents/scoring-engine.js';
 import { PolicyEngine } from '../agents/policy-engine.js';
+import { environmentFindings, projectFindings } from '../agents/base-agent.js';
 import { HTMLReporter } from '../agents/html-reporter.js';
 import { SBOMGenerator } from '../agents/sbom-generator.js';
 import { autoDetectProvider } from '../providers/llm-provider.js';
 import { runDepsAudit } from './deps.js';
 import * as output from '../utils/output.js';
 import { printBanner } from '../utils/output.js';
+import { PACKAGE_VERSION } from '../utils/package-version.js';
+import { redactLocalPaths } from '../utils/path-redaction.js';
 
 export async function redTeamCommand(targetPath = '.', options = {}) {
   const absolutePath = path.resolve(targetPath);
@@ -123,6 +126,12 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
     ({ recon, findings, agentResults } = results);
   }
 
+  // The local machine can have MCP servers outside the scanned repository.
+  // Keep those useful in the interactive terminal, but never score them or
+  // serialize their names and home-directory paths into JSON/SARIF reports.
+  const localEnvironmentFindings = environmentFindings(findings);
+  findings = projectFindings(findings);
+
   // ── 2. Dependency audit ─────────────────────────────────────────────────────
   let depVulns = [];
   if (options.deps !== false && !options.noDeps) {
@@ -178,9 +187,9 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
 
   // ── 6. Output ───────────────────────────────────────────────────────────────
   if (options.json) {
-    outputJSON(scoreResult, filteredFindings, recon, agentResults);
+    await writeMachineOutput(outputJSON(scoreResult, filteredFindings, recon, agentResults, absolutePath));
   } else if (options.sarif) {
-    outputSARIF(filteredFindings, absolutePath);
+    await writeMachineOutput(outputSARIF(filteredFindings, absolutePath));
   } else if (options.html) {
     const reporter = new HTMLReporter();
     const htmlPath = typeof options.html === 'string' ? options.html : 'ship-safe-report.html';
@@ -188,6 +197,7 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
     output.success(`HTML report saved to ${htmlPath}`);
   } else {
     printResults(scoreResult, filteredFindings, recon, agentResults, depVulns, absolutePath);
+    printEnvironmentFindings(localEnvironmentFindings);
   }
 
   // ── 7. SBOM (if requested) ──────────────────────────────────────────────────
@@ -222,6 +232,9 @@ export async function redTeamCommand(targetPath = '.', options = {}) {
   if (!machineOutput) console.log();
 
   // Exit code
+  // The command can leave background handles open, so preserve its deliberate
+  // process exit; machine-readable output above is first awaited to completion
+  // so the final JSON/SARIF bytes cannot be truncated.
   process.exit(scoreResult.score >= 75 ? 0 : 1);
 }
 
@@ -309,8 +322,22 @@ function printResults(scoreResult, findings, recon, agentResults, depVulns, root
   console.log(chalk.cyan('  ' + '═'.repeat(58)));
 }
 
-function outputJSON(scoreResult, findings, recon, agentResults) {
-  console.log(JSON.stringify({
+function printEnvironmentFindings(findings) {
+  if (!findings.length) return;
+
+  output.subheader('Local machine findings (not included in project score)');
+  for (const finding of findings) {
+    const color = finding.severity === 'critical' || finding.severity === 'high'
+      ? chalk.red
+      : chalk.yellow;
+    console.log(`  ${color(`[${finding.severity.toUpperCase()}]`)} ${finding.file}:${finding.line}`);
+    console.log(`  ${finding.title || finding.rule}`);
+    if (finding.fix) console.log(`  ${chalk.gray(`Fix: ${finding.fix}`)}`);
+  }
+}
+
+function outputJSON(scoreResult, findings, recon, agentResults, rootPath) {
+  const report = {
     score: scoreResult.score,
     grade: scoreResult.grade.letter,
     gradeLabel: scoreResult.grade.label,
@@ -324,7 +351,7 @@ function outputJSON(scoreResult, findings, recon, agentResults) {
       }])
     ),
     findings: findings.map(f => ({
-      file: f.file,
+      file: path.relative(rootPath, f.file).replace(/\\/g, '/'),
       line: f.line,
       severity: f.severity,
       category: f.category,
@@ -339,7 +366,15 @@ function outputJSON(scoreResult, findings, recon, agentResults) {
     })),
     recon,
     agents: agentResults,
-  }, null, 2));
+  };
+
+  return JSON.stringify(redactLocalPaths(report, rootPath), null, 2);
+}
+
+function writeMachineOutput(report) {
+  return new Promise((resolve, reject) => {
+    process.stdout.write(`${report}\n`, (error) => error ? reject(error) : resolve());
+  });
 }
 
 function outputSARIF(findings, rootPath) {
@@ -366,7 +401,7 @@ function outputSARIF(findings, rootPath) {
       tool: {
         driver: {
           name: 'ship-safe',
-          version: '4.0.0',
+          version: PACKAGE_VERSION,
           informationUri: 'https://github.com/asamassekou10/ship-safe',
           rules: Object.values(rules),
         }
@@ -388,5 +423,5 @@ function outputSARIF(findings, rootPath) {
     }],
   };
 
-  console.log(JSON.stringify(sarif, null, 2));
+  return JSON.stringify(redactLocalPaths(sarif, rootPath), null, 2);
 }

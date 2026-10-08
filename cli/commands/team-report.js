@@ -18,6 +18,7 @@ import path from 'path';
 import chalk from 'chalk';
 import * as output from '../utils/output.js';
 import { printBanner } from '../utils/output.js';
+import { redactLocalPaths } from '../utils/path-redaction.js';
 
 // =============================================================================
 // ANSI + TERMINAL NOISE STRIPPING
@@ -356,7 +357,7 @@ export async function teamReportCommand(inputFile, options = {}) {
   }));
 
   if (options.json) {
-    console.log(JSON.stringify({ target, findings: allFindings, agentSections: agentSections.sections, synthesis }, null, 2));
+    console.log(JSON.stringify(redactLocalPaths({ target, findings: allFindings, agentSections: agentSections.sections, synthesis }, process.cwd()), null, 2));
     return;
   }
 

@@ -34,7 +34,7 @@ import {
 } from '../utils/patterns.js';
 import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import * as output from '../utils/output.js';
-import fg from 'fast-glob';
+import fg from '../utils/glob.js';
 
 // =============================================================================
 // INDUSTRY BENCHMARKS (aggregated from public research)

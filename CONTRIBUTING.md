@@ -211,7 +211,7 @@ This repository builds a security scanner, so running code from a fork
 automatically is a risk we would rather not take. The approval is a deliberate
 gate, not an oversight.
 
-Once approved you get the full matrix: Node 18, 20, and 22, plus the
+Once approved you get the full matrix: Node 22.13, latest 22, and 24, plus the
 integration suite. Before pushing you can run the same checks locally:
 
 ```bash

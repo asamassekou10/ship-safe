@@ -15,7 +15,9 @@ const PATTERNS = [
   {
     rule: 'LLM_PROMPT_INJECTION_NO_SANITIZE',
     title: 'Prompt Injection: No Input Sanitization',
-    regex: /(?:messages|prompt|content)\s*[:=]\s*(?:`[^`]*\$\{(?:req\.|request\.|body|query|params|input|user)|[^\n]*\+\s*(?:req\.|request\.|body|query|params|input|user))/g,
+    // Match prompt-shaped identifiers, not arbitrary names that merely end
+    // in "content" (for example signed_content in webhook HMAC code).
+    regex: /\b(?:messages|prompt|content)\b\s*[:=]\s*(?:`[^`]*\$\{(?:req\.|request\.|body|query|params|input|user)|[^\n]*\+\s*(?:req\.|request\.|body|query|params|input|user))/g,
     severity: 'high',
     cwe: 'CWE-77',
     owasp: 'LLM01',

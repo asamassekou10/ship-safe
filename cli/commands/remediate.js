@@ -39,7 +39,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import pkg from 'write-file-atomic';
 const { writeFile: writeFileAtomic } = pkg;
-import fg from 'fast-glob';
+import fg from '../utils/glob.js';
 import {
   SECRET_PATTERNS,
   SKIP_DIRS,

@@ -25,6 +25,7 @@ import {
   stripAllowedEmojiFlagTags,
 } from '../utils/unicode-tags.js';
 import { fetchSafeUrl } from '../utils/remote-fetch.js';
+import { redactLocalPaths } from '../utils/path-redaction.js';
 
 // =============================================================================
 // HERMES SKILL FRONTMATTER PATTERNS (Track D — cross-skill/tool binding)
@@ -147,6 +148,7 @@ export async function scanSkillCommand(target, options = {}) {
 
   // Determine if URL or local file
   let content, skillName, source;
+  let reportRoot = process.cwd();
 
   if (target.startsWith('http://') || target.startsWith('https://')) {
     if (!options.json) console.log(chalk.gray(`  Fetching skill from: ${target}`));
@@ -168,7 +170,8 @@ export async function scanSkillCommand(target, options = {}) {
     }
     content = fs.readFileSync(filePath, 'utf-8');
     skillName = path.basename(filePath);
-    source = filePath;
+    source = path.basename(filePath);
+    reportRoot = path.dirname(filePath);
   }
 
   if (!options.json) {
@@ -180,7 +183,7 @@ export async function scanSkillCommand(target, options = {}) {
   const findings = await analyzeSkill(content, skillName, source);
 
   if (options.json) {
-    console.log(JSON.stringify({ skill: skillName, source, findings, summary: getSummary(findings) }, null, 2));
+    console.log(JSON.stringify(redactLocalPaths({ skill: skillName, source, findings, summary: getSummary(findings) }, reportRoot), null, 2));
     return;
   }
 

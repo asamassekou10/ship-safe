@@ -13,7 +13,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import fg from 'fast-glob';
+import fg from '../utils/glob.js';
 
 // Agent config files to discover (from AgentConfigScanner)
 const AGENT_CONFIG_FILES = [

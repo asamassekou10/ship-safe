@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "corpusVersion": "1.0.0",
-  "shipSafeVersion": "9.8.0",
+  "shipSafeVersion": "11.0.0",
   "methodology": "First-party paired synthetic scenarios; one vulnerable and one safe control per target rule.",
   "limitations": [
     "This corpus measures deterministic scenario detection, not prevalence or performance on arbitrary production repositories.",

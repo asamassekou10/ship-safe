@@ -82,6 +82,7 @@ const PATTERNS = [
     rule: 'COOKIE_NO_SECURE',
     title: 'Cookie Missing secure Flag',
     regex: /(?:res\.cookie|setCookie)\s*\([^)]*(?:httpOnly|domain)[^)]*(?!secure)/gi,
+    skipComments: true,
     severity: 'medium',
     cwe: 'CWE-614',
     owasp: 'A05:2021',

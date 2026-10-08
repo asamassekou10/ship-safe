@@ -32,6 +32,7 @@ import path from 'path';
 import chalk from 'chalk';
 import { WorkspaceTrustAgent } from '../agents/workspace-trust-agent.js';
 import { loadAdvisoryTable, resolveReachability, tableAgeDays } from '../utils/agent-advisories.js';
+import { redactLocalPaths } from '../utils/path-redaction.js';
 
 const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 
@@ -88,7 +89,7 @@ export async function trustCommand(targetPath = '.', options = {}) {
   }
 
   if (json) {
-    process.stdout.write(`${JSON.stringify(buildReport(absolutePath, findings, table, reachability), null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify(redactLocalPaths(buildReport(absolutePath, findings, table, reachability), absolutePath), null, 2)}\n`);
   } else {
     renderHuman(absolutePath, findings, table, reachability);
   }
@@ -258,7 +259,7 @@ function wrap(text, indent = 2) {
 function fail(json, message, rootPath) {
   if (json) {
     process.stdout.write(
-      `${JSON.stringify({ version: 1, command: 'trust', path: rootPath, error: message }, null, 2)}\n`
+      `${JSON.stringify(redactLocalPaths({ version: 1, command: 'trust', path: rootPath, error: message }, rootPath), null, 2)}\n`
     );
   } else {
     process.stderr.write(`${chalk.red('Error:')} ${message}\n`);

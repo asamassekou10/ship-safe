@@ -4,33 +4,39 @@ Most scanner benchmarks measure recall: point the tool at deliberately vulnerabl
 code and count what it catches. Recall is the easy half. A scanner that flags
 every line has perfect recall and is useless.
 
-This measures the other half. What does Ship Safe say about code that is almost
-certainly fine? Every finding on a healthy codebase is triage work a user
-inherits, and enough of them make a tool something you turn off.
+This measures the other half. What does Ship Safe report on mature projects
+with no known active vulnerabilities? These are raw scanner findings, not a
+count of confirmed defects. The table also shows what the investigation pass
+concluded, so unresolved evidence is not mistaken for a confirmed issue.
 
-## Results — unreleased
+## Results — 11.0.0 (unpublished)
 
-Ship Safe at `HEAD`, `ship-safe ci --no-deps`, corpus pinned by commit.
+The table below and [`results/latest.json`](results/latest.json) were generated
+on October 7, 2026 by `ship-safe ci --no-deps` and `ship-safe investigate
+--json`, with all corpus revisions pinned by commit. This is an unpublished
+release candidate; counts are not defect counts or verified false-positive
+rates.
 
 ### Clean corpus
 
 Mature, heavily reviewed projects with no known active vulnerabilities.
 
-| project | findings | critical | score | grade | was (9.6.3) |
-|---|---|---|---|---|---|
-| [express](https://github.com/expressjs/express) | 0 | 0 | 100 | A | 26 |
-| [requests](https://github.com/psf/requests) | 7 | 0 | 95.5 | A | 15 |
-| [flask](https://github.com/pallets/flask) | 18 | 0 | 82 | B | 28 |
-| [chalk](https://github.com/chalk/chalk) | 4 | 0 | 89.4 | B | 4 |
-| [hermes-agent](https://github.com/NousResearch/hermes-agent) | 696 | 66 | 20.1 | F | — |
-| **total (original four)** | **29** | **0** | | | **73** |
+| project | raw findings | critical | score | grade | labels (confirmed / likely / unknown / refuted / unlabeled) |
+|---|---:|---:|---:|:---:|---|
+| [express](https://github.com/expressjs/express) | 10 | 0 | 88.2 | B | 0 / 2 / 7 / 1 / 0 |
+| [requests](https://github.com/psf/requests) | 7 | 0 | 95.5 | A | 0 / 0 / 4 / 3 / 0 |
+| [flask](https://github.com/pallets/flask) | 17 | 0 | 81.4 | B | 0 / 5 / 10 / 1 / 1 |
+| [chalk](https://github.com/chalk/chalk) | 4 | 0 | 89.4 | B | 0 / 0 / 4 / 0 / 0 |
+| [hermes-agent](https://github.com/NousResearch/hermes-agent) | 654 | 63 | 20.2 | F | 0 / 96 / 344 / 192 / 22 |
+| **total (original four)** | **38** | **0** | | | **0 / 7 / 25 / 5 / 1** |
+| **total (all five)** | **692** | **63** | | | **0 / 103 / 369 / 197 / 23** |
 
 Before the 9.6.3 false-positive work these same four projects produced **1031**
-findings, with express alone at 811 and three of the four graded F. The bulk of
-that noise was test and fixture code, which deliberately contains
-credential-shaped strings and minimal apps that skip production controls. 528 of
-express's 601 `API_NO_SECURITY_HEADERS` hits were in `test/`, against 2 in
-`lib/`.
+findings, with express alone at 811. The 9.6.3 snapshot recorded 73 findings
+across the same four; the current pinned run records 38. These are scanner
+counts across a small sample, not false-positive rates. The comment-context
+fixes in this run also remove executable-looking examples from JSDoc without
+weakening the corresponding checks on real code.
 
 ### hermes-agent, and why it is here
 
@@ -43,23 +49,53 @@ agent security should be measured against a real agent.
 It found more than any other corpus entry ever has. The first run reported
 **6,948 findings**, of which five rules were 4,684 — including 1,963 on a single
 contributor credit map, and two rules whose absence-assertions could not fail on
-input like theirs. It is now at **696**, a 90% reduction, with the full
-accounting in the changelog for this release.
+input like theirs. The preceding snapshot was **662** findings; the 11.0.0
+candidate now reports **654**, about a 90% reduction from that initial scan.
 
-696 is not a passing number and this table does not pretend otherwise. The
-remaining tail is documented under "Known false positives" below.
+The October 7, 2026 run reports **654 findings** (63 critical) for Hermes at the
+same pinned commit, with 96 likely, 344 unknown, and 192 refuted investigator
+labels, no confirmed locations, and 22 findings without a label. That is eight
+fewer raw findings than the preceding snapshot, but it is not an accuracy
+result. The labels are tool conclusions, not independent human adjudications;
+the remaining tail still needs review.
+
+The preceding detector refresh removed two prompt-injection matches caused by the
+`signed_content` identifier in Hermes's webhook HMAC verification. That value
+combines a timestamp and request body for signature verification; it is not an
+LLM prompt. The rule now requires an exact prompt-shaped identifier. The earlier
+16-finding reduction removed WhatsApp user or group identifiers from
+hardcoded-email findings; ordinary hardcoded-email detection remains covered by
+a regression test.
+
+A later focused review of Hermes matches in the historical snapshot found
+overbroad credential-store matches on `.hermes-update-*` application bundles,
+an Electron native OAuth token-store I/O adapter, and Modal's stdout-based
+temporary sync-back archive. Regression tests now distinguish those cases
+from a persistent credential archive or an explicit network sink. The October 7
+run completed against the same Hermes corpus pin and is the result shown above.
+
+The Hermes corpus revision is pinned separately from the dedicated security
+coverage baseline: this snapshot uses
+[`743dc94`](https://github.com/NousResearch/hermes-agent/commit/743dc94ab90adb0529bb233b8498c6fd6ee0e020),
+while the coverage matrix targets the v0.21.0 release at
+[`29112bef`](https://github.com/NousResearch/hermes-agent/commit/29112bef099274229cadff79cdff7bf7b99c4b77).
+Do not interpret either count as a result on the v0.21.0 coverage baseline.
+The corpus run and the dedicated release-coverage fixtures intentionally use
+different Hermes revisions; a full-corpus result on v0.21.0 has not been run.
 
 ### Vulnerable corpus
 
 Deliberately insecure applications, included so a drop in noise cannot be
 mistaken for progress when it is really lost detection.
 
-| project | findings | critical | high |
+| project | raw findings | critical | high |
 |---|---|---|---|
-| [NodeGoat](https://github.com/OWASP/NodeGoat) | 74 | 9 | 18 |
+| [NodeGoat](https://github.com/OWASP/NodeGoat) | 57 | 9 | 18 |
 | [DVWA](https://github.com/digininja/DVWA) | 71 | 1 | 55 |
 
-Across the entire recalibration NodeGoat did not move by a single finding.
+All required detection-floor rules still fire in both vulnerable projects.
+NodeGoat's raw count fell from 67 to 57 after comment-only matches were
+excluded; that is not evidence that ten vulnerabilities disappeared.
 
 DVWA's criticals went from 6 to 1 when rules gained language scope, and that
 number deserves explaining rather than burying, because a drop in the
@@ -72,38 +108,39 @@ so a client-side `fetch` is not SSRF under any reading. DVWA has plenty of real
 vulnerabilities; these five were not among them, and the one remaining critical
 is unaffected. Highs are unchanged at 55.
 
-### Why requests scores 87 and grades D
+### Historical Requests score example (not the current snapshot)
 
 Because the score and the grade answer different questions, on purpose.
 
-The score is about volume: 11 findings on a large mature library is very
-little, and 87 says so. The grade is about worst case: one of those 11 is
-critical, so the answer to "can I ship this" is no regardless of how few there
-are.
+At that earlier snapshot, Requests had 11 findings and one critical, so its
+grade was capped despite the low volume. The current pinned run is different:
+seven findings, zero criticals, and a 95.5 score. The current numbers are in the
+table above; this example remains only to explain why score and grade differ.
 
 A critical finding caps the grade at D. Without that cap a repository with a
 single command injection scored 91.4 and graded "A — Ship it!" while `ci` on
 the same repository exited 1, which is the tool contradicting itself in the
 direction of reassurance.
 
-requests' one critical is the known false positive named below. It should stop
-grading D once that is fixed, which is the right incentive.
+That critical was the known false positive described below. It is not present
+in the current snapshot.
 
 ### The score column is less informative than it looks
 
 Category deductions are capped at the category's weight, and the eight weights
 sum to 100. Each category therefore saturates after **3 to 5 medium-severity
-findings**. Past that point the score stops responding: hermes-agent scored 13/F
-at 6,948 findings and still scores 13/F at 799.
+findings**. Past that point the score stops responding. Hermes Agent still
+grades F at 662 findings, so the score does not summarize the evidence or its
+accuracy.
 
 This is why the table leads with finding counts. Treat the score as a signal
 only for small, already-clean projects, and see the tracking issue on scoring
 saturation.
 
-## Known false positives
+## Previously recorded false positives
 
-The 1 remaining critical finding on the clean corpus is a false positive.
-Naming it is the point of running this:
+In an earlier snapshot, the Requests history scan reported this known test
+fixture. It is not a current finding in this shallow, commit-pinned run:
 
 - **`GIT_HISTORY_SECRET` — requests `tests/certs/expired/ca/ca-private.key`.**
   A deliberately expired test-fixture private key. Working-tree findings in test
@@ -119,13 +156,13 @@ Fixed since the first run of this benchmark:
   property access such as `file.originalname` rather than any variable named
   `filename`. This benchmark is what surfaced it.
 
-Beyond critical, flask's remaining 20 findings are a mix rather than one
-dominant cause.
+Flask has 17 raw findings in the current run. Its investigator labels are
+reported in the table; they have not all been adjudicated by a human.
 
-### hermes-agent's remaining 799
+### Earlier Hermes Agent triage snapshot (799 findings)
 
-Not yet triaged, listed so the next pass has a starting point. Counts are from
-the run that produced this table.
+This table is historical and is not the current 662-finding snapshot. It is
+retained as context for changes made after that run.
 
 | rule | count | first read |
 |---|---|---|
@@ -156,8 +193,9 @@ Read these before quoting any number above.
 - **Grades are not comparable across projects.** Score is normalized by codebase
   size, so a small package and a framework with a large test suite are not on
   the same footing.
-- **Findings are not defects.** A finding is a thing worth a human looking at.
-  The claim here is only that there are few enough of them to look at.
+- **Findings are not defects.** Raw counts and automated investigator labels
+  do not replace human review, and these results do not estimate production
+  accuracy.
 
 ## Reproducing
 

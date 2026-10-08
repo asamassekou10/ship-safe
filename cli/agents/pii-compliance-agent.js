@@ -157,7 +157,7 @@ const PATTERNS = [
     // alternative never fired on the exact addresses GitHub hands out
     // specifically so a contributor's real one stays private. 622 of the 1965
     // matches on hermes-agent's contributor map were these.
-    regex: /['"][a-zA-Z0-9._%+-]+@(?!example\.com|example\.org|test\.com|test\.org|testing\.com|localhost|placeholder|fake|dummy|mailinator\.com|sample\.com)(?![a-zA-Z0-9.-]*(?:noreply|no-reply))[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}['"]/g,
+    regex: /['"][a-zA-Z0-9._%+-]+@(?!example\.com|example\.org|test\.com|test\.org|testing\.com|localhost|placeholder|fake|dummy|mailinator\.com|sample\.com|s\.whatsapp\.net['"]|g\.us['"])(?![a-zA-Z0-9.-]*(?:noreply|no-reply))[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}['"]/g,
     severity: 'medium',
     cwe: 'CWE-312',
     owasp: 'A02:2021',

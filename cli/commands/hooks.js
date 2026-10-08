@@ -29,6 +29,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { redactLocalPaths } from '../utils/path-redaction.js';
 import chalk from 'chalk';
 import { fileURLToPath } from 'url';
 
@@ -218,7 +219,7 @@ function status(options = {}) {
   }, settingsState.valid);
 
   if (options.json) {
-    process.stdout.write(JSON.stringify(hookStatus, null, 2) + '\n');
+    process.stdout.write(JSON.stringify(redactLocalPaths(hookStatus), null, 2) + '\n');
   } else {
     printStatus(hookStatus);
   }

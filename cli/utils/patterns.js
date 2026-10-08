@@ -966,7 +966,7 @@ export function loadGitignorePatterns(rootPath) {
       .filter(l => l && !l.startsWith('#') && !l.startsWith('!'))
       .filter(p => !isSecuritySensitive(p))
       .map(p => {
-        // Convert .gitignore patterns to fast-glob ignore patterns
+        // Convert .gitignore entries to scanner glob-ignore patterns
         if (p.startsWith('/')) {
           // Rooted pattern: /build → build/**
           return p.slice(1) + (p.endsWith('/') ? '**' : '');

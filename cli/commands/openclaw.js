@@ -20,6 +20,7 @@ import { AgentConfigScanner } from '../agents/agent-config-scanner.js';
 import { MCPSecurityAgent } from '../agents/mcp-security-agent.js';
 import { ThreatIntel } from '../utils/threat-intel.js';
 import { createFinding } from '../agents/base-agent.js';
+import { redactLocalPaths } from '../utils/path-redaction.js';
 
 // =============================================================================
 // MAIN COMMAND
@@ -150,7 +151,7 @@ async function runJsonMode(absolutePath, options) {
     result.redTeam = runRedTeam(absolutePath);
   }
 
-  console.log(JSON.stringify(result, null, 2));
+  console.log(JSON.stringify(redactLocalPaths(result, absolutePath), null, 2));
 
   if (options.preflight && result.summary.critical > 0) {
     process.exit(1);

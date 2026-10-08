@@ -14,6 +14,7 @@ import path from 'path';
 import chalk from 'chalk';
 import { ABOMGenerator } from '../agents/abom-generator.js';
 import * as output from '../utils/output.js';
+import { redactLocalPaths } from '../utils/path-redaction.js';
 
 export async function abomCommand(targetPath = '.', options = {}) {
   const absolutePath = path.resolve(targetPath);
@@ -29,7 +30,7 @@ export async function abomCommand(targetPath = '.', options = {}) {
   const bom = generator.generate(absolutePath);
 
   if (options.json) {
-    console.log(JSON.stringify(bom, null, 2));
+    console.log(JSON.stringify(redactLocalPaths(bom, absolutePath), null, 2));
     return;
   }
 

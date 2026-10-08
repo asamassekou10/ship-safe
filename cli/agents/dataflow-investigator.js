@@ -187,6 +187,24 @@ function languageFor(file) {
  */
 const TAINT_CATEGORIES = new Set(['vulnerability', 'api', 'injection', 'auth', 'llm']);
 
+/**
+ * Some detectors point at a dangerous-looking data shape, not a complete
+ * security boundary. A request-body spread proves that caller-controlled
+ * properties reach a function or persistence call; it does not prove which
+ * properties that callee accepts or writes. Keep these findings at `likely`
+ * until the model/schema and the downstream write semantics are analyzed.
+ */
+const VERDICT_CEILINGS = new Map([
+  ['API_SPREAD_BODY', {
+    verdict: 'likely',
+    rationale: 'The request body is spread into an operation, but this trace cannot establish which fields the callee accepts or persists. Treat this as a likely mass-assignment risk, not a confirmed exploit.',
+  }],
+  ['MASS_ASSIGNMENT', {
+    verdict: 'likely',
+    rationale: 'The request body reaches a create/update call, but this trace cannot establish which fields the model accepts or persists. Treat this as a likely mass-assignment risk, not a confirmed exploit.',
+  }],
+]);
+
 const MAX_HOPS = 12;
 const MAX_SEEDS = 4;
 
@@ -250,6 +268,12 @@ export class DataflowInvestigator {
 
       const trace = this._trace(finding, lines, languageFor(finding.file));
       if (!trace) continue;
+
+      const ceiling = VERDICT_CEILINGS.get(finding.rule);
+      if (ceiling && trace.verdict === 'confirmed') {
+        trace.verdict = ceiling.verdict;
+        trace.rationale = `${trace.rationale} ${ceiling.rationale}`;
+      }
 
       attachEvidence(finding, createClaim({
         source: 'dataflow',

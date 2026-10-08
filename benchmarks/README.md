@@ -57,7 +57,21 @@ Ground truth lives in `verdicts.json`: which fixtures hold a real vulnerability,
 
 The middle two are ratchets recorded in `verdicts.json`; improving one means editing the number deliberately. Neither can be gamed on its own — refuting everything trips `falseRefutations`, and detecting nothing trips the detection corpus, which runs alongside this one in CI.
 
-As of the first run the settled rate is **2/12**. The heuristic verifier reaches a conclusion on two of twelve known-real findings and returns `unknown` on the rest, which is the honest starting line for everything built on top of it.
+The September 26, 2026 working-tree run (package version 10.1.0) historically
+settled **11 of 20 labeled real findings**, with **zero false refutations**,
+three labeled noise findings still standing, and zero unlabeled findings. The
+current 11.0.0 candidate's refreshed artifacts report the same verdict counts
+and detect all 13 paired synthetic target scenarios while passing all 13
+target-rule safe controls. These are fixture regression results, not production
+accuracy estimates. The JSON `shipSafeVersion` fields identify the candidate
+that produced the detection and verdict results; the false-positive result
+records it as `version`. The September 26 run was a working-tree measurement,
+not verification of the published 10.1.0 package; the current 11.0.0 candidate
+is unpublished.
+
+The original heuristic-only run settled 2/12. Historical results below describe
+earlier implementations and different fixture sets, so their denominators are
+not directly comparable.
 
 Same limits as above, plus: twelve synthetic scenarios are not a production precision estimate, the noise labels are first-party judgements about first-party fixtures, and `--llm` is never gated because a benchmark that moves with a model's sampling is not a regression test.
 

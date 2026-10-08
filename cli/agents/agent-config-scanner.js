@@ -22,7 +22,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import fg from 'fast-glob';
+import fg from '../utils/glob.js';
 import { BaseAgent, createFinding } from './base-agent.js';
 import {
   containsUnicodeTag,

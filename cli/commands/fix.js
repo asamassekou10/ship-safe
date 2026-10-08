@@ -23,7 +23,7 @@ import {
   MAX_FILE_SIZE
 } from '../utils/patterns.js';
 import { isHighEntropyMatch } from '../utils/entropy.js';
-import fg from 'fast-glob';
+import fg from '../utils/glob.js';
 import * as output from '../utils/output.js';
 
 // =============================================================================

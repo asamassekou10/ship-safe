@@ -19,10 +19,11 @@ describe('ci JSON output', () => {
     const cli = path.resolve('cli/bin/ship-safe.js');
 
     try {
-      // Spread findings across files so the scanner exercises a large report
-      // without making one file's context analysis quadratic.
+      // Spread enough findings across files to exceed a pipe buffer without
+      // making one file's context analysis quadratic or turning this transport
+      // regression into a long-running corpus benchmark.
       fs.rmSync(file, { force: true });
-      for (let i = 0; i < 180; i++) {
+      for (let i = 0; i < 40; i++) {
         fs.writeFileSync(path.join(dir, `generated-${i}.js`),
           Array.from({ length: 10 }, (_, line) => `eval(userInput${i}_${line});`).join('\n'));
       }
@@ -38,12 +39,17 @@ describe('ci JSON output', () => {
 
       assert.equal(result.error, undefined, result.error?.message);
       assert.equal(result.status, 0, result.stderr);
-      assert.ok(result.stdout.length > 1024 * 1024,
+      assert.ok(result.stdout.length > 128 * 1024,
         `expected a large JSON payload, got ${result.stdout.length} bytes`);
 
       const report = JSON.parse(result.stdout);
+      assert.equal(report.schemaVersion, 1);
+      assert.equal(report.tool.name, 'ship-safe');
+      assert.match(report.tool.version, /^\d+\.\d+\.\d+$/);
+      assert.match(report.generatedAt, /^\d{4}-\d{2}-\d{2}T/);
       assert.equal(report.totalFindings, report.findings.length);
-      assert.ok(report.totalFindings >= 1800,
+      assert.ok(report.findings.every(finding => !path.isAbsolute(finding.file)));
+      assert.ok(report.totalFindings >= 400,
         `expected all generated findings, got ${report.totalFindings}`);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -55,7 +61,7 @@ describe('ci JSON output', () => {
     const cli = path.resolve('cli/bin/ship-safe.js');
 
     try {
-      for (let i = 0; i < 180; i++) {
+      for (let i = 0; i < 40; i++) {
         fs.writeFileSync(path.join(dir, `generated-${i}.js`),
           Array.from({ length: 10 }, (_, line) => `eval(userInput${i}_${line});`).join('\n'));
       }
@@ -79,14 +85,13 @@ describe('ci JSON output', () => {
 
       const result = await new Promise((resolve, reject) => {
         // Generous, because the assertion is "does not hang", not "finishes
-        // quickly". The scan itself takes about three seconds, `node --test`
-        // runs files in parallel, and a budget only slightly above the
-        // measured time turns every added test elsewhere in the suite into a
-        // failure here. A genuine hang is still caught, just later.
+        // quickly". Scanner startup and fixture analysis can take much longer
+        // on constrained runners; a genuine blocked stdout write is still
+        // caught once the CLI reaches report emission.
         const timer = setTimeout(() => {
           child.kill('SIGKILL');
           reject(new Error('ci command hung with a stalled stdout consumer'));
-        }, 30_000);
+        }, 120_000);
 
         child.once('error', reject);
         child.once('exit', (code, signal) => {

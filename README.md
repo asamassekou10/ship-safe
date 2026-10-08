@@ -54,6 +54,9 @@ Use `--no-ai` to guarantee a fully local scan. Provider-backed classification, d
 
 ## Quick Start
 
+Requires Node.js 22.13+ on the 22.x line, or Node.js 24+. Node 18 and 20
+are no longer supported by the current development version.
+
 ```bash
 # Interactive REPL: scan, fix, and ask questions in one session
 npx ship-safe
@@ -109,6 +112,15 @@ The base artifact contains hashed finding identities, relative paths, and rule
 metadata. It does not store raw matched secrets. PR results classify findings
 as introduced, resolved, unchanged, or uncertain; ambiguous matches are shown
 but do not block the pull request.
+
+### Machine-readable report contract
+
+`scan --json`, `audit --json`, and `ci --json` include `schemaVersion: 1`, the
+Ship Safe version, and a UTC `generatedAt` timestamp. Finding paths are
+project-relative by default so reports can move between workstations and CI
+without leaking local directory names. Use `--absolute-paths` only when a
+consumer explicitly needs host paths. SARIF reports carry the same package
+version in their tool metadata.
 
 ## What Ship Safe Finds
 
@@ -379,20 +391,23 @@ docs/
 ### How noisy is it?
 
 Recall is the easy half of a scanner. A tool that flags everything catches
-everything and is useless, so we measure the other half: what Ship Safe says
-about code that is almost certainly fine.
+everything and is useless, so we also track what Ship Safe reports on mature
+projects with no known active vulnerabilities. These are raw findings, not
+confirmed defects.
 
-| project | findings | critical | grade |
-|---|---|---|---|
-| [express](https://github.com/expressjs/express) | 26 | 0 | C |
-| [requests](https://github.com/psf/requests) | 15 | 1 | C |
-| [flask](https://github.com/pallets/flask) | 28 | 0 | D |
-| [chalk](https://github.com/chalk/chalk) | 4 | 0 | B |
+| project | raw findings | critical | score | grade |
+|---|---:|---:|---:|:---:|
+| [express](https://github.com/expressjs/express) | 10 | 0 | 88.2 | B |
+| [requests](https://github.com/psf/requests) | 7 | 0 | 95.5 | A |
+| [flask](https://github.com/pallets/flask) | 17 | 0 | 81.4 | B |
+| [chalk](https://github.com/chalk/chalk) | 4 | 0 | 89.4 | B |
 
-Down from 1031 findings across the same four projects before v9.6.3, verified
-against NodeGoat and DVWA so the drop is reduced noise rather than lost
-detection. The 1 remaining critical is a false positive and the benchmark says
-which and why.
+The original four total 38 raw findings, down from 1,031 before v9.6.3. The
+current five-project clean corpus also includes Hermes Agent, which reports 662
+findings, including 66 critical. Neither count is a false-positive rate or a
+claim of accuracy; automated investigation labels and the remaining workload
+are documented in the benchmark. Detection-floor checks on NodeGoat and DVWA
+still pass.
 
 Corpus pinned by commit, reproducible with one command, limits documented:
 **[benchmarks/false-positives/](benchmarks/false-positives/)**

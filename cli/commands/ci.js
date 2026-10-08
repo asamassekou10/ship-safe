@@ -51,8 +51,12 @@ import { normalizeFindingMetadata, postureFindings, projectFindings, resolveCode
 import { isHighEntropyMatch, getConfidence } from '../utils/entropy.js';
 import { postPRComments } from './watch.js';
 import { compareFindingSets, snapshotFinding } from '../utils/finding-delta.js';
-import fg from 'fast-glob';
+import fg from '../utils/glob.js';
 import { STDOUT_WRITE_TIMEOUT_MS, writeStdout } from '../utils/stdout.js';
+
+const PACKAGE_VERSION = JSON.parse(
+  fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+).version;
 
 // =============================================================================
 // MAIN COMMAND
@@ -214,6 +218,12 @@ export async function ciCommand(targetPath = '.', options = {}) {
     // truncated JSON document.
     try {
       await writeStdout(`${JSON.stringify({
+        schemaVersion: 1,
+        tool: {
+          name: 'ship-safe',
+          version: PACKAGE_VERSION,
+        },
+        generatedAt: new Date().toISOString(),
         scoreVersion: scoreResult.scoreVersion,
         score: scoreResult.score,
         postureScore: scoreResult.postureScore,
@@ -239,7 +249,7 @@ export async function ciCommand(targetPath = '.', options = {}) {
         // What the investigation layer concluded, so a pipeline can act on
         // evidence rather than on a severity label alone.
         verdicts: countVerdicts(allFindings),
-        findings: projectFindings(allFindings),
+        findings: portableFindings(projectFindings(allFindings), absolutePath, options),
         threshold,
         pass: determinePass(gateScoreResult, introducedFindings, threshold, failOn, options.includeTests, options),
         duration: `${duration}s`,
@@ -383,6 +393,15 @@ function countVerdicts(findings) {
   return counts;
 }
 
+function portableFindings(findings, rootPath, options = {}) {
+  return findings.map(finding => ({
+    ...finding,
+    file: options.absolutePaths || !path.isAbsolute(finding.file)
+      ? finding.file
+      : path.relative(rootPath, finding.file).replace(/\\/g, '/'),
+  }));
+}
+
 function buildSARIF(findings, rootPath) {
   const rules = {};
   for (const f of findings) {
@@ -404,7 +423,7 @@ function buildSARIF(findings, rootPath) {
     runs: [{
       tool: {
         driver: {
-          name: 'ship-safe', version: '5.0.0',
+          name: 'ship-safe', version: PACKAGE_VERSION,
           informationUri: 'https://github.com/asamassekou10/ship-safe',
           rules: Object.values(rules),
         },

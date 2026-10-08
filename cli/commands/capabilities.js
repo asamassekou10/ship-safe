@@ -21,6 +21,7 @@ import path from 'path';
 import fs from 'fs';
 import chalk from 'chalk';
 import * as output from '../utils/output.js';
+import { redactLocalPaths } from '../utils/path-redaction.js';
 import {
   buildCapabilityGraph,
   findAttackChains,
@@ -58,7 +59,7 @@ export async function capabilitiesCommand(targetPath = '.', options = {}) {
   }
 
   if (options.json) {
-    console.log(JSON.stringify({
+    console.log(JSON.stringify(redactLocalPaths({
       root: rootPath,
       sources: graph.sources,
       capabilities: summarizeCapabilities(graph),
@@ -66,7 +67,7 @@ export async function capabilitiesCommand(targetPath = '.', options = {}) {
       surfaces: graph.surfaces,
       chains,
       findings,
-    }, null, 2));
+    }, rootPath), null, 2));
     return;
   }
 

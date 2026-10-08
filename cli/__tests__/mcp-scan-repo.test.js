@@ -24,6 +24,8 @@ test('MCP scan_repo returns a scored report', async () => {
     const report = await scanRepo({ path: rootPath, agents: [] });
 
     assert.equal(report.error, undefined);
+    assert.equal(report.rootPath, '.');
+    assert.equal(JSON.stringify(report).includes(rootPath), false, 'MCP reports must not expose the absolute checkout path');
     assert.equal(typeof report.score, 'number');
     assert.match(report.grade, /^[A-F]$/);
     assert.equal(typeof report.totalFindings, 'number');

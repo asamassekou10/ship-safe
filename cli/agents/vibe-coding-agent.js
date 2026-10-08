@@ -43,6 +43,7 @@ const PATTERNS = [
     rule: 'VIBE_PLACEHOLDER_URL',
     title: 'Vibe Code: Placeholder URL Left in Code',
     regex: /['"]https?:\/\/(?:your[_-]?(?:domain|api|server|backend)|example\.com\/api|api\.example|placeholder)[^'"]*['"]/gi,
+    skipComments: true,
     severity: 'medium',
     cwe: 'CWE-1188',
     owasp: 'A05:2021',

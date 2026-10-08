@@ -209,5 +209,6 @@ that does not exist.
 - The score still saturates on large repositories even with the curve, which is
   why it no longer gates. Treat it as a signal for small, already-clean
   projects.
-- `hermes-agent` reports 785 findings and that tail is not fully triaged. The
-  benchmark README lists it by rule so the next pass has a starting point.
+- `hermes-agent` reports 662 findings in the current pinned snapshot, and that
+  tail is not fully triaged. The benchmark README reports the investigator
+  labels and explicitly treats them as automated conclusions, not human review.

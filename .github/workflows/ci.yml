@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [22.13.0, 22.x, 24.x]
 
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -55,13 +55,17 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
 
+    strategy:
+      matrix:
+        node-version: [22.13.0, 22.x, 24.x]
+
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
-      - name: Use Node.js 20.x
+      - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
-          node-version: 20.x
+          node-version: ${{ matrix.node-version }}
 
       - name: Pack and install locally
         run: |
@@ -73,6 +77,26 @@ jobs:
 
       - name: Test scan command
         run: ship-safe scan .
+
+      - name: Verify installed package report contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture_dir="$(mktemp -d)"
+          report_file="$(mktemp)"
+          printf 'export const answer = 42;\n' > "$fixture_dir/index.js"
+          export SHIP_SAFE_EXPECTED_VERSION="$(node -p 'JSON.parse(require("fs").readFileSync("package.json", "utf8")).version')"
+          ship-safe scan "$fixture_dir" --json --no-cache > "$report_file"
+          node --input-type=module - "$report_file" <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          assert.equal(report.schemaVersion, 1);
+          assert.equal(report.tool.name, 'ship-safe');
+          assert.equal(report.tool.version, process.env.SHIP_SAFE_EXPECTED_VERSION);
+          assert.equal(report.totalFindings, 0);
+          assert.ok(Number.isFinite(Date.parse(report.generatedAt)));
+          NODE
 
       - name: Test init command
         run: |

@@ -35,6 +35,7 @@ import { buildOrchestratorAsync } from '../agents/index.js';
 import { SecretsVerifier } from '../utils/secrets-verifier.js';
 import { summarizeEvidence, decidingClaim } from '../utils/evidence.js';
 import * as output from '../utils/output.js';
+import { redactLocalPaths } from '../utils/path-redaction.js';
 
 const VERDICT_ORDER = ['confirmed', 'likely', 'unknown', 'refuted'];
 
@@ -108,7 +109,7 @@ export async function investigateCommand(targetPath = '.', options = {}) {
   }
 
   if (options.json) {
-    console.log(JSON.stringify({
+    console.log(JSON.stringify(redactLocalPaths({
       root: rootPath,
       // Locations are what a reader acts on; findings are what the rules
       // produced. Both are reported because they differ, often by a lot.
@@ -123,7 +124,7 @@ export async function investigateCommand(targetPath = '.', options = {}) {
         verdict: finding.evidence?.verdict || 'unknown',
         evidence: summarizeEvidence(finding, rootPath),
       })),
-    }, null, 2));
+    }, rootPath), null, 2));
     process.exitCode = grouped.confirmed.length ? 1 : 0;
     return;
   }

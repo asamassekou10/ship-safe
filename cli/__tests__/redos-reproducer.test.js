@@ -11,18 +11,18 @@ let ROOT;
 before(() => { ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'ship-safe-redos-')); });
 after(() => fs.rmSync(ROOT, { recursive: true, force: true }));
 
-const probe = async (name, line, { budgetMs = 300 } = {}) => {
+const probe = async (name, line, { budgetMs = 300, startupGraceMs } = {}) => {
   const file = path.join(ROOT, name);
   fs.writeFileSync(file, `${line}\n`);
   const finding = createFinding({
     file, line: 1, rule: 'REDOS_NESTED_QUANTIFIER', title: 'ReDoS',
     category: 'vulnerability', severity: 'high',
   });
-  await new RedosReproducer({ budgetMs }).investigate([finding]);
+  await new RedosReproducer({ budgetMs, startupGraceMs }).investigate([finding]);
   return finding.evidence.claims.find((c) => c.source === 'reproduction') || null;
 };
 
-describe('running the pattern', () => {
+describe('running the pattern', { concurrency: false }, () => {
   it('confirms a pattern that actually backtracks', async () => {
     const claim = await probe('bad.js', 'export const re = /^(a+)+$/;');
     assert.equal(claim.verdict, 'confirmed');
@@ -43,7 +43,18 @@ describe('running the pattern', () => {
   });
 });
 
-describe('what it declines to run', () => {
+describe('what it declines to run', { concurrency: false }, () => {
+  it('does not refute a pattern that cannot be compiled', async () => {
+    const line = 'export const re = /(?/;';
+    assert.deepEqual(extractPattern(line), { source: '(?', flags: '' });
+    assert.equal(await probe('invalid.js', line), null);
+  });
+
+  it('does not refute a pattern when the probe worker cannot start', async () => {
+    const claim = await probe('worker-start.js', 'export const re = /^(a+)+$/;', { startupGraceMs: 0 });
+    assert.equal(claim, null);
+  });
+
   it('says nothing when the pattern is built at runtime', async () => {
     assert.equal(await probe('dyn.js', 'const re = new RegExp(userSupplied + "+$");'), null);
   });

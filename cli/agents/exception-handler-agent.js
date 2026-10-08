@@ -138,6 +138,7 @@ const PATTERNS = [
     rule: 'EXCEPTION_NO_UNCAUGHT_HANDLER',
     title: 'Exception: Missing uncaughtException Handler',
     regex: /(?:http\.createServer|express\(\)|new\s+Koa|fastify\(\)|new\s+Hono)(?:(?!uncaughtException|unhandledRejection).){0,2000}(?:\.listen|module\.exports)/gs,
+    skipComments: true,
     severity: 'medium',
     cwe: 'CWE-755',
     owasp: 'A10:2025',

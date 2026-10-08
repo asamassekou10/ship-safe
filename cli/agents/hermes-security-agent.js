@@ -41,19 +41,6 @@ import {
 // FILES THIS AGENT SCANS
 // =============================================================================
 
-const HERMES_FILE_PATTERNS = [
-  '**/hermes.config.{js,ts,json,yaml,yml}',
-  '**/agents.{json,yaml,yml}',
-  '**/agent-manifest.{json,yaml,yml}',
-  '**/tool-registry.{js,ts,json}',
-  '**/tools/**/*.{js,ts,json}',
-  '**/skills/**/*.md',
-  '**/.hermes/**/*',
-  '**/hermes-skills/**/*.md',
-  '**/hermes-tools/**/*.{js,ts}',
-  '**/*.{js,ts,py}',           // Source files using hermes-agent SDK
-];
-
 /**
  * Terminal execution locations in the Hermes Agent v0.21.0 baseline.
  *
@@ -466,7 +453,7 @@ const PATTERNS = [
     // ~/.xurl (OAuth tokens + client secrets, YAML) or ~/.hermes/auth.json
     // referenced in a Dockerfile COPY/ADD, a cp/rsync/tar, or otherwise
     // moved off the developer machine.
-    regex: /(?:COPY|ADD|cp|rsync|scp|tar|mv)\s+[^\n]*(?:\.xurl\b|\.hermes\/auth\.json|\.hermes\b)/g,
+    regex: /(?:(?:COPY|ADD|cp|rsync|scp|mv)\s+[^\n]*(?:\.xurl(?=[/\\\s"'`]|$)|\.hermes\/auth\.json\b|\.hermes(?=[/\\\s"'`]|$))|tar\s+(?!(?:-[A-Za-z]*f|[A-Za-z]*f)\s+-\s+(?![^\n]*(?:\||>|\b(?:curl|wget|nc|ssh|scp|Invoke-WebRequest)\b)))[^\n]*(?:\.xurl(?=[/\\\s"'`]|$)|\.hermes\/auth\.json\b|\.hermes(?=[/\\\s"'`]|$)))/g,
     severity: 'critical',
     cwe: 'CWE-538',
     owasp: 'ASI10',
@@ -1083,7 +1070,10 @@ function checkPluginManifest(content, filePath, agent) {
 //                          without scanning for injection
 //   - PR  #21228         — Browser tool lacks the cloud-metadata SSRF floor
 
-const CRED_PATH_RE  = /(auth|credential|token|oauth|\.hermes\/(?:auth|creds))/i;
+// A bare `token` identifier is too broad: it also matches unrelated native
+// token-store adapters and app state. Keep generic auth/credential/OAuth paths,
+// and require an MCP context when the path is named only as a token store.
+const CRED_PATH_RE  = /(?:auth|credential|oauth|\.hermes\/(?:auth|creds)|mcp.*(?:token|oauth))/i;
 const STAT_OR_READ  = /fs\.(?:existsSync|statSync|accessSync|readFileSync)\s*\([^)]*\)/g;
 const WRITE_SYNC    = /fs\.writeFileSync\s*\(\s*([^,)]*)/g;
 const METADATA_HOSTS = /(?:169\.254\.169\.254|169\.254\.170\.2|fd00:ec2|metadata\.google\.internal|100\.100\.100\.200|metadata\.azure)/i;
@@ -1093,7 +1083,7 @@ const METADATA_HOSTS = /(?:169\.254\.169\.254|169\.254\.170\.2|fd00:ec2|metadata
  * path. Hermes v0.13.0 PR #21194 closed this for auth.json by switching to
  * atomic write-then-rename via write-file-atomic; PR #21176 closed the same
  * for MCP OAuth credential storage. Detection: a stat/read of a path with
- * "auth"/"credential"/"token"/"oauth"/".hermes/auth" in the argument is
+ * "auth"/"credential"/"oauth"/"mcp…token"/".hermes/auth" in the argument is
  * followed within 25 lines by a writeFileSync to a similar path, and the
  * file does NOT import `write-file-atomic`.
  */
@@ -2085,11 +2075,11 @@ export class HermesSecurityAgent extends BaseAgent {
   }
 
   async analyze(context) {
-    const { rootPath, files = [] } = context;
+    const { files = [] } = context;
     const findings = [];
 
     // Discover Hermes-relevant files
-    const hermesFiles = this._findHermesFiles(files, rootPath);
+    const hermesFiles = this._findHermesFiles(files);
 
     if (hermesFiles.length === 0) return findings;
 
@@ -2174,7 +2164,7 @@ export class HermesSecurityAgent extends BaseAgent {
   /**
    * Identify files relevant to Hermes Agent analysis.
    */
-  _findHermesFiles(allFiles, rootPath) {
+  _findHermesFiles(allFiles) {
     const hermesFiles = new Set();
 
     for (const file of allFiles) {

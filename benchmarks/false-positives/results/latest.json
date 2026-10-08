@@ -1,22 +1,22 @@
 {
   "tool": "ship-safe",
-  "version": "10.1.0",
-  "methodology": "Findings reported by `ship-safe ci --no-deps` against pinned checkouts, plus what `ship-safe investigate` concluded about them. Clean corpus: mature projects with no known active vulnerabilities, where every finding is triage a user inherits. Vulnerable corpus: deliberately insecure applications, present so a reduction in noise cannot be mistaken for lost detection. Counts are a proxy for a false-positive rate, not a verified one.",
+  "version": "11.0.0",
+  "methodology": "Raw findings reported by `ship-safe ci --no-deps` against pinned checkouts, with `ship-safe investigate --json` conclusions reported separately. Clean-corpus projects have no known active vulnerabilities, not proven absence of vulnerabilities. Counts are a triage-burden signal and a proxy for a false-positive rate, not a verified rate or defect count. Vulnerable applications carry must-detect floors to catch obvious regressions.",
   "clean": [
     {
       "id": "express",
       "repo": "expressjs/express",
       "commit": "a3714473feb3d2908add734d340e7755fd85e0a3",
-      "findings": 18,
+      "findings": 10,
       "critical": 0,
       "high": 4,
-      "score": 81.4,
+      "score": 88.2,
       "grade": "B",
       "verdicts": {
         "confirmed": 0,
         "likely": 2,
         "unknown": 7,
-        "refuted": 9
+        "refuted": 1
       }
     },
     {
@@ -39,15 +39,15 @@
       "id": "flask",
       "repo": "pallets/flask",
       "commit": "6a2f545bfd8ed31e19066a299296917e034aca58",
-      "findings": 19,
+      "findings": 17,
       "critical": 0,
-      "high": 7,
-      "score": 79.6,
+      "high": 5,
+      "score": 81.4,
       "grade": "B",
       "verdicts": {
         "confirmed": 0,
         "likely": 5,
-        "unknown": 12,
+        "unknown": 10,
         "refuted": 1
       }
     },
@@ -71,16 +71,16 @@
       "id": "hermes-agent",
       "repo": "NousResearch/hermes-agent",
       "commit": "743dc94ab90adb0529bb233b8498c6fd6ee0e020",
-      "findings": 696,
-      "critical": 66,
-      "high": 224,
-      "score": 20.1,
+      "findings": 654,
+      "critical": 63,
+      "high": 216,
+      "score": 20.2,
       "grade": "F",
       "verdicts": {
-        "confirmed": 3,
-        "likely": 95,
-        "unknown": 352,
-        "refuted": 224
+        "confirmed": 0,
+        "likely": 96,
+        "unknown": 344,
+        "refuted": 192
       }
     }
   ],
@@ -89,13 +89,13 @@
       "id": "NodeGoat",
       "repo": "OWASP/NodeGoat",
       "commit": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
-      "findings": 67,
+      "findings": 57,
       "critical": 9,
       "high": 18,
       "verdicts": {
-        "confirmed": 7,
-        "likely": 13,
-        "unknown": 27,
+        "confirmed": 6,
+        "likely": 14,
+        "unknown": 17,
         "refuted": 5
       },
       "mustDetect": [
@@ -127,12 +127,12 @@
   ],
   "summary": {
     "cleanProjects": 5,
-    "cleanFindings": 744,
-    "cleanCriticalFindings": 66,
+    "cleanFindings": 692,
+    "cleanCriticalFindings": 63,
     "vulnerableProjects": 2,
-    "vulnerableFindings": 138,
-    "cleanConfirmed": 3,
-    "cleanRefuted": 237,
-    "vulnerableConfirmed": 7
+    "vulnerableFindings": 128,
+    "cleanConfirmed": 0,
+    "cleanRefuted": 197,
+    "vulnerableConfirmed": 6
   }
 }

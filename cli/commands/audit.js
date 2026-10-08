@@ -16,7 +16,7 @@ import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
-import fg from 'fast-glob';
+import fg from '../utils/glob.js';
 import { buildOrchestrator, buildOrchestratorAsync } from '../agents/index.js';
 import { LegalRiskAgent } from '../agents/legal-risk-agent.js';
 import { ScoringEngine } from '../agents/scoring-engine.js';
@@ -48,6 +48,10 @@ import { SecretsVerifier } from '../utils/secrets-verifier.js';
 import { applyInlineAnnotations } from './autofix.js';
 import { hasEvidence, summarizeEvidence } from '../utils/evidence.js';
 import { STDOUT_WRITE_TIMEOUT_MS, writeStdout } from '../utils/stdout.js';
+
+const PACKAGE_VERSION = JSON.parse(
+  fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+).version;
 
 // =============================================================================
 // CONSTANTS
@@ -458,7 +462,7 @@ export async function auditCommand(targetPath = '.', options = {}) {
   } else if (options.md) {
     outputMarkdown(scoreResult, emittedFindings, depVulns, remediationPlan, absolutePath);
   } else if (options.json) {
-    await outputJSON(scoreResult, emittedFindings, depVulns, recon, agentResults, remediationPlan, suppressions, options.compare ? scoringEngine.loadHistory(absolutePath) : null, absolutePath);
+    await outputJSON(scoreResult, emittedFindings, depVulns, recon, agentResults, remediationPlan, suppressions, options.compare ? scoringEngine.loadHistory(absolutePath) : null, absolutePath, options);
   } else if (options.sarif) {
     await outputSARIF(emittedFindings, absolutePath);
   } else {
@@ -846,8 +850,14 @@ function printReport(scoreResult, findings, depVulns, recon, plan, rootPath, fil
 // JSON OUTPUT
 // =============================================================================
 
-async function outputJSON(scoreResult, findings, depVulns, recon, agentResults, remediationPlan, suppressions, history, rootPath = process.cwd()) {
+async function outputJSON(scoreResult, findings, depVulns, recon, agentResults, remediationPlan, suppressions, history, rootPath = process.cwd(), options = {}) {
   const output = {
+    schemaVersion: 1,
+    tool: {
+      name: 'ship-safe',
+      version: PACKAGE_VERSION,
+    },
+    generatedAt: new Date().toISOString(),
     scoreVersion: scoreResult.scoreVersion,
     score: scoreResult.score,
     postureScore: scoreResult.postureScore,
@@ -868,7 +878,10 @@ async function outputJSON(scoreResult, findings, depVulns, recon, agentResults, 
       }])
     ),
     findings: findings.map(f => ({
-      file: f.file, line: f.line, severity: f.severity, category: f.category,
+      file: options.absolutePaths || !path.isAbsolute(f.file)
+        ? f.file
+        : path.relative(rootPath, f.file).replace(/\\/g, '/'),
+      line: f.line, severity: f.severity, category: f.category,
       rule: f.rule, title: f.title, description: f.description, fix: f.fix,
       cwe: f.cwe, owasp: f.owasp, scope: f.scope,
       codeScope: f.codeScope, evidenceLevel: f.evidenceLevel,

@@ -21,7 +21,7 @@ import { SECRET_PATTERNS, SKIP_DIRS, SKIP_EXTENSIONS, SKIP_FILENAMES, MAX_FILE_S
 import { isHighEntropyMatch } from '../utils/entropy.js';
 import { findingFingerprint } from '../utils/finding-fingerprint.js';
 import { compareFindingSets, snapshotFinding } from '../utils/finding-delta.js';
-import fg from 'fast-glob';
+import fg from '../utils/glob.js';
 
 const BASELINE_FILE = '.ship-safe/baseline.json';
 

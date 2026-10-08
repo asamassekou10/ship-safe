@@ -46,7 +46,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import fg from 'fast-glob';
+import fg from '../utils/glob.js';
 import { SECRET_PATTERNS, SKIP_DIRS, SKIP_EXTENSIONS, SKIP_FILENAMES, TEST_FILE_PATTERNS, MAX_FILE_SIZE } from '../utils/patterns.js';
 import { isHighEntropyMatch } from '../utils/entropy.js';
 import { buildOrchestrator } from '../agents/index.js';
@@ -54,6 +54,7 @@ import { ScoringEngine } from '../agents/scoring-engine.js';
 import { autoDetectProvider } from '../providers/llm-provider.js';
 import { DeepAnalyzer } from '../agents/deep-analyzer.js';
 import { PACKAGE_VERSION } from '../utils/package-version.js';
+import { redactLocalPaths } from '../utils/path-redaction.js';
 
 export const MCP_SERVER_VERSION = PACKAGE_VERSION;
 export const MCP_MODERN_PROTOCOL_VERSION = '2026-07-28';
@@ -228,7 +229,7 @@ async function scanSecrets({ path: targetPath, includeTests = false }) {
   const absolutePath = path.resolve(targetPath);
 
   if (!fs.existsSync(absolutePath)) {
-    return { error: `Path does not exist: ${absolutePath}` };
+    return redactLocalPaths({ error: `Path does not exist: ${absolutePath}` }, absolutePath);
   }
 
   const stat = fs.statSync(absolutePath);
@@ -241,11 +242,11 @@ async function scanSecrets({ path: targetPath, includeTests = false }) {
   for (const file of files) {
     const findings = scanFile(file);
     if (findings.length > 0) {
-      results.push({ file: path.relative(process.cwd(), file), findings });
+      results.push({ file: stat.isFile() ? path.basename(file) : path.relative(absolutePath, file), findings });
     }
   }
 
-  return {
+  return redactLocalPaths({
     filesScanned: files.length,
     totalFindings: results.reduce((sum, r) => sum + r.findings.length, 0),
     clean: results.length === 0,
@@ -256,7 +257,7 @@ async function scanSecrets({ path: targetPath, includeTests = false }) {
     remediation: results.length > 0
       ? 'Move secrets to environment variables. Add .env to .gitignore. Rotate any already-committed credentials.'
       : null,
-  };
+  }, absolutePath);
 }
 
 function getChecklist() {
@@ -297,27 +298,27 @@ async function analyzeFile({ path: filePath }) {
   const absolutePath = path.resolve(filePath);
 
   if (!fs.existsSync(absolutePath)) {
-    return { error: `File does not exist: ${absolutePath}` };
+    return redactLocalPaths({ error: `File does not exist: ${absolutePath}` }, path.dirname(absolutePath));
   }
 
   const findings = scanFile(absolutePath);
 
-  return {
-    file: filePath,
+  return redactLocalPaths({
+    file: path.basename(absolutePath),
     totalFindings: findings.length,
     clean: findings.length === 0,
     findings,
     summary: findings.length === 0
       ? `No secrets detected in ${path.basename(filePath)}.`
       : `Found ${findings.length} potential secret(s) in ${path.basename(filePath)}.`,
-  };
+  }, path.dirname(absolutePath));
 }
 
 export async function scanRepo({ path: targetPath, agents: agentFilter, llm = false, outputFile, maxFindings = MAX_MCP_FINDINGS }) {
   const rootPath = path.resolve(targetPath);
 
   if (!fs.existsSync(rootPath)) {
-    return { error: `Path does not exist: ${rootPath}` };
+    return redactLocalPaths({ error: `Path does not exist: ${rootPath}` }, rootPath);
   }
 
   // MCP communicates over stdout as JSON-RPC. Suppress all console output during
@@ -378,9 +379,9 @@ export async function scanRepo({ path: targetPath, agents: agentFilter, llm = fa
     }));
     const resultLimit = Math.min(Math.max(Number(maxFindings) || MAX_MCP_FINDINGS, 1), MAX_MCP_FINDINGS);
 
-    const report = {
+    const report = redactLocalPaths({
       scannedAt: new Date().toISOString(),
-      rootPath,
+      rootPath: '.',
       score,
       grade,
       totalFindings: findings.length,
@@ -390,7 +391,7 @@ export async function scanRepo({ path: targetPath, agents: agentFilter, llm = fa
       findings: serializedFindings.slice(0, resultLimit),
       ...(deepStats ? { deepAnalysis: deepStats } : {}),
       summary: `Score: ${score}/100 (${grade}) — ${findings.length} finding(s): ${bySeverity.critical} critical, ${bySeverity.high} high, ${bySeverity.medium} medium, ${bySeverity.low} low.`,
-    };
+    }, rootPath);
 
     if (outputFile) {
       const resolvedOutput = workspacePath(outputFile);
@@ -402,12 +403,12 @@ export async function scanRepo({ path: targetPath, agents: agentFilter, llm = fa
         returnedFindings: serializedFindings.length,
         truncated: false,
       }, null, 2), 'utf-8');
-      report.savedTo = outPath;
+      report.savedTo = path.relative(rootPath, outPath).replace(/\\/g, '/');
     }
 
     return report;
   } catch (err) {
-    return { error: `Scan failed: ${err.message}` };
+    return redactLocalPaths({ error: `Scan failed: ${err.message}` }, rootPath);
   } finally {
     // Always restore console so other tool calls are not affected
     console.log   = savedLog;
@@ -421,14 +422,14 @@ function getFindings({ reportPath, severity }) {
   const absPath = path.resolve(reportPath);
 
   if (!fs.existsSync(absPath)) {
-    return { error: `Report file not found: ${absPath}` };
+    return redactLocalPaths({ error: `Report file not found: ${absPath}` }, path.dirname(absPath));
   }
 
   let report;
   try {
     report = JSON.parse(fs.readFileSync(absPath, 'utf-8'));
   } catch (err) {
-    return { error: `Failed to parse report: ${err.message}` };
+    return redactLocalPaths({ error: `Failed to parse report: ${err.message}` }, path.dirname(absPath));
   }
 
   const findings = report.findings ?? [];
@@ -437,8 +438,9 @@ function getFindings({ reportPath, severity }) {
     ? findings.filter(f => (SEV_RANK[f.severity] ?? 0) >= (SEV_RANK[severity] ?? 0))
     : findings;
 
-  return {
-    reportPath:    absPath,
+  const rootPath = path.isAbsolute(report.rootPath) ? report.rootPath : path.dirname(absPath);
+  return redactLocalPaths({
+    reportPath:    path.basename(absPath),
     scannedAt:     report.scannedAt,
     score:         report.score,
     grade:         report.grade,
@@ -447,7 +449,7 @@ function getFindings({ reportPath, severity }) {
     findings:      filtered,
     summary:       report.summary,
     ...(severity ? { filter: `severity >= ${severity}` } : {}),
-  };
+  }, rootPath);
 }
 
 export function suppressFinding({ file, line, reason }) {
@@ -477,7 +479,7 @@ export function suppressFinding({ file, line, reason }) {
 
   // Already suppressed?
   if (/ship-safe-ignore/i.test(targetLine)) {
-    return { alreadySuppressed: true, file: absPath, line, message: 'Line already has a ship-safe-ignore comment.' };
+    return { alreadySuppressed: true, file: path.relative(process.cwd(), absPath).replace(/\\/g, '/'), line, message: 'Line already has a ship-safe-ignore comment.' };
   }
 
   // Detect indentation and comment style
@@ -507,7 +509,7 @@ export function suppressFinding({ file, line, reason }) {
 
   return {
     suppressed:    true,
-    file:          absPath,
+    file:          path.relative(process.cwd(), absPath).replace(/\\/g, '/'),
     originalLine:  line,
     insertedLine:  line, // The ignore comment is now on this line, original moved to line+1
     comment:       ignoreComment,
@@ -592,21 +594,24 @@ export async function mcpCommand() {
         try {
           const request = JSON.parse(line);
           const response = await handleRequest(request);
-          if (response) process.stdout.write(JSON.stringify(response) + '\n');
+          if (response) process.stdout.write(JSON.stringify(redactLocalPaths(response, process.cwd())) + '\n');
         } catch (err) {
           const errorResponse = {
             jsonrpc: '2.0',
             id: null,
             error: { code: -32700, message: 'Parse error', data: err.message },
           };
-          process.stdout.write(JSON.stringify(errorResponse) + '\n');
+          process.stdout.write(JSON.stringify(redactLocalPaths(errorResponse, process.cwd())) + '\n');
         }
       });
     }
   });
 
   process.stdin.on('end', () => {
-    pending.then(() => process.exit(0), () => process.exit(0));
+    // End stdout only after every queued response has been written. Calling
+    // process.exit() here can truncate the final JSON-RPC response while the
+    // stream still has buffered bytes (observed on Node 22).
+    pending.then(() => process.stdout.end(), () => process.stdout.end());
   });
 }
 

@@ -25,6 +25,7 @@ import * as output from '../utils/output.js';
 import { ThreatIntel } from '../utils/threat-intel.js';
 import { MCPSecurityAgent, MCP_CONFIG_FILES } from '../agents/mcp-security-agent.js';
 import { fetchSafeUrl } from '../utils/remote-fetch.js';
+import { redactLocalPaths } from '../utils/path-redaction.js';
 
 // =============================================================================
 // MCP TOOL DESCRIPTION PATTERNS
@@ -203,6 +204,7 @@ export async function scanMcpCommand(target, options = {}) {
   }
 
   let manifest, serverName, source;
+  let reportRoot = process.cwd();
 
   if (target.startsWith('http://') || target.startsWith('https://')) {
     if (!options.json) console.log(chalk.gray(`  Fetching MCP manifest from: ${target}`));
@@ -240,7 +242,8 @@ export async function scanMcpCommand(target, options = {}) {
     try {
       manifest = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       serverName = path.basename(filePath);
-      source = filePath;
+      source = path.basename(filePath);
+      reportRoot = path.dirname(filePath);
     } catch (err) {
       output.error(`Failed to parse manifest: ${err.message}`);
       process.exit(1);
@@ -256,7 +259,7 @@ export async function scanMcpCommand(target, options = {}) {
 
   if (tools.length === 0) {
     if (options.json) {
-      console.log(JSON.stringify({ server: serverName, source, toolCount: 0, findings: [], summary: getSummary([]) }, null, 2));
+      console.log(JSON.stringify(redactLocalPaths({ server: serverName, source, toolCount: 0, findings: [], summary: getSummary([]) }, reportRoot), null, 2));
       return;
     }
     output.warning('No tools found in manifest. Is this a valid MCP tools response?');
@@ -266,7 +269,7 @@ export async function scanMcpCommand(target, options = {}) {
   const findings = analyzeManifest(manifest, tools, serverName, source);
 
   if (options.json) {
-    console.log(JSON.stringify({ server: serverName, source, toolCount: tools.length, findings, summary: getSummary(findings) }, null, 2));
+    console.log(JSON.stringify(redactLocalPaths({ server: serverName, source, toolCount: tools.length, findings, summary: getSummary(findings) }, reportRoot), null, 2));
     return;
   }
 
@@ -371,7 +374,7 @@ function renderDirectoryFindings(rootPath, configPaths, findings) {
 }
 
 function printDirectoryJson(rootPath, configPaths, findings) {
-  console.log(JSON.stringify({ project: path.basename(rootPath), source: rootPath, configCount: configPaths.length, configs: configPaths, findings, summary: getSummary(findings) }, null, 2));
+  console.log(JSON.stringify(redactLocalPaths({ project: path.basename(rootPath), source: rootPath, configCount: configPaths.length, configs: configPaths, findings, summary: getSummary(findings) }, rootPath), null, 2));
 }
 
 // =============================================================================

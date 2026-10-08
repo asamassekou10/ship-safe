@@ -444,6 +444,34 @@ describe('a call is not its arguments', () => {
     ]);
     assert.equal(trace(file, 3, { rule: 'API_EXCESSIVE_DATA', category: 'api' }).claim.verdict, 'confirmed');
   });
+
+  it('does not call a request-body spread a confirmed mass-assignment exploit', () => {
+    const file = source('mass-assignment.js', [
+      'export async function handler(req) {',
+      '  return createUser({ ...req.body.user });',
+      '}',
+    ]);
+    const { claim } = trace(file, 2, {
+      rule: 'API_SPREAD_BODY', category: 'api',
+    });
+
+    assert.equal(claim.verdict, 'likely');
+    assert.match(claim.rationale, /cannot establish which fields the callee accepts or persists/);
+  });
+
+  it('caps direct ORM body spreads until writable model fields are known', () => {
+    const file = source('orm-mass-assignment.js', [
+      'export async function handler(req) {',
+      '  return prisma.user.create({ data: { ...req.body } });',
+      '}',
+    ]);
+    const { claim } = trace(file, 2, {
+      rule: 'MASS_ASSIGNMENT', category: 'api',
+    });
+
+    assert.equal(claim.verdict, 'likely');
+    assert.match(claim.rationale, /cannot establish which fields the model accepts or persists/);
+  });
 });
 
 describe('client-side sources', () => {

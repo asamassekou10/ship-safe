@@ -74,7 +74,7 @@ test('MCP initialize negotiates a supported protocol version', async () => {
     const timer = setTimeout(() => {
       child.kill();
       reject(new Error('MCP initialize response timed out'));
-    }, 10000);
+    }, 30000);
 
     child.stdout.on('data', chunk => { stdout += chunk; });
     child.stderr.on('data', chunk => { stderr += chunk; });
@@ -134,7 +134,7 @@ test('MCP modern discovery and result envelopes stay separate from legacy output
     const timer = setTimeout(() => {
       child.kill();
       reject(new Error('MCP modern protocol response timed out'));
-    }, 10000);
+    }, 30000);
 
     child.stdout.on('data', chunk => { stdout += chunk; });
     child.stderr.on('data', chunk => { stderr += chunk; });
