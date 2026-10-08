@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     strategy:
       matrix:
@@ -55,7 +55,7 @@ jobs:
 
   # Ensure the package can be installed and run via npx
   integration:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: test
 
     strategy:

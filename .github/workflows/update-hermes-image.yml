@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   check-and-build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     outputs:
       rebuilt: ${{ steps.set-rebuilt.outputs.rebuilt }}
@@ -106,7 +106,7 @@ jobs:
   # ── 4. Rolling restart on the VPS ──────────────────────────────────────────
   rollout:
     needs: check-and-build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: hermes-production
     if: needs.check-and-build.outputs.rebuilt == 'true' && inputs.dry_run != true
 
