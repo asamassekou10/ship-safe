@@ -14,6 +14,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Node 18 and 20 support; the package major version is now 11.
 - Gate npm publishing on deterministic detection, verdict, and Hermes
   release-evidence benchmarks, plus the dependency audit.
+- Keep the roadmap check honest during release prep: unreleased package
+  versions must match the `Now` milestone, while published versions must match
+  `Just shipped`.
 
 ### Fixed
 - Include report schema, package version, and generation time in scan, audit,
