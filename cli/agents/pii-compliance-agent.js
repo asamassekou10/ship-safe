@@ -29,7 +29,15 @@ const PATTERNS = [
   {
     rule: 'PII_IN_CONSOLE_LOG',
     title: 'Privacy: PII Logged to Console',
-    regex: /console\.(?:log|info|warn|error|debug)\s*\([\s\S]{0,100}(?:email|password|ssn|social.?security|credit.?card|phone.?number|date.?of.?birth|dob|passport|national.?id|driver.?license)/gi,
+    // The term has to sit in a *value* position and be word-bounded, the way
+    // PII_IN_LOGGER below already requires with `[.[(]email\b`.
+    //
+    // Without that this matched the word anywhere in the call, including inside
+    // the message. `console.error("PAID BUT NO EMAIL", session.id)` was a
+    // finding because the message says EMAIL — a log line reporting the
+    // *absence* of an address, read as one being logged. And `dob` had no
+    // boundary, so `console.log("adobe upload finished")` reported too.
+    regex: /console\.(?:log|info|warn|error|debug)\s*\((?:[\s\S]{0,100}[.\[{(,]\s*)?['"`]?(?:email|password|ssn|social_?security|credit_?card|phone_?number|date_?of_?birth|dob|passport|national_?id|driver_?license)\b/gi,
     severity: 'high',
     cwe: 'CWE-532',
     owasp: 'A09:2021',

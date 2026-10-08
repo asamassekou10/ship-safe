@@ -9,6 +9,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test cli/__tests__/*.test.js",
+    "check:roadmap": "node scripts/check-roadmap.mjs",
     "benchmark:corpus": "node benchmarks/run.mjs",
     "benchmark:verdicts": "node benchmarks/verdicts.mjs",
     "benchmark:verdicts:write": "node benchmarks/verdicts.mjs --write",

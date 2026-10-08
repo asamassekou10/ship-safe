@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
+      - name: Check the roadmap states the shipped version
+        run: npm run check:roadmap
+
       - name: Run unit tests
         run: npm test
 
