@@ -6,7 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [11.0.0] - Unreleased
+## [11.0.0] - 2026-10-08
 
 ### Changed
 - Require Node.js 22.13+ on the 22.x line or Node.js 24+, aligning the runtime

@@ -3,14 +3,27 @@
 What Ship Safe is working on, what just shipped, and what we are deliberately
 not building. Updated when a release goes out.
 
-If you want to help, the [11.0 milestone](https://github.com/asamassekou10/ship-safe/milestone/3)
-is the current work and its open issues are claimable. Comment on an issue to
-take it. Every new rule still needs a false-positive story before it is
-considered finished.
+The [11.0 milestone](https://github.com/asamassekou10/ship-safe/milestone/3)
+remains open; its remaining issues are claimable. Comment on an issue to take
+it. Every new rule still needs a false-positive story before it is considered
+finished.
 
 ---
 
-## Just shipped — 10.1.0, attestation precision
+## Just shipped — 11.0.0, Untrusted Inputs
+
+This major release raises the runtime floor to Node.js 22.13+ on the 22.x line
+or Node.js 24+, and improves evidence quality across the scanner: versioned
+JSON/SARIF reports, recursive path redaction, more precise prompt-injection and
+credential findings, safer ReDoS probes, and a glob implementation with a
+nesting limit. The publish workflow now gates npm publication on deterministic
+security benchmarks and the dependency audit.
+
+Full detail in the [changelog](CHANGELOG.md).
+
+---
+
+## Before that — 10.1.0, attestation precision
 
 A small, single-purpose release. The pinned advisory table in
 `cli/data/agent-advisories.json` records disclosure URLs as *evidence*, and the
@@ -45,7 +58,7 @@ Full detail in the [changelog](CHANGELOG.md).
 
 ---
 
-## Now — 11.0, Untrusted Inputs
+## Remaining work — 11.0 milestone
 
 An agent reads your repository before you type anything. Ship Safe 11.0 reads it
 first, and says which files can cause execution and which agent versions are
