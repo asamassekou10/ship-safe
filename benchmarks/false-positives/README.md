@@ -56,8 +56,11 @@ The October 7, 2026 run reports **654 findings** (63 critical) for Hermes at the
 same pinned commit, with 96 likely, 344 unknown, and 192 refuted investigator
 labels, no confirmed locations, and 22 findings without a label. That is eight
 fewer raw findings than the preceding snapshot, but it is not an accuracy
-result. The labels are tool conclusions, not independent human adjudications;
-the remaining tail still needs review.
+result. The labels are tool conclusions, not independent human adjudications.
+An AI-assisted source-level triage of the 63 critical locations is recorded in
+[`hermes-critical-review.md`](hermes-critical-review.md). It is not an
+independent human security audit, did not reproduce an exploit, and does not
+adjudicate the other 591 findings.
 
 The preceding detector refresh removed two prompt-injection matches caused by the
 `signed_content` identifier in Hermes's webhook HMAC verification. That value
