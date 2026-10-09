@@ -1,0 +1,11 @@
+{
+  "name": "Authenticated task agent",
+  "description": "Summarizes public reports.",
+  "supportedInterfaces": [{ "url": "https://agent.example.com/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0" }],
+  "securitySchemes": { "bearer": { "httpAuthSecurityScheme": { "scheme": "Bearer" } } },
+  "securityRequirements": [{ "schemes": { "bearer": { "list": [] } } }],
+  "skills": [{ "id": "summarize", "name": "Summarize", "description": "Summarizes text.", "tags": [] }],
+  "capabilities": { "pushNotifications": true },
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"]
+}

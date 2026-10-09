@@ -1,0 +1,7 @@
+{
+  "name": "Legacy unprotected agent",
+  "description": "Summarizes public reports.",
+  "url": "http://agent.example.com/a2a",
+  "authentication": { "schemes": ["none"] },
+  "skills": []
+}

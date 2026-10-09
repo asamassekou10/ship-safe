@@ -19,6 +19,7 @@ export { GitHistoryScanner } from './git-history-scanner.js';
 export { CICDScanner } from './cicd-scanner.js';
 export { APIFuzzer } from './api-fuzzer.js';
 export { SupabaseRLSAgent } from './supabase-rls-agent.js';
+export { A2ASecurityAgent } from './a2a-security-agent.js';
 export { MCPSecurityAgent } from './mcp-security-agent.js';
 export { AgenticSecurityAgent } from './agentic-security-agent.js';
 export { RAGSecurityAgent } from './rag-security-agent.js';
@@ -50,7 +51,7 @@ export { PolicyEngine } from './policy-engine.js';
 export { HTMLReporter } from './html-reporter.js';
 
 /**
- * Create a fully configured orchestrator with all 30 scanning agents.
+ * Create a fully configured orchestrator with all 31 scanning agents.
  * (VerifierAgent and DeepAnalyzer run as post-processors, not in the agent pool.)
  *
  * Plugin system: if rootPath is provided, custom agents from
@@ -69,6 +70,7 @@ import { GitHistoryScanner as GitHistoryScannerClass } from './git-history-scann
 import { CICDScanner as CICDScannerClass } from './cicd-scanner.js';
 import { APIFuzzer as APIFuzzerClass } from './api-fuzzer.js';
 import { SupabaseRLSAgent as SupabaseRLSAgentClass } from './supabase-rls-agent.js';
+import { A2ASecurityAgent as A2ASecurityAgentClass } from './a2a-security-agent.js';
 import { MCPSecurityAgent as MCPSecurityAgentClass } from './mcp-security-agent.js';
 import { AgenticSecurityAgent as AgenticSecurityAgentClass } from './agentic-security-agent.js';
 import { RAGSecurityAgent as RAGSecurityAgentClass } from './rag-security-agent.js';
@@ -104,6 +106,7 @@ const BUILT_IN_AGENTS = () => [
   new APIFuzzerClass(),
   new SupabaseRLSAgentClass(),
   new MCPSecurityAgentClass(),
+  new A2ASecurityAgentClass(),
   new AgenticSecurityAgentClass(),
   new RAGSecurityAgentClass(),
   new PIIComplianceAgentClass(),

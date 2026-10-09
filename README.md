@@ -61,7 +61,7 @@ are no longer supported by the current development version.
 # Interactive REPL: scan, fix, and ask questions in one session
 npx ship-safe
 
-# Full audit: secrets + 30 agents + deps + remediation plan
+# Full audit: secrets + 31 agents + deps + remediation plan
 npx ship-safe audit .
 
 # Investigate: confirmed / likely / unresolved / refuted, with the evidence
@@ -216,6 +216,7 @@ All agents run in parallel. Each skips irrelevant projects automatically.
 | **SupabaseRLSAgent** | Auth | service_role key in client code, tables without RLS, anon key inserts |
 | **LLMRedTeam** | AI/LLM | OWASP LLM Top 10: prompt injection, excessive agency, system prompt leakage |
 | **MCPSecurityAgent** | AI/LLM | MCP server misuse, tool poisoning, typosquatting, unvalidated inputs |
+| **A2ASecurityAgent** | AI/LLM | A2A agent card poisoning, missing authentication, plaintext endpoints, unsafe push callbacks, and unpinned remote cards ([coverage](docs/a2a-security.md)) |
 | **AgenticSecurityAgent** | AI/LLM | OWASP Agentic AI Top 10: agent hijacking, privilege escalation, Kimi K3/OpenAI-compatible tool-call misuse |
 | **RAGSecurityAgent** | AI/LLM | Context injection, document poisoning, vector DB access control |
 | **MemoryPoisoningAgent** | AI/LLM | Instruction injection in agent memory files, hidden Unicode payloads (ASI-01, ASI-05) |

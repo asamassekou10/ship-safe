@@ -1,0 +1,6 @@
+{
+  "configuration": {
+    "taskPushNotificationConfig": { "url": "https://callbacks.example.com/a2a" }
+  },
+  "oauth": { "redirectUri": "http://127.0.0.1:8080/callback" }
+}

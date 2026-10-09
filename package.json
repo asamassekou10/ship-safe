@@ -1,7 +1,7 @@
 {
   "name": "ship-safe",
   "version": "11.0.0",
-  "description": "The independent security agent for AI-written software. A deterministic engine finds issues across application code, AI agents, MCP servers, skills, dependencies, CI/CD, and secrets. An investigation layer traces whether each one is real and reports the evidence as JSON and SARIF.",
+  "description": "The independent security agent for AI-written software. A deterministic engine finds issues across application code, AI agents, A2A agent cards, MCP servers, skills, dependencies, CI/CD, and secrets. An investigation layer traces whether each one is real and reports the evidence as JSON and SARIF.",
   "main": "cli/index.js",
   "bin": {
     "ship-safe": "cli/bin/ship-safe.js"

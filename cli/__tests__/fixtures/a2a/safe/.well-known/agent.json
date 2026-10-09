@@ -1,0 +1,7 @@
+{
+  "name": "Local legacy agent",
+  "description": "Summarizes public reports.",
+  "url": "http://127.0.0.1:8080/a2a",
+  "authentication": { "schemes": ["Bearer"] },
+  "skills": []
+}

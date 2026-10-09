@@ -275,7 +275,7 @@ program
 // -----------------------------------------------------------------------------
 program
   .command('audit [path]')
-  .description('Full security audit: secrets + 30 agents + deps + score + deep analysis + remediation plan')
+  .description('Full security audit: secrets + 31 agents + deps + score + deep analysis + remediation plan')
   .option('--include-tests', 'Also scan test, fixture, and example files (excluded by default to reduce false positives)')
   .option('--include-doc-examples', 'Also scan fenced Markdown code examples for code vulnerabilities')
   .option('--json', 'Output results as JSON')
@@ -324,7 +324,7 @@ program
 // -----------------------------------------------------------------------------
 program
   .command('red-team [path]')
-  .description('Multi-agent security audit: 30 agents scan for 80+ attack classes')
+  .description('Multi-agent security audit: 31 agents scan for 80+ attack classes')
   .option('--agents <list>', 'Comma-separated list of agents to run')
   .option('--json', 'Output results as JSON')
   .option('--sarif', 'Output results in SARIF format')
@@ -751,7 +751,7 @@ if (process.argv.length === 2 && process.stdin.isTTY) {
   console.log(banner);
   console.log(chalk.yellow('\nQuick start:\n'));
   console.log(chalk.cyan.bold('  v9.0 — Agent Studio, Teams & Findings'));
-  console.log(chalk.white('  npx ship-safe audit .       ') + chalk.gray('# Full audit: secrets + 30 agents + deps + remediation'));
+  console.log(chalk.white('  npx ship-safe audit .       ') + chalk.gray('# Full audit: secrets + 31 agents + deps + remediation'));
   console.log(chalk.white('  npx ship-safe audit . --deep') + chalk.gray('# LLM-powered taint analysis (Anthropic/Ollama)'));
   console.log(chalk.white('  npx ship-safe red-team .    ') + chalk.gray('# 29-agent red team scan (80+ attack classes)'));
   console.log(chalk.white('  npx ship-safe vibe-check .  ') + chalk.gray('# Fun security check with emoji & shareable badge'));

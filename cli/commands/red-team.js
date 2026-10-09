@@ -359,6 +359,7 @@ function outputJSON(scoreResult, findings, recon, agentResults, rootPath) {
       title: f.title,
       description: f.description,
       fix: f.fix,
+      ...(f.signatureState ? { signatureState: f.signatureState } : {}),
       aiClassification: f.aiClassification,
       aiFix: f.aiFix,
       attackPath: f.attackPath,

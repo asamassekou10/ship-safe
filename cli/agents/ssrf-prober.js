@@ -10,6 +10,7 @@
  */
 
 import path from 'path';
+import { CLOUD_METADATA_PATTERN } from '../utils/ssrf-destinations.js';
 import { BaseAgent, isInsideJavaScriptNonCode } from './base-agent.js';
 
 const PATTERNS = [
@@ -63,7 +64,7 @@ const PATTERNS = [
     // code, not an outbound request. Require the literal inside a network
     // client call so `if (hostname === 'metadata.google.internal') return
     // false` is not reported as credential theft.
-    regex: /\b(?:fetch|axios|got|request|superagent|node-fetch|undici|requests|httpx|http|https)(?:\.\w+)?\s*\([^)\n]*(?:169\.254\.169\.254|metadata\.google\.internal|100\.100\.100\.200)[^)\n]*\)/gi,
+    regex: new RegExp(String.raw`\b(?:fetch|axios|got|request|superagent|node-fetch|undici|requests|httpx|http|https)(?:\.\w+)?\s*\([^)\n]*(?:${CLOUD_METADATA_PATTERN})[^)\n]*\)`, 'gi'),
     skipComments: true,
     isCodeMatch: ({ source, sourceOffset }) => !isInsideJavaScriptNonCode(source, sourceOffset),
     severity: 'critical',

@@ -19,6 +19,7 @@
  *          ASI03 (Privilege Abuse), ASI04 (Supply Chain)
  */
 
+import { AGENT_INSTRUCTION_PATTERNS } from '../utils/agent-instructions.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -116,7 +117,7 @@ const PATTERNS = [
   {
     rule: 'AGENT_CFG_PROMPT_OVERRIDE',
     title: 'Agent Config: Prompt Injection — Override Instructions',
-    regex: /(?:ignore\s+(?:all\s+)?(?:previous|prior|above)\s+instructions|disregard\s+(?:all\s+)?(?:above|prior|previous)|you\s+are\s+now\s+(?:a|an)\s|new\s+(?:instructions|role|persona)\s*:|override\s+(?:system|previous|all)\s+(?:instructions|prompt|rules)|forget\s+(?:everything|all\s+(?:previous|prior)))/gi,
+    regex: AGENT_INSTRUCTION_PATTERNS.PROMPT_OVERRIDE,
     severity: 'critical',
     cwe: 'CWE-74',
     owasp: 'ASI01',
@@ -126,7 +127,7 @@ const PATTERNS = [
   {
     rule: 'AGENT_CFG_ROLE_HIJACK',
     title: 'Agent Config: Role/Identity Hijacking',
-    regex: /(?:act\s+as\s+(?:a\s+)?(?:hacker|attacker|malicious|evil|unfiltered)|pretend\s+(?:you\s+are|to\s+be)\s+(?:a\s+)?(?:different|new|unrestricted)|your\s+(?:new|real|true|actual)\s+(?:role|purpose|goal|identity)\s+is)/gi,
+    regex: AGENT_INSTRUCTION_PATTERNS.ROLE_HIJACK,
     severity: 'critical',
     cwe: 'CWE-74',
     owasp: 'ASI01',
@@ -136,7 +137,7 @@ const PATTERNS = [
   {
     rule: 'AGENT_CFG_HIDDEN_INSTRUCTION',
     title: 'Agent Config: Hidden Instructions in Comments',
-    regex: /<!--[\s\S]{0,500}?(?:ignore|override|execute|fetch|curl|wget|send\s+to|exfiltrate|upload)[\s\S]{0,500}?-->/gi,
+    regex: AGENT_INSTRUCTION_PATTERNS.HIDDEN_INSTRUCTION,
     severity: 'critical',
     cwe: 'CWE-74',
     owasp: 'ASI01',
@@ -204,8 +205,7 @@ const PATTERNS = [
   {
     rule: 'AGENT_CFG_ZERO_WIDTH',
     title: 'Agent Config: Zero-Width Character Cluster',
-    // eslint-disable-next-line no-misleading-character-class
-    regex: /[\u200B\u200C\u200D\uFEFF\u2060]{4,}/g,
+    regex: AGENT_INSTRUCTION_PATTERNS.ZERO_WIDTH,
     severity: 'high',
     cwe: 'CWE-116',
     owasp: 'ASI01',

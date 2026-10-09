@@ -208,3 +208,27 @@ describe('install docs are judged by whose host they point at', async () => {
     assert.equal(hits[0].severity, 'high');
   });
 });
+
+describe('A2A absence rules stay quiet with authentication and an integrity pin', () => {
+  it('A2A_CARD_NO_AUTH: a declared bearer scheme', async () => {
+    const { A2ASecurityAgent } = await import('../agents/a2a-security-agent.js');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shipsafe-a2a-auth-'));
+    try {
+      const file = path.join(dir, '.well-known', 'agent-card.json');
+      fs.mkdirSync(path.dirname(file));
+      fs.writeFileSync(file, JSON.stringify({ name: 'Example', securitySchemes: { bearer: { type: 'http', scheme: 'bearer' } }, security: [{ bearer: [] }] }));
+      const findings = await new A2ASecurityAgent().analyze({ rootPath: dir, files: [file] });
+      assert.equal(findings.filter(f => f.rule === 'A2A_CARD_NO_AUTH').length, 0);
+    } finally { cleanup(dir); }
+  });
+
+  it('A2A_REMOTE_CARD_UNPINNED: Fetch verifies a literal SHA-256 integrity pin', async () => {
+    const { A2ASecurityAgent } = await import('../agents/a2a-security-agent.js');
+    const hash = Buffer.alloc(32).toString('base64');
+    const { dir, file } = writeTemp(`fetch('https://agent.example.com/.well-known/agent-card.json', { integrity: 'sha256-${hash}' });`);
+    try {
+      const findings = await new A2ASecurityAgent().analyze({ rootPath: dir, files: [file] });
+      assert.equal(findings.filter(f => f.rule === 'A2A_REMOTE_CARD_UNPINNED').length, 0);
+    } finally { cleanup(dir); }
+  });
+});
