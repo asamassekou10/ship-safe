@@ -205,7 +205,7 @@ program
   .option('--pr', 'After fixing, push the branch and open a pull request via gh CLI (requires --branch)')
   .option('--yolo', 'Auto-accept every plan without prompting (use with caution; pairs well with --branch)')
   .option('--auto-low', 'Auto-accept plans marked risk:low; prompt for medium/high')
-  .option('--sandbox', 'Verify each fix in a Docker sandbox (not yet implemented)')
+  .option('--sandbox', 'Require isolated verification (currently unsupported; exits without changes)')
   .option('--legacy', 'Use the legacy non-interactive Claude-only agent')
   .action((targetPath, options) => {
     if (options.legacy) {

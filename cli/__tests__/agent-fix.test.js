@@ -21,9 +21,43 @@ import {
   locateFindString,
   countOccurrences,
   windowFileContent,
+  verifyFile,
 } from '../commands/agent-fix.js';
 import { reverseEntry } from '../commands/undo.js';
 import { findUpwards } from '../commands/audit.js';
+import { spawnSync } from 'node:child_process';
+
+describe('verification boundaries', () => {
+  const target = { file: 'a.js', line: 1, rule: 'DEMO', evidence: { verdict: 'confirmed' } };
+
+  it('retains cross-file regressions instead of filtering them to the target file', async () => {
+    const result = await verifyFile('/fixture', 'a.js', [target], {
+      audit: async () => ({ findings: [
+        { ...target, evidence: { verdict: 'refuted' } },
+        { ...target, file: 'b.js' },
+      ] }),
+    });
+    assert.equal(result.allResolved, false);
+    assert.equal(result.verification.introduced[0].file, 'b.js');
+    assert.equal(result.verification.scope.kind, 'repository');
+  });
+
+  it('does not interpret an incomplete rescan as detector disappearance', async () => {
+    const result = await verifyFile('/fixture', 'a.js', [target], { audit: async () => ({}) });
+    assert.equal(result.allResolved, false);
+    assert.equal(result.verification, null);
+  });
+
+  it('rejects an unavailable sandbox before provider lookup or workspace access', () => {
+    const result = spawnSync(process.execPath, [
+      path.resolve('cli/bin/ship-safe.js'), 'agent', '/nonexistent/ship-safe-fixture',
+      '--sandbox', '--branch', '--allow-dirty',
+    ], { encoding: 'utf8', timeout: 15000 });
+    assert.equal(result.status, 1);
+    assert.match(result.stdout + result.stderr, /sandbox is unsupported/);
+    assert.doesNotMatch(result.stdout + result.stderr, /falling back|No LLM provider|Path does not exist/);
+  });
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS

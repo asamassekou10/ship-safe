@@ -79,7 +79,7 @@ npx ship-safe capabilities .
 # AI agent red-team scenarios for agent-readable content
 npx ship-safe red-team . --gpt-red
 
-# Interactive fix agent: plan, diff, approve, verify the path closed
+# Interactive fix agent: plan, diff, approve, inspect the static rescan
 npx ship-safe agent .
 npx ship-safe agent . --severity critical   # critical findings only
 npx ship-safe agent . --branch --pr         # fix on a branch + open a PR
@@ -138,7 +138,7 @@ version in their tool metadata.
 1. **Scan locally** - Ship Safe inspects your repo with targeted agents and skips checks that do not apply.
 2. **Investigate each finding** - Separate passes decide whether it is real, ranked so a cheaper one never overturns a more expensive one: a traced data path outranks a model's reading of the same file, and a probe that authenticated outranks both.
 3. **Read the evidence** - Findings resolve to confirmed, likely, unresolved, or refuted, each citing the lines it was concluded from, so you can disagree with a step instead of a severity label.
-4. **Fix with control** - The agent proposes a plan and diff, asks before writing, verifies the result, and keeps changes reversible.
+4. **Fix with control** - The agent proposes a plan and diff, asks before writing, reports static rescan evidence, and keeps changes reversible. Detector disappearance is not an independent retest; see [fix outcomes](docs/fix-verification.md).
 5. **Gate in CI** - Use `ship-safe ci` to fail risky builds and upload SARIF into GitHub code scanning.
 
 <p align="center">
@@ -471,6 +471,7 @@ Start here:
 - [Use Ship Safe with Codex](./docs/integrations/codex.md)
 - [Use Ship Safe with Claude Code](./docs/integrations/claude-code.md)
 - [Use Ship Safe with Cursor](./docs/integrations/cursor.md)
+- [Understand fix outcomes and static verification limits](./docs/fix-verification.md)
 - [Release process](./docs/releasing.md)
 
 ---

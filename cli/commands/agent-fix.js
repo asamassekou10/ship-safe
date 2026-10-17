@@ -8,7 +8,7 @@
  *   2. Shows you exactly what it will change (unified diff with line numbers)
  *   3. Asks you to accept, skip, or quit
  *   4. Applies the changes atomically
- *   5. Re-scans to verify the findings are resolved
+ *   5. Re-scans to report disappearance, static refutation or residual findings
  *   6. Logs every change to .ship-safe/fixes.jsonl
  *
  * USAGE:
@@ -22,7 +22,7 @@
  * SAFETY:
  *   - Refuses to operate on a dirty git tree (use --allow-dirty to override)
  *   - Always shows a diff before any write
- *   - Re-scans after each batch to verify the fix
+ *   - Re-scans after each batch without claiming an independent security retest
  *   - Plans may create new files (e.g., .env.example) but cannot edit
  *     .env, secrets, lockfiles, or build artifacts
  *   - Every applied change is logged for audit & undo (`ship-safe undo`)
@@ -64,6 +64,12 @@ const FIX_LOG_FILE = 'fixes.jsonl';
 // =============================================================================
 
 export async function agentFixCommand(targetPath = '.', options = {}) {
+  // Reject before provider discovery, branch creation, scanning or file edits.
+  if (options.sandbox) {
+    output.error('--sandbox is unsupported. No isolated verification runner is available; no changes were made.');
+    process.exitCode = 1;
+    return;
+  }
   const root = path.resolve(targetPath);
 
   if (!fs.existsSync(root)) {
@@ -74,7 +80,7 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
   console.log();
   output.header('Ship Safe — Security Agent');
   console.log(chalk.gray('  I will scan, plan each fix, ask before changing anything,'));
-  console.log(chalk.gray('  and verify the fix worked. You stay in control.'));
+  console.log(chalk.gray('  and report what a static rescan establishes. You stay in control.'));
   console.log();
 
   // ── Git safety check ─────────────────────────────────────────────────────
@@ -126,11 +132,6 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
     process.exit(1);
   }
   console.log(chalk.gray(`  Provider: ${chalk.cyan(provider.name)}`));
-
-  if (options.sandbox) {
-    console.log(chalk.yellow('  --sandbox is not yet implemented — falling back to in-process verification.'));
-    console.log(chalk.gray('  Track this in the agent\'s next milestone.'));
-  }
 
   // ── Run the scan ─────────────────────────────────────────────────────────
   const scanSpinner = ora({ text: 'Scanning for issues...', color: 'cyan' }).start();
@@ -270,21 +271,21 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
 
     // Verify by re-scanning
     const verifySpinner = ora({ text: 'Verifying...', color: 'cyan', indent: 6 }).start();
-    const verified = await verifyFile(root, filePath, fileFindings);
+    const verified = await verifyFile(root, filePath, fileFindings, { baseline: scanResult.findings ?? [] });
     if (verified.allResolved) {
-      verifySpinner.succeed(chalk.green(`Fix verified — ${describeFixOutcome(verified.verification)}`));
+      verifySpinner.succeed(chalk.green(`Statically refuted: ${describeFixOutcome(verified.verification)}`));
     } else if (verified.someResolved) {
       verifySpinner.warn(chalk.yellow(`Partial — ${describeFixOutcome(verified.verification)}`));
     } else {
       verifySpinner.warn(chalk.yellow(verified.verification
-        ? `Fix applied, but nothing closed — ${describeFixOutcome(verified.verification)}`
+        ? `Fix applied; remediation inconclusive: ${describeFixOutcome(verified.verification)}`
         : 'Fix applied, but findings still appear'));
     }
 
     // A fix is an edit like any other. The only thing worse than an unfixed
     // finding is a new one nobody looked for.
     for (const created of verified.verification?.introduced ?? []) {
-      console.log(chalk.red(`      ! new confirmed finding: ${created.rule} at line ${created.line}`));
+      console.log(chalk.red(`      ! new ${created.verdict} finding: ${created.rule} in ${created.file} at line ${created.line}`));
       if (created.evidence) console.log(chalk.dim(`        ${created.evidence}`));
     }
 
@@ -316,7 +317,13 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
       file:      filePath,
       findings:  fileFindings.map(f => ({ title: f.title, line: f.line, severity: f.severity, rule: f.rule })),
       plan,
-      verified:  verified.allResolved,
+      verified:  false,
+      // Persist the verdict summary, not new copies of source-bearing rationale.
+      verification: verified.verification ? {
+        schemaVersion: verified.verification.schemaVersion,
+        scope: verified.verification.scope,
+        summary: verified.verification.summary,
+      } : null,
       branch:    branchCreated,
     });
 
@@ -338,6 +345,7 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
       const mark = a.verified.allResolved ? chalk.green('✓') : chalk.yellow('?');
       console.log(`    ${mark} ${a.file}`);
     }
+    console.log(chalk.gray('  Check marks indicate static refutation only; no independent retest was performed.'));
     console.log();
     console.log(chalk.gray(`  Audit log: ${path.join(FIX_LOG_DIR, FIX_LOG_FILE)}`));
     if (branchCreated) {
@@ -710,15 +718,16 @@ function applyEdit(root, fileChange) {
  * only the first tells a person their fix failed when it worked, and worse,
  * tells them it worked when it only hid.
  */
-async function verifyFile(root, filePath, originalFindings) {
+export async function verifyFile(root, filePath, originalFindings, { baseline = originalFindings, audit = auditCommand } = {}) {
   try {
-    const result = await auditCommand(root, { _agenticInner: true, deep: false, deps: false, noAi: true });
-    const after = (result.findings ?? []).filter(f => f.file === filePath);
-    const verification = classifyFixOutcome(originalFindings, after);
+    const result = await audit(root, { _agenticInner: true, deep: false, deps: false, noAi: true });
+    if (!Array.isArray(result.findings)) throw new Error('Incomplete rescan');
+    const verification = classifyFixOutcome(originalFindings, result.findings, { baseline });
+    verification.scope = { kind: 'repository', target: filePath };
     const { summary } = verification;
 
     return {
-      allResolved:  summary.verified,
+      allResolved:  summary.staticallyRefuted,
       someResolved: summary.resolved + summary.neutralised > 0,
       resolvedCount: summary.resolved + summary.neutralised,
       verification,
@@ -805,7 +814,7 @@ async function openPullRequest(root, branch, applied) {
   const body = [
     '## Ship Safe — Security Fixes',
     '',
-    `Applied ${applied.length} file(s) of fixes (${totalFindings} edit(s)) generated and verified by the Ship Safe agent.`,
+    `Applied ${applied.length} file(s) of proposed fixes (${totalFindings} edit(s)) generated by the Ship Safe agent and reviewed by static rescan.`,
     '',
     '### Files changed',
     ...applied.map(a => {
@@ -814,8 +823,9 @@ async function openPullRequest(root, branch, applied) {
     }),
     '',
     '### Notes',
-    '- Each fix was generated by an LLM and verified by re-scanning the file.',
-    '- Files marked ⚠ have residual findings; review carefully before merging.',
+    '- Each fix was generated by an LLM and followed by a repository-wide static rescan.',
+    '- A check mark means the targeted findings were statically refuted, not independently retested.',
+    '- Files marked ⚠ have inconclusive results or residual findings; review carefully before merging.',
     '- Full audit log: `.ship-safe/fixes.jsonl`',
     '',
     'Generated by `ship-safe agent`.',
