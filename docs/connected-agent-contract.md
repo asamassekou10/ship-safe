@@ -74,7 +74,7 @@ MCP connection or badge. Denied, cancelled, unsupported, timed out, failed and
 inconclusive are distinct outcomes, never success.
 
 Static detector disappearance is not verified remediation. Static refutation
-and independent retest are different evidence levels (see [fix outcomes](fix-verification.md)).
+and independent retest are different evidence levels (see [fix outcomes #228](https://github.com/asamassekou10/ship-safe/issues/228)).
 Cases must bind source, policy, tool version, acquisition time and evidence
 origin. Changed source or policy makes an old decision stale. Treat imported
 claims as untrusted until validated; no agent can forge a successful retest by
