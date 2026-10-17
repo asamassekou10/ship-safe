@@ -13,15 +13,16 @@
  * With evidence attached to findings both readings become available, and they
  * disagree often enough to be worth separating:
  *
- *   resolved     the detector no longer fires. The code that matched is gone.
+ *   resolved     no matching detector result remains; closure is not established.
  *   neutralised  it still fires, and the investigation now refutes it. The
- *                pattern remains and the path is closed — usually the better
- *                fix, and the one the old check called a failure.
+ *                pattern remains and static analysis refutes the path, not a replay.
  *   weakened     it still fires and nothing is established any more. Something
  *                changed; whether it was the right thing is not known.
  *   unchanged    it still fires and the evidence still stands.
- *   introduced   a confirmed finding that was not there before.
+ *   introduced   a confirmed or likely finding absent from the baseline.
  *
+ * Disappearance is not proof of remediation. This comparator never executes
+ * an independent security retest, so it cannot set summary.verified to true.
  * The last one exists because a fix is an edit like any other, and the only
  * thing worse than an unfixed finding is a new one nobody looked for.
  */
@@ -44,9 +45,10 @@ function sameFinding(a, b) {
  *
  * @param {object[]} before — findings as investigated before the edit
  * @param {object[]} after  — findings as investigated after it
- * @returns {{outcomes: object[], introduced: object[], summary: object}}
+ * @param {{baseline?: object[]}} options full pre-edit scan, for regression scope
+ * @returns {{schemaVersion: number, outcomes: object[], introduced: object[], summary: object}}
  */
-export function classifyFixOutcome(before = [], after = []) {
+export function classifyFixOutcome(before = [], after = [], { baseline = before } = {}) {
   const matched = new Set();
 
   const outcomes = before.map((original) => {
@@ -60,25 +62,40 @@ export function classifyFixOutcome(before = [], after = []) {
       before: verdictOf(original),
       after: survivor ? verdictOf(survivor) : null,
       outcome: outcomeFor(verdictOf(original), survivor ? verdictOf(survivor) : null),
-      // The reason the survivor is now refuted is the proof the fix worked, so
-      // it travels with the outcome rather than being summarised away.
+      // Preserve the static rationale without treating it as independent proof.
       evidence: survivor?.evidence?.claims?.at(-1)?.rationale || null,
     };
   });
 
-  // A finding the edit created. Only confirmed ones are reported: an edit that
-  // makes a scanner newly uncertain about something is not a regression worth
-  // stopping a person for.
+  // Compare against the complete baseline, not just the target file. Preserve
+  // one-to-one matching so existing debt does not hide a newly added duplicate.
+  const baselineMatches = new Set();
+  const baselineGroups = new Map();
+  for (const item of baseline) {
+    const key = JSON.stringify([item.file, item.rule]);
+    const group = baselineGroups.get(key) ?? [];
+    group.push(item);
+    baselineGroups.set(key, group);
+  }
   const introduced = after
-    .filter((candidate) => !matched.has(candidate) && verdictOf(candidate) === 'confirmed')
-    .map((candidate) => ({
-      rule: candidate.rule,
-      file: candidate.file,
-      line: candidate.line,
-      evidence: candidate.evidence?.claims?.at(-1)?.rationale || null,
-    }));
+    .flatMap((candidate) => {
+      const group = baselineGroups.get(JSON.stringify([candidate.file, candidate.rule])) ?? [];
+      const existing = group.find(item => !baselineMatches.has(item) && sameFinding(item, candidate));
+      if (existing) baselineMatches.add(existing);
+      const escalated = existing && !ESTABLISHED.has(verdictOf(existing));
+      if (!ESTABLISHED.has(verdictOf(candidate)) || (existing && !escalated)) return [];
+      return [{
+        rule: candidate.rule,
+        file: candidate.file,
+        line: candidate.line,
+        verdict: verdictOf(candidate),
+        change: existing ? 'escalated' : 'introduced',
+        before: existing ? verdictOf(existing) : null,
+        evidence: candidate.evidence?.claims?.at(-1)?.rationale || null,
+      }];
+    });
 
-  return { outcomes, introduced, summary: summarize(outcomes, introduced) };
+  return { schemaVersion: 2, outcomes, introduced, summary: summarize(outcomes, introduced) };
 }
 
 function outcomeFor(before, after) {
@@ -96,26 +113,33 @@ function summarize(outcomes, introduced) {
   const counts = { resolved: 0, neutralised: 0, weakened: 0, unchanged: 0 };
   for (const outcome of outcomes) counts[outcome.outcome] += 1;
 
+  const staticallyRefuted = outcomes.length > 0
+    && counts.neutralised === outcomes.length && introduced.length === 0;
   return {
     ...counts,
     introduced: introduced.length,
-    // What a person actually wants to know: is every finding this fix targeted
-    // either gone or demonstrably closed, and did it cost anything.
-    verified: counts.resolved + counts.neutralised === outcomes.length && introduced.length === 0,
+    status: introduced.length ? 'regression_detected'
+      : !outcomes.length ? 'not_applicable'
+      : staticallyRefuted ? 'statically_refuted' : 'inconclusive',
+    staticallyRefuted,
+    // Retained for JSON consumers, but v2 reserves this for independent retests.
+    // A static comparison cannot establish that guarantee.
+    verified: false,
     total: outcomes.length,
   };
 }
 
 /** One line a person can read without unpacking the object. */
 export function describeFixOutcome({ summary }) {
-  if (!summary.total) return 'Nothing to verify.';
+  if (!summary.total && !summary.introduced) return 'Nothing to verify. No independent retest performed.';
 
   const parts = [];
   if (summary.resolved) parts.push(`${summary.resolved} no longer detected`);
-  if (summary.neutralised) parts.push(`${summary.neutralised} still detected but now refuted`);
+  if (summary.neutralised) parts.push(`${summary.neutralised} still detected but now refuted by static analysis`);
   if (summary.weakened) parts.push(`${summary.weakened} weakened without proof`);
   if (summary.unchanged) parts.push(`${summary.unchanged} unchanged`);
+  if (!summary.total) parts.push('No original target findings');
 
-  const tail = summary.introduced ? `, and ${summary.introduced} new confirmed finding(s)` : '';
-  return `${parts.join(', ')}${tail}.`;
+  const tail = summary.introduced ? `, and ${summary.introduced} new confirmed or likely finding(s) (including escalations)` : '';
+  return `${parts.join(', ')}${tail}. No independent retest performed.`;
 }

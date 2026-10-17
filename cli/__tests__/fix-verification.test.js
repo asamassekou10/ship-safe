@@ -29,7 +29,9 @@ describe('what counts as fixed', () => {
   it('calls a finding resolved when the detector stops firing', () => {
     const result = classifyFixOutcome([finding('confirmed')], []);
     assert.equal(only(result).outcome, 'resolved');
-    assert.equal(result.summary.verified, true);
+    assert.equal(result.schemaVersion, 2);
+    assert.equal(result.summary.verified, false, 'detector silence is not an independent retest');
+    assert.equal(result.summary.status, 'inconclusive');
   });
 
   it('calls it neutralised when the pattern remains and the path is closed', () => {
@@ -38,7 +40,9 @@ describe('what counts as fixed', () => {
     const result = classifyFixOutcome([finding('confirmed')], [finding('refuted')]);
 
     assert.equal(only(result).outcome, 'neutralised');
-    assert.equal(result.summary.verified, true, 'a closed path is a fix');
+    assert.equal(result.summary.verified, false, 'static refutation is not an independent retest');
+    assert.equal(result.summary.staticallyRefuted, true);
+    assert.equal(result.summary.status, 'statically_refuted');
     assert.match(only(result).evidence, /refuted by trace/, 'the reason travels with the outcome');
   });
 
@@ -76,7 +80,8 @@ describe('what the fix cost', () => {
   it('does not report a merely uncertain new finding as a regression', () => {
     const result = classifyFixOutcome([finding('confirmed')], [finding('refuted'), finding(null, { line: 40, rule: 'OTHER' })]);
     assert.equal(result.introduced.length, 0);
-    assert.equal(result.summary.verified, true);
+    assert.equal(result.summary.verified, false);
+    assert.equal(result.summary.staticallyRefuted, true);
   });
 });
 
@@ -109,5 +114,78 @@ describe('saying it in one line', () => {
 
   it('handles having nothing to verify', () => {
     assert.match(describeFixOutcome(classifyFixOutcome([], [])), /Nothing to verify/);
+    assert.equal(classifyFixOutcome([], []).summary.verified, false);
+    assert.equal(classifyFixOutcome([], []).summary.status, 'not_applicable');
+  });
+});
+
+describe('truthful remediation boundaries', () => {
+  for (const before of ['refuted', 'unknown', 'likely', 'confirmed']) {
+    for (const after of ['refuted', 'unknown', 'likely', 'confirmed']) {
+      it(`classifies baseline verdict transition ${before} -> ${after}`, () => {
+        const target = finding('confirmed');
+        const debt = finding(before, { file: '/repo/src/other.js' });
+        const result = classifyFixOutcome([target], [finding('refuted'),
+          finding(after, { file: debt.file })], { baseline: [target, debt] });
+        const escalated = ['refuted', 'unknown'].includes(before) && ['likely', 'confirmed'].includes(after);
+        assert.equal(result.introduced.length, escalated ? 1 : 0);
+        assert.equal(result.summary.staticallyRefuted, !escalated);
+        if (escalated) {
+          assert.equal(result.summary.status, 'regression_detected');
+          assert.equal(result.introduced[0].change, 'escalated');
+          assert.equal(result.introduced[0].before, before);
+        }
+      });
+    }
+  }
+  it('reports regressions even without original target findings', () => {
+    const result = classifyFixOutcome([], [finding('confirmed')]);
+    assert.equal(result.summary.status, 'regression_detected');
+    assert.equal(result.summary.verified, false);
+    assert.match(describeFixOutcome(result), /1 new confirmed or likely finding/);
+    assert.match(describeFixOutcome(result), /No independent retest performed/);
+    assert.doesNotMatch(describeFixOutcome(result), /Nothing to verify/);
+  });
+
+  it('does not verify a moved sink that became uncertain', () => {
+    const result = classifyFixOutcome([finding('confirmed')], [finding('unknown', { line: 90 })]);
+    assert.equal(result.summary.verified, false);
+    assert.equal(result.summary.status, 'inconclusive');
+  });
+
+  it('does not verify a renamed or unrelated rewrite that hides the original rule', () => {
+    const result = classifyFixOutcome([finding('confirmed')], [finding('unknown', { rule: 'RENAMED_RULE' })]);
+    assert.equal(result.summary.verified, false);
+    assert.equal(result.summary.status, 'inconclusive');
+  });
+
+  it('reports new likely findings in another file', () => {
+    const result = classifyFixOutcome([finding('confirmed')], [
+      finding('refuted'), finding('likely', { file: '/repo/src/other.js' }),
+    ]);
+    assert.equal(result.introduced[0].verdict, 'likely');
+    assert.equal(result.summary.staticallyRefuted, false);
+    assert.equal(result.summary.status, 'regression_detected');
+  });
+
+  it('does not mistake existing repository debt for a regression', () => {
+    const target = finding('confirmed');
+    const debt = finding('confirmed', { file: '/repo/src/other.js' });
+    const result = classifyFixOutcome([target], [finding('refuted'), debt], { baseline: [target, debt] });
+    assert.equal(result.introduced.length, 0);
+    assert.equal(result.summary.staticallyRefuted, true);
+  });
+
+  it('does not reuse one baseline finding to hide a newly added duplicate', () => {
+    const target = finding('confirmed');
+    const result = classifyFixOutcome([target], [finding('confirmed'), finding('confirmed')]);
+    assert.equal(result.introduced.length, 1);
+    assert.equal(result.summary.status, 'regression_detected');
+  });
+
+  it('names the limit of static refutation in human output', () => {
+    const result = classifyFixOutcome([finding('confirmed')], [finding('refuted')]);
+    assert.match(describeFixOutcome(result), /static analysis/);
+    assert.match(describeFixOutcome(result), /No independent retest performed/);
   });
 });

@@ -6,6 +6,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Changed
+- Introduce fix-outcome schema version 2: detector disappearance stays
+  inconclusive, static refutation is named separately, and the legacy
+  `verified` boolean is false without an independent retest. Consumers must
+  migrate to the explicit outcome/status fields; release compatibility requires
+  maintainer review. This does not change the scan-report schema version.
+- Include repository-wide confirmed and likely regressions in fix comparisons,
+  including refuted/uncertain baseline findings that escalate, without treating
+  unchanged established debt as newly introduced findings.
+- Use a common final rescan for all fix-summary and generated-PR marks. Reject
+  positive verification results from incomplete secret/agent scans and keep
+  final-session logs separate from historical per-edit undo records.
+- Fail an unsupported `agent --sandbox` request before side effects instead of
+  falling back to an in-process rescan.
+
 ## [11.0.0] - 2026-10-08
 
 ### Changed

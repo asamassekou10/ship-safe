@@ -57,6 +57,14 @@ const PACKAGE_VERSION = JSON.parse(
 // CONSTANTS
 // =============================================================================
 
+// Completion covers these selected local phases, not dependencies, live probes,
+// or every file/check in the repository. Inapplicable agents are not failures.
+export function summarizeScanCompletion(failedPhases, agentResults) {
+  const failedAgents = agentResults.filter(result => result.success === false).length;
+  return { scope: 'secrets_and_agents', complete: failedPhases.length === 0 && failedAgents === 0,
+    failedPhases: [...failedPhases], failedAgents };
+}
+
 const ALL_PATTERNS = [...SECRET_PATTERNS, ...SECURITY_PATTERNS];
 
 const SEV_ORDER = ['critical', 'high', 'medium', 'low'];
@@ -92,6 +100,7 @@ const EFFORT_MAP = {
 export async function auditCommand(targetPath = '.', options = {}) {
   const absolutePath = path.resolve(targetPath);
   const machineOutput = options.json || options.sarif || options.csv || options.md;
+  const failedPhases = [];
 
   if (!fs.existsSync(absolutePath)) {
     console.error(chalk.red(`  Path does not exist: ${absolutePath}`));
@@ -191,6 +200,7 @@ export async function auditCommand(targetPath = '.', options = {}) {
         : chalk.red(`[Phase 1/4] Secrets: ${secretFindings.length} found${cacheNote}`)
     );
   } catch (err) {
+    failedPhases.push('secrets');
     if (secretSpinner) secretSpinner.fail(chalk.red(`[Phase 1/4] Secret scan failed: ${err.message}`));
   }
 
@@ -240,6 +250,7 @@ export async function auditCommand(targetPath = '.', options = {}) {
         : chalk.yellow(`[Phase 2/4] ${agentCount} agents: ${totalAgentFindings} finding(s)`)
     );
   } catch (err) {
+    failedPhases.push('agents');
     if (agentSpinner) agentSpinner.fail(chalk.red(`[Phase 2/4] Agent scan failed: ${err.message}`));
   }
 
@@ -446,7 +457,8 @@ export async function auditCommand(targetPath = '.', options = {}) {
 
   // Skip all output and file generation for inner agentic re-scans
   if (options._agenticInner) {
-    return { score: scoreResult.score, findings: filteredFindings };
+    return { score: scoreResult.score, findings: filteredFindings,
+      scanCompletion: summarizeScanCompletion(failedPhases, agentResults) };
   }
 
   // ── Output ────────────────────────────────────────────────────────────────

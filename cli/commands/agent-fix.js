@@ -8,7 +8,7 @@
  *   2. Shows you exactly what it will change (unified diff with line numbers)
  *   3. Asks you to accept, skip, or quit
  *   4. Applies the changes atomically
- *   5. Re-scans to verify the findings are resolved
+ *   5. Re-scans to report disappearance, static refutation or residual findings
  *   6. Logs every change to .ship-safe/fixes.jsonl
  *
  * USAGE:
@@ -22,7 +22,7 @@
  * SAFETY:
  *   - Refuses to operate on a dirty git tree (use --allow-dirty to override)
  *   - Always shows a diff before any write
- *   - Re-scans after each batch to verify the fix
+ *   - Re-scans after each batch without claiming an independent security retest
  *   - Plans may create new files (e.g., .env.example) but cannot edit
  *     .env, secrets, lockfiles, or build artifacts
  *   - Every applied change is logged for audit & undo (`ship-safe undo`)
@@ -64,6 +64,12 @@ const FIX_LOG_FILE = 'fixes.jsonl';
 // =============================================================================
 
 export async function agentFixCommand(targetPath = '.', options = {}) {
+  // Reject before provider discovery, branch creation, scanning or file edits.
+  if (options.sandbox) {
+    output.error('--sandbox is unsupported. No isolated verification runner is available; no changes were made.');
+    process.exitCode = 1;
+    return;
+  }
   const root = path.resolve(targetPath);
 
   if (!fs.existsSync(root)) {
@@ -74,7 +80,7 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
   console.log();
   output.header('Ship Safe — Security Agent');
   console.log(chalk.gray('  I will scan, plan each fix, ask before changing anything,'));
-  console.log(chalk.gray('  and verify the fix worked. You stay in control.'));
+  console.log(chalk.gray('  and report what a static rescan establishes. You stay in control.'));
   console.log();
 
   // ── Git safety check ─────────────────────────────────────────────────────
@@ -127,16 +133,12 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
   }
   console.log(chalk.gray(`  Provider: ${chalk.cyan(provider.name)}`));
 
-  if (options.sandbox) {
-    console.log(chalk.yellow('  --sandbox is not yet implemented — falling back to in-process verification.'));
-    console.log(chalk.gray('  Track this in the agent\'s next milestone.'));
-  }
-
   // ── Run the scan ─────────────────────────────────────────────────────────
   const scanSpinner = ora({ text: 'Scanning for issues...', color: 'cyan' }).start();
   let scanResult;
   try {
-    scanResult = await auditCommand(root, { _agenticInner: true, deep: false, deps: false, noAi: true });
+    scanResult = await auditCommand(root, { _agenticInner: true, deep: false, deps: false, noAi: true, cache: false });
+    if (!isCompleteRescan(scanResult)) throw new Error('Initial scan incomplete; no fixes will be attempted.');
   } catch (err) {
     scanSpinner.fail('Scan failed');
     output.error(err.message);
@@ -270,21 +272,21 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
 
     // Verify by re-scanning
     const verifySpinner = ora({ text: 'Verifying...', color: 'cyan', indent: 6 }).start();
-    const verified = await verifyFile(root, filePath, fileFindings);
+    const verified = await verifyFile(root, filePath, fileFindings, { baseline: scanResult.findings ?? [] });
     if (verified.allResolved) {
-      verifySpinner.succeed(chalk.green(`Fix verified — ${describeFixOutcome(verified.verification)}`));
+      verifySpinner.succeed(chalk.green(`Statically refuted: ${describeFixOutcome(verified.verification)}`));
     } else if (verified.someResolved) {
       verifySpinner.warn(chalk.yellow(`Partial — ${describeFixOutcome(verified.verification)}`));
     } else {
       verifySpinner.warn(chalk.yellow(verified.verification
-        ? `Fix applied, but nothing closed — ${describeFixOutcome(verified.verification)}`
-        : 'Fix applied, but findings still appear'));
+        ? `Fix applied; remediation inconclusive: ${describeFixOutcome(verified.verification)}`
+        : 'Fix applied, but verification failed or was incomplete; no conclusion is available'));
     }
 
     // A fix is an edit like any other. The only thing worse than an unfixed
     // finding is a new one nobody looked for.
     for (const created of verified.verification?.introduced ?? []) {
-      console.log(chalk.red(`      ! new confirmed finding: ${created.rule} at line ${created.line}`));
+      console.log(chalk.red(`      ! ${created.change} ${created.verdict} finding: ${created.rule} in ${created.file} at line ${created.line}`));
       if (created.evidence) console.log(chalk.dim(`        ${created.evidence}`));
     }
 
@@ -316,11 +318,31 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
       file:      filePath,
       findings:  fileFindings.map(f => ({ title: f.title, line: f.line, severity: f.severity, rule: f.rule })),
       plan,
-      verified:  verified.allResolved,
+      verified:  false,
+      verificationError: verified.error ?? null,
+      // Persist the verdict summary, not new copies of source-bearing rationale.
+      verification: verified.verification ? {
+        snapshot: 'after_edit',
+        schemaVersion: verified.verification.schemaVersion,
+        scope: verified.verification.scope,
+        summary: verified.verification.summary,
+      } : null,
       branch:    branchCreated,
     });
 
-    applied.push({ file: filePath, plan, verified });
+    applied.push({ file: filePath, plan, findings: fileFindings, verified });
+  }
+
+  // All final marks must describe one final scan, not stale per-edit results.
+  if (applied.length > 0) {
+    await verifyAppliedFixes(root, applied, { baseline: scanResult.findings });
+    const record = {
+      timestamp: new Date().toISOString(), snapshot: 'session_final', verified: false,
+      results: applied.map(a => ({ file: a.file, error: a.verified.error ?? null,
+        summary: a.verified.verification?.summary ?? null })),
+    };
+    // Separate from undo's per-edit log: final verification is not an edit.
+    fs.appendFileSync(path.join(root, FIX_LOG_DIR, 'final-verifications.jsonl'), JSON.stringify(record) + '\n', 'utf8');
   }
 
   // ── Final report ─────────────────────────────────────────────────────────
@@ -337,7 +359,10 @@ export async function agentFixCommand(targetPath = '.', options = {}) {
     for (const a of applied) {
       const mark = a.verified.allResolved ? chalk.green('✓') : chalk.yellow('?');
       console.log(`    ${mark} ${a.file}`);
+      if (a.verified.verification) console.log(chalk.gray(`      ${describeFixOutcome(a.verified.verification)}`));
+      else console.log(chalk.yellow('      Final rescan failed or was incomplete; no conclusion is available.'));
     }
+    console.log(chalk.gray('  Check marks indicate static refutation only; no independent retest was performed.'));
     console.log();
     console.log(chalk.gray(`  Audit log: ${path.join(FIX_LOG_DIR, FIX_LOG_FILE)}`));
     if (branchCreated) {
@@ -710,21 +735,48 @@ function applyEdit(root, fileChange) {
  * only the first tells a person their fix failed when it worked, and worse,
  * tells them it worked when it only hid.
  */
-async function verifyFile(root, filePath, originalFindings) {
+export async function verifyFile(root, filePath, originalFindings, { baseline = originalFindings, audit = auditCommand } = {}) {
   try {
-    const result = await auditCommand(root, { _agenticInner: true, deep: false, deps: false, noAi: true });
-    const after = (result.findings ?? []).filter(f => f.file === filePath);
-    const verification = classifyFixOutcome(originalFindings, after);
-    const { summary } = verification;
-
-    return {
-      allResolved:  summary.verified,
-      someResolved: summary.resolved + summary.neutralised > 0,
-      resolvedCount: summary.resolved + summary.neutralised,
-      verification,
-    };
+    const result = await audit(root, { _agenticInner: true, deep: false, deps: false, noAi: true, cache: false });
+    return compareRescan(result, filePath, originalFindings, baseline);
   } catch {
-    return { allResolved: false, someResolved: false, resolvedCount: 0, verification: null };
+    return failedVerification();
+  }
+}
+
+function isCompleteRescan(result) {
+  const completion = result?.scanCompletion;
+  return Array.isArray(result?.findings) && completion?.scope === 'secrets_and_agents'
+    && completion.complete === true && Array.isArray(completion.failedPhases)
+    && completion.failedPhases.length === 0 && completion.failedAgents === 0;
+}
+
+function failedVerification() {
+  return { allResolved: false, someResolved: false, resolvedCount: 0, verification: null,
+    error: 'rescan_failed_or_incomplete' };
+}
+
+function compareRescan(result, filePath, originalFindings, baseline) {
+  if (!isCompleteRescan(result)) return failedVerification();
+  const verification = classifyFixOutcome(originalFindings, result.findings, { baseline });
+  verification.scope = { kind: 'repository', target: filePath };
+  const { summary } = verification;
+
+  return {
+    allResolved:  summary.staticallyRefuted,
+    someResolved: summary.resolved + summary.neutralised > 0,
+    resolvedCount: summary.resolved + summary.neutralised,
+    verification,
+  };
+}
+
+export async function verifyAppliedFixes(root, applied, { baseline, audit = auditCommand }) {
+  let result;
+  try {
+    result = await audit(root, { _agenticInner: true, deep: false, deps: false, noAi: true, cache: false });
+  } catch { /* All final marks must fail closed together. */ }
+  for (const entry of applied) {
+    entry.verified = compareRescan(result, entry.file, entry.findings, baseline);
   }
 }
 
@@ -781,6 +833,38 @@ function describePlanFailure(failure) {
 // PR AUTOPILOT
 // =============================================================================
 
+export function buildFixPullRequestBody(applied) {
+  const totalEdits = countPlanEdits(applied);
+  return [
+    '## Ship Safe: Security Fixes',
+    '',
+    `Applied ${applied.length} file(s) of proposed fixes (${totalEdits} edit(s)) generated by the Ship Safe agent.`,
+    '',
+    '### Final static rescan',
+    ...applied.map(a => {
+      const mark = a.verified.allResolved ? '✓' : '⚠';
+      const result = a.verified.verification
+        ? describeFixOutcome(a.verified.verification)
+        : 'Final rescan failed or was incomplete; no conclusion is available.';
+      return `- ${mark} \`${a.file}\`: ${result}`;
+    }),
+    '',
+    '### Notes',
+    '- Final marks use one repository-wide rescan after all edits, not historical per-edit results.',
+    '- A check mark means the targeted findings were statically refuted, not independently retested.',
+    '- Files marked ⚠ have inconclusive results, regressions, residual findings or an incomplete rescan; review before merging.',
+    '- Historical per-edit log: `.ship-safe/fixes.jsonl`.',
+    '- Final-session summaries: `.ship-safe/final-verifications.jsonl`.',
+    '',
+    'Generated by `ship-safe agent`.',
+  ].join('\n');
+}
+
+function countPlanEdits(applied) {
+  return applied.reduce((n, a) => n + (a.plan.files ?? [])
+    .reduce((count, file) => count + (file.edits?.length ?? 0), 0), 0);
+}
+
 async function openPullRequest(root, branch, applied) {
   const ghAvailable = (() => {
     try { execFileSync('gh', ['--version'], { stdio: 'pipe' }); return true; }
@@ -800,26 +884,7 @@ async function openPullRequest(root, branch, applied) {
     return;
   }
 
-  // Build PR body
-  const totalFindings = applied.reduce((n, a) => n + (a.plan.files?.[0]?.edits?.length ?? 0), 0);
-  const body = [
-    '## Ship Safe — Security Fixes',
-    '',
-    `Applied ${applied.length} file(s) of fixes (${totalFindings} edit(s)) generated and verified by the Ship Safe agent.`,
-    '',
-    '### Files changed',
-    ...applied.map(a => {
-      const mark = a.verified.allResolved ? '✓' : '⚠';
-      return `- ${mark} \`${a.file}\` — ${a.plan.summary || 'security fix'}`;
-    }),
-    '',
-    '### Notes',
-    '- Each fix was generated by an LLM and verified by re-scanning the file.',
-    '- Files marked ⚠ have residual findings; review carefully before merging.',
-    '- Full audit log: `.ship-safe/fixes.jsonl`',
-    '',
-    'Generated by `ship-safe agent`.',
-  ].join('\n');
+  const body = buildFixPullRequestBody(applied);
 
   const title = `Security fixes: ${applied.length} file(s)`;
 
@@ -843,7 +908,7 @@ async function openPullRequest(root, branch, applied) {
       `The Ship Safe agent found fixable security issues triggered by this PR and opened **${prUrl}** with proposed fixes.`,
       ``,
       `**Files changed:** ${applied.length}`,
-      `**Total edits:** ${totalFindings}`,
+      `**Total edits:** ${countPlanEdits(applied)}`,
       ``,
       `Review the fix PR and merge if it looks good.`,
     ].join('\n');
