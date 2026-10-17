@@ -470,6 +470,7 @@ Start here:
 - [Handle MCP environment variables safely](./docs/mcp-env-safety.md)
 - [Use Ship Safe with Codex](./docs/integrations/codex.md)
 - [Use Ship Safe with Claude Code](./docs/integrations/claude-code.md)
+- [Use Ship Safe with Cursor](./docs/integrations/cursor.md)
 - [Release process](./docs/releasing.md)
 
 ---
