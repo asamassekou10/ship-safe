@@ -22,20 +22,23 @@ import {
   countOccurrences,
   windowFileContent,
   verifyFile,
+  verifyAppliedFixes,
+  buildFixPullRequestBody,
 } from '../commands/agent-fix.js';
 import { reverseEntry } from '../commands/undo.js';
-import { findUpwards } from '../commands/audit.js';
+import { auditCommand, findUpwards, summarizeScanCompletion } from '../commands/audit.js';
 import { spawnSync } from 'node:child_process';
 
 describe('verification boundaries', () => {
   const target = { file: 'a.js', line: 1, rule: 'DEMO', evidence: { verdict: 'confirmed' } };
+  const complete = findings => ({ findings, scanCompletion: summarizeScanCompletion([], []) });
 
   it('retains cross-file regressions instead of filtering them to the target file', async () => {
     const result = await verifyFile('/fixture', 'a.js', [target], {
-      audit: async () => ({ findings: [
+      audit: async () => complete([
         { ...target, evidence: { verdict: 'refuted' } },
         { ...target, file: 'b.js' },
-      ] }),
+      ]),
     });
     assert.equal(result.allResolved, false);
     assert.equal(result.verification.introduced[0].file, 'b.js');
@@ -47,6 +50,95 @@ describe('verification boundaries', () => {
     assert.equal(result.allResolved, false);
     assert.equal(result.verification, null);
   });
+
+  it('rejects missing completion metadata even when findings is an array', async () => {
+    const result = await verifyFile('/fixture', 'a.js', [target], {
+      audit: async () => ({ findings: [{ ...target, evidence: { verdict: 'refuted' } }] }),
+    });
+    assert.equal(result.verification, null);
+    assert.equal(result.error, 'rescan_failed_or_incomplete');
+  });
+
+  for (const [name, completion] of [
+    ['failed secret phase', summarizeScanCompletion(['secrets'], [])],
+    ['failed agent phase', summarizeScanCompletion(['agents'], [])],
+    ['failed individual agent', summarizeScanCompletion([], [{ success: false }])],
+  ]) {
+    it(`rejects a rescan with a ${name}`, async () => {
+      assert.equal(completion.complete, false);
+      const result = await verifyFile('/fixture', 'a.js', [target], {
+        audit: async () => ({ findings: [{ ...target, evidence: { verdict: 'refuted' } }], scanCompletion: completion }),
+      });
+      assert.equal(result.allResolved, false);
+      assert.equal(result.verification, null);
+    });
+  }
+
+  it('does not count inapplicable agents as failures', () => {
+    assert.deepEqual(summarizeScanCompletion([], [{ success: true }]), {
+      scope: 'secrets_and_agents', complete: true, failedPhases: [], failedAgents: 0,
+    });
+  });
+
+  it('propagates a real plugin failure through the audit seam', async () => {
+    const root = tempDir();
+    try {
+      fs.writeFileSync(path.join(root, 'app.js'), 'export const ready = true;\n');
+      const options = { _agenticInner: true, json: true, noAi: true, deps: false, cache: false };
+      const healthy = await auditCommand(root, options);
+      assert.equal(healthy.scanCompletion.complete, true);
+      const pluginDir = path.join(root, '.ship-safe', 'agents');
+      fs.mkdirSync(pluginDir, { recursive: true });
+      const base = new URL('../agents/base-agent.js', import.meta.url).href;
+      fs.writeFileSync(path.join(pluginDir, 'failing.mjs'), `
+        import { BaseAgent } from ${JSON.stringify(base)};
+        export default class extends BaseAgent {
+          constructor() { super('FailingReviewFixture', 'test failure', 'custom'); }
+          async analyze() { throw new Error('fixture failure'); }
+        }
+      `);
+      const partial = await auditCommand(root, options);
+      assert.ok(Array.isArray(partial.findings));
+      assert.equal(partial.scanCompletion.complete, false);
+      assert.equal(partial.scanCompletion.failedAgents, 1);
+      const verified = await verifyFile(root, 'app.js', [target], { audit: async () => partial });
+      assert.equal(verified.allResolved, false);
+      assert.equal(verified.verification, null);
+    } finally { cleanup(root); }
+  });
+
+  it('uses one uncached final scan and invalidates stale successes', async () => {
+    const other = { ...target, file: 'b.js' };
+    const applied = [target, other].map(f => ({ file: f.file, findings: [f], plan: { files: [] },
+      verified: { allResolved: true } }));
+    let scans = 0;
+    await verifyAppliedFixes('/fixture', applied, { baseline: [target, other], audit: async (_root, options) => {
+      scans++;
+      assert.equal(options.cache, false);
+      return complete([target, { ...other, evidence: { verdict: 'refuted' } }]);
+    } });
+    assert.equal(scans, 1);
+    assert.equal(applied[0].verified.allResolved, false);
+    assert.equal(applied[1].verified.allResolved, true);
+    const body = buildFixPullRequestBody(applied);
+    assert.match(body, /⚠ `a.js`: 1 unchanged/);
+    assert.match(body, /✓ `b.js`/);
+    assert.match(body, /not independently retested/);
+  });
+
+  for (const mode of ['throws', 'partial']) {
+    it(`invalidates all final successes when final scan ${mode}`, async () => {
+      const applied = [{ file: target.file, findings: [target], plan: { files: [] }, verified: { allResolved: true } }];
+      await verifyAppliedFixes('/fixture', applied, { baseline: [target], audit: async () => {
+        if (mode === 'throws') throw new Error('sensitive diagnostic');
+        return { findings: [] };
+      } });
+      assert.equal(applied[0].verified.allResolved, false);
+      const body = buildFixPullRequestBody(applied);
+      assert.match(body, /Final rescan failed or was incomplete/);
+      assert.doesNotMatch(body, /✓|sensitive diagnostic|reviewed by static rescan/);
+    });
+  }
 
   it('rejects an unavailable sandbox before provider lookup or workspace access', () => {
     const result = spawnSync(process.execPath, [

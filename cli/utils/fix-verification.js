@@ -78,19 +78,22 @@ export function classifyFixOutcome(before = [], after = [], { baseline = before 
     baselineGroups.set(key, group);
   }
   const introduced = after
-    .filter((candidate) => {
+    .flatMap((candidate) => {
       const group = baselineGroups.get(JSON.stringify([candidate.file, candidate.rule])) ?? [];
       const existing = group.find(item => !baselineMatches.has(item) && sameFinding(item, candidate));
       if (existing) baselineMatches.add(existing);
-      return !existing && ESTABLISHED.has(verdictOf(candidate));
-    })
-    .map((candidate) => ({
-      rule: candidate.rule,
-      file: candidate.file,
-      line: candidate.line,
-      verdict: verdictOf(candidate),
-      evidence: candidate.evidence?.claims?.at(-1)?.rationale || null,
-    }));
+      const escalated = existing && !ESTABLISHED.has(verdictOf(existing));
+      if (!ESTABLISHED.has(verdictOf(candidate)) || (existing && !escalated)) return [];
+      return [{
+        rule: candidate.rule,
+        file: candidate.file,
+        line: candidate.line,
+        verdict: verdictOf(candidate),
+        change: existing ? 'escalated' : 'introduced',
+        before: existing ? verdictOf(existing) : null,
+        evidence: candidate.evidence?.claims?.at(-1)?.rationale || null,
+      }];
+    });
 
   return { schemaVersion: 2, outcomes, introduced, summary: summarize(outcomes, introduced) };
 }
@@ -137,6 +140,6 @@ export function describeFixOutcome({ summary }) {
   if (summary.unchanged) parts.push(`${summary.unchanged} unchanged`);
   if (!summary.total) parts.push('No original target findings');
 
-  const tail = summary.introduced ? `, and ${summary.introduced} new confirmed or likely finding(s)` : '';
+  const tail = summary.introduced ? `, and ${summary.introduced} new confirmed or likely finding(s) (including escalations)` : '';
   return `${parts.join(', ')}${tail}. No independent retest performed.`;
 }

@@ -15,7 +15,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   migrate to the explicit outcome/status fields; release compatibility requires
   maintainer review. This does not change the scan-report schema version.
 - Include repository-wide confirmed and likely regressions in fix comparisons,
-  without treating unchanged baseline debt as newly introduced findings.
+  including refuted/uncertain baseline findings that escalate, without treating
+  unchanged established debt as newly introduced findings.
+- Use a common final rescan for all fix-summary and generated-PR marks. Reject
+  positive verification results from incomplete secret/agent scans and keep
+  final-session logs separate from historical per-edit undo records.
 - Fail an unsupported `agent --sandbox` request before side effects instead of
   falling back to an in-process rescan.
 

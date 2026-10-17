@@ -120,6 +120,24 @@ describe('saying it in one line', () => {
 });
 
 describe('truthful remediation boundaries', () => {
+  for (const before of ['refuted', 'unknown', 'likely', 'confirmed']) {
+    for (const after of ['refuted', 'unknown', 'likely', 'confirmed']) {
+      it(`classifies baseline verdict transition ${before} -> ${after}`, () => {
+        const target = finding('confirmed');
+        const debt = finding(before, { file: '/repo/src/other.js' });
+        const result = classifyFixOutcome([target], [finding('refuted'),
+          finding(after, { file: debt.file })], { baseline: [target, debt] });
+        const escalated = ['refuted', 'unknown'].includes(before) && ['likely', 'confirmed'].includes(after);
+        assert.equal(result.introduced.length, escalated ? 1 : 0);
+        assert.equal(result.summary.staticallyRefuted, !escalated);
+        if (escalated) {
+          assert.equal(result.summary.status, 'regression_detected');
+          assert.equal(result.introduced[0].change, 'escalated');
+          assert.equal(result.introduced[0].before, before);
+        }
+      });
+    }
+  }
   it('reports regressions even without original target findings', () => {
     const result = classifyFixOutcome([], [finding('confirmed')]);
     assert.equal(result.summary.status, 'regression_detected');
