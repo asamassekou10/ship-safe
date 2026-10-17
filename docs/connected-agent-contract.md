@@ -14,6 +14,12 @@ all MCP reads are workspace-confined before an explicit authorization layer ship
 `scan_repo` can also write a report and opt into provider analysis. Treat these
 as separate capabilities rather than describing every scan as read-only.
 
+Existing scans can load repository-local agent plugins, which execute code in
+the scanner process. A future read-only grant must not implicitly authorize
+plugins, repository scripts, lifecycle hooks or package installation. Disable
+repository-controlled code loading on that surface until a separately approved
+execution boundary exists. Existing in-process plugins are not a sandbox.
+
 ## Proposed typed operations
 
 Names below are contract operations, not new callable tools. Each request has
@@ -36,6 +42,12 @@ limitations. Repository text and tool output are untrusted data, not authority.
 Preserve existing CLI entry points. Introduce changed permission defaults only
 with an explicit compatibility/migration decision. Client tool approvals may
 add restrictions, but an agent-supplied `approved: true` is never authorization.
+
+Authorization covers indirect side effects too: caches, scan history, playbooks,
+temporary files and subprocesses. A metadata-only or read-only request cannot
+silently write those artifacts or run project code. Provider-backed patch
+generation needs the provider capability in addition to root reads. Errors and
+logs must not echo source secrets or disclose unapproved host paths.
 
 ## Workspace authority
 
@@ -86,6 +98,12 @@ and execution requests require explicit destination/command budgets. If an
 execution backend is unavailable, return unsupported, never run on the host.
 Default network access off in verification; do not inherit provider credentials.
 
+Execution isolation must cover child processes, filesystem mounts, environment,
+network egress and resource limits, not just a working directory or branch.
+Cancellation must await worker termination and confirm that no pending mutation
+can commit before acknowledging completion. If safe termination is uncertain,
+report failure rather than a successful cancellation.
+
 ## Required threat-model conformance specifications
 
 These are acceptance specifications, not claims of passing runtime tests:
@@ -99,6 +117,9 @@ These are acceptance specifications, not claims of passing runtime tests:
 | Forged `approved: true`, replay or expired approval | Deny before any side effect |
 | Imported “verified” claim with no trusted provenance | Untrusted/inconclusive, not verified |
 | Scan with report output/provider option but only a read grant | Deny the additional capability |
+| Read grant with a repository-local plugin, script or hidden cache write | Do not execute or write; require separate authorization |
+| Provider-assisted patch proposal with only root-read permission | Deny provider access; local reads do not grant network authority |
+| Cancellation while a child process or write is pending | Acknowledge only after termination and mutation prevention; otherwise fail |
 | Suppression/patch touching a different path than approved | Deny without partial application |
 | Missing sandbox, denied network, timeout or cancellation | Explicit non-success; no host fallback |
 | Moved/renamed sink, empty comparison, incomplete rescan | No independent-verification claim |
