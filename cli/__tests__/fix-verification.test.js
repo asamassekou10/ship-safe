@@ -120,6 +120,15 @@ describe('saying it in one line', () => {
 });
 
 describe('truthful remediation boundaries', () => {
+  it('reports regressions even without original target findings', () => {
+    const result = classifyFixOutcome([], [finding('confirmed')]);
+    assert.equal(result.summary.status, 'regression_detected');
+    assert.equal(result.summary.verified, false);
+    assert.match(describeFixOutcome(result), /1 new confirmed or likely finding/);
+    assert.match(describeFixOutcome(result), /No independent retest performed/);
+    assert.doesNotMatch(describeFixOutcome(result), /Nothing to verify/);
+  });
+
   it('does not verify a moved sink that became uncertain', () => {
     const result = classifyFixOutcome([finding('confirmed')], [finding('unknown', { line: 90 })]);
     assert.equal(result.summary.verified, false);

@@ -62,8 +62,7 @@ export function classifyFixOutcome(before = [], after = [], { baseline = before 
       before: verdictOf(original),
       after: survivor ? verdictOf(survivor) : null,
       outcome: outcomeFor(verdictOf(original), survivor ? verdictOf(survivor) : null),
-      // The reason the survivor is now refuted is the proof the fix worked, so
-      // it travels with the outcome rather than being summarised away.
+      // Preserve the static rationale without treating it as independent proof.
       evidence: survivor?.evidence?.claims?.at(-1)?.rationale || null,
     };
   });
@@ -129,13 +128,14 @@ function summarize(outcomes, introduced) {
 
 /** One line a person can read without unpacking the object. */
 export function describeFixOutcome({ summary }) {
-  if (!summary.total) return 'Nothing to verify.';
+  if (!summary.total && !summary.introduced) return 'Nothing to verify. No independent retest performed.';
 
   const parts = [];
   if (summary.resolved) parts.push(`${summary.resolved} no longer detected`);
   if (summary.neutralised) parts.push(`${summary.neutralised} still detected but now refuted by static analysis`);
   if (summary.weakened) parts.push(`${summary.weakened} weakened without proof`);
   if (summary.unchanged) parts.push(`${summary.unchanged} unchanged`);
+  if (!summary.total) parts.push('No original target findings');
 
   const tail = summary.introduced ? `, and ${summary.introduced} new confirmed or likely finding(s)` : '';
   return `${parts.join(', ')}${tail}. No independent retest performed.`;
