@@ -294,7 +294,7 @@ class OpenAIProvider extends BaseLLMProvider {
 class GoogleProvider extends BaseLLMProvider {
   constructor(apiKey, options = {}) {
     super('Google', apiKey, options);
-    this.model = options.model || 'gemini-2.0-flash';
+    this.model = options.model || 'gemini-3.8-flash';
   }
 
   async complete(systemPrompt, userPrompt, options = {}) {
